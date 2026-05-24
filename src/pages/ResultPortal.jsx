@@ -442,7 +442,7 @@ const ResultPortal = () => {
              <Home size={18} /> Back
           </button>
           
-          <img src="/logo.png" alt="School Logo" style={{ width: '80px', height: '80px', objectFit: 'contain', margin: '0 auto 1rem', display: 'block' }} />
+          <img src="/logo.png" alt="School Logo" style={{ width: '120px', height: '120px', objectFit: 'contain', margin: '0 auto 0.5rem', display: 'block' }} />
           
           <h1 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Student Result Portal</h1>
           <p style={{ color: 'var(--text-secondary)' }}>Enter your 6-digit PIN to view your academic progress.</p>

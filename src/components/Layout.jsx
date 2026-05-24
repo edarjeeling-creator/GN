@@ -19,9 +19,9 @@ const Layout = ({ children }) => {
   return (
     <div className="app-layout">
       <aside className="sidebar">
-        <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <img src="/logo.png" alt="School Logo" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
-          <span>SmartGrades</span>
+        <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '1rem 0' }}>
+          <img src="/logo.png" alt="School Logo" style={{ width: '64px', height: '64px', objectFit: 'contain', marginLeft: '-10px' }} />
+          <span style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>SmartGrades</span>
         </div>
         <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
            Logged in as:<br/>
