@@ -6,6 +6,7 @@ import { useData } from '../context/DataContext';
 import { getConversionConstants } from './SubjectMarks';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import * as XLSX from 'xlsx';
+import WebsiteCMS from '../components/WebsiteCMS';
 
 const Admin = () => {
   const { academicYear, classes, subjects, students, updateStudentLanguages, loadingData } = useData();
@@ -741,6 +742,10 @@ const Admin = () => {
           </div>
         </div>
       )}
+
+      {/* Website CMS */}
+      <WebsiteCMS />
+
     </motion.div>
   );
 };
