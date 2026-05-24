@@ -19,8 +19,8 @@ const Layout = ({ children }) => {
   return (
     <div className="app-layout">
       <aside className="sidebar">
-        <div className="sidebar-header">
-          <BookOpen className="text-primary" />
+        <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <img src="/logo.png" alt="School Logo" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
           <span>SmartGrades</span>
         </div>
         <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>

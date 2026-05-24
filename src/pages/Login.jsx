@@ -27,6 +27,7 @@ const Login = () => {
   return (
     <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-color)' }}>
       <div className="card" style={{ width: '400px', padding: '2rem' }}>
+        <img src="/logo.png" alt="School Logo" style={{ width: '80px', height: '80px', objectFit: 'contain', margin: '0 auto 1rem', display: 'block' }} />
         <h2 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--primary-color)' }}>SmartGrades Login</h2>
         {error && <div className="badge badge-danger" style={{ width: '100%', textAlign: 'center', marginBottom: '1rem', padding: '0.5rem' }}>{error}</div>}
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

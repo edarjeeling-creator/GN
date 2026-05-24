@@ -441,9 +441,9 @@ const ResultPortal = () => {
           >
              <Home size={18} /> Back
           </button>
-          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'var(--primary-color)', color: 'white', width: '60px', height: '60px', borderRadius: '50%', marginBottom: '1rem' }}>
-            <BookOpen size={32} />
-          </div>
+          
+          <img src="/logo.png" alt="School Logo" style={{ width: '80px', height: '80px', objectFit: 'contain', margin: '0 auto 1rem', display: 'block' }} />
+          
           <h1 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Student Result Portal</h1>
           <p style={{ color: 'var(--text-secondary)' }}>Enter your 6-digit PIN to view your academic progress.</p>
         </div>
