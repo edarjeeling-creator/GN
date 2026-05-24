@@ -1,0 +1,505 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import { Search, Loader2, BookOpen } from 'lucide-react';
+
+const ResultPortal = () => {
+  const queryParams = new URLSearchParams(window.location.search);
+  const initialUid = queryParams.get('uid') || '';
+  const [uid, setUid] = useState(initialUid);
+  const [academicYear, setAcademicYear] = useState(new Date().getFullYear().toString());
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [resultData, setResultData] = useState(null);
+  const [selectedTerm, setSelectedTerm] = useState('Midterm'); // 'Midterm', 'Finalterm', 'Combined'
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({length: 6}, (_, i) => `${currentYear - 1 + i}`);
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!uid) return;
+    
+    setLoading(true);
+    setError('');
+    setResultData(null);
+
+    try {
+      // Call the secure RPC function
+      const { data, error } = await supabase.rpc('get_student_report', { 
+        p_uid: uid,
+        p_academic_year: academicYear
+      });
+
+      if (error) throw error;
+      if (!data) {
+        setError('No student found with this UID for the selected academic year.');
+        return;
+      }
+
+      setResultData(data);
+    } catch (err) {
+      console.error(err);
+      setError('An error occurred while fetching your result. Please ensure your UID is correct.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Auto-search if initialUid is provided
+  useEffect(() => {
+    if (initialUid) {
+      handleSearch({ preventDefault: () => {} });
+    }
+  }, []);
+
+  const renderReportCard = () => {
+    if (!resultData) return null;
+
+    const { student, class: cls, marks, subjects, class_marks, attendance } = resultData;
+    
+    const isHigherClass = ['9', '10', '11', '12'].some(grade => cls.name.includes(grade));
+    const examConv = isHigherClass ? 80 : 75;
+    const isICSEClass = cls?.name?.match(/\b(9|10|ix|x)\b/i);
+    const isISCClass = cls?.name?.match(/\b(11|12|xi|xii)\b/i);
+
+    let groupsToUse = [];
+    if (isICSEClass) {
+      groupsToUse = [
+        { name: 'English', matchers: ['english paper', 'english language', 'english literature'] },
+        { name: 'HCG', matchers: ['history', 'civics', 'geography'] },
+        { name: 'Science', matchers: ['physics', 'chemistry', 'biology', 'science'] }
+      ];
+    } else if (isISCClass) {
+      groupsToUse = [
+        { name: 'English', matchers: ['english paper', 'english language', 'english literature'] }
+      ];
+    }
+
+    const allSubjects = subjects || [];
+    
+    // Only include subjects that the student actually has marks for
+    const studentSubjects = allSubjects.filter(sub => {
+      return marks && marks.some(m => m && m.subject_id === sub.id);
+    });
+
+    // Sort subjects to match the specified order
+    const subjectOrder = [
+      'english language', 'english literature', '2nd language', 'physics', 
+      'chemistry', 'biology', 'maths', 'history', 'geography', 
+      'computer', 'general knowledge', '3rd language'
+    ];
+    studentSubjects.sort((a, b) => {
+      const idxA = subjectOrder.indexOf(a.name.toLowerCase().trim());
+      const idxB = subjectOrder.indexOf(b.name.toLowerCase().trim());
+      return (idxA !== -1 ? idxA : 99) - (idxB !== -1 ? idxB : 99);
+    });
+
+    // 1. Calculate Grand Total for THIS student
+    let grandTotal = 0;
+    const subjectScores = studentSubjects.map(sub => {
+      const getDynamicName = (name) => {
+        const lowerName = name.toLowerCase();
+        const isSec = lowerName.includes('2nd language') || lowerName.includes('second language');
+        const isThird = lowerName.includes('3rd language') || lowerName.includes('third language');
+        const isElective = lowerName.includes('elective') || lowerName.includes('evs/math') || lowerName.includes('maths/evs') || lowerName.includes('math/evs');
+        const isSixth = lowerName.includes('6th') || lowerName.includes('sixth');
+        
+        if (isSec && student.second_language && !lowerName.includes(student.second_language.toLowerCase())) {
+          return `${name} (${student.second_language})`;
+        }
+        if (isThird && student.third_language && !lowerName.includes(student.third_language.toLowerCase())) {
+          return `${name} (${student.third_language})`;
+        }
+        if (isElective && student.elective_subject) {
+          return student.elective_subject;
+        }
+        if (isSixth && student.sixth_subject) {
+          return student.sixth_subject;
+        }
+        return name;
+      };
+
+      const getVal = (term) => {
+        const fullTerm = `${academicYear}_${term}`;
+        const markObj = marks ? marks.find(m => m && m.subject_id === sub.id && m.term === fullTerm) : null;
+        return markObj && markObj.score !== null ? Number(markObj.score) : 0;
+      };
+
+      const mtExam = getVal('Midterm_Exam');
+      const mtTest = getVal('Midterm_Test');
+      const mtConv = mtExam * (examConv / 100);
+      const mtTotal = Math.round(mtConv + mtTest);
+
+      const ftExam = getVal('Finalterm_Exam');
+      const ftTest = getVal('Finalterm_Test');
+      const ftConv = ftExam * (examConv / 100);
+      const ftTotal = Math.round(ftConv + ftTest);
+
+      let subjectTotal = 0;
+      if (selectedTerm === 'Midterm') subjectTotal = mtTotal;
+      else if (selectedTerm === 'Finalterm') subjectTotal = ftTotal;
+      else subjectTotal = mtTotal + ftTotal;
+
+      return { subjectId: sub.id, subjectName: getDynamicName(sub.name), total: subjectTotal };
+    });
+
+    let finalSubjectRows = [];
+    grandTotal = 0;
+    let maxPossibleTotal = 0;
+
+    if (groupsToUse.length > 0) {
+      const grouped = [];
+      const standalone = [];
+      
+      const findGroup = (name) => {
+        const lowerName = name.toLowerCase();
+        return groupsToUse.find(g => g.matchers.some(m => lowerName.includes(m)));
+      };
+
+      subjectScores.forEach(score => {
+        const group = findGroup(score.subjectName);
+        if (group) {
+          let existing = grouped.find(g => g.groupName === group.name);
+          if (!existing) {
+            existing = { groupName: group.name, items: [] };
+            grouped.push(existing);
+          }
+          existing.items.push(score);
+        } else {
+          standalone.push(score);
+        }
+      });
+
+      grouped.forEach(g => {
+        const sum = g.items.reduce((acc, curr) => acc + curr.total, 0);
+        const avg = Math.round(sum / g.items.length);
+        grandTotal += avg;
+        maxPossibleTotal += (selectedTerm === 'Combined' ? 200 : 100);
+
+        g.items.forEach((item, index) => {
+          finalSubjectRows.push({
+            ...item,
+            marksOut100: item.total,
+            isGroupStart: index === 0,
+            rowSpan: g.items.length,
+            groupTotal: avg,
+            isStandalone: false
+          });
+        });
+      });
+
+      standalone.forEach(item => {
+        grandTotal += item.total;
+        maxPossibleTotal += (selectedTerm === 'Combined' ? 200 : 100);
+        finalSubjectRows.push({
+          ...item,
+          marksOut100: null,
+          isGroupStart: true,
+          rowSpan: 1,
+          groupTotal: item.total,
+          isStandalone: true
+        });
+      });
+    } else {
+      finalSubjectRows = subjectScores.map(item => ({
+        ...item,
+        marksOut100: null,
+        isGroupStart: true,
+        rowSpan: 1,
+        groupTotal: item.total,
+        isStandalone: true
+      }));
+      grandTotal = subjectScores.reduce((acc, curr) => acc + curr.total, 0);
+      maxPossibleTotal = subjectScores.length * (selectedTerm === 'Combined' ? 200 : 100);
+    }
+
+    // 2. Calculate Grand Totals for ALL students in the class to find Rank
+    let rank = '-';
+    if (class_marks && class_marks.length > 0) {
+      const marksByStudent = {};
+      class_marks.forEach(m => {
+        if (!m) return;
+        if (!marksByStudent[m.student_id]) marksByStudent[m.student_id] = [];
+        marksByStudent[m.student_id].push(m);
+      });
+
+        const allTotals = [];
+        Object.keys(marksByStudent).forEach(sid => {
+          let sidTotal = 0;
+          const sMarks = marksByStudent[sid];
+          const sidSubjectScores = [];
+          
+          allSubjects.forEach(sub => {
+            const getVal = (term) => {
+              const fullTerm = `${academicYear}_${term}`;
+              const markObj = sMarks.find(m => m.subject_id === sub.id && m.term === fullTerm);
+              return markObj && markObj.score !== null ? Number(markObj.score) : 0;
+            };
+
+            const mtExam = getVal('Midterm_Exam');
+            const mtTest = getVal('Midterm_Test');
+            const mtConv = mtExam * (examConv / 100);
+            const mtTotal = Math.round(mtConv + mtTest);
+
+            const ftExam = getVal('Finalterm_Exam');
+            const ftTest = getVal('Finalterm_Test');
+            const ftConv = ftExam * (examConv / 100);
+            const ftTotal = Math.round(ftConv + ftTest);
+
+            let subTot = 0;
+            if (selectedTerm === 'Midterm') subTot = mtTotal;
+            else if (selectedTerm === 'Finalterm') subTot = ftTotal;
+            else subTot = mtTotal + ftTotal;
+
+            if (subTot > 0 || Object.keys(sMarks).length > 0) {
+                sidSubjectScores.push({ subjectName: sub.name, total: subTot });
+            }
+          });
+
+          if (groupsToUse.length > 0) {
+            const grouped = [];
+            const standalone = [];
+            const findGroup = (name) => {
+              const lowerName = name.toLowerCase();
+              return groupsToUse.find(g => g.matchers.some(m => lowerName.includes(m)));
+            };
+
+            sidSubjectScores.forEach(score => {
+              const group = findGroup(score.subjectName);
+              if (group) {
+                let existing = grouped.find(g => g.groupName === group.name);
+                if (!existing) { existing = { groupName: group.name, items: [] }; grouped.push(existing); }
+                existing.items.push(score);
+              } else {
+                standalone.push(score);
+              }
+            });
+
+            grouped.forEach(g => {
+              const sum = g.items.reduce((acc, curr) => acc + curr.total, 0);
+              sidTotal += Math.round(sum / g.items.length);
+            });
+            standalone.forEach(item => { sidTotal += item.total; });
+          } else {
+            sidTotal = sidSubjectScores.reduce((acc, curr) => acc + curr.total, 0);
+          }
+          
+          let sidMaxPossible = sidSubjectScores.length * (selectedTerm === 'Combined' ? 200 : 100);
+          if (groupsToUse.length > 0) {
+             const groupCount = Array.from(new Set(sidSubjectScores.map(s => {
+               const group = groupsToUse.find(g => g.matchers.some(m => s.subjectName.toLowerCase().includes(m)));
+               return group ? group.name : null;
+             }).filter(Boolean))).length;
+             const standaloneCount = sidSubjectScores.filter(s => {
+               const group = groupsToUse.find(g => g.matchers.some(m => s.subjectName.toLowerCase().includes(m)));
+               return !group;
+             }).length;
+             sidMaxPossible = (groupCount + standaloneCount) * (selectedTerm === 'Combined' ? 200 : 100);
+          }
+          
+          let sidPercentage = sidMaxPossible > 0 ? (sidTotal / sidMaxPossible) * 100 : 0;
+          allTotals.push(isISCClass ? sidPercentage : sidTotal);
+        });
+        
+        allTotals.sort((a, b) => b - a);
+        const myCompareValue = isISCClass ? (maxPossibleTotal > 0 ? (grandTotal / maxPossibleTotal) * 100 : 0) : grandTotal;
+        rank = allTotals.findIndex(v => Math.abs(v - myCompareValue) < 0.01) + 1;
+    }
+
+    const percentage = maxPossibleTotal > 0 ? ((grandTotal / maxPossibleTotal) * 100).toFixed(1) : 0;
+
+    const getTermLabel = () => {
+      if (selectedTerm === 'Midterm') return 'MID-TERM';
+      if (selectedTerm === 'Finalterm') return 'FINAL-TERM';
+      return 'COMBINED';
+    };
+
+    const getOutOFAmount = () => selectedTerm === 'Combined' ? 200 : 100;
+
+    // Calculate Attendance
+    const stuAtt = attendance || [];
+    const totalWorkingDays = stuAtt.length;
+    const daysPresent = stuAtt.filter(a => a.status === 'Present' || a.status === 'Late').length;
+    const daysHalfDay = stuAtt.filter(a => a.status === 'Half Day').length;
+    const effectivePresent = daysPresent + (daysHalfDay * 0.5);
+    const attendancePercentage = totalWorkingDays > 0 ? ((effectivePresent / totalWorkingDays) * 100).toFixed(1) : '-';
+
+    return (
+      <div className="report-card-slip" style={{
+        border: '2px solid #000',
+        width: '100%',
+        maxWidth: '600px',
+        margin: '2rem auto',
+        padding: '1rem',
+        fontFamily: '"Times New Roman", Times, serif',
+        background: '#fff',
+        color: '#000',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+      }}>
+        <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+           <h2 style={{ margin: 0, color: '#000' }}>SmartGrades School</h2>
+           <p style={{ margin: 0 }}>Online Result Portal</p>
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', marginBottom: '1rem' }}>
+          <tbody>
+            <tr>
+              <td colSpan="3" style={{ padding: '0.25rem 0.5rem', border: '1px solid #000', textTransform: 'uppercase' }}>
+                <strong>STUDENT NAME :</strong> {student.name}
+              </td>
+            </tr>
+            <tr>
+              <td style={{ padding: '0.25rem 0.5rem', border: '1px solid #000' }}>
+                <strong>Class :</strong> {cls.name}
+              </td>
+              <td style={{ padding: '0.25rem 0.5rem', border: '1px solid #000' }}>
+                <strong>Section :</strong> {cls.section}
+              </td>
+              <td style={{ padding: '0.25rem 0.5rem', border: '1px solid #000' }}>
+                <strong>Roll No:</strong> {student.roll_no}
+              </td>
+            </tr>
+            <tr>
+              <td colSpan="3" style={{ padding: '0.5rem', border: '1px solid #000', textAlign: 'center', fontWeight: 'bold' }}>
+                {getTermLabel()} PROGRESS REPORT CARD - {academicYear}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', marginBottom: '1rem' }}>
+          <thead>
+            <tr>
+              <th style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textAlign: 'left', width: groupsToUse.length > 0 ? '40%' : '60%' }}>Subjects</th>
+              {groupsToUse.length > 0 && <th style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textAlign: 'center', width: '30%' }}>Marks out of {getOutOFAmount()}</th>}
+              <th style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textAlign: 'center', width: groupsToUse.length > 0 ? '30%' : '40%' }}>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {finalSubjectRows.map(score => (
+              <tr key={score.subjectId}>
+                <td style={{ border: '1px solid #000', padding: '0.25rem 0.5rem' }}>{score.subjectName}</td>
+                {groupsToUse.length > 0 && (
+                  <td style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textAlign: 'center' }}>
+                    {score.marksOut100 !== null ? score.marksOut100 : ''}
+                  </td>
+                )}
+                {score.isGroupStart && (
+                  <td 
+                    rowSpan={score.rowSpan} 
+                    style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textAlign: 'center', verticalAlign: 'middle' }}
+                  >
+                    {score.groupTotal}
+                  </td>
+                )}
+              </tr>
+            ))}
+            <tr>
+              <td colSpan={groupsToUse.length > 0 ? 2 : 1} style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', fontWeight: 'bold', textTransform: 'uppercase' }}>TOTAL</td>
+              <td style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textAlign: 'center', fontWeight: 'bold' }}>{grandTotal}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000' }}>
+          <tbody>
+            <tr>
+              <td style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textTransform: 'uppercase', width: '33%' }}>PERCENTAGE %</td>
+              <td style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', width: '33%', textAlign: 'center' }}>{percentage}</td>
+              <td style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textTransform: 'uppercase', width: '17%' }}>RANK</td>
+              <td style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', width: '17%', textAlign: 'center', fontWeight: 'bold' }}>{rank}</td>
+            </tr>
+            <tr>
+              <td style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textTransform: 'uppercase' }}>ATTENDANCE:</td>
+              <td colSpan="3" style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textAlign: 'center' }}>
+                {totalWorkingDays > 0 
+                  ? `${effectivePresent} / ${totalWorkingDays} Days (${attendancePercentage}%)` 
+                  : 'N/A'}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+           <button className="btn btn-primary" onClick={() => window.print()}>Print / Save as PDF</button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg-color)', padding: '2rem' }}>
+      <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+        
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'var(--primary-color)', color: 'white', width: '60px', height: '60px', borderRadius: '50%', marginBottom: '1rem' }}>
+            <BookOpen size={32} />
+          </div>
+          <h1 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Student Result Portal</h1>
+          <p style={{ color: 'var(--text-secondary)' }}>Enter your 6-digit PIN to view your academic progress.</p>
+        </div>
+
+        <div className="card p-6" style={{ background: 'var(--surface-color)' }}>
+          <form onSubmit={handleSearch} className="flex flex-col gap-4">
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Academic Year</label>
+              <select 
+                className="input-field w-full" 
+                value={academicYear}
+                onChange={(e) => setAcademicYear(e.target.value)}
+              >
+                {years.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Term</label>
+              <select 
+                className="input-field w-full" 
+                value={selectedTerm}
+                onChange={(e) => {
+                  setSelectedTerm(e.target.value);
+                  setResultData(null); // Clear data so they search again for the new term
+                }}
+              >
+                <option value="Midterm">Mid-Term Report</option>
+                <option value="Finalterm">Final-Term Report</option>
+                <option value="Combined">Combined (Annual)</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Student UID (6-Digit PIN)</label>
+              <div className="relative">
+                <Search size={20} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input
+                  type="text"
+                  placeholder="e.g. 849201"
+                  className="input-field w-full"
+                  style={{ paddingLeft: '40px', fontSize: '1.2rem', letterSpacing: '2px' }}
+                  value={uid}
+                  onChange={(e) => setUid(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                  required
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div style={{ color: 'var(--danger-color)', padding: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
+                {error}
+              </div>
+            )}
+
+            <button type="submit" className="btn btn-primary w-full py-3" disabled={loading}>
+              {loading ? <Loader2 className="animate-spin" /> : 'View Report Card'}
+            </button>
+          </form>
+        </div>
+
+        {renderReportCard()}
+
+      </div>
+    </div>
+  );
+};
+
+export default ResultPortal;
