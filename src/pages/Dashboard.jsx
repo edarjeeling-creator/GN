@@ -1,6 +1,6 @@
 import { useData } from '../context/DataContext';
 import { motion } from 'framer-motion';
-import { BookOpen, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { BookOpen, AlertCircle, CheckCircle, Clock, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
