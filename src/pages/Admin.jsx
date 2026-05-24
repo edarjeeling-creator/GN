@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { motion } from 'framer-motion';
+import { Users, BookOpen, Shield, Layers } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { getConversionConstants } from './SubjectMarks';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
@@ -22,6 +24,9 @@ const Admin = () => {
   const [newSubject, setNewSubject] = useState('');
   const [assignment, setAssignment] = useState({ teacher_id: '', class_id: '', subject_id: '' });
   
+  const [news, setNews] = useState([]);
+  const [newNewsContent, setNewNewsContent] = useState('');
+
   const [importClassId, setImportClassId] = useState('');
   const fileInputRef = useRef(null);
 
@@ -37,6 +42,7 @@ const Admin = () => {
 
   useEffect(() => {
     fetchStats();
+    fetchNews();
   }, [academicYear]);
 
   const fetchStats = async () => {
@@ -61,6 +67,38 @@ const Admin = () => {
 
     const { data: tData } = await supabase.from('profiles').select('*').eq('role', 'teacher').order('name');
     if (tData) setTeachers(tData);
+  };
+
+  const fetchNews = async () => {
+    const { data, error } = await supabase.from('news').select('*').order('created_at', { ascending: false });
+    if (!error && data) {
+      setNews(data);
+    }
+  };
+
+  const handleAddNews = async (e) => {
+    e.preventDefault();
+    if (!newNewsContent) return;
+    const { error } = await supabase.from('news').insert([{ content: newNewsContent, is_active: true }]);
+    if (!error) {
+      setNewNewsContent('');
+      fetchNews();
+    } else {
+      alert("Error adding news: " + error.message);
+    }
+  };
+
+  const handleDeleteNews = async (id) => {
+    if (!window.confirm("Delete this announcement?")) return;
+    const { error } = await supabase.from('news').delete().match({ id });
+    if (!error) fetchNews();
+    else alert("Error deleting news: " + error.message);
+  };
+
+  const handleToggleNews = async (id, currentStatus) => {
+    const { error } = await supabase.from('news').update({ is_active: !currentStatus }).match({ id });
+    if (!error) fetchNews();
+    else alert("Error updating news: " + error.message);
   };
 
   const handleAddClass = async (e) => {
@@ -260,38 +298,61 @@ const Admin = () => {
   if (loadingData) return <div>Loading Admin...</div>;
 
   return (
-    <div>
-      <div className="page-header mb-4">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
+      <div className="page-header" style={{ borderBottom: 'none', marginBottom: '2rem' }}>
         <div>
-          <h1>Admin Dashboard</h1>
-          <p>System Management and Analytics</p>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>Admin Dashboard</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>System Management and Analytics</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="card text-center">
-          <h3>Total Classes</h3>
-          <p style={{ fontSize: '2rem', color: 'var(--primary-color)', fontWeight: 'bold' }}>{stats.classes}</p>
-        </div>
-        <div className="card text-center">
-          <h3>Total Students</h3>
-          <p style={{ fontSize: '2rem', color: 'var(--secondary-color)', fontWeight: 'bold' }}>{stats.students}</p>
-        </div>
-        <div className="card text-center">
-          <h3>Subjects</h3>
-          <p style={{ fontSize: '2rem', color: 'var(--warning-color)', fontWeight: 'bold' }}>{stats.subjects}</p>
-        </div>
-        <div className="card text-center">
-          <h3>Teachers</h3>
-          <p style={{ fontSize: '2rem', color: 'var(--danger-color)', fontWeight: 'bold' }}>{stats.teachers}</p>
-        </div>
+      <div className="bento-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', marginBottom: '2rem' }}>
+        <motion.div whileHover={{ y: -5 }} className="bento-card" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: '4px solid #3b82f6' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Total Classes</h3>
+            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Layers size={20} />
+            </div>
+          </div>
+          <p style={{ fontSize: '2.5rem', fontWeight: 900, color: '#3b82f6', lineHeight: 1 }}>{stats.classes}</p>
+        </motion.div>
+        
+        <motion.div whileHover={{ y: -5 }} className="bento-card" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: '4px solid #10b981' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Total Students</h3>
+            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Users size={20} />
+            </div>
+          </div>
+          <p style={{ fontSize: '2.5rem', fontWeight: 900, color: '#10b981', lineHeight: 1 }}>{stats.students}</p>
+        </motion.div>
+
+        <motion.div whileHover={{ y: -5 }} className="bento-card" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: '4px solid #f59e0b' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Subjects</h3>
+            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <BookOpen size={20} />
+            </div>
+          </div>
+          <p style={{ fontSize: '2.5rem', fontWeight: 900, color: '#f59e0b', lineHeight: 1 }}>{stats.subjects}</p>
+        </motion.div>
+
+        <motion.div whileHover={{ y: -5 }} className="bento-card" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: '4px solid #ef4444' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Teachers</h3>
+            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Shield size={20} />
+            </div>
+          </div>
+          <p style={{ fontSize: '2.5rem', fontWeight: 900, color: '#ef4444', lineHeight: 1 }}>{stats.teachers}</p>
+        </motion.div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
         
         <div className="flex" style={{ flexDirection: 'column', gap: '1.5rem' }}>
-          <div className="card">
-            <h3 className="mb-4">Class Performance Analytics</h3>
+          <div className="bento-card" style={{ padding: '2rem' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Class Performance Analytics</h3>
             <div style={{ height: '300px' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
@@ -300,16 +361,16 @@ const Admin = () => {
                   <YAxis />
                   <Tooltip cursor={{fill: 'transparent'}} />
                   <Legend />
-                  <Bar dataKey="averageScore" name="Average Score" fill="var(--primary-color)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="highestScore" name="Highest Score" fill="var(--secondary-color)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="averageScore" name="Average Score" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="highestScore" name="Highest Score" fill="#10b981" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <div className="card">
-            <h3 className="mb-4 text-primary">Bulk Import Students</h3>
-            <p className="mb-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <div className="bento-card" style={{ padding: '2rem' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--text-primary)' }}>Bulk Import Students</h3>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
               Select a class and upload an Excel (.xlsx or .csv) file with columns <strong>Name</strong> and <strong>Roll No</strong>.
             </p>
             <div className="flex flex-col gap-4">
@@ -327,15 +388,16 @@ const Admin = () => {
                   type="file" 
                   accept=".xlsx, .xls, .csv"
                   ref={fileInputRef}
-                  style={{ padding: '0.5rem', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', width: '100%' }}
+                  style={{ padding: '0.5rem', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', width: '100%', background: '#f8fafc' }}
                 />
-                <button className="btn btn-primary" onClick={handleFileUpload}>
+                <button className="btn-hero-primary" style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.5rem 1rem' }} onClick={handleFileUpload}>
                   Import
                 </button>
               </div>
 
               <button 
-                className="btn btn-outline mt-4" 
+                className="btn-hero-outline" 
+                style={{ border: '2px solid #e2e8f0', color: 'var(--text-primary)', marginTop: '1rem', width: '100%', padding: '0.75rem' }}
                 onClick={async () => {
                   if (!importClassId) return alert('Select a class first!');
                   const { data } = await supabase.from('students').select('roll_no, name, second_language, third_language, uid').eq('class_id', importClassId).order('roll_no');
@@ -352,9 +414,9 @@ const Admin = () => {
             </div>
           </div>
 
-          <div className="card">
-            <h3 className="mb-4 text-secondary">Bulk Import Historical Totals</h3>
-            <p className="mb-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <div className="bento-card" style={{ padding: '2rem' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--text-primary)' }}>Bulk Import Historical Totals</h3>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
               Upload your historical Flowsheet Excel directly. Ensure column headers exactly match Subject Names!
             </p>
             <div className="flex flex-col gap-4">
@@ -377,15 +439,15 @@ const Admin = () => {
               </select>
 
               <div style={{ marginTop: '0.5rem' }}>
-                <label className="text-sm font-bold block mb-2">3. Upload Historical Excel</label>
+                <label className="text-sm font-bold block mb-2" style={{ color: 'var(--text-secondary)' }}>3. Upload Historical Excel</label>
                 <div className="flex gap-2">
                   <input 
                     type="file" 
                     accept=".xlsx, .xls, .csv"
                     ref={flowsheetFileRef}
-                    style={{ padding: '0.5rem', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', width: '100%' }}
+                    style={{ padding: '0.5rem', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', width: '100%', background: '#f8fafc' }}
                   />
-                  <button className="btn btn-primary" onClick={handleUploadFlowsheet}>
+                  <button className="btn-hero-primary" style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.5rem 1rem' }} onClick={handleUploadFlowsheet}>
                     Import
                   </button>
                 </div>
@@ -394,22 +456,18 @@ const Admin = () => {
           </div>
         </div>
 
-        <div className="card flex" style={{ flexDirection: 'column', gap: '2rem' }}>
+        <div className="flex" style={{ flexDirection: 'column', gap: '2rem' }}>
           
-          <div>
-            <h3 className="mb-4">Manage Students</h3>
-            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-              <table className="data-table">
-                <thead>
+          <div className="bento-card" style={{ padding: '2rem' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Manage Students</h3>
+            <div style={{ maxHeight: '400px', overflowY: 'auto', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+              <table className="data-table" style={{ width: '100%' }}>
+                <thead style={{ background: '#f8fafc' }}>
                   <tr>
-                    <th>Roll</th>
-                    <th>Name</th>
-                    <th>Class</th>
-                    <th>2nd Lang</th>
-                    <th>3rd Lang</th>
-                    <th>Elective</th>
-                    <th>6th Subject</th>
-                    <th>Action</th>
+                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Roll</th>
+                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Name</th>
+                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Class</th>
+                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -419,17 +477,14 @@ const Admin = () => {
                   }).map(s => {
                     const sCls = classes.find(c => c.id === s.class_id);
                     return (
-                      <tr key={s.id}>
-                        <td>{s.roll_no}</td>
-                        <td>{s.name}</td>
-                        <td>{sCls ? `${sCls.name} ${sCls.section}` : 'Unknown'}</td>
-                        <td>{s.second_language || '-'}</td>
-                        <td>{s.third_language || '-'}</td>
-                        <td>{s.elective_subject || '-'}</td>
-                        <td>{s.sixth_subject || '-'}</td>
-                        <td>
+                      <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '1rem' }}>{s.roll_no}</td>
+                        <td style={{ padding: '1rem', fontWeight: 500 }}>{s.name}</td>
+                        <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>{sCls ? `${sCls.name} ${sCls.section}` : 'Unknown'}</td>
+                        <td style={{ padding: '1rem' }}>
                           <button 
-                            className="btn btn-outline btn-sm"
+                            className="btn-hero-outline"
+                            style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', border: '1px solid #e2e8f0', color: '#475569' }}
                             onClick={() => {
                               setEditingLangStudent(s);
                               setEditSecondLang(s.second_language || '');
@@ -449,122 +504,125 @@ const Admin = () => {
             </div>
           </div>
 
-          <div>
-            <h3 className="mb-4">Manage Classes</h3>
-            <form onSubmit={handleAddClass} className="flex gap-2 mb-4">
+          <div className="bento-card" style={{ padding: '2rem' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Manage Classes</h3>
+            <form onSubmit={handleAddClass} className="flex gap-2 mb-6">
               <input 
                 type="text" 
                 placeholder="Class Name" 
-                className="input-field" 
+                className="input-field w-full" 
+                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
                 value={newClass.name}
                 onChange={e => setNewClass({...newClass, name: e.target.value})}
                 required
               />
               <input 
                 type="text" 
-                placeholder="Section" 
+                placeholder="Sec" 
                 className="input-field" 
-                style={{ width: '100px' }}
+                style={{ width: '80px', background: '#f8fafc', border: '1px solid #e2e8f0' }}
                 value={newClass.section}
                 onChange={e => setNewClass({...newClass, section: e.target.value})}
                 required
               />
-              <button type="submit" className="btn btn-primary">Add</button>
+              <button type="submit" className="btn-hero-primary" style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.5rem 1.5rem' }}>Add</button>
             </form>
             
-            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-              <table className="data-table">
-                <thead>
+            <div style={{ maxHeight: '250px', overflowY: 'auto', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+              <table className="data-table" style={{ width: '100%' }}>
+                <thead style={{ background: '#f8fafc' }}>
                   <tr>
-                    <th>Class</th>
-                    <th>Section</th>
-                    <th>Action</th>
+                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Class</th>
+                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Section</th>
+                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {classes.map(c => (
-                    <tr key={c.id}>
-                      <td>{c.name}</td>
-                      <td>{c.section}</td>
-                      <td style={{ display: 'flex', gap: '0.5rem' }}>
+                    <tr key={c.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '1rem', fontWeight: 500 }}>{c.name}</td>
+                      <td style={{ padding: '1rem' }}>{c.section}</td>
+                      <td style={{ padding: '1rem', display: 'flex', gap: '0.5rem' }}>
                         <button 
                           onClick={() => window.location.href = `/classes/${c.id}/flowsheet`}
-                          className="btn btn-outline btn-sm" 
-                          style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                          className="btn-hero-outline" 
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#3b82f6', border: '1px solid #bfdbfe' }}
                         >
                           Flowsheet
                         </button>
                         <button 
                           onClick={() => window.location.href = `/classes/${c.id}/reports`}
-                          className="btn btn-outline btn-sm" 
-                          style={{ color: 'var(--primary-color)', borderColor: 'var(--primary-color)' }}
+                          className="btn-hero-outline" 
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#10b981', border: '1px solid #a7f3d0' }}
                         >
                           Reports
                         </button>
                         <button 
                           onClick={() => handleDeleteClass(c.id)} 
-                          className="btn btn-outline btn-sm" 
-                          style={{ color: 'var(--danger-color)', borderColor: 'var(--danger-color)' }}
+                          className="btn-hero-outline" 
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#ef4444', border: '1px solid #fecaca' }}
                         >
                           Delete
                         </button>
                       </td>
                     </tr>
                   ))}
-                  {classes.length === 0 && <tr><td colSpan="3">No classes found.</td></tr>}
+                  {classes.length === 0 && <tr><td colSpan="3" style={{ padding: '1rem' }}>No classes found.</td></tr>}
                 </tbody>
               </table>
             </div>
           </div>
 
-          <div>
-            <h3 className="mb-4">Manage Subjects</h3>
-            <form onSubmit={handleAddSubject} className="flex gap-2 mb-4">
+          <div className="bento-card" style={{ padding: '2rem' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Manage Subjects</h3>
+            <form onSubmit={handleAddSubject} className="flex gap-2 mb-6">
               <input 
                 type="text" 
                 placeholder="Subject Name" 
-                className="input-field" 
+                className="input-field w-full" 
+                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
                 value={newSubject}
                 onChange={e => setNewSubject(e.target.value)}
                 required
               />
-              <button type="submit" className="btn btn-primary">Add</button>
+              <button type="submit" className="btn-hero-primary" style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.5rem 1.5rem' }}>Add</button>
             </form>
 
-            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-              <table className="data-table">
-                <thead>
+            <div style={{ maxHeight: '250px', overflowY: 'auto', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+              <table className="data-table" style={{ width: '100%' }}>
+                <thead style={{ background: '#f8fafc' }}>
                   <tr>
-                    <th>Subject Name</th>
-                    <th>Action</th>
+                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Subject Name</th>
+                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {subjects.map(s => (
-                    <tr key={s.id}>
-                      <td>{s.name}</td>
-                      <td>
+                    <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '1rem', fontWeight: 500 }}>{s.name}</td>
+                      <td style={{ padding: '1rem' }}>
                         <button 
                           onClick={() => handleDeleteSubject(s.id)} 
-                          className="btn btn-outline btn-sm" 
-                          style={{ color: 'var(--danger-color)', borderColor: 'var(--danger-color)' }}
+                          className="btn-hero-outline" 
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#ef4444', border: '1px solid #fecaca' }}
                         >
                           Delete
                         </button>
                       </td>
                     </tr>
                   ))}
-                  {subjects.length === 0 && <tr><td colSpan="2">No subjects found.</td></tr>}
+                  {subjects.length === 0 && <tr><td colSpan="2" style={{ padding: '1rem' }}>No subjects found.</td></tr>}
                 </tbody>
               </table>
             </div>
           </div>
 
-          <div>
-            <h3 className="mb-4">Assign Teacher to Class</h3>
-            <form onSubmit={handleAssignTeacher} className="flex flex-col gap-2">
+          <div className="bento-card" style={{ padding: '2rem' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Assign Teacher</h3>
+            <form onSubmit={handleAssignTeacher} className="flex flex-col gap-3">
               <select 
                 className="input-field" 
+                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
                 value={assignment.teacher_id} 
                 onChange={e => setAssignment({...assignment, teacher_id: e.target.value})}
                 required
@@ -575,6 +633,7 @@ const Admin = () => {
               
               <select 
                 className="input-field" 
+                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
                 value={assignment.class_id} 
                 onChange={e => setAssignment({...assignment, class_id: e.target.value})}
                 required
@@ -585,6 +644,7 @@ const Admin = () => {
 
               <select 
                 className="input-field" 
+                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
                 value={assignment.subject_id} 
                 onChange={e => setAssignment({...assignment, subject_id: e.target.value})}
                 required
@@ -593,8 +653,62 @@ const Admin = () => {
                 {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
 
-              <button type="submit" className="btn btn-secondary mt-2">Assign Teacher</button>
+              <button type="submit" className="btn-hero-primary" style={{ background: '#8b5cf6', color: 'white', border: 'none', padding: '0.75rem', marginTop: '0.5rem' }}>Assign Teacher</button>
             </form>
+          </div>
+
+          <div className="bento-card" style={{ padding: '2rem' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Manage News & Announcements</h3>
+            <form onSubmit={handleAddNews} className="flex gap-2 mb-6">
+              <input 
+                type="text" 
+                placeholder="Announcement text (e.g., ADMISSIONS OPEN...)" 
+                className="input-field w-full" 
+                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+                value={newNewsContent}
+                onChange={e => setNewNewsContent(e.target.value)}
+                required
+              />
+              <button type="submit" className="btn-hero-primary" style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.5rem 1.5rem' }}>Post</button>
+            </form>
+
+            <div style={{ maxHeight: '250px', overflowY: 'auto', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+              <table className="data-table" style={{ width: '100%' }}>
+                <thead style={{ background: '#f8fafc' }}>
+                  <tr>
+                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Announcement</th>
+                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Status</th>
+                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {news.map(n => (
+                    <tr key={n.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '1rem', fontWeight: 500 }}>{n.content}</td>
+                      <td style={{ padding: '1rem' }}>
+                        <button 
+                          onClick={() => handleToggleNews(n.id, n.is_active)}
+                          className={`btn-hero-outline`}
+                          style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', borderRadius: '1rem', border: n.is_active ? '1px solid #10b981' : '1px solid #94a3b8', color: n.is_active ? '#10b981' : '#94a3b8' }}
+                        >
+                          {n.is_active ? 'Active' : 'Inactive'}
+                        </button>
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        <button 
+                          onClick={() => handleDeleteNews(n.id)} 
+                          className="btn-hero-outline" 
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#ef4444', border: '1px solid #fecaca' }}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {news.length === 0 && <tr><td colSpan="3" style={{ padding: '1rem' }}>No announcements found.</td></tr>}
+                </tbody>
+              </table>
+            </div>
           </div>
 
         </div>
@@ -627,7 +741,7 @@ const Admin = () => {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

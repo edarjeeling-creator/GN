@@ -17,22 +17,39 @@ const Layout = ({ children }) => {
   };
 
   return (
-    <div className="app-layout">
-      <aside className="sidebar">
-        <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '1rem 0' }}>
-          <img src="/logo.png" alt="School Logo" style={{ width: '64px', height: '64px', objectFit: 'contain', marginLeft: '-10px' }} />
-          <span style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>SmartGrades</span>
+    <div className="app-layout" style={{ background: 'var(--bg-color)', minHeight: '100vh' }}>
+      <aside className="sidebar" style={{ 
+        boxShadow: '4px 0 24px rgba(0,0,0,0.02)', 
+        background: 'var(--surface-color)',
+        borderRight: '1px solid rgba(0,0,0,0.05)',
+        zIndex: 40
+      }}>
+        <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1.5rem', background: 'linear-gradient(to right, rgba(37, 99, 235, 0.05), transparent)' }}>
+          <img src="/logo.png" alt="School Logo" style={{ width: '48px', height: '48px', objectFit: 'contain' }} />
+          <span style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.025em', color: 'var(--primary-color)' }}>SmartGrades</span>
         </div>
-        <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-           Logged in as:<br/>
-           <strong style={{ color: 'var(--text-primary)' }}>{profile?.name || 'Teacher'}</strong>
-           {profile?.role === 'admin' && <span className="badge badge-primary" style={{ marginLeft: '0.5rem', fontSize: '0.7rem' }}>Admin</span>}
+        
+        <div style={{ padding: '1.5rem', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+           <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.5rem' }}>Account</p>
+           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+             <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary-color), #8b5cf6)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+               {(profile?.name || 'T')[0].toUpperCase()}
+             </div>
+             <div>
+               <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.9rem' }}>{profile?.name || 'Teacher'}</strong>
+               {profile?.role === 'admin' ? (
+                 <span style={{ fontSize: '0.7rem', color: '#8b5cf6', fontWeight: 600 }}>Administrator</span>
+               ) : (
+                 <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Faculty Member</span>
+               )}
+             </div>
+           </div>
            
-           <div className="mt-4">
-             <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Academic Year:</label>
+           <div style={{ marginTop: '1.5rem' }}>
+             <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Academic Year</label>
              <select 
                className="input-field" 
-               style={{ padding: '0.25rem', marginTop: '0.25rem', fontSize: '0.875rem' }}
+               style={{ padding: '0.5rem', marginTop: '0.5rem', fontSize: '0.875rem', background: 'var(--bg-color)', border: '1px solid rgba(0,0,0,0.05)', borderRadius: '0.5rem', fontWeight: 500 }}
                value={academicYear}
                onChange={(e) => setAcademicYear(e.target.value)}
              >
@@ -42,35 +59,39 @@ const Layout = ({ children }) => {
              </select>
            </div>
         </div>
-        <nav className="sidebar-nav">
-          <NavLink to="/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <LayoutDashboard size={20} /> Dashboard
+
+        <nav className="sidebar-nav" style={{ padding: '1rem' }}>
+          <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', fontWeight: 600, padding: '0 0.5rem 0.5rem' }}>Menu</p>
+          
+          <NavLink to="/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+            <LayoutDashboard size={18} /> Dashboard
           </NavLink>
-          <NavLink to="/classes" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <Users size={20} /> My Classes
+          <NavLink to="/classes" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+            <Users size={18} /> My Classes
           </NavLink>
-          <NavLink to="/attendance" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <CalendarCheck size={20} /> Attendance
+          <NavLink to="/attendance" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+            <CalendarCheck size={18} /> Attendance
           </NavLink>
-          <NavLink to="/analytics" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <BarChart3 size={20} /> Analytics
+          <NavLink to="/analytics" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+            <BarChart3 size={18} /> Analytics
           </NavLink>
-          <NavLink to="/search" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <Search size={20} /> Search Students
+          <NavLink to="/search" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+            <Search size={18} /> Search Students
           </NavLink>
           
           {profile?.role === 'admin' && (
-             <NavLink to="/admin" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-               <Shield size={20} /> Admin Panel
+             <NavLink to="/admin" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+               <Shield size={18} /> Admin Panel
              </NavLink>
           )}
 
-          <div className="nav-item" style={{ marginTop: 'auto', cursor: 'pointer' }} onClick={handleLogout}>
-            <LogOut size={20} /> Logout
+          <div className="nav-item" style={{ marginTop: 'auto', cursor: 'pointer', borderRadius: '0.5rem', color: '#ef4444' }} onClick={handleLogout}>
+            <LogOut size={18} /> Secure Logout
           </div>
         </nav>
       </aside>
-      <main className="main-content">
+      
+      <main className="main-content" style={{ background: '#f8fafc' }}>
         {children}
       </main>
     </div>

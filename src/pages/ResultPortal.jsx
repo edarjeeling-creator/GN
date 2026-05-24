@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Search, Loader2, BookOpen, Home, RefreshCw } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 
 const ResultPortal = () => {
   const queryParams = new URLSearchParams(window.location.search);
@@ -430,84 +432,103 @@ const ResultPortal = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-color)', padding: '2rem' }}>
-      <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-        
-        <div style={{ textAlign: 'center', marginBottom: '2rem', position: 'relative' }}>
-          <button 
-            onClick={() => window.history.length > 1 ? window.history.back() : window.location.href = '/'} 
-            style={{ position: 'absolute', top: 0, right: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '0.5rem', cursor: 'pointer', color: 'var(--text-secondary)' }}
-            className="hover-effect no-print"
-          >
-             <Home size={18} /> Back
-          </button>
-          
-          <img src="/logo.png" alt="School Logo" style={{ width: '120px', height: '120px', objectFit: 'contain', margin: '0 auto 0.5rem', display: 'block' }} />
-          
-          <h1 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Student Result Portal</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Enter your 6-digit PIN to view your academic progress.</p>
-        </div>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-color)' }}>
+      {/* If result is NOT loaded yet, show the hero-search view */}
+      {!resultData && (
+        <div className="hero-section" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', background: 'linear-gradient(to bottom right, #4338ca, #312e81)' }}>
+          <div className="hero-particles">
+            <motion.div animate={{ y: [0, -20, 0], opacity: [0.3, 0.6, 0.3] }} transition={{ repeat: Infinity, duration: 4 }} className="hero-orb-1" />
+            <motion.div animate={{ y: [0, 30, 0], opacity: [0.3, 0.6, 0.3] }} transition={{ repeat: Infinity, duration: 5, delay: 1 }} className="hero-orb-2" />
+          </div>
 
-        <div className="card p-6" style={{ background: 'var(--surface-color)' }}>
-          <form onSubmit={handleSearch} className="flex flex-col gap-4">
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Academic Year</label>
-              <select 
-                className="input-field w-full" 
-                value={academicYear}
-                onChange={(e) => setAcademicYear(e.target.value)}
-              >
-                {years.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Term</label>
-              <select 
-                className="input-field w-full" 
-                value={selectedTerm}
-                onChange={(e) => {
-                  setSelectedTerm(e.target.value);
-                  setResultData(null); // Clear data so they search again for the new term
-                }}
-              >
-                <option value="Midterm">Mid-Term Report</option>
-                <option value="Finalterm">Final-Term Report</option>
-                <option value="Combined">Combined (Annual)</option>
-              </select>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Student UID (6-Digit PIN)</label>
-              <div className="relative">
-                <Search size={20} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                <input
-                  type="text"
-                  placeholder="e.g. 849201"
-                  className="input-field w-full"
-                  style={{ paddingLeft: '40px', fontSize: '1.2rem', letterSpacing: '2px' }}
-                  value={uid}
-                  onChange={(e) => setUid(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
-                  required
-                />
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: '500px' }}>
+            <div className="bento-card" style={{ padding: '3rem 2.5rem', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)' }}>
+              
+              <div style={{ textAlign: 'center', marginBottom: '2rem', position: 'relative' }}>
+                <Link to="/" style={{ position: 'absolute', top: 0, right: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', color: 'var(--text-secondary)', textDecoration: 'none' }}>
+                   <Home size={20} />
+                </Link>
+                
+                <img src="/logo.png" alt="School Logo" style={{ width: '100px', height: '100px', objectFit: 'contain', margin: '0 auto 1rem', display: 'block' }} />
+                <h1 style={{ color: 'var(--primary-color)', marginBottom: '0.5rem', fontSize: '1.8rem', fontWeight: 'bold' }}>Result Portal</h1>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Enter your 6-digit PIN to view your academic progress.</p>
               </div>
+
+              <form onSubmit={handleSearch} className="flex flex-col gap-4">
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#374151' }}>Academic Year</label>
+                  <select 
+                    className="input-field w-full" 
+                    style={{ background: '#f9fafb', border: '1px solid #e5e7eb' }}
+                    value={academicYear}
+                    onChange={(e) => setAcademicYear(e.target.value)}
+                  >
+                    {years.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#374151' }}>Term</label>
+                  <select 
+                    className="input-field w-full" 
+                    style={{ background: '#f9fafb', border: '1px solid #e5e7eb' }}
+                    value={selectedTerm}
+                    onChange={(e) => {
+                      setSelectedTerm(e.target.value);
+                      setResultData(null);
+                    }}
+                  >
+                    <option value="Midterm">Mid-Term Report</option>
+                    <option value="Finalterm">Final-Term Report</option>
+                    <option value="Combined">Combined (Annual)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#374151' }}>Student UID (6-Digit PIN)</label>
+                  <div className="relative">
+                    <Search size={20} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input
+                      type="text"
+                      placeholder="e.g. 849201"
+                      className="input-field w-full"
+                      style={{ paddingLeft: '40px', fontSize: '1.2rem', letterSpacing: '2px', background: '#f9fafb', border: '1px solid #e5e7eb' }}
+                      value={uid}
+                      onChange={(e) => setUid(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {error && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ color: '#b91c1c', padding: '0.75rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
+                    {error}
+                  </motion.div>
+                )}
+
+                <button type="submit" className="btn-hero-primary" style={{ width: '100%', marginTop: '1rem', background: '#4f46e5', color: 'white', border: 'none' }} disabled={loading}>
+                  {loading ? <Loader2 className="animate-spin mx-auto" /> : 'View Report Card'}
+                </button>
+              </form>
             </div>
-
-            {error && (
-              <div style={{ color: 'var(--danger-color)', padding: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
-                {error}
-              </div>
-            )}
-
-            <button type="submit" className="btn btn-primary w-full py-3" disabled={loading}>
-              {loading ? <Loader2 className="animate-spin" /> : 'View Report Card'}
-            </button>
-          </form>
+          </motion.div>
         </div>
+      )}
 
-        {renderReportCard()}
-
-      </div>
+      {/* If result is loaded, show the report card in a clean printable container */}
+      {resultData && (
+         <div style={{ padding: '2rem 1rem' }}>
+           <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }} className="no-print">
+             <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary-color)', textDecoration: 'none', fontWeight: 600 }}>
+               <Home size={20} /> Campus Home
+             </Link>
+             <button className="btn" style={{ background: 'white', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', borderRadius: '0.5rem' }} onClick={() => { setUid(''); setResultData(null); window.history.replaceState({}, document.title, window.location.pathname); }}>
+               <RefreshCw size={18} /> Search Another
+             </button>
+           </div>
+           {renderReportCard()}
+         </div>
+      )}
     </div>
   );
 };

@@ -13,50 +13,56 @@ const PublicLayout = ({ children }) => {
   };
 
   const navLinks = [
-    { name: 'Home', path: '/' },
-    { name: 'About', path: '/about' },
-    { name: 'Academics', path: '/academics' },
-    { name: 'Admissions', path: '/admissions' },
-    { name: 'Faculty', path: '/faculty' },
-    { name: 'Contact', path: '/contact' }
+    { name: 'ABOUT US', path: '/about' },
+    { name: 'ACADEMICS', path: '/academics', sub: 'Kindergarten Primary Middle' },
+    { name: 'ADMISSIONS', path: '/admissions' },
+    { name: 'CAMPUS LIFE', path: '/campus-life' },
+    { name: 'NOTICES/CIRCULARS', path: '/notices' },
+    { name: 'CONTACT US', path: '/contact' }
   ];
 
   return (
     <div className={`app-layout-public ${isDarkMode ? 'dark' : ''}`} style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Top Navbar */}
-      <nav className="public-nav">
+      <nav className="public-nav" style={{ padding: '0.5rem 0' }}>
         <div className="public-container">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '5rem' }}>
+          {/* Top Top Bar: Buttons and Search */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginBottom: '0.5rem' }}>
+            <Link to="/login" className="btn-hero-outline" style={{ padding: '0.3rem 0.8rem', fontSize: '0.75rem', borderColor: '#f59e0b', color: '#f59e0b' }}>PARENT PORTAL</Link>
+            <Link to="/login" className="btn-hero-primary" style={{ padding: '0.3rem 0.8rem', fontSize: '0.75rem', background: '#166534', color: 'white', boxShadow: 'none' }}>STUDENT LOGIN</Link>
+            <div style={{ display: 'flex', alignItems: 'center', background: '#f1f5f9', borderRadius: '0.25rem', padding: '0 0.5rem' }}>
+              <input type="text" placeholder="Search..." style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: '0.75rem', padding: '0.2rem', color: '#1f2937' }} />
+              <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>🔍</span>
+            </div>
+            <button onClick={toggleDarkMode} style={{ padding: '0.2rem', background: 'transparent', border: 'none', cursor: 'pointer', marginLeft: '0.5rem' }}>
+              {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             {/* Logo Area */}
-            <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <img src="/logo.png" alt="SmartGrades Logo" style={{ height: '3rem', width: '3rem', objectFit: 'contain' }} />
+            <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <img src="/logo.png" alt="Logo" style={{ height: '3.5rem', width: '3.5rem', objectFit: 'contain' }} />
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontWeight: 'bold', fontSize: '1.25rem', letterSpacing: '-0.025em', color: 'var(--primary-color)' }}>SmartGrades</span>
-                <span style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '600' }}>School Campus</span>
+                <span style={{ fontWeight: '800', fontSize: '1.2rem', letterSpacing: '0.05em', color: '#166534' }}>SMARTGRADES</span>
+                <span style={{ fontSize: '0.7rem', color: '#6b7280', letterSpacing: '0.05em', fontWeight: '600' }}>ICSE SCHOOL</span>
               </div>
             </Link>
 
             {/* Desktop Navigation */}
-            <div style={{ display: 'none', alignItems: 'center', gap: '2rem' }} className="md-flex">
+            <div style={{ display: 'none', alignItems: 'center', gap: '1.5rem' }} className="md-flex">
               {navLinks.map((link) => (
-                <NavLink 
-                  key={link.name} 
-                  to={link.path}
-                  className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-                >
-                  {link.name}
-                </NavLink>
+                <div key={link.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <NavLink 
+                    to={link.path}
+                    className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+                    style={{ fontWeight: '700', fontSize: '0.85rem' }}
+                  >
+                    {link.name}
+                  </NavLink>
+                  {link.sub && <span style={{ fontSize: '0.6rem', color: '#6b7280' }}>{link.sub}</span>}
+                </div>
               ))}
-            </div>
-
-            {/* Right Actions */}
-            <div style={{ display: 'none', alignItems: 'center', gap: '1rem' }} className="md-flex">
-              <button onClick={toggleDarkMode} style={{ padding: '0.5rem', borderRadius: '50%', background: 'transparent', border: 'none', cursor: 'pointer' }}>
-                {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-              </button>
-              <Link to="/login" className="nav-btn hover-scale">
-                Login Portal
-              </Link>
             </div>
 
             {/* Mobile menu button */}
@@ -109,55 +115,48 @@ const PublicLayout = ({ children }) => {
       </main>
 
       {/* Footer */}
-      <footer className="public-footer">
+      <footer className="portal-footer">
         <div className="public-container">
           <div className="footer-grid">
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-                <img src="/logo.png" alt="SmartGrades Logo" style={{ height: '2.5rem', width: '2.5rem', filter: 'brightness(0) invert(1)' }} />
-                <span style={{ fontWeight: 'bold', fontSize: '1.25rem', letterSpacing: '-0.025em' }}>SmartGrades</span>
-              </div>
-              <p style={{ color: '#9ca3af', fontSize: '0.875rem', lineHeight: '1.625', marginBottom: '1.5rem' }}>
-                Empowering the next generation with a futuristic digital campus. Interactive, intelligent, secure, and visually unforgettable.
-              </p>
+              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', textTransform: 'uppercase', color: '#fcd34d' }}>Contact</h3>
+              <ul style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.875rem', color: '#e5e7eb' }}>
+                <li style={{ display: 'flex', gap: '0.5rem' }}>📍 <span>Address: Lebong Cart Rd, Darjeeling, <br/>West Bengal 734101</span></li>
+                <li style={{ display: 'flex', gap: '0.5rem' }}>📞 <span>Phone: +91 5555 123456</span></li>
+                <li style={{ display: 'flex', gap: '0.5rem' }}>✉️ <span>Email: smartgrades.edu@gmail.com</span></li>
+              </ul>
             </div>
             
             <div>
-              <h3 style={{ fontWeight: '600', fontSize: '1.125rem', marginBottom: '1.5rem' }}>Quick Links</h3>
+              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', textTransform: 'uppercase', color: '#fcd34d' }}>Quick Links</h3>
               <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.875rem' }}>
-                <li><Link to="/about" className="footer-link">About Us</Link></li>
-                <li><Link to="/admissions" className="footer-link">Admissions</Link></li>
-                <li><Link to="/academics" className="footer-link">Academics</Link></li>
-                <li><Link to="/contact" className="footer-link">Contact</Link></li>
+                <li><Link to="/admissions" className="footer-link">Admissions 2026-27</Link></li>
+                <li><Link to="/academics" className="footer-link">Academic Calendar</Link></li>
+                <li><Link to="/notices" className="footer-link">Latest Notices</Link></li>
+                <li><Link to="/contact" className="footer-link">Careers</Link></li>
               </ul>
             </div>
 
             <div>
-              <h3 style={{ fontWeight: '600', fontSize: '1.125rem', marginBottom: '1.5rem' }}>Portals</h3>
-              <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.875rem' }}>
-                <li><Link to="/login" className="footer-link">Student Login</Link></li>
-                <li><Link to="/login" className="footer-link">Parent Portal</Link></li>
-                <li><Link to="/login" className="footer-link">Teacher Dashboard</Link></li>
-                <li><Link to="/result" className="footer-link">Result Portal</Link></li>
-              </ul>
+              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', textTransform: 'uppercase', color: '#fcd34d' }}>Social Media</h3>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'white', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>f</div>
+                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'white', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>in</div>
+                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'white', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>Y</div>
+              </div>
             </div>
 
             <div>
-              <h3 style={{ fontWeight: '600', fontSize: '1.125rem', marginBottom: '1.5rem' }}>Contact Us</h3>
-              <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.875rem', color: '#9ca3af' }}>
-                <li>📍 123 Education Lane, Digital City</li>
-                <li>📞 +1 (555) 123-4567</li>
-                <li>✉️ contact@smartgrades.edu</li>
-              </ul>
+              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', textTransform: 'uppercase', color: '#fcd34d' }}>Find Us</h3>
+              <div style={{ background: '#e2e8f0', width: '100%', height: '120px', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569', fontSize: '0.8rem' }}>
+                [Google Map Embed]
+              </div>
             </div>
           </div>
           
-          <div style={{ borderTop: '1px solid #1f2937', marginTop: '3rem', paddingTop: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem', color: '#6b7280' }}>
+          <div style={{ borderTop: '1px solid #14532d', marginTop: '3rem', paddingTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: '#86efac' }}>
+            <p>Affiliated to CISCE, New Delhi (WB046)</p>
             <p>&copy; {new Date().getFullYear()} SmartGrades School. All rights reserved.</p>
-            <div style={{ display: 'flex', gap: '1.5rem' }}>
-              <Link to="#" className="footer-link">Privacy Policy</Link>
-              <Link to="#" className="footer-link">Terms of Service</Link>
-            </div>
           </div>
         </div>
       </footer>

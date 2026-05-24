@@ -15,10 +15,10 @@ export const About = () => {
       {/* Header */}
       <div className="hero-section" style={{ minHeight: '40vh', paddingTop: '6rem' }}>
         <div className="public-container relative z-10 text-center">
-          <motion.initial="hidden" animate="visible" variants={fadeUp}>
+          <motion.div initial="hidden" animate="visible" variants={fadeUp}>
             <h1 className="hero-title" style={{ fontSize: '3.5rem' }}>About Our School</h1>
             <p className="hero-subtitle" style={{ marginBottom: 0 }}>Nurturing minds, building futures.</p>
-          </motion.initial>
+          </motion.div>
         </div>
       </div>
 

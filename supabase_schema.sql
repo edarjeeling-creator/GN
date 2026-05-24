@@ -64,6 +64,13 @@ CREATE TABLE public.attendance (
   UNIQUE(student_id, date)
 );
 
+CREATE TABLE public.news (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  content TEXT NOT NULL,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- 2. Setup RLS (Row Level Security)
 ALTER TABLE public.classes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.subjects ENABLE ROW LEVEL SECURITY;
@@ -72,6 +79,7 @@ ALTER TABLE public.teacher_subjects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.marks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.news ENABLE ROW LEVEL SECURITY;
 
 -- Basic Policies (Adjust these based on exact security needs)
 -- Allow anyone authenticated to read classes, subjects, students
@@ -94,6 +102,12 @@ CREATE POLICY "Allow authenticated update attendance" ON public.attendance FOR U
 
 -- Profiles
 CREATE POLICY "Allow authenticated read profiles" ON public.profiles FOR SELECT TO authenticated USING (true);
+
+-- News
+CREATE POLICY "Allow anonymous read news" ON public.news FOR SELECT USING (true);
+CREATE POLICY "Allow authenticated insert news" ON public.news FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update news" ON public.news FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete news" ON public.news FOR DELETE TO authenticated USING (true);
 
 -- Create a trigger to automatically create a profile when a user signs up
 CREATE OR REPLACE FUNCTION public.handle_new_user() 
