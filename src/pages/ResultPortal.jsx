@@ -435,11 +435,11 @@ const ResultPortal = () => {
         
         <div style={{ textAlign: 'center', marginBottom: '2rem', position: 'relative' }}>
           <button 
-            onClick={() => window.location.href = '/'} 
+            onClick={() => window.history.length > 1 ? window.history.back() : window.location.href = '/'} 
             style={{ position: 'absolute', top: 0, right: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '0.5rem', cursor: 'pointer', color: 'var(--text-secondary)' }}
-            className="hover-effect"
+            className="hover-effect no-print"
           >
-             <Home size={18} /> Home
+             <Home size={18} /> Back
           </button>
           <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'var(--primary-color)', color: 'white', width: '60px', height: '60px', borderRadius: '50%', marginBottom: '1rem' }}>
             <BookOpen size={32} />
