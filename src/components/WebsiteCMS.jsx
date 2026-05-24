@@ -129,21 +129,21 @@ export default function WebsiteCMS() {
   };
 
   return (
-    <div className="grid md:grid-cols-2 gap-6 mt-6">
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginTop: '2rem' }}>
       {/* Faculty Manager */}
       <div className="bento-card" style={{ padding: '2rem' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Users size={20} color="#8b5cf6" /> Faculty Manager
         </h3>
-        <form onSubmit={handleAddFaculty} className="flex flex-col gap-3 mb-6">
-          <input type="text" placeholder="Name" className="input-field" value={newFaculty.name} onChange={e => setNewFaculty({...newFaculty, name: e.target.value})} required />
-          <div className="grid grid-cols-2 gap-3">
-            <input type="text" placeholder="Designation" className="input-field" value={newFaculty.designation} onChange={e => setNewFaculty({...newFaculty, designation: e.target.value})} required />
-            <input type="text" placeholder="Department" className="input-field" value={newFaculty.department} onChange={e => setNewFaculty({...newFaculty, department: e.target.value})} />
+        <form onSubmit={handleAddFaculty} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+          <input type="text" placeholder="Name" className="input-field" style={{ width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0' }} value={newFaculty.name} onChange={e => setNewFaculty({...newFaculty, name: e.target.value})} required />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <input type="text" placeholder="Designation" className="input-field" style={{ width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0' }} value={newFaculty.designation} onChange={e => setNewFaculty({...newFaculty, designation: e.target.value})} required />
+            <input type="text" placeholder="Department" className="input-field" style={{ width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0' }} value={newFaculty.department} onChange={e => setNewFaculty({...newFaculty, department: e.target.value})} />
           </div>
           
           <div style={{ border: '1px dashed var(--border-color)', padding: '1rem', borderRadius: '0.5rem', background: '#f8fafc' }}>
-            <label className="text-sm font-bold block mb-2" style={{ color: 'var(--text-secondary)' }}>Profile Photo (Optional)</label>
+            <label style={{ fontSize: '0.875rem', fontWeight: 'bold', display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Profile Photo (Optional)</label>
             <input 
               type="file" 
               accept="image/*"
@@ -153,21 +153,21 @@ export default function WebsiteCMS() {
             />
           </div>
 
-          <textarea placeholder="Short Bio" rows="2" className="input-field" value={newFaculty.bio} onChange={e => setNewFaculty({...newFaculty, bio: e.target.value})}></textarea>
+          <textarea placeholder="Short Bio" rows="2" className="input-field" style={{ width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0' }} value={newFaculty.bio} onChange={e => setNewFaculty({...newFaculty, bio: e.target.value})}></textarea>
           
-          <button type="submit" className="btn-hero-primary flex justify-center items-center gap-2" style={{ background: '#8b5cf6', color: 'white', border: 'none' }} disabled={uploadingFaculty}>
+          <button type="submit" className="btn-hero-primary" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', background: '#8b5cf6', color: 'white', border: 'none', padding: '0.75rem', width: '100%' }} disabled={uploadingFaculty}>
             {uploadingFaculty ? <><Loader2 size={16} className="animate-spin" /> Uploading...</> : <><Plus size={16} /> Add Faculty</>}
           </button>
         </form>
 
-        <div className="overflow-y-auto" style={{ maxHeight: '300px' }}>
+        <div style={{ overflowY: 'auto', maxHeight: '300px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {faculty.map(f => (
-            <div key={f.id} className="flex justify-between items-center p-3 mb-2 bg-gray-50 rounded border border-gray-100">
-              <div className="flex items-center gap-3">
+            <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: '#f8fafc', borderRadius: '0.5rem', border: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 {f.image_url ? <img src={f.image_url} alt="" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} /> : <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#e2e8f0' }}></div>}
                 <div>
-                  <p className="font-bold text-sm">{f.name}</p>
-                  <p className="text-xs text-gray-500">{f.designation}</p>
+                  <p style={{ fontWeight: 'bold', fontSize: '0.875rem', margin: 0 }}>{f.name}</p>
+                  <p style={{ fontSize: '0.75rem', color: '#64748b', margin: 0 }}>{f.designation}</p>
                 </div>
               </div>
               <button onClick={() => handleDeleteFaculty(f.id)} style={{ color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer', padding: '0.5rem' }}><Trash2 size={16} /></button>
@@ -181,12 +181,12 @@ export default function WebsiteCMS() {
         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <ImageIcon size={20} color="#10b981" /> Bulk Photo Gallery Manager
         </h3>
-        <form onSubmit={handleAddPhotos} className="flex flex-col gap-3 mb-6">
-          <input type="text" placeholder="Category for these photos (e.g. Sports, Academics)" className="input-field" value={galleryCategory} onChange={e => setGalleryCategory(e.target.value)} required />
+        <form onSubmit={handleAddPhotos} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+          <input type="text" placeholder="Category for these photos (e.g. Sports, Academics)" className="input-field" style={{ width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0' }} value={galleryCategory} onChange={e => setGalleryCategory(e.target.value)} required />
           
           <div style={{ border: '2px dashed #10b981', padding: '1.5rem', borderRadius: '0.5rem', background: 'rgba(16, 185, 129, 0.05)', textAlign: 'center' }}>
             <UploadCloud size={32} color="#10b981" style={{ margin: '0 auto 0.5rem' }} />
-            <label className="text-sm font-bold block mb-2" style={{ color: 'var(--text-primary)' }}>Select Multiple Photos</label>
+            <label style={{ fontSize: '0.875rem', fontWeight: 'bold', display: 'block', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Select Multiple Photos</label>
             <input 
               type="file" 
               accept="image/*"
@@ -196,22 +196,22 @@ export default function WebsiteCMS() {
               style={{ width: '100%', fontSize: '0.9rem' }}
               required
             />
-            {galleryFiles.length > 0 && <p className="text-xs mt-2 text-green-600 font-bold">{galleryFiles.length} files selected</p>}
+            {galleryFiles.length > 0 && <p style={{ fontSize: '0.75rem', marginTop: '0.5rem', color: '#16a34a', fontWeight: 'bold' }}>{galleryFiles.length} files selected</p>}
           </div>
 
-          <button type="submit" className="btn-hero-primary flex justify-center items-center gap-2" style={{ background: '#10b981', color: 'white', border: 'none' }} disabled={uploadingGallery}>
+          <button type="submit" className="btn-hero-primary" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', background: '#10b981', color: 'white', border: 'none', padding: '0.75rem', width: '100%' }} disabled={uploadingGallery}>
             {uploadingGallery ? <><Loader2 size={16} className="animate-spin" /> Uploading {galleryUploadProgress.current} of {galleryUploadProgress.total}...</> : <><Plus size={16} /> Bulk Upload Photos</>}
           </button>
         </form>
 
-        <div className="overflow-y-auto" style={{ maxHeight: '300px' }}>
+        <div style={{ overflowY: 'auto', maxHeight: '300px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {gallery.map(p => (
-            <div key={p.id} className="flex justify-between items-center p-3 mb-2 bg-gray-50 rounded border border-gray-100">
-              <div className="flex items-center gap-3">
+            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: '#f8fafc', borderRadius: '0.5rem', border: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <img src={p.image_url} alt="" style={{ width: '60px', height: '40px', borderRadius: '4px', objectFit: 'cover' }} />
                 <div>
-                  <p className="font-bold text-sm" style={{ maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title}</p>
-                  <p className="text-xs text-gray-500">{p.category}</p>
+                  <p style={{ fontWeight: 'bold', fontSize: '0.875rem', maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', margin: 0 }}>{p.title}</p>
+                  <p style={{ fontSize: '0.75rem', color: '#64748b', margin: 0 }}>{p.category}</p>
                 </div>
               </div>
               <button onClick={() => handleDeletePhoto(p.id)} style={{ color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer', padding: '0.5rem' }}><Trash2 size={16} /></button>
