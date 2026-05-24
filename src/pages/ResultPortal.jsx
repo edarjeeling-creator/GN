@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Search, Loader2, BookOpen } from 'lucide-react';
+import { Search, Loader2, BookOpen, Home, RefreshCw } from 'lucide-react';
 
 const ResultPortal = () => {
   const queryParams = new URLSearchParams(window.location.search);
@@ -419,7 +419,10 @@ const ResultPortal = () => {
           </tbody>
         </table>
         
-        <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+        <div style={{ marginTop: '1rem', textAlign: 'center', display: 'flex', gap: '1rem', justifyContent: 'center' }} className="no-print">
+           <button className="btn" style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={() => { setUid(''); setResultData(null); window.history.replaceState({}, document.title, window.location.pathname); }}>
+             <RefreshCw size={18} /> Search Another
+           </button>
            <button className="btn btn-primary" onClick={() => window.print()}>Print / Save as PDF</button>
         </div>
       </div>
@@ -430,7 +433,14 @@ const ResultPortal = () => {
     <div style={{ minHeight: '100vh', background: 'var(--bg-color)', padding: '2rem' }}>
       <div style={{ maxWidth: '600px', margin: '0 auto' }}>
         
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem', position: 'relative' }}>
+          <button 
+            onClick={() => window.location.href = '/'} 
+            style={{ position: 'absolute', top: 0, right: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '0.5rem', cursor: 'pointer', color: 'var(--text-secondary)' }}
+            className="hover-effect"
+          >
+             <Home size={18} /> Home
+          </button>
           <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'var(--primary-color)', color: 'white', width: '60px', height: '60px', borderRadius: '50%', marginBottom: '1rem' }}>
             <BookOpen size={32} />
           </div>
