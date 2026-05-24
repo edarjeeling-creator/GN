@@ -12,17 +12,29 @@ import Admin from './pages/Admin';
 import StudentSearch from './pages/StudentSearch';
 import Attendance from './pages/Attendance';
 import AttendanceReports from './pages/AttendanceReports';
+import PublicLayout from './components/PublicLayout';
+import Home from './pages/Home';
+import { About, Academics, Admissions, Faculty, Contact } from './pages/PublicPages';
 
 function App() {
   return (
     <Router>
       <Routes>
+        {/* Public Routes with PublicLayout */}
+        <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
+        <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
+        <Route path="/academics" element={<PublicLayout><Academics /></PublicLayout>} />
+        <Route path="/admissions" element={<PublicLayout><Admissions /></PublicLayout>} />
+        <Route path="/faculty" element={<PublicLayout><Faculty /></PublicLayout>} />
+        <Route path="/contact" element={<PublicLayout><Contact /></PublicLayout>} />
+        
+        {/* Standalone Public Pages */}
         <Route path="/login" element={<Login />} />
         <Route path="/result" element={<ResultPortal />} />
         <Route path="/principal" element={<PrincipalPortal />} />
         
+        {/* Protected Dashboard Routes */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/classes" element={<Classes />} />
           <Route path="/classes/:classId/subjects/:subjectId" element={<SubjectMarks />} />
