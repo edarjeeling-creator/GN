@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Users, MapPin, Mail, Phone, Clock, Award, Target, Star, Image as ImageIcon } from 'lucide-react';
+import { BookOpen, Users, MapPin, Mail, Phone, Clock, Award, Target, Star, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import '../public.css';
 
@@ -498,6 +498,18 @@ export const Gallery = () => {
 
   const isVideo = (url) => url && url.match(/\.(mp4|webm|ogg)$/i);
 
+  const currentIndex = selectedMedia ? filteredPhotos.findIndex(p => p.id === selectedMedia.id) : -1;
+
+  const handlePrev = (e) => {
+    e.stopPropagation();
+    if (currentIndex > 0) setSelectedMedia(filteredPhotos[currentIndex - 1]);
+  };
+
+  const handleNext = (e) => {
+    e.stopPropagation();
+    if (currentIndex < filteredPhotos.length - 1) setSelectedMedia(filteredPhotos[currentIndex + 1]);
+  };
+
   return (
     <div className="w-full relative">
       <div className="hero-section" style={{ minHeight: '30vh', paddingTop: '4rem', background: 'linear-gradient(to right, #047857, #10b981)' }}>
@@ -639,10 +651,65 @@ export const Gallery = () => {
             >
               &times;
             </button>
+
+            {currentIndex > 0 && (
+              <button 
+                onClick={handlePrev}
+                style={{
+                  position: 'absolute',
+                  left: '2rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  color: 'white',
+                  width: '60px',
+                  height: '60px',
+                  borderRadius: '50%',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 10000,
+                  backdropFilter: 'blur(4px)'
+                }}
+              >
+                <ChevronLeft size={32} />
+              </button>
+            )}
+
+            {currentIndex < filteredPhotos.length - 1 && (
+              <button 
+                onClick={handleNext}
+                style={{
+                  position: 'absolute',
+                  right: '2rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  color: 'white',
+                  width: '60px',
+                  height: '60px',
+                  borderRadius: '50%',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 10000,
+                  backdropFilter: 'blur(4px)'
+                }}
+              >
+                <ChevronRight size={32} />
+              </button>
+            )}
+
             <motion.div 
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
+              key={selectedMedia.id}
+              initial={{ scale: 0.9, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 20, opacity: 0 }}
+              transition={{ duration: 0.2 }}
               onClick={(e) => e.stopPropagation()} 
               style={{ position: 'relative', maxWidth: '100%', maxHeight: '90vh' }}
             >
