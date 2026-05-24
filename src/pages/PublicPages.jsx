@@ -1,4 +1,5 @@
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Users, MapPin, Mail, Phone, Clock, Award, Target, Star } from 'lucide-react';
 import '../public.css';
 
@@ -100,21 +101,197 @@ export const Academics = () => {
 };
 
 export const Admissions = () => {
+  const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    studentName: '',
+    dob: '',
+    grade: '',
+    gender: '',
+    parentName: '',
+    phone: '',
+    email: '',
+    address: '',
+    prevSchool: '',
+    lastGrade: ''
+  });
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const nextStep = () => setStep(s => Math.min(4, s + 1));
+  const prevStep = () => setStep(s => Math.max(1, s - 1));
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    // Simulate API call
+    setTimeout(() => {
+      setIsSubmitting(false);
+      setIsSuccess(true);
+    }, 2000);
+  };
+
   return (
     <div className="w-full">
       <div className="hero-section" style={{ minHeight: '30vh', paddingTop: '4rem', background: 'linear-gradient(to right, #065f46, #047857)' }}>
         <div className="public-container relative z-10 text-center">
           <motion.div initial="hidden" animate="visible" variants={fadeUp}>
             <h1 className="hero-title" style={{ fontSize: '3rem' }}>Admissions Portal</h1>
+            <p className="hero-subtitle">Application for 2026-2027 Academic Year</p>
           </motion.div>
         </div>
       </div>
-      <div className="public-container" style={{ padding: '4rem 1rem', minHeight: '40vh' }}>
-        <div className="bento-card" style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
-          <Users size={48} style={{ margin: '0 auto 1rem', color: '#059669' }} />
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>Join Our Campus</h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>The online admission forms for the 2026-2027 academic year are currently being updated.</p>
-          <button className="btn-hero-primary" style={{ margin: '0 auto', background: '#059669', color: 'white', boxShadow: 'none' }}>Notify Me When Open</button>
+      
+      <div className="public-container" style={{ padding: '4rem 1rem', minHeight: '60vh' }}>
+        <div className="bento-card" style={{ maxWidth: '800px', margin: '0 auto' }}>
+          
+          {isSuccess ? (
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+              <div style={{ width: '80px', height: '80px', background: '#10b981', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem', color: 'white' }}>
+                <Award size={40} />
+              </div>
+              <h2 style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--text-public)', marginBottom: '1rem' }}>Application Received!</h2>
+              <p style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', marginBottom: '2rem' }}>
+                Thank you for applying to SmartGrades. We have successfully received your application.
+              </p>
+              <div style={{ background: 'var(--bg-public)', padding: '1.5rem', borderRadius: '1rem', display: 'inline-block', border: '1px solid var(--border-color)' }}>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Your Application Reference ID</p>
+                <p style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--primary-color)', fontFamily: 'monospace' }}>APP-2026-{Math.floor(Math.random() * 9000) + 1000}</p>
+              </div>
+              <p style={{ marginTop: '2rem', color: 'var(--text-secondary)' }}>Our admissions team will contact you shortly.</p>
+            </motion.div>
+          ) : (
+            <>
+              <div className="step-indicator">
+                <div className={`step-item ${step >= 1 ? 'active' : ''} ${step > 1 ? 'completed' : ''}`}>1</div>
+                <div className={`step-item ${step >= 2 ? 'active' : ''} ${step > 2 ? 'completed' : ''}`}>2</div>
+                <div className={`step-item ${step >= 3 ? 'active' : ''} ${step > 3 ? 'completed' : ''}`}>3</div>
+                <div className={`step-item ${step >= 4 ? 'active' : ''}`}>4</div>
+              </div>
+
+              <form onSubmit={step === 4 ? handleSubmit : (e) => { e.preventDefault(); nextStep(); }}>
+                <AnimatePresence mode="wait">
+                  
+                  {step === 1 && (
+                    <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                      <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem', color: 'var(--text-public)' }}>Student Information</h3>
+                      <div className="form-group">
+                        <label className="form-label">Full Name of Student *</label>
+                        <input type="text" name="studentName" value={formData.studentName} onChange={handleChange} required className="input-field" style={{ background: 'var(--bg-public)', color: 'var(--text-public)' }} />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                        <div className="form-group">
+                          <label className="form-label">Date of Birth *</label>
+                          <input type="date" name="dob" value={formData.dob} onChange={handleChange} required className="input-field" style={{ background: 'var(--bg-public)', color: 'var(--text-public)' }} />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Gender</label>
+                          <select name="gender" value={formData.gender} onChange={handleChange} className="input-field" style={{ background: 'var(--bg-public)', color: 'var(--text-public)' }}>
+                            <option value="">Select Gender</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Grade Applying For *</label>
+                        <select name="grade" value={formData.grade} onChange={handleChange} required className="input-field" style={{ background: 'var(--bg-public)', color: 'var(--text-public)' }}>
+                          <option value="">Select Grade</option>
+                          {[...Array(12)].map((_, i) => (
+                            <option key={i+1} value={`Grade ${i+1}`}>Grade {i+1}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {step === 2 && (
+                    <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                      <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem', color: 'var(--text-public)' }}>Parent/Guardian Details</h3>
+                      <div className="form-group">
+                        <label className="form-label">Primary Contact Name *</label>
+                        <input type="text" name="parentName" value={formData.parentName} onChange={handleChange} required className="input-field" style={{ background: 'var(--bg-public)', color: 'var(--text-public)' }} />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                        <div className="form-group">
+                          <label className="form-label">Phone Number *</label>
+                          <input type="tel" name="phone" value={formData.phone} onChange={handleChange} required className="input-field" style={{ background: 'var(--bg-public)', color: 'var(--text-public)' }} />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Email Address *</label>
+                          <input type="email" name="email" value={formData.email} onChange={handleChange} required className="input-field" style={{ background: 'var(--bg-public)', color: 'var(--text-public)' }} />
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Residential Address</label>
+                        <textarea name="address" value={formData.address} onChange={handleChange} rows="3" className="input-field" style={{ background: 'var(--bg-public)', color: 'var(--text-public)', resize: 'vertical' }}></textarea>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {step === 3 && (
+                    <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                      <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem', color: 'var(--text-public)' }}>Academic History</h3>
+                      <div className="form-group">
+                        <label className="form-label">Previous School Attended</label>
+                        <input type="text" name="prevSchool" value={formData.prevSchool} onChange={handleChange} className="input-field" style={{ background: 'var(--bg-public)', color: 'var(--text-public)' }} />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Last Grade Completed</label>
+                        <input type="text" name="lastGrade" value={formData.lastGrade} onChange={handleChange} className="input-field" style={{ background: 'var(--bg-public)', color: 'var(--text-public)' }} />
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {step === 4 && (
+                    <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                      <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem', color: 'var(--text-public)' }}>Review & Submit</h3>
+                      <div style={{ background: 'var(--bg-public)', padding: '1.5rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', marginBottom: '1rem' }}>
+                          <span style={{ color: 'var(--text-secondary)', fontWeight: '500' }}>Student Name:</span>
+                          <span style={{ color: 'var(--text-public)', fontWeight: '600' }}>{formData.studentName || '-'}</span>
+                          
+                          <span style={{ color: 'var(--text-secondary)', fontWeight: '500' }}>Grade Applying For:</span>
+                          <span style={{ color: 'var(--text-public)', fontWeight: '600' }}>{formData.grade || '-'}</span>
+                          
+                          <span style={{ color: 'var(--text-secondary)', fontWeight: '500' }}>Parent/Guardian:</span>
+                          <span style={{ color: 'var(--text-public)', fontWeight: '600' }}>{formData.parentName || '-'}</span>
+                          
+                          <span style={{ color: 'var(--text-secondary)', fontWeight: '500' }}>Contact Email:</span>
+                          <span style={{ color: 'var(--text-public)', fontWeight: '600' }}>{formData.email || '-'}</span>
+                        </div>
+                      </div>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>By submitting this application, you declare that all information provided is true and accurate to the best of your knowledge.</p>
+                    </motion.div>
+                  )}
+                  
+                </AnimatePresence>
+
+                <div className="form-actions">
+                  {step > 1 ? (
+                    <button type="button" onClick={prevStep} className="btn-hero-outline" style={{ border: '2px solid var(--border-color)', color: 'var(--text-public)', padding: '0.75rem 1.5rem', fontSize: '1rem' }}>
+                      Back
+                    </button>
+                  ) : <div></div>}
+                  
+                  {step < 4 ? (
+                    <button type="submit" className="btn-hero-primary" style={{ background: 'var(--primary-color)', color: 'white', boxShadow: 'none', padding: '0.75rem 1.5rem', fontSize: '1rem' }}>
+                      Next Step
+                    </button>
+                  ) : (
+                    <button type="submit" disabled={isSubmitting} className="btn-hero-primary" style={{ background: '#10b981', color: 'white', boxShadow: 'none', padding: '0.75rem 1.5rem', fontSize: '1rem', opacity: isSubmitting ? 0.7 : 1 }}>
+                      {isSubmitting ? 'Submitting...' : 'Submit Application'}
+                    </button>
+                  )}
+                </div>
+              </form>
+            </>
+          )}
         </div>
       </div>
     </div>
