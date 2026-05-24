@@ -22,27 +22,27 @@ const PublicLayout = ({ children }) => {
   ];
 
   return (
-    <div className={`min-h-screen flex flex-col ${isDarkMode ? 'dark' : ''}`}>
+    <div className={`app-layout-public ${isDarkMode ? 'dark' : ''}`} style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Top Navbar */}
-      <nav className="fixed w-full z-50 transition-all duration-300" style={{ background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(10px)', borderBottom: '1px solid rgba(0,0,0,0.1)' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
+      <nav className="public-nav">
+        <div className="public-container">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '5rem' }}>
             {/* Logo Area */}
-            <Link to="/" className="flex items-center gap-3">
-              <img src="/logo.png" alt="SmartGrades Logo" className="h-12 w-12 object-contain" />
-              <div className="flex flex-col">
-                <span className="font-bold text-xl tracking-tight" style={{ color: 'var(--primary-color)' }}>SmartGrades</span>
-                <span className="text-xs text-gray-500 uppercase tracking-widest font-semibold">School Campus</span>
+            <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <img src="/logo.png" alt="SmartGrades Logo" style={{ height: '3rem', width: '3rem', objectFit: 'contain' }} />
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontWeight: 'bold', fontSize: '1.25rem', letterSpacing: '-0.025em', color: 'var(--primary-color)' }}>SmartGrades</span>
+                <span style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '600' }}>School Campus</span>
               </div>
             </Link>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-8">
+            <div style={{ display: 'none', alignItems: 'center', gap: '2rem' }} className="md-flex">
               {navLinks.map((link) => (
                 <NavLink 
                   key={link.name} 
                   to={link.path}
-                  className={({ isActive }) => `font-medium text-sm transition-colors hover:text-[var(--primary-color)] ${isActive ? 'text-[var(--primary-color)] font-semibold' : 'text-gray-700'}`}
+                  className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
                 >
                   {link.name}
                 </NavLink>
@@ -50,18 +50,18 @@ const PublicLayout = ({ children }) => {
             </div>
 
             {/* Right Actions */}
-            <div className="hidden md:flex items-center space-x-4">
-              <button onClick={toggleDarkMode} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+            <div style={{ display: 'none', alignItems: 'center', gap: '1rem' }} className="md-flex">
+              <button onClick={toggleDarkMode} style={{ padding: '0.5rem', borderRadius: '50%', background: 'transparent', border: 'none', cursor: 'pointer' }}>
                 {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
               </button>
-              <Link to="/login" className="px-5 py-2 rounded-full text-sm font-semibold transition-transform hover:scale-105" style={{ background: 'var(--primary-color)', color: 'white' }}>
+              <Link to="/login" className="nav-btn hover-scale">
                 Login Portal
               </Link>
             </div>
 
             {/* Mobile menu button */}
-            <div className="md:hidden flex items-center">
-              <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 rounded-md text-gray-700 hover:text-black">
+            <div style={{ display: 'flex', alignItems: 'center' }} className="md-hidden">
+              <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} style={{ padding: '0.5rem', background: 'transparent', border: 'none', cursor: 'pointer' }}>
                 {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
             </div>
@@ -75,24 +75,25 @@ const PublicLayout = ({ children }) => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="md:hidden bg-white border-b border-gray-200 overflow-hidden"
+              style={{ overflow: 'hidden', background: 'var(--card-bg)', borderBottom: '1px solid rgba(0,0,0,0.1)' }}
+              className="md-hidden"
             >
-              <div className="px-4 pt-2 pb-6 space-y-2">
+              <div style={{ padding: '0.5rem 1rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {navLinks.map((link) => (
                   <NavLink
                     key={link.name}
                     to={link.path}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="block px-3 py-2 rounded-md text-base font-medium text-gray-800 hover:bg-gray-50 hover:text-[var(--primary-color)]"
+                    style={{ display: 'block', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontWeight: '500', color: 'var(--text-public)' }}
                   >
                     {link.name}
                   </NavLink>
                 ))}
-                <div className="mt-4 pt-4 border-t border-gray-200 flex flex-col gap-4">
-                  <button onClick={toggleDarkMode} className="flex items-center gap-2 px-3 py-2 text-gray-700">
+                <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <button onClick={toggleDarkMode} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', background: 'transparent', border: 'none', color: 'var(--text-public)', cursor: 'pointer' }}>
                     {isDarkMode ? <Sun size={20} /> : <Moon size={20} />} Toggle Theme
                   </button>
-                  <Link to="/login" className="block text-center w-full px-5 py-3 rounded-md font-semibold text-white" style={{ background: 'var(--primary-color)' }}>
+                  <Link to="/login" style={{ display: 'block', textAlign: 'center', width: '100%', padding: '0.75rem', borderRadius: '0.375rem', fontWeight: '600', color: 'white', background: 'var(--primary-color)' }}>
                     Login Portal
                   </Link>
                 </div>
@@ -103,47 +104,47 @@ const PublicLayout = ({ children }) => {
       </nav>
 
       {/* Main Content Area */}
-      <main className="flex-grow pt-20" style={{ background: 'var(--bg-color)', color: 'var(--text-primary)' }}>
+      <main style={{ flexGrow: 1, paddingTop: '5rem', background: 'var(--bg-public)', color: 'var(--text-public)' }}>
         {children}
       </main>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white pt-16 pb-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+      <footer className="public-footer">
+        <div className="public-container">
+          <div className="footer-grid">
             <div>
-              <div className="flex items-center gap-3 mb-6">
-                <img src="/logo.png" alt="SmartGrades Logo" className="h-10 w-10 brightness-0 invert" />
-                <span className="font-bold text-xl tracking-tight">SmartGrades</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                <img src="/logo.png" alt="SmartGrades Logo" style={{ height: '2.5rem', width: '2.5rem', filter: 'brightness(0) invert(1)' }} />
+                <span style={{ fontWeight: 'bold', fontSize: '1.25rem', letterSpacing: '-0.025em' }}>SmartGrades</span>
               </div>
-              <p className="text-gray-400 text-sm leading-relaxed mb-6">
+              <p style={{ color: '#9ca3af', fontSize: '0.875rem', lineHeight: '1.625', marginBottom: '1.5rem' }}>
                 Empowering the next generation with a futuristic digital campus. Interactive, intelligent, secure, and visually unforgettable.
               </p>
             </div>
             
             <div>
-              <h3 className="font-semibold text-lg mb-6">Quick Links</h3>
-              <ul className="space-y-3 text-sm text-gray-400">
-                <li><Link to="/about" className="hover:text-white transition-colors">About Us</Link></li>
-                <li><Link to="/admissions" className="hover:text-white transition-colors">Admissions</Link></li>
-                <li><Link to="/academics" className="hover:text-white transition-colors">Academics</Link></li>
-                <li><Link to="/contact" className="hover:text-white transition-colors">Contact</Link></li>
+              <h3 style={{ fontWeight: '600', fontSize: '1.125rem', marginBottom: '1.5rem' }}>Quick Links</h3>
+              <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.875rem' }}>
+                <li><Link to="/about" className="footer-link">About Us</Link></li>
+                <li><Link to="/admissions" className="footer-link">Admissions</Link></li>
+                <li><Link to="/academics" className="footer-link">Academics</Link></li>
+                <li><Link to="/contact" className="footer-link">Contact</Link></li>
               </ul>
             </div>
 
             <div>
-              <h3 className="font-semibold text-lg mb-6">Portals</h3>
-              <ul className="space-y-3 text-sm text-gray-400">
-                <li><Link to="/login" className="hover:text-white transition-colors">Student Login</Link></li>
-                <li><Link to="/login" className="hover:text-white transition-colors">Parent Portal</Link></li>
-                <li><Link to="/login" className="hover:text-white transition-colors">Teacher Dashboard</Link></li>
-                <li><Link to="/result" className="hover:text-white transition-colors">Result Portal</Link></li>
+              <h3 style={{ fontWeight: '600', fontSize: '1.125rem', marginBottom: '1.5rem' }}>Portals</h3>
+              <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.875rem' }}>
+                <li><Link to="/login" className="footer-link">Student Login</Link></li>
+                <li><Link to="/login" className="footer-link">Parent Portal</Link></li>
+                <li><Link to="/login" className="footer-link">Teacher Dashboard</Link></li>
+                <li><Link to="/result" className="footer-link">Result Portal</Link></li>
               </ul>
             </div>
 
             <div>
-              <h3 className="font-semibold text-lg mb-6">Contact Us</h3>
-              <ul className="space-y-3 text-sm text-gray-400">
+              <h3 style={{ fontWeight: '600', fontSize: '1.125rem', marginBottom: '1.5rem' }}>Contact Us</h3>
+              <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.875rem', color: '#9ca3af' }}>
                 <li>📍 123 Education Lane, Digital City</li>
                 <li>📞 +1 (555) 123-4567</li>
                 <li>✉️ contact@smartgrades.edu</li>
@@ -151,11 +152,11 @@ const PublicLayout = ({ children }) => {
             </div>
           </div>
           
-          <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-gray-500">
+          <div style={{ borderTop: '1px solid #1f2937', marginTop: '3rem', paddingTop: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem', color: '#6b7280' }}>
             <p>&copy; {new Date().getFullYear()} SmartGrades School. All rights reserved.</p>
-            <div className="flex space-x-6 mt-4 md:mt-0">
-              <Link to="#" className="hover:text-white transition-colors">Privacy Policy</Link>
-              <Link to="#" className="hover:text-white transition-colors">Terms of Service</Link>
+            <div style={{ display: 'flex', gap: '1.5rem' }}>
+              <Link to="#" className="footer-link">Privacy Policy</Link>
+              <Link to="#" className="footer-link">Terms of Service</Link>
             </div>
           </div>
         </div>

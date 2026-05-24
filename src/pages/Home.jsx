@@ -1,52 +1,52 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, BookOpen, Users, Trophy, ChevronRight } from 'lucide-react';
+import '../public.css';
 
 const Home = () => {
   return (
-    <div className="w-full">
+    <div style={{ width: '100%' }}>
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-indigo-900 to-blue-900 text-white">
+      <section className="hero-section">
         
         {/* Animated Background Particles */}
-        <div className="absolute inset-0 pointer-events-none opacity-20">
-           {/* We will add Three.js or complex framer-motion particles here in Phase 2. For now, simple CSS gradient and floating orbs */}
+        <div className="hero-particles">
            <motion.div 
               animate={{ y: [0, -20, 0], opacity: [0.5, 0.8, 0.5] }}
               transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-              className="absolute top-20 left-1/4 w-64 h-64 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl"
+              className="hero-orb-1"
            />
            <motion.div 
               animate={{ y: [0, 30, 0], opacity: [0.5, 0.8, 0.5] }}
               transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 1 }}
-              className="absolute bottom-20 right-1/4 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl"
+              className="hero-orb-2"
            />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center mt-16">
+        <div className="public-container" style={{ position: 'relative', zIndex: 10 }}>
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <img src="/logo.png" alt="Logo" className="w-32 h-32 mx-auto mb-8 drop-shadow-2xl" />
+            <img src="/logo.png" alt="Logo" style={{ width: '8rem', height: '8rem', margin: '0 auto 2rem', filter: 'drop-shadow(0 25px 25px rgba(0,0,0,0.15))' }} />
             
-            <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6">
+            <h1 className="hero-title">
               Welcome to the <br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
+              <span className="text-gradient">
                 Future of Education
               </span>
             </h1>
             
-            <p className="mt-4 text-xl md:text-2xl text-blue-100 max-w-3xl mx-auto mb-10 font-light">
+            <p className="hero-subtitle">
               A futuristic digital school campus — interactive, intelligent, secure, and visually unforgettable.
             </p>
 
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <Link to="/admissions" className="px-8 py-4 rounded-full bg-white text-blue-900 font-bold text-lg hover:bg-blue-50 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)] flex items-center justify-center gap-2">
+            <div className="hero-buttons">
+              <Link to="/admissions" className="btn-hero-primary">
                 Apply Now <ArrowRight size={20} />
               </Link>
-              <Link to="/login" className="px-8 py-4 rounded-full bg-transparent border-2 border-white/30 text-white font-bold text-lg hover:bg-white/10 transition-colors backdrop-blur-sm flex items-center justify-center gap-2">
+              <Link to="/login" className="btn-hero-outline">
                 Student & Parent Portal
               </Link>
             </div>
@@ -55,52 +55,52 @@ const Home = () => {
       </section>
 
       {/* Quick Info Bar (Ticker) */}
-      <div className="bg-emerald-600 text-white py-3 overflow-hidden relative shadow-lg">
+      <div className="info-ticker">
         <motion.div 
           animate={{ x: ["100%", "-100%"] }}
           transition={{ repeat: Infinity, duration: 20, ease: "linear" }}
-          className="whitespace-nowrap font-medium text-sm md:text-base tracking-wide"
+          className="ticker-content"
         >
-          <span className="mx-4">🔔 ADMISSIONS OPEN FOR 2026-2027 ACADEMIC YEAR</span> • 
-          <span className="mx-4">📅 MID-TERM EXAMS COMMENCE ON 15TH JUNE</span> • 
-          <span className="mx-4">👥 PARENT-TEACHER MEETING SCHEDULED FOR FRIDAY</span>
+          <span style={{ margin: '0 1rem' }}>🔔 ADMISSIONS OPEN FOR 2026-2027 ACADEMIC YEAR</span> • 
+          <span style={{ margin: '0 1rem' }}>📅 MID-TERM EXAMS COMMENCE ON 15TH JUNE</span> • 
+          <span style={{ margin: '0 1rem' }}>👥 PARENT-TEACHER MEETING SCHEDULED FOR FRIDAY</span>
         </motion.div>
       </div>
 
       {/* Bento Grid: Why Choose Us */}
-      <section className="py-24 bg-gray-50 dark:bg-gray-900 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Discover the Difference</h2>
-            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">Experience a revolutionary approach to learning, tailored for the modern student.</p>
+      <section className="bento-section">
+        <div className="public-container">
+          <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
+            <h2 className="bento-title">Discover the Difference</h2>
+            <p style={{ fontSize: '1.25rem', opacity: 0.8, maxWidth: '42rem', margin: '0 auto' }}>Experience a revolutionary approach to learning, tailored for the modern student.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="bento-grid">
             <motion.div 
               whileHover={{ y: -10 }}
-              className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl border border-gray-100 dark:border-gray-700"
+              className="bento-card"
             >
-              <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/50 rounded-2xl flex items-center justify-center mb-6 text-blue-600 dark:text-blue-400">
+              <div className="bento-icon-wrapper" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#2563eb' }}>
                 <BookOpen size={28} />
               </div>
-              <h3 className="text-2xl font-bold mb-4 dark:text-white">Academic Excellence</h3>
-              <p className="text-gray-600 dark:text-gray-400">Comprehensive curriculum designed to foster critical thinking and intellectual growth.</p>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>Academic Excellence</h3>
+              <p style={{ opacity: 0.7 }}>Comprehensive curriculum designed to foster critical thinking and intellectual growth.</p>
             </motion.div>
 
             <motion.div 
               whileHover={{ y: -10 }}
-              className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl border border-gray-100 dark:border-gray-700 md:col-span-2 relative overflow-hidden"
+              className="bento-card bento-card-large"
             >
-              <div className="absolute right-0 bottom-0 opacity-10 dark:opacity-5 transform translate-x-1/4 translate-y-1/4">
+              <div style={{ position: 'absolute', right: 0, bottom: 0, opacity: 0.05, transform: 'translate(25%, 25%)' }}>
                  <Trophy size={200} />
               </div>
-              <div className="relative z-10">
-                <div className="w-14 h-14 bg-emerald-100 dark:bg-emerald-900/50 rounded-2xl flex items-center justify-center mb-6 text-emerald-600 dark:text-emerald-400">
+              <div style={{ position: 'relative', zIndex: 10 }}>
+                <div className="bento-icon-wrapper" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#059669' }}>
                   <Trophy size={28} />
                 </div>
-                <h3 className="text-2xl font-bold mb-4 dark:text-white">Global Exposure & Innovation</h3>
-                <p className="text-gray-600 dark:text-gray-400 max-w-md">Our state-of-the-art facilities and international partnerships prepare students for a rapidly evolving world.</p>
-                <Link to="/about" className="inline-flex items-center gap-2 mt-6 font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300">
+                <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>Global Exposure & Innovation</h3>
+                <p style={{ opacity: 0.7, maxWidth: '28rem' }}>Our state-of-the-art facilities and international partnerships prepare students for a rapidly evolving world.</p>
+                <Link to="/about" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.5rem', fontWeight: '600', color: '#059669' }}>
                   Read more <ChevronRight size={16} />
                 </Link>
               </div>
