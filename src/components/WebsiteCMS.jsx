@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Trash2, Image as ImageIcon, Users, UploadCloud, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Image as ImageIcon, Users, UploadCloud, Loader2, Monitor } from 'lucide-react';
 
 export default function WebsiteCMS() {
   const [faculty, setFaculty] = useState([]);
@@ -19,10 +19,22 @@ export default function WebsiteCMS() {
   const [galleryUploadProgress, setGalleryUploadProgress] = useState({ current: 0, total: 0 });
   const galleryFileRef = useRef(null);
 
+  // Hero State
+  const [heroMedia, setHeroMedia] = useState(null);
+  const [heroFile, setHeroFile] = useState(null);
+  const [uploadingHero, setUploadingHero] = useState(false);
+  const heroFileRef = useRef(null);
+
   useEffect(() => {
     fetchFaculty();
     fetchGallery();
+    fetchHeroMedia();
   }, []);
+
+  const fetchHeroMedia = async () => {
+    const { data } = await supabase.from('site_settings').select('value').eq('key', 'hero_media_url').single();
+    if (data) setHeroMedia(data.value);
+  };
 
   const fetchFaculty = async () => {
     const { data } = await supabase.from('faculty').select('*').order('name');
@@ -49,6 +61,25 @@ export default function WebsiteCMS() {
 
     const { data } = supabase.storage.from('public-assets').getPublicUrl(filePath);
     return data.publicUrl;
+  };
+
+  const handleUploadHero = async (e) => {
+    e.preventDefault();
+    if (!heroFile) return alert('Please select a file');
+
+    setUploadingHero(true);
+    try {
+      const imageUrl = await uploadFileToSupabase(heroFile, 'hero');
+      const { error } = await supabase.from('site_settings').upsert({ key: 'hero_media_url', value: imageUrl });
+      if (error) throw error;
+      setHeroMedia(imageUrl);
+      setHeroFile(null);
+      if (heroFileRef.current) heroFileRef.current.value = '';
+    } catch (err) {
+      alert("Upload failed: " + err.message);
+    } finally {
+      setUploadingHero(false);
+    }
   };
 
   const handleAddFaculty = async (e) => {
@@ -130,6 +161,50 @@ export default function WebsiteCMS() {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginTop: '2rem' }}>
+      
+      {/* Homepage Hero Manager */}
+      <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Monitor size={20} color="#f59e0b" /> Homepage Hero Background
+        </h3>
+        <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <form onSubmit={handleUploadHero} style={{ flex: 1, minWidth: '300px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ border: '2px dashed #f59e0b', padding: '1.5rem', borderRadius: '0.5rem', background: 'rgba(245, 158, 11, 0.05)', textAlign: 'center' }}>
+              <UploadCloud size={32} color="#f59e0b" style={{ margin: '0 auto 0.5rem' }} />
+              <label style={{ fontSize: '0.875rem', fontWeight: 'bold', display: 'block', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Upload Image or Video</label>
+              <input 
+                type="file" 
+                accept="image/*,video/*"
+                ref={heroFileRef}
+                onChange={e => setHeroFile(e.target.files[0])}
+                style={{ width: '100%', fontSize: '0.9rem' }}
+                required
+              />
+            </div>
+            <button type="submit" className="btn-hero-primary" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', background: '#f59e0b', color: 'white', border: 'none', padding: '0.75rem', width: '100%' }} disabled={uploadingHero}>
+              {uploadingHero ? <><Loader2 size={16} className="animate-spin" /> Uploading...</> : <><Plus size={16} /> Set as Hero Background</>}
+            </button>
+          </form>
+          
+          <div style={{ flex: 1, minWidth: '300px', background: '#f8fafc', borderRadius: '0.5rem', border: '1px solid #e2e8f0', padding: '1rem' }}>
+            <h4 style={{ fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Current Background</h4>
+            {heroMedia ? (
+              <div style={{ width: '100%', aspectRatio: '16/9', borderRadius: '0.25rem', overflow: 'hidden', background: 'black' }}>
+                {heroMedia.match(/\.(mp4|webm|ogg)$/i) ? (
+                  <video src={heroMedia} autoPlay muted loop style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <img src={heroMedia} alt="Hero" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                )}
+              </div>
+            ) : (
+               <div style={{ width: '100%', aspectRatio: '16/9', borderRadius: '0.25rem', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+                 Default Graphic (hero_bg.png)
+               </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Faculty Manager */}
       <div className="bento-card" style={{ padding: '2rem' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

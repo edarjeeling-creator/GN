@@ -6,10 +6,21 @@ import '../public.css';
 
 const Home = () => {
   const [news, setNews] = useState([]);
+  const [heroMedia, setHeroMedia] = useState(null);
 
   useEffect(() => {
     fetchNews();
+    fetchHeroMedia();
   }, []);
+
+  const fetchHeroMedia = async () => {
+    try {
+      const { data, error } = await supabase.from('site_settings').select('value').eq('key', 'hero_media_url').single();
+      if (!error && data) setHeroMedia(data.value);
+    } catch (e) {
+      console.log('Hero media fetch error:', e);
+    }
+  };
 
   const fetchNews = async () => {
     try {
@@ -74,8 +85,18 @@ const Home = () => {
         <div className="portal-center-content">
           
           {/* Hero Banner */}
-          <div className="portal-hero" style={{ backgroundImage: 'url(/hero_bg.png)' }}>
-            <div className="portal-hero-overlay">
+          <div className="portal-hero" style={{ position: 'relative', overflow: 'hidden', backgroundImage: heroMedia && !heroMedia.match(/\.(mp4|webm|ogg)$/i) ? `url(${heroMedia})` : 'url(/hero_bg.png)' }}>
+            {heroMedia && heroMedia.match(/\.(mp4|webm|ogg)$/i) && (
+              <video 
+                autoPlay 
+                muted 
+                loop 
+                playsInline 
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}
+                src={heroMedia}
+              />
+            )}
+            <div className="portal-hero-overlay" style={{ position: 'relative', zIndex: 1 }}>
               <h2 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '0.5rem', color: '#fcd34d' }}>WELCOME TO</h2>
               <h1 style={{ fontSize: '3.5rem', fontWeight: '900', lineHeight: '1.1', marginBottom: '1rem' }}>HIMALAYAN ICSE SCHOOL</h1>
               <p style={{ fontSize: '1.2rem', marginBottom: '2rem', opacity: 0.9 }}>Nurturing Minds, Building Futures | K-12 Excellence | Est. 1996</p>
