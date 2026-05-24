@@ -1,26 +1,35 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, MapPin, Users, Phone, ArrowRight, FileText, CheckCircle, ChevronRight, Award, ImageIcon, Trophy } from 'lucide-react';
+import { BookOpen, MapPin, Users, Phone, ArrowRight, FileText, CheckCircle, ChevronRight, Award, ImageIcon, Trophy, ChevronLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import '../public.css';
 
 const Home = () => {
   const [news, setNews] = useState([]);
-  const [heroMedia, setHeroMedia] = useState(null);
+  const [heroSlides, setHeroSlides] = useState([]);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
 
   useEffect(() => {
     fetchNews();
-    fetchHeroMedia();
+    fetchHeroSlides();
   }, []);
 
-  const fetchHeroMedia = async () => {
+  const fetchHeroSlides = async () => {
     try {
-      const { data, error } = await supabase.from('site_settings').select('value').eq('key', 'hero_media_url').single();
-      if (!error && data) setHeroMedia(data.value);
+      const { data, error } = await supabase.from('hero_slides').select('*').order('created_at', { ascending: false });
+      if (!error && data) setHeroSlides(data);
     } catch (e) {
-      console.log('Hero media fetch error:', e);
+      console.log('Hero slides fetch error:', e);
     }
   };
+
+  useEffect(() => {
+    if (heroSlides.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentSlideIndex((prev) => (prev + 1) % heroSlides.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [heroSlides.length]);
 
   const fetchNews = async () => {
     try {
@@ -85,17 +94,62 @@ const Home = () => {
         <div className="portal-center-content">
           
           {/* Hero Banner */}
-          <div className="portal-hero" style={{ position: 'relative', overflow: 'hidden', backgroundImage: heroMedia && !heroMedia.match(/\.(mp4|webm|ogg)$/i) ? `url(${heroMedia})` : 'url(/hero_bg.png)' }}>
-            {heroMedia && heroMedia.match(/\.(mp4|webm|ogg)$/i) && (
-              <video 
-                autoPlay 
-                muted 
-                loop 
-                playsInline 
-                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}
-                src={heroMedia}
-              />
+          <div className="portal-hero" style={{ position: 'relative', overflow: 'hidden', backgroundColor: 'black' }}>
+            {heroSlides.length > 0 ? (
+              heroSlides.map((slide, index) => (
+                <div 
+                  key={slide.id} 
+                  style={{ 
+                    position: 'absolute', 
+                    top: 0, 
+                    left: 0, 
+                    width: '100%', 
+                    height: '100%', 
+                    opacity: index === currentSlideIndex ? 1 : 0, 
+                    transition: 'opacity 1s ease-in-out',
+                    zIndex: 0 
+                  }}
+                >
+                  {slide.media_url.match(/\.(mp4|webm|ogg)$/i) ? (
+                    <video autoPlay muted loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} src={slide.media_url} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', backgroundImage: `url(${slide.media_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+                  )}
+                </div>
+              ))
+            ) : (
+              <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundImage: 'url(/hero_bg.png)', backgroundSize: 'cover', backgroundPosition: 'center', zIndex: 0 }} />
             )}
+            
+            {/* Nav Arrows if multiple slides */}
+            {heroSlides.length > 1 && (
+              <>
+                <button 
+                  onClick={() => setCurrentSlideIndex(prev => prev === 0 ? heroSlides.length - 1 : prev - 1)}
+                  style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', zIndex: 2, background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer', backdropFilter: 'blur(4px)' }}
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <button 
+                  onClick={() => setCurrentSlideIndex(prev => (prev + 1) % heroSlides.length)}
+                  style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', zIndex: 2, background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer', backdropFilter: 'blur(4px)' }}
+                >
+                  <ChevronRight size={24} />
+                </button>
+
+                {/* Dots */}
+                <div style={{ position: 'absolute', bottom: '1rem', left: '50%', transform: 'translateX(-50%)', zIndex: 2, display: 'flex', gap: '0.5rem' }}>
+                  {heroSlides.map((_, i) => (
+                    <button 
+                      key={i}
+                      onClick={() => setCurrentSlideIndex(i)}
+                      style={{ width: '10px', height: '10px', borderRadius: '50%', background: i === currentSlideIndex ? 'white' : 'rgba(255,255,255,0.4)', border: 'none', padding: 0, cursor: 'pointer', transition: 'background 0.3s' }}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+
             <div className="portal-hero-overlay" style={{ position: 'relative', zIndex: 1 }}>
               <h2 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '0.5rem', color: '#fcd34d' }}>WELCOME TO</h2>
               <h1 style={{ fontSize: '3.5rem', fontWeight: '900', lineHeight: '1.1', marginBottom: '1rem' }}>HIMALAYAN ICSE SCHOOL</h1>
