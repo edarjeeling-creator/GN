@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Users, MapPin, Mail, Phone, Clock, Award, Target, Star } from 'lucide-react';
+import { BookOpen, Users, MapPin, Mail, Phone, Clock, Award, Target, Star, Image as ImageIcon } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import '../public.css';
 
 // Reusable animation variants
@@ -299,23 +300,92 @@ export const Admissions = () => {
 };
 
 export const Faculty = () => {
+  const [faculty, setFaculty] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchFaculty();
+  }, []);
+
+  const fetchFaculty = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('faculty')
+        .select('*')
+        .order('name', { ascending: true });
+        
+      if (!error && data) {
+        setFaculty(data);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="w-full">
       <div className="hero-section" style={{ minHeight: '30vh', paddingTop: '4rem', background: 'linear-gradient(to right, #4c1d95, #6d28d9)' }}>
         <div className="public-container relative z-10 text-center">
           <motion.div initial="hidden" animate="visible" variants={fadeUp}>
             <h1 className="hero-title" style={{ fontSize: '3rem' }}>Our Faculty</h1>
+            <p className="hero-subtitle" style={{ marginBottom: 0 }}>Passionate educators shaping the future.</p>
           </motion.div>
         </div>
       </div>
       <div className="public-container" style={{ padding: '4rem 1rem', minHeight: '40vh' }}>
-        <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-          <BookOpen size={48} style={{ margin: '0 auto', color: '#8b5cf6', opacity: 0.5 }} />
-          <h2 style={{ fontSize: '2rem', fontWeight: 'bold', marginTop: '1rem', color: 'var(--text-public)' }}>Meet the Experts</h2>
-          <p style={{ color: 'var(--text-secondary)', maxWidth: '600px', margin: '1rem auto' }}>
-            Our dedicated team of educators brings decades of experience and passion to the classroom. Faculty profiles are being digitized.
-          </p>
-        </div>
+        
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>Loading faculty profiles...</div>
+        ) : faculty.length === 0 ? (
+           <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+             <Users size={48} style={{ margin: '0 auto', color: '#8b5cf6', opacity: 0.5 }} />
+             <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginTop: '1rem', color: 'var(--text-public)' }}>Profiles Coming Soon</h2>
+             <p style={{ color: 'var(--text-secondary)', maxWidth: '600px', margin: '1rem auto' }}>
+               We are currently updating our faculty directory. Please check back soon!
+             </p>
+           </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2rem' }}>
+            {faculty.map((member, index) => (
+              <motion.div 
+                key={member.id} 
+                initial={{ opacity: 0, y: 20 }} 
+                whileInView={{ opacity: 1, y: 0 }} 
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                style={{ 
+                  background: 'var(--surface-color)', 
+                  borderRadius: '1rem', 
+                  overflow: 'hidden', 
+                  boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                  border: '1px solid rgba(0,0,0,0.05)'
+                }}
+              >
+                <div style={{ height: '200px', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {member.image_url ? (
+                    <img src={member.image_url} alt={member.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <ImageIcon size={48} color="#94a3b8" />
+                  )}
+                </div>
+                <div style={{ padding: '1.5rem' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>{member.name}</h3>
+                  <div style={{ color: '#6d28d9', fontWeight: '600', fontSize: '0.9rem', marginBottom: '0.5rem' }}>{member.designation}</div>
+                  <div style={{ display: 'inline-block', background: '#f3f4f6', color: '#475569', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '1rem' }}>
+                    {member.department}
+                  </div>
+                  {member.bio && (
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.5' }}>
+                      {member.bio}
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -389,6 +459,126 @@ export const Contact = () => {
           </motion.div>
 
         </div>
+      </div>
+    </div>
+  );
+};
+
+export const Gallery = () => {
+  const [photos, setPhotos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState('All');
+
+  useEffect(() => {
+    fetchPhotos();
+  }, []);
+
+  const fetchPhotos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('gallery')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (!error && data) {
+        setPhotos(data);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const categories = ['All', ...new Set(photos.map(p => p.category))];
+  const filteredPhotos = activeCategory === 'All' ? photos : photos.filter(p => p.category === activeCategory);
+
+  return (
+    <div className="w-full">
+      <div className="hero-section" style={{ minHeight: '30vh', paddingTop: '4rem', background: 'linear-gradient(to right, #047857, #10b981)' }}>
+        <div className="public-container relative z-10 text-center">
+          <motion.div initial="hidden" animate="visible" variants={fadeUp}>
+            <h1 className="hero-title" style={{ fontSize: '3rem' }}>Photo Gallery</h1>
+            <p className="hero-subtitle" style={{ marginBottom: 0 }}>Glimpses of campus life and events.</p>
+          </motion.div>
+        </div>
+      </div>
+      
+      <div className="public-container" style={{ padding: '4rem 1rem', minHeight: '50vh' }}>
+        
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>Loading gallery...</div>
+        ) : photos.length === 0 ? (
+           <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+             <ImageIcon size={48} style={{ margin: '0 auto', color: '#10b981', opacity: 0.5 }} />
+             <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginTop: '1rem', color: 'var(--text-public)' }}>Gallery Empty</h2>
+             <p style={{ color: 'var(--text-secondary)', maxWidth: '600px', margin: '1rem auto' }}>
+               We are currently uploading our photo collection. Please check back soon!
+             </p>
+           </div>
+        ) : (
+          <>
+            {/* Category Filter */}
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '3rem' }}>
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  style={{
+                    padding: '0.5rem 1.5rem',
+                    borderRadius: '2rem',
+                    border: 'none',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    background: activeCategory === cat ? '#10b981' : '#f1f5f9',
+                    color: activeCategory === cat ? 'white' : '#475569',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Masonry-style Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+              <AnimatePresence mode="popLayout">
+                {filteredPhotos.map((photo, index) => (
+                  <motion.div
+                    key={photo.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.3 }}
+                    style={{
+                      position: 'relative',
+                      borderRadius: '1rem',
+                      overflow: 'hidden',
+                      aspectRatio: index % 3 === 0 ? '4/5' : '4/3',
+                      boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
+                    }}
+                    className="gallery-item-hover"
+                  >
+                    <img src={photo.image_url} alt={photo.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <div className="gallery-item-overlay" style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)',
+                      padding: '2rem 1rem 1rem',
+                      color: 'white'
+                    }}>
+                      <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#10b981', fontWeight: 'bold', marginBottom: '0.25rem' }}>{photo.category}</div>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>{photo.title}</h3>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

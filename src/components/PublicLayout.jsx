@@ -14,9 +14,10 @@ const PublicLayout = ({ children }) => {
 
   const navLinks = [
     { name: 'ABOUT US', path: '/about' },
+    { name: 'FACULTY', path: '/faculty' },
     { name: 'ACADEMICS', path: '/academics', sub: 'Kindergarten Primary Middle' },
     { name: 'ADMISSIONS', path: '/admissions' },
-    { name: 'CAMPUS LIFE', path: '/campus-life' },
+    { name: 'GALLERY', path: '/gallery' },
     { name: 'NOTICES/CIRCULARS', path: '/notices' },
     { name: 'CONTACT US', path: '/contact' }
   ];

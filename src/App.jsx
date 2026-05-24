@@ -14,7 +14,7 @@ import Attendance from './pages/Attendance';
 import AttendanceReports from './pages/AttendanceReports';
 import PublicLayout from './components/PublicLayout';
 import Home from './pages/Home';
-import { About, Academics, Admissions, Faculty, Contact } from './pages/PublicPages';
+import { About, Academics, Admissions, Faculty, Contact, Gallery } from './pages/PublicPages';
 
 function App() {
   return (
@@ -26,6 +26,7 @@ function App() {
         <Route path="/academics" element={<PublicLayout><Academics /></PublicLayout>} />
         <Route path="/admissions" element={<PublicLayout><Admissions /></PublicLayout>} />
         <Route path="/faculty" element={<PublicLayout><Faculty /></PublicLayout>} />
+        <Route path="/gallery" element={<PublicLayout><Gallery /></PublicLayout>} />
         <Route path="/contact" element={<PublicLayout><Contact /></PublicLayout>} />
         
         {/* Standalone Public Pages */}
