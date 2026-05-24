@@ -1,12 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Trash2, Edit2, Image as ImageIcon, Users } from 'lucide-react';
+import { Plus, Trash2, Image as ImageIcon, Users, UploadCloud, Loader2 } from 'lucide-react';
 
 export default function WebsiteCMS() {
   const [faculty, setFaculty] = useState([]);
   const [gallery, setGallery] = useState([]);
-  const [newFaculty, setNewFaculty] = useState({ name: '', designation: '', department: '', bio: '', image_url: '' });
-  const [newPhoto, setNewPhoto] = useState({ title: '', category: '', image_url: '' });
+  
+  // Faculty State
+  const [newFaculty, setNewFaculty] = useState({ name: '', designation: '', department: '', bio: '' });
+  const [facultyFile, setFacultyFile] = useState(null);
+  const [uploadingFaculty, setUploadingFaculty] = useState(false);
+  const facultyFileRef = useRef(null);
+
+  // Gallery State
+  const [galleryCategory, setGalleryCategory] = useState('');
+  const [galleryFiles, setGalleryFiles] = useState([]);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [galleryUploadProgress, setGalleryUploadProgress] = useState({ current: 0, total: 0 });
+  const galleryFileRef = useRef(null);
 
   useEffect(() => {
     fetchFaculty();
@@ -23,14 +34,50 @@ export default function WebsiteCMS() {
     if (data) setGallery(data);
   };
 
+  const uploadFileToSupabase = async (file, folder) => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+    const filePath = `${folder}/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('public-assets')
+      .upload(filePath, file, { cacheControl: '3600', upsert: false });
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data } = supabase.storage.from('public-assets').getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
   const handleAddFaculty = async (e) => {
     e.preventDefault();
     if (!newFaculty.name || !newFaculty.designation) return alert('Name and Designation are required');
-    const { error } = await supabase.from('faculty').insert([newFaculty]);
-    if (!error) {
-      setNewFaculty({ name: '', designation: '', department: '', bio: '', image_url: '' });
+    
+    setUploadingFaculty(true);
+    try {
+      let imageUrl = null;
+      if (facultyFile) {
+        imageUrl = await uploadFileToSupabase(facultyFile, 'faculty');
+      }
+
+      const { error } = await supabase.from('faculty').insert([{
+        ...newFaculty,
+        image_url: imageUrl
+      }]);
+      
+      if (error) throw error;
+
+      setNewFaculty({ name: '', designation: '', department: '', bio: '' });
+      setFacultyFile(null);
+      if (facultyFileRef.current) facultyFileRef.current.value = '';
       fetchFaculty();
-    } else alert(error.message);
+    } catch (err) {
+      alert("Upload failed: " + err.message);
+    } finally {
+      setUploadingFaculty(false);
+    }
   };
 
   const handleDeleteFaculty = async (id) => {
@@ -39,14 +86,40 @@ export default function WebsiteCMS() {
     fetchFaculty();
   };
 
-  const handleAddPhoto = async (e) => {
+  const handleAddPhotos = async (e) => {
     e.preventDefault();
-    if (!newPhoto.title || !newPhoto.image_url) return alert('Title and Image URL are required');
-    const { error } = await supabase.from('gallery').insert([newPhoto]);
-    if (!error) {
-      setNewPhoto({ title: '', category: '', image_url: '' });
+    if (!galleryCategory) return alert('Category is required');
+    if (!galleryFiles || galleryFiles.length === 0) return alert('Please select at least one image');
+
+    setUploadingGallery(true);
+    setGalleryUploadProgress({ current: 0, total: galleryFiles.length });
+
+    try {
+      for (let i = 0; i < galleryFiles.length; i++) {
+        const file = galleryFiles[i];
+        const imageUrl = await uploadFileToSupabase(file, 'gallery');
+        
+        // Use filename as title, minus extension
+        const title = file.name.split('.').slice(0, -1).join('.');
+
+        await supabase.from('gallery').insert([{
+          title: title,
+          category: galleryCategory,
+          image_url: imageUrl
+        }]);
+
+        setGalleryUploadProgress({ current: i + 1, total: galleryFiles.length });
+      }
+
+      setGalleryCategory('');
+      setGalleryFiles([]);
+      if (galleryFileRef.current) galleryFileRef.current.value = '';
       fetchGallery();
-    } else alert(error.message);
+    } catch (err) {
+      alert("Bulk upload failed: " + err.message);
+    } finally {
+      setUploadingGallery(false);
+    }
   };
 
   const handleDeletePhoto = async (id) => {
@@ -68,9 +141,23 @@ export default function WebsiteCMS() {
             <input type="text" placeholder="Designation" className="input-field" value={newFaculty.designation} onChange={e => setNewFaculty({...newFaculty, designation: e.target.value})} required />
             <input type="text" placeholder="Department" className="input-field" value={newFaculty.department} onChange={e => setNewFaculty({...newFaculty, department: e.target.value})} />
           </div>
-          <input type="text" placeholder="Image URL (e.g. /faculty_placeholder.png)" className="input-field" value={newFaculty.image_url} onChange={e => setNewFaculty({...newFaculty, image_url: e.target.value})} />
+          
+          <div style={{ border: '1px dashed var(--border-color)', padding: '1rem', borderRadius: '0.5rem', background: '#f8fafc' }}>
+            <label className="text-sm font-bold block mb-2" style={{ color: 'var(--text-secondary)' }}>Profile Photo (Optional)</label>
+            <input 
+              type="file" 
+              accept="image/*"
+              ref={facultyFileRef}
+              onChange={e => setFacultyFile(e.target.files[0])}
+              style={{ width: '100%', fontSize: '0.9rem' }}
+            />
+          </div>
+
           <textarea placeholder="Short Bio" rows="2" className="input-field" value={newFaculty.bio} onChange={e => setNewFaculty({...newFaculty, bio: e.target.value})}></textarea>
-          <button type="submit" className="btn-hero-primary" style={{ background: '#8b5cf6', color: 'white', border: 'none' }}><Plus size={16} /> Add Faculty</button>
+          
+          <button type="submit" className="btn-hero-primary flex justify-center items-center gap-2" style={{ background: '#8b5cf6', color: 'white', border: 'none' }} disabled={uploadingFaculty}>
+            {uploadingFaculty ? <><Loader2 size={16} className="animate-spin" /> Uploading...</> : <><Plus size={16} /> Add Faculty</>}
+          </button>
         </form>
 
         <div className="overflow-y-auto" style={{ maxHeight: '300px' }}>
@@ -92,13 +179,29 @@ export default function WebsiteCMS() {
       {/* Gallery Manager */}
       <div className="bento-card" style={{ padding: '2rem' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <ImageIcon size={20} color="#10b981" /> Photo Gallery Manager
+          <ImageIcon size={20} color="#10b981" /> Bulk Photo Gallery Manager
         </h3>
-        <form onSubmit={handleAddPhoto} className="flex flex-col gap-3 mb-6">
-          <input type="text" placeholder="Photo Title" className="input-field" value={newPhoto.title} onChange={e => setNewPhoto({...newPhoto, title: e.target.value})} required />
-          <input type="text" placeholder="Category (e.g. Sports, Academics)" className="input-field" value={newPhoto.category} onChange={e => setNewPhoto({...newPhoto, category: e.target.value})} required />
-          <input type="text" placeholder="Image URL (e.g. /gallery_sports.png)" className="input-field" value={newPhoto.image_url} onChange={e => setNewPhoto({...newPhoto, image_url: e.target.value})} required />
-          <button type="submit" className="btn-hero-primary" style={{ background: '#10b981', color: 'white', border: 'none' }}><Plus size={16} /> Add Photo</button>
+        <form onSubmit={handleAddPhotos} className="flex flex-col gap-3 mb-6">
+          <input type="text" placeholder="Category for these photos (e.g. Sports, Academics)" className="input-field" value={galleryCategory} onChange={e => setGalleryCategory(e.target.value)} required />
+          
+          <div style={{ border: '2px dashed #10b981', padding: '1.5rem', borderRadius: '0.5rem', background: 'rgba(16, 185, 129, 0.05)', textAlign: 'center' }}>
+            <UploadCloud size={32} color="#10b981" style={{ margin: '0 auto 0.5rem' }} />
+            <label className="text-sm font-bold block mb-2" style={{ color: 'var(--text-primary)' }}>Select Multiple Photos</label>
+            <input 
+              type="file" 
+              accept="image/*"
+              multiple
+              ref={galleryFileRef}
+              onChange={e => setGalleryFiles(Array.from(e.target.files))}
+              style={{ width: '100%', fontSize: '0.9rem' }}
+              required
+            />
+            {galleryFiles.length > 0 && <p className="text-xs mt-2 text-green-600 font-bold">{galleryFiles.length} files selected</p>}
+          </div>
+
+          <button type="submit" className="btn-hero-primary flex justify-center items-center gap-2" style={{ background: '#10b981', color: 'white', border: 'none' }} disabled={uploadingGallery}>
+            {uploadingGallery ? <><Loader2 size={16} className="animate-spin" /> Uploading {galleryUploadProgress.current} of {galleryUploadProgress.total}...</> : <><Plus size={16} /> Bulk Upload Photos</>}
+          </button>
         </form>
 
         <div className="overflow-y-auto" style={{ maxHeight: '300px' }}>
@@ -107,7 +210,7 @@ export default function WebsiteCMS() {
               <div className="flex items-center gap-3">
                 <img src={p.image_url} alt="" style={{ width: '60px', height: '40px', borderRadius: '4px', objectFit: 'cover' }} />
                 <div>
-                  <p className="font-bold text-sm">{p.title}</p>
+                  <p className="font-bold text-sm" style={{ maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title}</p>
                   <p className="text-xs text-gray-500">{p.category}</p>
                 </div>
               </div>
