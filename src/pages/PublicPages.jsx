@@ -347,7 +347,7 @@ export const Faculty = () => {
              </p>
            </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '2rem' }}>
             {faculty.map((member, index) => (
               <motion.div 
                 key={member.id} 
@@ -360,7 +360,9 @@ export const Faculty = () => {
                   borderRadius: '1rem', 
                   overflow: 'hidden', 
                   boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-                  border: '1px solid rgba(0,0,0,0.05)'
+                  border: '1px solid rgba(0,0,0,0.05)',
+                  width: '100%',
+                  maxWidth: '300px'
                 }}
               >
                 <div style={{ height: '200px', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -468,6 +470,7 @@ export const Gallery = () => {
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [selectedMedia, setSelectedMedia] = useState(null);
 
   useEffect(() => {
     fetchPhotos();
@@ -493,12 +496,14 @@ export const Gallery = () => {
   const categories = ['All', ...new Set(photos.map(p => p.category))];
   const filteredPhotos = activeCategory === 'All' ? photos : photos.filter(p => p.category === activeCategory);
 
+  const isVideo = (url) => url && url.match(/\.(mp4|webm|ogg)$/i);
+
   return (
-    <div className="w-full">
+    <div className="w-full relative">
       <div className="hero-section" style={{ minHeight: '30vh', paddingTop: '4rem', background: 'linear-gradient(to right, #047857, #10b981)' }}>
         <div className="public-container relative z-10 text-center">
           <motion.div initial="hidden" animate="visible" variants={fadeUp}>
-            <h1 className="hero-title" style={{ fontSize: '3rem' }}>Photo Gallery</h1>
+            <h1 className="hero-title" style={{ fontSize: '3rem' }}>Photo & Video Gallery</h1>
             <p className="hero-subtitle" style={{ marginBottom: 0 }}>Glimpses of campus life and events.</p>
           </motion.div>
         </div>
@@ -513,7 +518,7 @@ export const Gallery = () => {
              <ImageIcon size={48} style={{ margin: '0 auto', color: '#10b981', opacity: 0.5 }} />
              <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginTop: '1rem', color: 'var(--text-public)' }}>Gallery Empty</h2>
              <p style={{ color: 'var(--text-secondary)', maxWidth: '600px', margin: '1rem auto' }}>
-               We are currently uploading our photo collection. Please check back soon!
+               We are currently uploading our collection. Please check back soon!
              </p>
            </div>
         ) : (
@@ -540,8 +545,8 @@ export const Gallery = () => {
               ))}
             </div>
 
-            {/* Masonry-style Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+            {/* Uniform Structured Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
               <AnimatePresence mode="popLayout">
                 {filteredPhotos.map((photo, index) => (
                   <motion.div
@@ -555,12 +560,19 @@ export const Gallery = () => {
                       position: 'relative',
                       borderRadius: '1rem',
                       overflow: 'hidden',
-                      aspectRatio: index % 3 === 0 ? '4/5' : '4/3',
-                      boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
+                      aspectRatio: '1',
+                      boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                      cursor: 'pointer'
                     }}
                     className="gallery-item-hover"
+                    onClick={() => setSelectedMedia(photo)}
                   >
-                    <img src={photo.image_url} alt={photo.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    {isVideo(photo.image_url) ? (
+                      <video src={photo.image_url} autoPlay muted loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <img src={photo.image_url} alt={photo.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    )}
+                    
                     <div className="gallery-item-overlay" style={{
                       position: 'absolute',
                       bottom: 0,
@@ -568,7 +580,8 @@ export const Gallery = () => {
                       right: 0,
                       background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)',
                       padding: '2rem 1rem 1rem',
-                      color: 'white'
+                      color: 'white',
+                      pointerEvents: 'none'
                     }}>
                       <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#10b981', fontWeight: 'bold', marginBottom: '0.25rem' }}>{photo.category}</div>
                       <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>{photo.title}</h3>
@@ -580,6 +593,72 @@ export const Gallery = () => {
           </>
         )}
       </div>
+
+      {/* Lightbox Modal for Gallery */}
+      <AnimatePresence>
+        {selectedMedia && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedMedia(null)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.95)',
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '2rem',
+              backdropFilter: 'blur(10px)'
+            }}
+          >
+            <button 
+              onClick={(e) => { e.stopPropagation(); setSelectedMedia(null); }}
+              style={{
+                position: 'absolute',
+                top: '2rem',
+                right: '2rem',
+                background: 'rgba(255,255,255,0.1)',
+                border: 'none',
+                color: 'white',
+                fontSize: '2rem',
+                width: '50px',
+                height: '50px',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10000
+              }}
+            >
+              &times;
+            </button>
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()} 
+              style={{ position: 'relative', maxWidth: '100%', maxHeight: '90vh' }}
+            >
+              {isVideo(selectedMedia.image_url) ? (
+                <video src={selectedMedia.image_url} controls autoPlay style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: '0.5rem', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }} />
+              ) : (
+                <img src={selectedMedia.image_url} alt={selectedMedia.title} style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: '0.5rem', objectFit: 'contain', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }} />
+              )}
+              <div style={{ marginTop: '1rem', textAlign: 'center', color: 'white' }}>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{selectedMedia.title}</h2>
+                <p style={{ color: '#10b981', fontWeight: 'bold', marginTop: '0.25rem' }}>{selectedMedia.category}</p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

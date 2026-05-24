@@ -189,7 +189,7 @@ export default function WebsiteCMS() {
             <label style={{ fontSize: '0.875rem', fontWeight: 'bold', display: 'block', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Select Multiple Photos</label>
             <input 
               type="file" 
-              accept="image/*"
+              accept="image/*,video/*"
               multiple
               ref={galleryFileRef}
               onChange={e => setGalleryFiles(Array.from(e.target.files))}
