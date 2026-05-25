@@ -182,8 +182,8 @@ const PrincipalPortal = () => {
                 <label className="block font-bold mb-1">Target Audience</label>
                 <select className="input-field w-full p-2 border rounded" value={noticeAudience} onChange={e => setNoticeAudience(e.target.value)}>
                   <option value="all">Entire School</option>
-                  <option value="students">All Students</option>
-                  <option value="teachers">All Teachers</option>
+                  <option value="students">Just the students</option>
+                  <option value="teachers">Just the teachers</option>
                 </select>
               </div>
               <button type="submit" className="btn btn-primary mt-2">Publish Notice</button>
