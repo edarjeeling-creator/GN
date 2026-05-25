@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeProvider';
-import { Menu, X, ChevronDown, Moon, Sun } from 'lucide-react';
+import { Menu, X, ChevronDown, Moon, Sun, Phone, Mail, Clock, MapPin, Facebook, Instagram, Youtube, Linkedin, Twitter } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const PublicLayout = ({ children }) => {
@@ -13,7 +13,7 @@ const PublicLayout = ({ children }) => {
     document.documentElement.classList.toggle('dark');
   };
 
-  const { siteBranding } = useTheme();
+  const { siteBranding, footerSettings } = useTheme();
 
   const navLinks = [
     { name: 'ABOUT US', path: '/about' },
@@ -119,48 +119,62 @@ const PublicLayout = ({ children }) => {
       </main>
 
       {/* Footer */}
-      <footer className="portal-footer">
+      <footer className="portal-footer" style={{ background: 'var(--nav-bg, #0f172a)', color: 'var(--footer-text-color, #e5e7eb)' }}>
         <div className="public-container">
-          <div className="footer-grid">
+          <div className="footer-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem', padding: '3rem 0' }}>
+            
+            {/* Column 1: Contact */}
             <div>
-              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', textTransform: 'uppercase', color: '#fcd34d' }}>Contact</h3>
-              <ul style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.875rem', color: '#e5e7eb' }}>
-                <li style={{ display: 'flex', gap: '0.5rem' }}>📍 <span>Address: Lebong Cart Rd, Darjeeling, <br/>West Bengal 734101</span></li>
-                <li style={{ display: 'flex', gap: '0.5rem' }}>📞 <span>Phone: +91 5555 123456</span></li>
-                <li style={{ display: 'flex', gap: '0.5rem' }}>✉️ <span>Email: smartgrades.edu@gmail.com</span></li>
+              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', color: 'var(--heading-color)' }}>CONTACT</h3>
+              <ul style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.875rem' }}>
+                {footerSettings?.contact?.phone && <li style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}><Phone size={16} /> <span>{footerSettings.contact.phone}</span></li>}
+                {footerSettings?.contact?.email && <li style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}><Mail size={16} /> <span>{footerSettings.contact.email}</span></li>}
+                {footerSettings?.contact?.officeHours && <li style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}><Clock size={16} /> <span>{footerSettings.contact.officeHours}</span></li>}
               </ul>
             </div>
             
+            {/* Column 2: Quick Links */}
             <div>
-              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', textTransform: 'uppercase', color: '#fcd34d' }}>Quick Links</h3>
+              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', color: 'var(--heading-color)' }}>QUICK LINKS</h3>
               <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.875rem' }}>
-                <li><Link to="/admissions" className="footer-link">Admissions 2026-27</Link></li>
-                <li><Link to="/academics" className="footer-link">Academic Calendar</Link></li>
-                <li><Link to="/notices" className="footer-link">Latest Notices</Link></li>
-                <li><Link to="/contact" className="footer-link">Careers</Link></li>
+                {footerSettings?.quickLinks?.filter(link => link.active).map(link => (
+                  <li key={link.id}><Link to={link.url} className="footer-link" style={{ color: 'var(--footer-text-color)', textDecoration: 'none' }}>{link.label}</Link></li>
+                ))}
               </ul>
             </div>
 
+            {/* Column 3: Social Media */}
             <div>
-              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', textTransform: 'uppercase', color: '#fcd34d' }}>Social Media</h3>
+              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', color: 'var(--heading-color)' }}>SOCIAL MEDIA</h3>
               <div style={{ display: 'flex', gap: '1rem' }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'white', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>f</div>
-                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'white', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>in</div>
-                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'white', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>Y</div>
+                {footerSettings?.socialMedia?.facebook && <a href={footerSettings.socialMedia.facebook} target="_blank" rel="noreferrer" style={{ color: 'var(--footer-text-color)' }}><Facebook size={24} /></a>}
+                {footerSettings?.socialMedia?.instagram && <a href={footerSettings.socialMedia.instagram} target="_blank" rel="noreferrer" style={{ color: 'var(--footer-text-color)' }}><Instagram size={24} /></a>}
+                {footerSettings?.socialMedia?.youtube && <a href={footerSettings.socialMedia.youtube} target="_blank" rel="noreferrer" style={{ color: 'var(--footer-text-color)' }}><Youtube size={24} /></a>}
+                {footerSettings?.socialMedia?.linkedin && <a href={footerSettings.socialMedia.linkedin} target="_blank" rel="noreferrer" style={{ color: 'var(--footer-text-color)' }}><Linkedin size={24} /></a>}
+                {footerSettings?.socialMedia?.twitter && <a href={footerSettings.socialMedia.twitter} target="_blank" rel="noreferrer" style={{ color: 'var(--footer-text-color)' }}><Twitter size={24} /></a>}
               </div>
             </div>
 
+            {/* Column 4: Find Us */}
             <div>
-              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', textTransform: 'uppercase', color: '#fcd34d' }}>Find Us</h3>
-              <div style={{ background: '#e2e8f0', width: '100%', height: '120px', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569', fontSize: '0.8rem' }}>
-                [Google Map Embed]
-              </div>
+              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', color: 'var(--heading-color)' }}>FIND US</h3>
+              {footerSettings?.findUs?.address && (
+                 <p style={{ display: 'flex', gap: '0.5rem', fontSize: '0.875rem', marginBottom: '1rem', whiteSpace: 'pre-wrap' }}>
+                   <MapPin size={16} style={{ flexShrink: 0, marginTop: '4px' }} />
+                   <span>{footerSettings.findUs.address}</span>
+                 </p>
+              )}
+              {footerSettings?.findUs?.mapEmbedUrl && (
+                <div style={{ width: '100%', height: '120px', borderRadius: '0.5rem', overflow: 'hidden' }}>
+                  <iframe src={footerSettings.findUs.mapEmbedUrl} width="100%" height="100%" style={{ border: 0 }} allowFullScreen="" loading="lazy" referrerPolicy="no-referrer-when-downgrade" title="Google Maps Location"></iframe>
+                </div>
+              )}
             </div>
           </div>
           
-          <div style={{ borderTop: '1px solid #14532d', marginTop: '3rem', paddingTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: '#86efac' }}>
-            <p>Affiliated to CISCE, New Delhi (WB046)</p>
-            <p>&copy; {new Date().getFullYear()} SmartGrades School. All rights reserved.</p>
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem', paddingBottom: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', textAlign: 'center' }}>
+            <p style={{ fontWeight: '600' }}>{footerSettings?.legal?.affiliation || 'Affiliated to CISCE, New Delhi (WB046)'}</p>
+            <p>{footerSettings?.legal?.copyright || '© 2026 SmartGrades School. All rights reserved.'}</p>
           </div>
         </div>
       </footer>

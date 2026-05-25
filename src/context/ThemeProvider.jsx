@@ -22,6 +22,41 @@ export const ThemeProvider = ({ children }) => {
     hover: '#1d4ed8'
   });
 
+  const [footerSettings, setFooterSettings] = useState({
+    contact: {
+      phone: '+91 XXXXX XXXXX',
+      alternatePhone: '',
+      email: 'info@smartgrades.edu.in',
+      admissionContact: '',
+      officeHours: 'Mon–Fri: 8:00 AM – 4:00 PM'
+    },
+    quickLinks: [
+      { id: '1', label: 'Home', url: '/', active: true },
+      { id: '2', label: 'About Us', url: '/about', active: true },
+      { id: '3', label: 'Admissions', url: '/admissions', active: true },
+      { id: '4', label: 'Academics', url: '/academics', active: true },
+      { id: '5', label: 'Notices', url: '/notices', active: true },
+      { id: '6', label: 'Contact Us', url: '/contact', active: true }
+    ],
+    socialMedia: {
+      facebook: '',
+      instagram: '',
+      youtube: '',
+      linkedin: '',
+      twitter: ''
+    },
+    findUs: {
+      address: 'SmartGrades ICSE School\nDarjeeling / West Bengal',
+      landmark: '',
+      pinCode: '',
+      mapEmbedUrl: ''
+    },
+    legal: {
+      affiliation: 'Affiliated to CISCE, New Delhi (WB046)',
+      copyright: '© 2026 SmartGrades School. All rights reserved.'
+    }
+  });
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,6 +73,11 @@ export const ThemeProvider = ({ children }) => {
       const { data: colorsData } = await supabase.from('site_settings').select('value').eq('key', 'theme_colors').single();
       if (colorsData && colorsData.value) {
         setThemeColors(JSON.parse(colorsData.value));
+      }
+
+      const { data: footerData } = await supabase.from('site_settings').select('value').eq('key', 'footer_settings').single();
+      if (footerData && footerData.value) {
+        setFooterSettings(JSON.parse(footerData.value));
       }
     } catch (err) {
       console.error("Failed to fetch theme settings:", err);
@@ -62,7 +102,7 @@ export const ThemeProvider = ({ children }) => {
   }, [themeColors, siteBranding]);
 
   return (
-    <ThemeContext.Provider value={{ siteBranding, themeColors, fetchThemeSettings }}>
+    <ThemeContext.Provider value={{ siteBranding, themeColors, footerSettings, fetchThemeSettings }}>
       {!loading && children}
     </ThemeContext.Provider>
   );

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Trash2, Image as ImageIcon, Users, UploadCloud, Loader2, Monitor, Palette } from 'lucide-react';
+import { Plus, Trash2, Image as ImageIcon, Users, UploadCloud, Loader2, Monitor, Palette, Layout } from 'lucide-react';
 
 export default function WebsiteCMS() {
   const [faculty, setFaculty] = useState([]);
@@ -65,6 +65,23 @@ export default function WebsiteCMS() {
   });
   const [savingThemeColors, setSavingThemeColors] = useState(false);
 
+  // Footer Settings State
+  const [footerSettings, setFooterSettings] = useState({
+    contact: { phone: '+91 XXXXX XXXXX', alternatePhone: '', email: 'info@smartgrades.edu.in', admissionContact: '', officeHours: 'Mon–Fri: 8:00 AM – 4:00 PM' },
+    quickLinks: [
+      { id: '1', label: 'Home', url: '/', active: true },
+      { id: '2', label: 'About Us', url: '/about', active: true },
+      { id: '3', label: 'Admissions', url: '/admissions', active: true },
+      { id: '4', label: 'Academics', url: '/academics', active: true },
+      { id: '5', label: 'Notices', url: '/notices', active: true },
+      { id: '6', label: 'Contact Us', url: '/contact', active: true }
+    ],
+    socialMedia: { facebook: '', instagram: '', youtube: '', linkedin: '', twitter: '' },
+    findUs: { address: 'SmartGrades ICSE School\nDarjeeling / West Bengal', landmark: '', pinCode: '', mapEmbedUrl: '' },
+    legal: { affiliation: 'Affiliated to CISCE, New Delhi (WB046)', copyright: '© 2026 SmartGrades School. All rights reserved.' }
+  });
+  const [savingFooterSettings, setSavingFooterSettings] = useState(false);
+
   useEffect(() => {
     fetchFaculty();
     fetchGallery();
@@ -72,6 +89,7 @@ export default function WebsiteCMS() {
     fetchHeroStyling();
     fetchSiteBranding();
     fetchThemeColors();
+    fetchFooterSettings();
   }, []);
 
   const fetchHeroStyling = async () => {
@@ -147,6 +165,27 @@ export default function WebsiteCMS() {
       alert("Failed to save theme colors: " + err.message);
     } finally {
       setSavingThemeColors(false);
+    }
+  };
+
+  const fetchFooterSettings = async () => {
+    const { data } = await supabase.from('site_settings').select('value').eq('key', 'footer_settings').single();
+    if (data && data.value) {
+      setFooterSettings(JSON.parse(data.value));
+    }
+  };
+
+  const saveFooterSettings = async (e) => {
+    if(e) e.preventDefault();
+    setSavingFooterSettings(true);
+    try {
+      const { error } = await supabase.from('site_settings').upsert({ key: 'footer_settings', value: JSON.stringify(footerSettings) });
+      if (error) throw error;
+      alert("Footer settings saved successfully!");
+    } catch (err) {
+      alert("Failed to save footer settings: " + err.message);
+    } finally {
+      setSavingFooterSettings(false);
     }
   };
 
@@ -595,6 +634,90 @@ export default function WebsiteCMS() {
           <div style={{ gridColumn: '1 / -1', marginTop: '1rem' }}>
             <button type="submit" className="btn-hero-primary" style={{ background: '#eab308', color: 'black', border: 'none', padding: '0.75rem', width: '100%' }} disabled={savingThemeColors}>
               {savingThemeColors ? 'Saving...' : 'Save Theme Colors'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Footer Settings Manager */}
+      <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Layout size={20} color="#3b82f6" /> Footer Settings Manager
+        </h3>
+        
+        <form onSubmit={saveFooterSettings} style={{ display: 'grid', gap: '2rem' }}>
+          
+          {/* Contact Details */}
+          <div style={{ border: '1px solid #e2e8f0', padding: '1.5rem', borderRadius: '0.5rem', background: '#fff' }}>
+            <h4 style={{ fontWeight: '600', marginBottom: '1rem', color: 'var(--text-secondary)' }}>Contact Details</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Phone</label>
+                <input type="text" className="input-field" value={footerSettings.contact.phone} onChange={e => setFooterSettings({...footerSettings, contact: {...footerSettings.contact, phone: e.target.value}})} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Email</label>
+                <input type="email" className="input-field" value={footerSettings.contact.email} onChange={e => setFooterSettings({...footerSettings, contact: {...footerSettings.contact, email: e.target.value}})} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Office Hours</label>
+                <input type="text" className="input-field" value={footerSettings.contact.officeHours} onChange={e => setFooterSettings({...footerSettings, contact: {...footerSettings.contact, officeHours: e.target.value}})} />
+              </div>
+            </div>
+          </div>
+
+          {/* Social Media */}
+          <div style={{ border: '1px solid #e2e8f0', padding: '1.5rem', borderRadius: '0.5rem', background: '#fff' }}>
+            <h4 style={{ fontWeight: '600', marginBottom: '1rem', color: 'var(--text-secondary)' }}>Social Media URLs (Leave blank to hide)</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Facebook</label>
+                <input type="url" className="input-field" value={footerSettings.socialMedia.facebook} onChange={e => setFooterSettings({...footerSettings, socialMedia: {...footerSettings.socialMedia, facebook: e.target.value}})} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Instagram</label>
+                <input type="url" className="input-field" value={footerSettings.socialMedia.instagram} onChange={e => setFooterSettings({...footerSettings, socialMedia: {...footerSettings.socialMedia, instagram: e.target.value}})} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>YouTube</label>
+                <input type="url" className="input-field" value={footerSettings.socialMedia.youtube} onChange={e => setFooterSettings({...footerSettings, socialMedia: {...footerSettings.socialMedia, youtube: e.target.value}})} />
+              </div>
+            </div>
+          </div>
+
+          {/* Find Us */}
+          <div style={{ border: '1px solid #e2e8f0', padding: '1.5rem', borderRadius: '0.5rem', background: '#fff' }}>
+            <h4 style={{ fontWeight: '600', marginBottom: '1rem', color: 'var(--text-secondary)' }}>Find Us & Location</h4>
+            <div style={{ display: 'grid', gap: '1rem' }}>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>School Address</label>
+                <textarea className="input-field" rows="3" value={footerSettings.findUs.address} onChange={e => setFooterSettings({...footerSettings, findUs: {...footerSettings.findUs, address: e.target.value}})}></textarea>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Google Maps Embed URL (src)</label>
+                <input type="text" className="input-field" placeholder="https://www.google.com/maps/embed?..." value={footerSettings.findUs.mapEmbedUrl} onChange={e => setFooterSettings({...footerSettings, findUs: {...footerSettings.findUs, mapEmbedUrl: e.target.value}})} />
+              </div>
+            </div>
+          </div>
+          
+          {/* Legal Text */}
+          <div style={{ border: '1px solid #e2e8f0', padding: '1.5rem', borderRadius: '0.5rem', background: '#fff' }}>
+            <h4 style={{ fontWeight: '600', marginBottom: '1rem', color: 'var(--text-secondary)' }}>Affiliation & Legal</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Affiliation Text</label>
+                <input type="text" className="input-field" value={footerSettings.legal.affiliation} onChange={e => setFooterSettings({...footerSettings, legal: {...footerSettings.legal, affiliation: e.target.value}})} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Copyright Notice</label>
+                <input type="text" className="input-field" value={footerSettings.legal.copyright} onChange={e => setFooterSettings({...footerSettings, legal: {...footerSettings.legal, copyright: e.target.value}})} />
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: '1rem' }}>
+            <button type="submit" className="btn-hero-primary" style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.75rem', width: '100%' }} disabled={savingFooterSettings}>
+              {savingFooterSettings ? 'Saving...' : 'Save Footer Settings'}
             </button>
           </div>
         </form>
