@@ -54,12 +54,12 @@ html.dark {
 .nav-link {
   font-weight: 500;
   font-size: 0.875rem;
-  color: #374151;
+  color: var(--nav-text-color, #374151);
   transition: color 0.2s;
   padding: 0.5rem;
 }
 html.dark .nav-link {
-  color: #d1d5db;
+  color: var(--nav-text-color, #d1d5db);
 }
 .nav-link:hover, .nav-link.active {
   color: var(--primary-color);
@@ -296,8 +296,15 @@ html.dark .bento-card {
 /* Footer */
 .public-footer {
   background: #111827;
-  color: white;
+  color: var(--footer-text-color, #9ca3af);
   padding: 4rem 0 2rem;
+}
+
+.portal-footer {
+  background: #0f172a;
+  color: var(--footer-text-color, #9ca3af);
+  padding: 3rem 0;
+  margin-top: auto;
 }
 .footer-grid {
   display: grid;

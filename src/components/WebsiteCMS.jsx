@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Trash2, Image as ImageIcon, Users, UploadCloud, Loader2, Monitor } from 'lucide-react';
+import { Plus, Trash2, Image as ImageIcon, Users, UploadCloud, Loader2, Monitor, Palette } from 'lucide-react';
 
 export default function WebsiteCMS() {
   const [faculty, setFaculty] = useState([]);
@@ -43,11 +43,34 @@ export default function WebsiteCMS() {
   });
   const [savingHeroStyle, setSavingHeroStyle] = useState(false);
 
+  // Site Branding State (v2)
+  const [siteBranding, setSiteBranding] = useState({
+    siteName: 'SMARTGRADES ICSE SCHOOL',
+    logoUrl: '/logo.png'
+  });
+  const [savingSiteBranding, setSavingSiteBranding] = useState(false);
+  const [logoFile, setLogoFile] = useState(null);
+  const logoFileRef = useRef(null);
+
+  // Theme Colors State
+  const [themeColors, setThemeColors] = useState({
+    heading: '#0f172a',
+    body: '#64748b',
+    button: '#2563eb',
+    nav: '#1f2937',
+    footer: '#e5e7eb',
+    link: '#2563eb',
+    hover: '#1d4ed8'
+  });
+  const [savingThemeColors, setSavingThemeColors] = useState(false);
+
   useEffect(() => {
     fetchFaculty();
     fetchGallery();
     fetchHeroSlides();
     fetchHeroStyling();
+    fetchSiteBranding();
+    fetchThemeColors();
   }, []);
 
   const fetchHeroStyling = async () => {
@@ -68,6 +91,85 @@ export default function WebsiteCMS() {
       alert("Failed to save: " + err.message);
     } finally {
       setSavingHeroStyle(false);
+    }
+  };
+
+  const fetchSiteBranding = async () => {
+    const { data } = await supabase.from('site_settings').select('value').eq('key', 'site_branding_v2').single();
+    if (data && data.value) {
+      setSiteBranding(JSON.parse(data.value));
+    }
+  };
+
+  const saveSiteBranding = async (e) => {
+    e.preventDefault();
+    setSavingSiteBranding(true);
+    try {
+      let currentLogoUrl = siteBranding.logoUrl;
+      if (logoFile) {
+        currentLogoUrl = await uploadFileToSupabase(logoFile, 'branding');
+      }
+      
+      const newBranding = { ...siteBranding, logoUrl: currentLogoUrl };
+      
+      const { error } = await supabase.from('site_settings').upsert({ key: 'site_branding_v2', value: JSON.stringify(newBranding) });
+      if (error) throw error;
+      
+      setSiteBranding(newBranding);
+      setLogoFile(null);
+      if (logoFileRef.current) logoFileRef.current.value = '';
+      
+      alert("Site branding saved successfully!");
+      // Force reload to apply changes via ThemeProvider if desired, but user can refresh manually
+    } catch (err) {
+      alert("Failed to save site branding: " + err.message);
+    } finally {
+      setSavingSiteBranding(false);
+    }
+  };
+
+  const fetchThemeColors = async () => {
+    const { data } = await supabase.from('site_settings').select('value').eq('key', 'theme_colors').single();
+    if (data && data.value) {
+      setThemeColors(JSON.parse(data.value));
+    }
+  };
+
+  const saveThemeColors = async (e) => {
+    e.preventDefault();
+    setSavingThemeColors(true);
+    try {
+      const { error } = await supabase.from('site_settings').upsert({ key: 'theme_colors', value: JSON.stringify(themeColors) });
+      if (error) throw error;
+      alert("Theme colors saved successfully!");
+    } catch (err) {
+      alert("Failed to save theme colors: " + err.message);
+    } finally {
+      setSavingThemeColors(false);
+    }
+  };
+
+  const resetBranding = async () => {
+    if (!window.confirm("Are you sure you want to reset branding to default?")) return;
+    setSiteBranding({ siteName: 'SMARTGRADES ICSE SCHOOL', logoUrl: '/logo.png' });
+  };
+
+  const applyPreset = (preset) => {
+    switch (preset) {
+      case 'School Blue':
+        setThemeColors({ heading: '#1e3a8a', body: '#334155', button: '#ffffff', nav: '#1e3a8a', footer: '#9ca3af', link: '#2563eb', hover: '#1d4ed8' });
+        break;
+      case 'Classic White':
+        setThemeColors({ heading: '#0f172a', body: '#475569', button: '#ffffff', nav: '#0f172a', footer: '#64748b', link: '#0f172a', hover: '#334155' });
+        break;
+      case 'Modern Dark':
+        setThemeColors({ heading: '#f8fafc', body: '#cbd5e1', button: '#ffffff', nav: '#f8fafc', footer: '#94a3b8', link: '#60a5fa', hover: '#93c5fd' });
+        break;
+      case 'Elegant Gold':
+        setThemeColors({ heading: '#b45309', body: '#78350f', button: '#ffffff', nav: '#92400e', footer: '#d97706', link: '#d97706', hover: '#f59e0b' });
+        break;
+      default:
+        break;
     }
   };
 
@@ -333,6 +435,8 @@ export default function WebsiteCMS() {
                 <input type="color" style={{ width: '100%', height: '40px', cursor: 'pointer' }} value={heroStyle.btnSecondaryColor} onChange={e => setHeroStyle({...heroStyle, btnSecondaryColor: e.target.value})} />
               </div>
             </div>
+
+
             <div>
               <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Button Shape</label>
               <select className="input-field" style={{ width: '100%', background: '#f8fafc' }} value={heroStyle.btnShape} onChange={e => setHeroStyle({...heroStyle, btnShape: e.target.value})}>
@@ -349,7 +453,138 @@ export default function WebsiteCMS() {
         </form>
       </div>
 
-      {/* Faculty Manager */}
+      {/* Site Branding Manager */}
+      <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <ImageIcon size={20} color="#16a34a" /> Site Branding Manager
+        </h3>
+        <form onSubmit={saveSiteBranding} style={{ display: 'grid', gap: '1rem' }}>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontWeight: '600', fontSize: '0.875rem' }}>Site Name (e.g. SMART GRADES ICSE SCHOOL)</label>
+            <input 
+              type="text" 
+              maxLength="80"
+              value={siteBranding.siteName || ''} 
+              onChange={(e) => setSiteBranding({...siteBranding, siteName: e.target.value})}
+              className="input-field" 
+              required 
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontWeight: '600', fontSize: '0.875rem' }}>Current Logo</label>
+            <div style={{ background: '#e2e8f0', padding: '1rem', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <img src={siteBranding.logoUrl || '/logo.png'} alt="Logo" style={{ height: '4rem', width: '4rem', objectFit: 'contain', background: 'white', borderRadius: '0.25rem', padding: '0.25rem' }} />
+                <span style={{ fontSize: '0.875rem', color: '#64748b' }}>This is the logo currently displayed on the site.</span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontWeight: '600', fontSize: '0.875rem' }}>Upload New Logo (Optional)</label>
+            <input 
+              type="file" 
+              accept="image/*" 
+              ref={logoFileRef}
+              onChange={(e) => setLogoFile(e.target.files[0])}
+              className="input-field" 
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+            <button type="submit" className="btn-hero-primary" style={{ background: '#16a34a', color: 'white', border: 'none', padding: '0.75rem', flex: 1 }} disabled={savingSiteBranding}>
+              {savingSiteBranding ? 'Saving...' : 'Save Site Branding'}
+            </button>
+            <button type="button" onClick={resetBranding} className="btn-hero-outline" style={{ borderColor: '#ef4444', color: '#ef4444', padding: '0.75rem' }}>
+              Reset Default
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Theme Colors Manager */}
+      <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Palette size={20} color="#eab308" /> Theme Colors
+        </h3>
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+          <button onClick={() => applyPreset('School Blue')} className="btn-sm" style={{ background: '#1e3a8a', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.25rem', cursor: 'pointer' }}>School Blue</button>
+          <button onClick={() => applyPreset('Classic White')} className="btn-sm" style={{ background: '#f8fafc', color: '#0f172a', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '0.25rem', cursor: 'pointer' }}>Classic White</button>
+          <button onClick={() => applyPreset('Modern Dark')} className="btn-sm" style={{ background: '#0f172a', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.25rem', cursor: 'pointer' }}>Modern Dark</button>
+          <button onClick={() => applyPreset('Elegant Gold')} className="btn-sm" style={{ background: '#b45309', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.25rem', cursor: 'pointer' }}>Elegant Gold</button>
+        </div>
+        
+        <form onSubmit={saveThemeColors} style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontWeight: '600', fontSize: '0.875rem' }}>Heading Text Color</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input type="color" value={themeColors.heading || '#0f172a'} onChange={(e) => setThemeColors({...themeColors, heading: e.target.value})} style={{ height: '2.5rem', width: '3rem', padding: '0', cursor: 'pointer' }} />
+              <input type="text" className="input-field" value={themeColors.heading || '#0f172a'} readOnly style={{ flex: 1 }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontWeight: '600', fontSize: '0.875rem' }}>Body Text Color</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input type="color" value={themeColors.body || '#64748b'} onChange={(e) => setThemeColors({...themeColors, body: e.target.value})} style={{ height: '2.5rem', width: '3rem', padding: '0', cursor: 'pointer' }} />
+              <input type="text" className="input-field" value={themeColors.body || '#64748b'} readOnly style={{ flex: 1 }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontWeight: '600', fontSize: '0.875rem' }}>Button Text Color</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input type="color" value={themeColors.button || '#ffffff'} onChange={(e) => setThemeColors({...themeColors, button: e.target.value})} style={{ height: '2.5rem', width: '3rem', padding: '0', cursor: 'pointer' }} />
+              <input type="text" className="input-field" value={themeColors.button || '#ffffff'} readOnly style={{ flex: 1 }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontWeight: '600', fontSize: '0.875rem' }}>Navigation Menu Color</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input type="color" value={themeColors.nav || '#1f2937'} onChange={(e) => setThemeColors({...themeColors, nav: e.target.value})} style={{ height: '2.5rem', width: '3rem', padding: '0', cursor: 'pointer' }} />
+              <input type="text" className="input-field" value={themeColors.nav || '#1f2937'} readOnly style={{ flex: 1 }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontWeight: '600', fontSize: '0.875rem' }}>Footer Text Color</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input type="color" value={themeColors.footer || '#9ca3af'} onChange={(e) => setThemeColors({...themeColors, footer: e.target.value})} style={{ height: '2.5rem', width: '3rem', padding: '0', cursor: 'pointer' }} />
+              <input type="text" className="input-field" value={themeColors.footer || '#9ca3af'} readOnly style={{ flex: 1 }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontWeight: '600', fontSize: '0.875rem' }}>Link Text Color</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input type="color" value={themeColors.link || '#2563eb'} onChange={(e) => setThemeColors({...themeColors, link: e.target.value})} style={{ height: '2.5rem', width: '3rem', padding: '0', cursor: 'pointer' }} />
+              <input type="text" className="input-field" value={themeColors.link || '#2563eb'} readOnly style={{ flex: 1 }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontWeight: '600', fontSize: '0.875rem' }}>Hover Text Color</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input type="color" value={themeColors.hover || '#1d4ed8'} onChange={(e) => setThemeColors({...themeColors, hover: e.target.value})} style={{ height: '2.5rem', width: '3rem', padding: '0', cursor: 'pointer' }} />
+              <input type="text" className="input-field" value={themeColors.hover || '#1d4ed8'} readOnly style={{ flex: 1 }} />
+            </div>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '1rem' }}>
+            <h4 style={{ fontWeight: '600', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Live Preview</h4>
+            <div style={{ border: '1px solid #e2e8f0', padding: '1.5rem', borderRadius: '0.5rem', background: '#fff' }}>
+              <h2 style={{ color: themeColors.heading, margin: 0, padding: 0 }}>This is a Heading Preview</h2>
+              <p style={{ color: themeColors.body, marginTop: '0.5rem' }}>This is how your standard body text will appear across the website.</p>
+              <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <button type="button" style={{ background: '#3b82f6', color: themeColors.button, padding: '0.5rem 1rem', border: 'none', borderRadius: '0.25rem' }}>Sample Button</button>
+                <a href="#" onClick={e=>e.preventDefault()} style={{ color: themeColors.link, textDecoration: 'none' }}>Sample Link</a>
+                <span style={{ color: themeColors.nav, fontWeight: '500' }}>Nav Item Preview</span>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '1rem' }}>
+            <button type="submit" className="btn-hero-primary" style={{ background: '#eab308', color: 'black', border: 'none', padding: '0.75rem', width: '100%' }} disabled={savingThemeColors}>
+              {savingThemeColors ? 'Saving...' : 'Save Theme Colors'}
+            </button>
+          </div>
+        </form>
+      </div>
       <div className="bento-card" style={{ padding: '2rem' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Users size={20} color="#8b5cf6" /> Faculty Manager

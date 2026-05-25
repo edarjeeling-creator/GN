@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider } from './context/ThemeProvider';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -18,9 +19,10 @@ import { About, Academics, Admissions, Faculty, Contact, Gallery } from './pages
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        {/* Public Routes with PublicLayout */}
+    <ThemeProvider>
+      <Router>
+        <Routes>
+          {/* Public Routes with PublicLayout */}
         <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
         <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
         <Route path="/academics" element={<PublicLayout><Academics /></PublicLayout>} />
@@ -47,7 +49,8 @@ function App() {
           <Route path="/admin" element={<Admin />} />
         </Route>
       </Routes>
-    </Router>
+      </Router>
+    </ThemeProvider>
   );
 }
 

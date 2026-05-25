@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Link } from 'react-router-dom';
+import { useTheme } from '../context/ThemeProvider';
 import { Menu, X, ChevronDown, Moon, Sun } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -11,6 +12,8 @@ const PublicLayout = ({ children }) => {
     setIsDarkMode(!isDarkMode);
     document.documentElement.classList.toggle('dark');
   };
+
+  const { siteBranding } = useTheme();
 
   const navLinks = [
     { name: 'ABOUT US', path: '/about' },
@@ -43,10 +46,9 @@ const PublicLayout = ({ children }) => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             {/* Logo Area */}
             <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <img src="/logo.png" alt="Logo" style={{ height: '3.5rem', width: '3.5rem', objectFit: 'contain' }} />
+              <img src={siteBranding.logoUrl} alt="Logo" style={{ height: '3.5rem', width: '3.5rem', objectFit: 'contain' }} />
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontWeight: '800', fontSize: '1.2rem', letterSpacing: '0.05em', color: '#166534' }}>SMARTGRADES</span>
-                <span style={{ fontSize: '0.7rem', color: '#6b7280', letterSpacing: '0.05em', fontWeight: '600' }}>ICSE SCHOOL</span>
+                <span style={{ fontWeight: '800', fontSize: '1.2rem', letterSpacing: '0.05em', color: 'var(--heading-color, var(--text-primary))' }}>{siteBranding.siteName}</span>
               </div>
             </Link>
 

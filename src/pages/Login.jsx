@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeProvider';
 import { Navigate } from 'react-router-dom';
 
 const Login = () => {
@@ -11,6 +12,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   
   const { session, login } = useAuth();
+  const { siteBranding } = useTheme();
 
   if (session) {
     return <Navigate to="/dashboard" replace />;
@@ -45,9 +47,9 @@ const Login = () => {
       <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} style={{ position: 'relative', zIndex: 10 }}>
         <div className="bento-card" style={{ width: '100%', maxWidth: '450px', padding: '3rem 2.5rem', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)' }}>
           <Link to="/" style={{ display: 'block', textDecoration: 'none' }}>
-            <img src="/logo.png" alt="School Logo" style={{ width: '100px', height: '100px', objectFit: 'contain', margin: '0 auto 1.5rem', display: 'block' }} />
+            <img src={siteBranding.logoUrl} alt="School Logo" style={{ width: '100px', height: '100px', objectFit: 'contain', margin: '0 auto 1.5rem', display: 'block' }} />
           </Link>
-          <h2 style={{ textAlign: 'center', marginBottom: '2rem', color: 'var(--primary-color)', fontSize: '1.8rem', fontWeight: 'bold' }}>SmartGrades Login</h2>
+          <h2 style={{ textAlign: 'center', marginBottom: '2rem', color: 'var(--heading-color, var(--primary-color))', fontSize: '1.8rem', fontWeight: 'bold' }}>{siteBranding.siteName} Login</h2>
           
           {error && <div className="badge badge-danger" style={{ width: '100%', textAlign: 'center', marginBottom: '1.5rem', padding: '0.75rem', borderRadius: '0.5rem' }}>{error}</div>}
           
