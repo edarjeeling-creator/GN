@@ -759,7 +759,6 @@ const Admin = () => {
               <button className="btn btn-outline" onClick={() => setEditingLangStudent(null)}>Cancel</button>
               <button className="btn btn-primary" onClick={handleSaveLanguages}>Save</button>
             </div>
-            </div>
           </div>
         </div>
       )}

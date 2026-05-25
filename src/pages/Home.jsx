@@ -253,7 +253,7 @@ const Home = () => {
               </div>
               <ArrowRight className="process-arrow" />
               <div className="process-step">
-                <div className="process-circle" style={{ borderColor: '#f59e0b', color: '#f59e0b', background: '#f59e0b', color: 'white' }}>2</div>
+                <div className="process-circle" style={{ borderColor: '#f59e0b', background: '#f59e0b', color: 'white' }}>2</div>
                 <h4 style={{ fontWeight: '800', fontSize: '0.9rem' }}>STEP 2</h4>
                 <p style={{ fontSize: '0.75rem', color: '#64748b' }}>Interaction / Entrance Test</p>
               </div>
@@ -265,7 +265,7 @@ const Home = () => {
               </div>
               <ArrowRight className="process-arrow" />
               <div className="process-step">
-                <div className="process-circle" style={{ borderColor: '#166534', color: '#166534', background: '#166534', color: 'white' }}>✓</div>
+                <div className="process-circle" style={{ borderColor: '#166534', background: '#166534', color: 'white' }}>✓</div>
                 <h4 style={{ fontWeight: '800', fontSize: '0.9rem' }}>ADMISSION</h4>
                 <p style={{ fontSize: '0.75rem', color: '#64748b' }}>Fee Payment & Enrollment</p>
               </div>
