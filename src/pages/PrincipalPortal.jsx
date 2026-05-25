@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Search, Users, BookOpen, Bell, Send, Shield, User } from 'lucide-react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 const PrincipalPortal = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -174,9 +176,11 @@ const PrincipalPortal = () => {
                 <label className="block font-bold mb-1">Notice Title</label>
                 <input required type="text" className="input-field w-full p-2 border rounded" value={noticeTitle} onChange={e => setNoticeTitle(e.target.value)} />
               </div>
-              <div>
+              <div className="mb-8">
                 <label className="block font-bold mb-1">Message</label>
-                <textarea required rows="4" className="input-field w-full p-2 border rounded" value={noticeMessage} onChange={e => setNoticeMessage(e.target.value)}></textarea>
+                <div style={{ height: '150px', marginBottom: '40px' }}>
+                  <ReactQuill theme="snow" value={noticeMessage} onChange={setNoticeMessage} style={{ height: '100%' }} />
+                </div>
               </div>
               <div>
                 <label className="block font-bold mb-1">Target Audience</label>
@@ -200,7 +204,7 @@ const PrincipalPortal = () => {
                       <h3 className="font-bold text-lg">{notice.title}</h3>
                       <span className="text-xs font-bold uppercase bg-gray-200 px-2 py-1 rounded text-gray-600">{notice.audience}</span>
                     </div>
-                    <p className="text-gray-600 text-sm whitespace-pre-wrap">{notice.message}</p>
+                    <div className="text-gray-600 text-sm" dangerouslySetInnerHTML={{ __html: notice.message }}></div>
                     <p className="text-xs text-gray-400 mt-2">{new Date(notice.publish_date).toLocaleDateString()}</p>
                   </div>
                 ))}
