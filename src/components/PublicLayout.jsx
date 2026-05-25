@@ -32,7 +32,7 @@ const PublicLayout = ({ children }) => {
         <div className="public-container">
           {/* Top Top Bar: Buttons and Search */}
           <div className="top-bar-container" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginBottom: '0.5rem' }}>
-            <Link to="/login" className="btn-hero-outline" style={{ padding: '0.3rem 0.8rem', fontSize: '0.75rem', borderColor: '#f59e0b', color: '#f59e0b' }}>FACULTY LOGIN</Link>
+            <Link to="/login" className="btn-hero-primary" style={{ padding: '0.3rem 0.8rem', fontSize: '0.75rem', background: '#166534', color: 'white', boxShadow: 'none' }}>FACULTY LOGIN</Link>
             <Link to="/login" className="btn-hero-primary" style={{ padding: '0.3rem 0.8rem', fontSize: '0.75rem', background: '#166534', color: 'white', boxShadow: 'none' }}>STUDENT LOGIN</Link>
             <div style={{ display: 'flex', alignItems: 'center', background: '#f1f5f9', borderRadius: '0.25rem', padding: '0 0.5rem', flex: '1 1 auto', minWidth: '80px', maxWidth: '200px' }}>
               <input type="text" placeholder="Search..." style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', fontSize: '0.75rem', padding: '0.2rem', color: '#1f2937' }} />
