@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Search, Users, BookOpen, Bell, Send, Shield, User } from 'lucide-react';
-import Editor from 'react-simple-wysiwyg';
+import Editor, { 
+  Toolbar,
+  BtnUndo, BtnRedo, BtnBold, BtnItalic, BtnUnderline, BtnStrikeThrough,
+  BtnNumberedList, BtnBulletList, BtnLink, BtnClearFormatting, HtmlButton, Separator,
+  BtnStyles
+} from 'react-simple-wysiwyg';
 
 const PrincipalPortal = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -178,7 +183,38 @@ const PrincipalPortal = () => {
               <div className="mb-8">
                 <label className="block font-bold mb-1">Message</label>
                 <div style={{ marginBottom: '10px' }}>
-                  <Editor value={noticeMessage} onChange={e => setNoticeMessage(e.target.value)} style={{ minHeight: '150px' }} />
+                  <Editor value={noticeMessage} onChange={e => setNoticeMessage(e.target.value)} style={{ minHeight: '150px' }}>
+                    <Toolbar>
+                      <BtnUndo />
+                      <BtnRedo />
+                      <Separator />
+                      <BtnBold />
+                      <BtnItalic />
+                      <BtnUnderline />
+                      <BtnStrikeThrough />
+                      <Separator />
+                      <BtnNumberedList />
+                      <BtnBulletList />
+                      <Separator />
+                      <BtnLink />
+                      <BtnClearFormatting />
+                      <HtmlButton />
+                      <BtnStyles />
+                      <Separator />
+                      <div className="flex items-center" style={{ padding: '0 4px' }}>
+                        <input 
+                          type="color" 
+                          title="Text Color"
+                          className="cursor-pointer" 
+                          style={{ padding: 0, width: '22px', height: '22px', border: 'none', background: 'transparent' }}
+                          onChange={(e) => {
+                            e.preventDefault();
+                            document.execCommand('foreColor', false, e.target.value);
+                          }} 
+                        />
+                      </div>
+                    </Toolbar>
+                  </Editor>
                 </div>
               </div>
               <div>
