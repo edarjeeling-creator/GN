@@ -11,6 +11,7 @@ import WebsiteCMS from '../components/WebsiteCMS';
 const Admin = () => {
   const { academicYear, classes, subjects, students, updateStudentLanguages, loadingData } = useData();
   const [stats, setStats] = useState({ classes: 0, students: 0, subjects: 0, teachers: 0 });
+  const [activeTab, setActiveTab] = useState('dashboard');
   
   const [teachers, setTeachers] = useState([]);
   
@@ -300,14 +301,31 @@ const Admin = () => {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-      <div className="page-header" style={{ borderBottom: 'none', marginBottom: '2rem' }}>
+      <div className="page-header" style={{ borderBottom: 'none', marginBottom: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>Admin Dashboard</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>System Management and Analytics</p>
         </div>
       </div>
 
-      <div className="bento-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)' }}>
+        <button 
+          onClick={() => setActiveTab('dashboard')} 
+          style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'dashboard' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'dashboard' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: activeTab === 'dashboard' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '1rem' }}
+        >
+          School Management
+        </button>
+        <button 
+          onClick={() => setActiveTab('cms')} 
+          style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'cms' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'cms' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: activeTab === 'cms' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '1rem' }}
+        >
+          Website CMS
+        </button>
+      </div>
+
+      {activeTab === 'dashboard' && (
+        <>
+          <div className="bento-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', marginBottom: '2rem' }}>
         <motion.div whileHover={{ y: -5 }} className="bento-card" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: '4px solid #3b82f6' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Total Classes</h3>
@@ -714,6 +732,8 @@ const Admin = () => {
 
         </div>
       </div>
+      </>
+      )}
 
       {editingLangStudent && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
@@ -739,12 +759,13 @@ const Admin = () => {
               <button className="btn btn-outline" onClick={() => setEditingLangStudent(null)}>Cancel</button>
               <button className="btn btn-primary" onClick={handleSaveLanguages}>Save</button>
             </div>
+            </div>
           </div>
         </div>
       )}
 
       {/* Website CMS */}
-      <WebsiteCMS />
+      {activeTab === 'cms' && <WebsiteCMS />}
 
     </motion.div>
   );
