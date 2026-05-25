@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Trash2, Image as ImageIcon, Users, UploadCloud, Loader2, Monitor, Palette, Layout } from 'lucide-react';
+import { Plus, Trash2, Image as ImageIcon, Users, UploadCloud, Loader2, Monitor, Palette, Layout, List, ArrowUp, ArrowDown, Edit2, CheckCircle2 } from 'lucide-react';
 
 export default function WebsiteCMS() {
   const [faculty, setFaculty] = useState([]);
@@ -85,6 +85,11 @@ export default function WebsiteCMS() {
   });
   const [savingFooterSettings, setSavingFooterSettings] = useState(false);
 
+  // Menu Builder State
+  const [mainMenu, setMainMenu] = useState([]);
+  const [savingMenu, setSavingMenu] = useState(false);
+  const [editingMenuItem, setEditingMenuItem] = useState(null);
+
   useEffect(() => {
     fetchFaculty();
     fetchGallery();
@@ -93,6 +98,7 @@ export default function WebsiteCMS() {
     fetchSiteBranding();
     fetchThemeColors();
     fetchFooterSettings();
+    fetchMainMenu();
   }, []);
 
   const fetchHeroStyling = async () => {
@@ -185,6 +191,23 @@ export default function WebsiteCMS() {
     }
   };
 
+  const fetchMainMenu = async () => {
+    const { data } = await supabase.from('site_settings').select('value').eq('key', 'main_navigation').single();
+    if (data && data.value) {
+      setMainMenu(JSON.parse(data.value));
+    } else {
+      setMainMenu([
+        { id: '1', label: 'ABOUT US', url: '/about', type: 'simple', isActive: true, children: [] },
+        { id: '2', label: 'FACULTY', url: '/faculty', type: 'simple', isActive: true, children: [] },
+        { id: '3', label: 'ACADEMICS', url: '/academics', type: 'simple', isActive: true, children: [] },
+        { id: '4', label: 'ADMISSIONS', url: '/admissions', type: 'simple', isActive: true, children: [] },
+        { id: '5', label: 'GALLERY', url: '/gallery', type: 'simple', isActive: true, children: [] },
+        { id: '6', label: 'NOTICES/CIRCULARS', url: '/notices', type: 'simple', isActive: true, children: [] },
+        { id: '7', label: 'CONTACT US', url: '/contact', type: 'simple', isActive: true, children: [] }
+      ]);
+    }
+  };
+
   const saveFooterSettings = async (e) => {
     if(e) e.preventDefault();
     setSavingFooterSettings(true);
@@ -197,6 +220,69 @@ export default function WebsiteCMS() {
     } finally {
       setSavingFooterSettings(false);
     }
+  };
+
+  const saveMainMenu = async () => {
+    setSavingMenu(true);
+    try {
+      const { error } = await supabase.from('site_settings').upsert({ key: 'main_navigation', value: JSON.stringify(mainMenu) });
+      if (error) throw error;
+      alert("Main menu saved successfully!");
+    } catch (err) {
+      alert("Failed to save menu: " + err.message);
+    } finally {
+      setSavingMenu(false);
+    }
+  };
+
+  const updateMenu = (newMenu) => setMainMenu([...newMenu]);
+
+  const addMenuItem = () => {
+    updateMenu([...mainMenu, { id: Date.now().toString(), label: 'New Item', url: '/', type: 'simple', isActive: true, children: [] }]);
+  };
+
+  const deleteMenuItem = (id, parentId = null) => {
+    if (!window.confirm("Delete this menu item?")) return;
+    if (parentId) {
+      const parent = mainMenu.find(m => m.id === parentId);
+      if(parent) {
+        parent.children = parent.children.filter(c => c.id !== id);
+        updateMenu(mainMenu);
+      }
+    } else {
+      updateMenu(mainMenu.filter(m => m.id !== id));
+    }
+  };
+
+  const moveMenuItem = (index, direction, parentId = null) => {
+    const list = parentId ? mainMenu.find(m => m.id === parentId).children : mainMenu;
+    if (direction === 'up' && index > 0) {
+      const temp = list[index - 1];
+      list[index - 1] = list[index];
+      list[index] = temp;
+    } else if (direction === 'down' && index < list.length - 1) {
+      const temp = list[index + 1];
+      list[index + 1] = list[index];
+      list[index] = temp;
+    }
+    updateMenu(mainMenu);
+  };
+
+  const addSubItem = (parentId) => {
+    const parent = mainMenu.find(m => m.id === parentId);
+    if(parent) {
+      if(!parent.children) parent.children = [];
+      parent.children.push({ id: Date.now().toString(), label: 'New Sub-item', url: '/', type: 'simple', isActive: true });
+      parent.type = 'dropdown'; // automatically make it a dropdown if it has children
+      updateMenu(mainMenu);
+    }
+  };
+
+  const saveEditedItem = (updatedItem, parentId, index) => {
+    const list = parentId ? mainMenu.find(m => m.id === parentId).children : mainMenu;
+    list[index] = updatedItem;
+    updateMenu(mainMenu);
+    setEditingMenuItem(null);
   };
 
   const resetBranding = async () => {
@@ -751,6 +837,98 @@ export default function WebsiteCMS() {
           </div>
         </form>
       </div>
+      {/* Menu Builder */}
+      <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+            <List size={20} color="#f97316" /> Navigation Menu Builder
+          </h3>
+          <button onClick={addMenuItem} type="button" className="btn-hero-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f97316', color: 'white', border: 'none', padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
+            <Plus size={16} /> Add Top-Level Menu
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+          {mainMenu.map((item, index) => (
+            <div key={item.id} style={{ border: '1px solid #e2e8f0', borderRadius: '0.5rem', background: '#fff', overflow: 'hidden' }}>
+              {/* Parent Item */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: '#f8fafc', borderBottom: item.children?.length > 0 ? '1px solid #e2e8f0' : 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <button type="button" onClick={() => moveMenuItem(index, 'up')} disabled={index === 0} style={{ padding: 0, border: 'none', background: 'transparent', cursor: index === 0 ? 'not-allowed' : 'pointer', color: index === 0 ? '#cbd5e1' : '#64748b' }}><ArrowUp size={14} /></button>
+                    <button type="button" onClick={() => moveMenuItem(index, 'down')} disabled={index === mainMenu.length - 1} style={{ padding: 0, border: 'none', background: 'transparent', cursor: index === mainMenu.length - 1 ? 'not-allowed' : 'pointer', color: index === mainMenu.length - 1 ? '#cbd5e1' : '#64748b' }}><ArrowDown size={14} /></button>
+                  </div>
+                  {editingMenuItem?.item.id === item.id ? (
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <input type="text" className="input-field" value={editingMenuItem.item.label} onChange={(e) => setEditingMenuItem({...editingMenuItem, item: {...editingMenuItem.item, label: e.target.value}})} style={{ width: '150px', padding: '0.25rem 0.5rem', fontSize: '0.875rem' }} />
+                      <input type="text" className="input-field" value={editingMenuItem.item.url} onChange={(e) => setEditingMenuItem({...editingMenuItem, item: {...editingMenuItem.item, url: e.target.value}})} style={{ width: '150px', padding: '0.25rem 0.5rem', fontSize: '0.875rem' }} />
+                      <select className="input-field" value={editingMenuItem.item.type} onChange={(e) => setEditingMenuItem({...editingMenuItem, item: {...editingMenuItem.item, type: e.target.value}})} style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}>
+                        <option value="simple">Simple Link</option>
+                        <option value="dropdown">Dropdown</option>
+                        <option value="mega">Mega Menu</option>
+                      </select>
+                      <button type="button" onClick={() => saveEditedItem(editingMenuItem.item, editingMenuItem.parentId, editingMenuItem.index)} style={{ background: '#10b981', color: 'white', border: 'none', borderRadius: '0.25rem', padding: '0.25rem 0.5rem', cursor: 'pointer' }}><CheckCircle2 size={16} /></button>
+                    </div>
+                  ) : (
+                    <div>
+                      <h4 style={{ margin: 0, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {item.label}
+                        <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '1rem', background: item.type === 'mega' ? '#8b5cf6' : item.type === 'dropdown' ? '#3b82f6' : '#e2e8f0', color: item.type === 'simple' ? '#64748b' : 'white' }}>{item.type}</span>
+                        {!item.isActive && <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '1rem', background: '#ef4444', color: 'white' }}>Hidden</span>}
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>{item.url}</p>
+                    </div>
+                  )}
+                </div>
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <button type="button" onClick={() => addSubItem(item.id)} title="Add Submenu Item" style={{ padding: '0.25rem', background: 'transparent', border: 'none', cursor: 'pointer', color: '#10b981' }}><Plus size={16} /></button>
+                  <button type="button" onClick={() => setEditingMenuItem({ item: {...item}, parentId: null, index })} title="Edit" style={{ padding: '0.25rem', background: 'transparent', border: 'none', cursor: 'pointer', color: '#3b82f6' }}><Edit2 size={16} /></button>
+                  <button type="button" onClick={() => deleteMenuItem(item.id)} title="Delete" style={{ padding: '0.25rem', background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={16} /></button>
+                </div>
+              </div>
+
+              {/* Child Items */}
+              {item.children && item.children.length > 0 && (
+                <div style={{ padding: '0.5rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', background: '#fff' }}>
+                  {item.children.map((child, childIndex) => (
+                    <div key={child.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', borderLeft: '2px solid #e2e8f0', marginLeft: '2rem', background: '#f8fafc', borderRadius: '0 0.5rem 0.5rem 0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <button type="button" onClick={() => moveMenuItem(childIndex, 'up', item.id)} disabled={childIndex === 0} style={{ padding: 0, border: 'none', background: 'transparent', cursor: childIndex === 0 ? 'not-allowed' : 'pointer', color: childIndex === 0 ? '#cbd5e1' : '#64748b' }}><ArrowUp size={12} /></button>
+                          <button type="button" onClick={() => moveMenuItem(childIndex, 'down', item.id)} disabled={childIndex === item.children.length - 1} style={{ padding: 0, border: 'none', background: 'transparent', cursor: childIndex === item.children.length - 1 ? 'not-allowed' : 'pointer', color: childIndex === item.children.length - 1 ? '#cbd5e1' : '#64748b' }}><ArrowDown size={12} /></button>
+                        </div>
+                        {editingMenuItem?.item.id === child.id ? (
+                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <input type="text" className="input-field" value={editingMenuItem.item.label} onChange={(e) => setEditingMenuItem({...editingMenuItem, item: {...editingMenuItem.item, label: e.target.value}})} style={{ width: '120px', padding: '0.25rem 0.5rem', fontSize: '0.875rem' }} />
+                            <input type="text" className="input-field" value={editingMenuItem.item.url} onChange={(e) => setEditingMenuItem({...editingMenuItem, item: {...editingMenuItem.item, url: e.target.value}})} style={{ width: '120px', padding: '0.25rem 0.5rem', fontSize: '0.875rem' }} />
+                            <button type="button" onClick={() => saveEditedItem(editingMenuItem.item, editingMenuItem.parentId, editingMenuItem.index)} style={{ background: '#10b981', color: 'white', border: 'none', borderRadius: '0.25rem', padding: '0.25rem', cursor: 'pointer' }}><CheckCircle2 size={14} /></button>
+                          </div>
+                        ) : (
+                          <div>
+                            <h5 style={{ margin: 0, fontWeight: 600, fontSize: '0.875rem' }}>{child.label}</h5>
+                            <p style={{ margin: 0, fontSize: '0.7rem', color: '#64748b' }}>{child.url}</p>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <button type="button" onClick={() => setEditingMenuItem({ item: {...child}, parentId: item.id, index: childIndex })} title="Edit" style={{ padding: '0.25rem', background: 'transparent', border: 'none', cursor: 'pointer', color: '#3b82f6' }}><Edit2 size={14} /></button>
+                        <button type="button" onClick={() => deleteMenuItem(child.id, item.id)} title="Delete" style={{ padding: '0.25rem', background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={14} /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <button onClick={saveMainMenu} type="button" className="btn-hero-primary" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', background: '#f97316', color: 'white', border: 'none', padding: '0.75rem', width: '100%' }} disabled={savingMenu}>
+          {savingMenu ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : 'Save Menu Structure'}
+        </button>
+      </div>
+
       <div className="bento-card" style={{ padding: '2rem' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Users size={20} color="#8b5cf6" /> Faculty Manager

@@ -58,6 +58,16 @@ export const ThemeProvider = ({ children }) => {
     }
   });
 
+  const [mainMenu, setMainMenu] = useState([
+    { id: '1', label: 'ABOUT US', url: '/about', type: 'simple', isActive: true, children: [] },
+    { id: '2', label: 'FACULTY', url: '/faculty', type: 'simple', isActive: true, children: [] },
+    { id: '3', label: 'ACADEMICS', url: '/academics', type: 'simple', isActive: true, children: [] },
+    { id: '4', label: 'ADMISSIONS', url: '/admissions', type: 'simple', isActive: true, children: [] },
+    { id: '5', label: 'GALLERY', url: '/gallery', type: 'simple', isActive: true, children: [] },
+    { id: '6', label: 'NOTICES/CIRCULARS', url: '/notices', type: 'simple', isActive: true, children: [] },
+    { id: '7', label: 'CONTACT US', url: '/contact', type: 'simple', isActive: true, children: [] }
+  ]);
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -79,6 +89,11 @@ export const ThemeProvider = ({ children }) => {
       const { data: footerData } = await supabase.from('site_settings').select('value').eq('key', 'footer_settings').single();
       if (footerData && footerData.value) {
         setFooterSettings(JSON.parse(footerData.value));
+      }
+
+      const { data: menuData } = await supabase.from('site_settings').select('value').eq('key', 'main_navigation').single();
+      if (menuData && menuData.value) {
+        setMainMenu(JSON.parse(menuData.value));
       }
     } catch (err) {
       console.error("Failed to fetch theme settings:", err);
@@ -114,7 +129,7 @@ export const ThemeProvider = ({ children }) => {
   }, [themeColors, siteBranding]);
 
   return (
-    <ThemeContext.Provider value={{ siteBranding, themeColors, footerSettings, fetchThemeSettings }}>
+    <ThemeContext.Provider value={{ siteBranding, themeColors, footerSettings, mainMenu, fetchThemeSettings }}>
       {!loading && children}
     </ThemeContext.Provider>
   );

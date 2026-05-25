@@ -13,17 +13,7 @@ const PublicLayout = ({ children }) => {
     document.documentElement.classList.toggle('dark');
   };
 
-  const { siteBranding, footerSettings, themeColors } = useTheme();
-
-  const navLinks = [
-    { name: 'ABOUT US', path: '/about' },
-    { name: 'FACULTY', path: '/faculty' },
-    { name: 'ACADEMICS', path: '/academics', sub: 'Kindergarten Primary Middle' },
-    { name: 'ADMISSIONS', path: '/admissions' },
-    { name: 'GALLERY', path: '/gallery' },
-    { name: 'NOTICES/CIRCULARS', path: '/notices' },
-    { name: 'CONTACT US', path: '/contact' }
-  ];
+  const { siteBranding, footerSettings, themeColors, mainMenu } = useTheme();
 
   return (
     <div className={`app-layout-public ${isDarkMode ? 'dark' : ''}`} style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', width: '100vw', maxWidth: '100%', overflowX: 'hidden' }}>
@@ -55,16 +45,62 @@ const PublicLayout = ({ children }) => {
 
             {/* Desktop Navigation */}
             <div style={{ display: 'none', alignItems: 'center', gap: '1.5rem' }} className="md-flex">
-              {navLinks.map((link) => (
-                <div key={link.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              {mainMenu?.filter(item => item.isActive).map((link) => (
+                <div key={link.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}
+                  onMouseEnter={() => {
+                    const dropdown = document.getElementById(`dropdown-${link.id}`);
+                    if (dropdown) dropdown.style.display = 'block';
+                  }}
+                  onMouseLeave={() => {
+                    const dropdown = document.getElementById(`dropdown-${link.id}`);
+                    if (dropdown) dropdown.style.display = 'none';
+                  }}
+                >
                   <NavLink 
-                    to={link.path}
-                    className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-                    style={{ fontWeight: '700', fontSize: '0.85rem', color: 'white' }}
+                    to={link.url}
+                    className={({ isActive }) => `nav-link ${isActive && link.url !== '#' ? 'active' : ''}`}
+                    style={{ fontWeight: '700', fontSize: '0.85rem', color: 'white', display: 'flex', alignItems: 'center', gap: '0.25rem', textDecoration: 'none' }}
                   >
-                    {link.name}
+                    {link.label} {link.type !== 'simple' && <ChevronDown size={14} />}
                   </NavLink>
-                  {link.sub && <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.7)' }}>{link.sub}</span>}
+                  
+                  {/* Dropdown Menu */}
+                  {link.children?.length > 0 && link.type === 'dropdown' && (
+                    <div id={`dropdown-${link.id}`} style={{ display: 'none', position: 'absolute', top: '100%', left: 0, paddingTop: '1rem', zIndex: 50, minWidth: '200px' }}>
+                      <div style={{ background: '#fff', borderRadius: '0.5rem', padding: '0.5rem 0', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)' }}>
+                        {link.children.map(child => (
+                          <Link key={child.id} to={child.url} style={{ display: 'block', padding: '0.75rem 1.5rem', color: '#1f2937', fontSize: '0.875rem', fontWeight: 500, textDecoration: 'none' }} onMouseEnter={(e) => e.target.style.background = '#f1f5f9'} onMouseLeave={(e) => e.target.style.background = 'transparent'}>
+                            {child.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Mega Menu */}
+                  {link.children?.length > 0 && link.type === 'mega' && (
+                    <div id={`dropdown-${link.id}`} style={{ display: 'none', position: 'fixed', top: '100px', left: '10%', width: '80%', paddingTop: '1rem', zIndex: 50 }}>
+                      <div style={{ background: '#fff', borderRadius: '0.5rem', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2rem' }}>
+                        {link.children.map(child => (
+                          <div key={child.id}>
+                            <h4 style={{ color: '#0f172a', fontWeight: 'bold', borderBottom: '2px solid #e2e8f0', paddingBottom: '0.5rem', marginBottom: '1rem', margin: 0 }}>{child.label}</h4>
+                            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                              {child.children?.map(sub => (
+                                <li key={sub.id}>
+                                  <Link to={sub.url} style={{ color: '#475569', fontSize: '0.875rem', textDecoration: 'none', display: 'block', padding: '0.25rem 0' }} onMouseEnter={(e) => e.target.style.color = '#2563eb'} onMouseLeave={(e) => e.target.style.color = '#475569'}>{sub.label}</Link>
+                                </li>
+                              ))}
+                              {!child.children?.length && (
+                                <li>
+                                  <Link to={child.url} style={{ color: '#64748b', fontSize: '0.875rem', textDecoration: 'none' }}>Go to {child.label} &rarr;</Link>
+                                </li>
+                              )}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -89,15 +125,25 @@ const PublicLayout = ({ children }) => {
               className="md-hidden"
             >
               <div style={{ padding: '0.5rem 1rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {navLinks.map((link) => (
-                  <NavLink
-                    key={link.name}
-                    to={link.path}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    style={{ display: 'block', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontWeight: '500', color: 'var(--text-public)' }}
-                  >
-                    {link.name}
-                  </NavLink>
+                {mainMenu?.filter(item => item.isActive).map((link) => (
+                  <div key={link.id}>
+                    <NavLink
+                      to={link.url}
+                      onClick={() => !link.children?.length && setIsMobileMenuOpen(false)}
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontWeight: '500', color: 'var(--text-public)', textDecoration: 'none' }}
+                    >
+                      {link.label} {link.type !== 'simple' && <ChevronDown size={16} />}
+                    </NavLink>
+                    {link.children?.length > 0 && (
+                      <div style={{ paddingLeft: '1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '0.25rem' }}>
+                        {link.children.map(child => (
+                           <Link key={child.id} to={child.url} onClick={() => setIsMobileMenuOpen(false)} style={{ display: 'block', padding: '0.5rem', color: '#64748b', fontSize: '0.875rem', textDecoration: 'none' }}>
+                             {child.label}
+                           </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
                 <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <button onClick={toggleDarkMode} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', background: 'transparent', border: 'none', color: 'var(--text-public)', cursor: 'pointer' }}>
