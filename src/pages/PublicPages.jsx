@@ -470,6 +470,7 @@ export const Gallery = () => {
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [activeYear, setActiveYear] = useState('All');
   const [selectedMedia, setSelectedMedia] = useState(null);
 
   useEffect(() => {
@@ -494,7 +495,13 @@ export const Gallery = () => {
   };
 
   const categories = ['All', ...new Set(photos.map(p => p.category))];
-  const filteredPhotos = activeCategory === 'All' ? photos : photos.filter(p => p.category === activeCategory);
+  const years = ['All', ...new Set(photos.map(p => p.year).filter(Boolean))].sort((a,b) => b.localeCompare(a));
+  
+  const filteredPhotos = photos.filter(p => {
+    const matchCategory = activeCategory === 'All' || p.category === activeCategory;
+    const matchYear = activeYear === 'All' || p.year === activeYear;
+    return matchCategory && matchYear;
+  });
 
   const isVideo = (url) => url && url.match(/\.(mp4|webm|ogg)$/i);
 
@@ -535,30 +542,55 @@ export const Gallery = () => {
            </div>
         ) : (
           <>
+            {/* Year Filter */}
+            {years.length > 1 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center', marginBottom: '1rem' }}>
+                {years.map(year => (
+                  <button
+                    key={year}
+                    onClick={() => setActiveYear(year)}
+                    style={{
+                      padding: '0.5rem 1.5rem',
+                      borderRadius: '2rem',
+                      border: 'none',
+                      background: activeYear === year ? '#10b981' : '#f1f5f9',
+                      color: activeYear === year ? 'white' : '#64748b',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      boxShadow: activeYear === year ? '0 4px 6px -1px rgba(16,185,129,0.2)' : 'none'
+                    }}
+                  >
+                    {year === 'All' ? 'All Years' : year}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Category Filter */}
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '3rem' }}>
-              {categories.map(cat => (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center', marginBottom: '3rem' }}>
+              {categories.map(category => (
                 <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
+                  key={category}
+                  onClick={() => setActiveCategory(category)}
                   style={{
                     padding: '0.5rem 1.5rem',
                     borderRadius: '2rem',
                     border: 'none',
+                    background: activeCategory === category ? 'var(--primary-color)' : '#f1f5f9',
+                    color: activeCategory === category ? 'white' : '#64748b',
                     fontWeight: 'bold',
                     cursor: 'pointer',
-                    background: activeCategory === cat ? '#10b981' : '#f1f5f9',
-                    color: activeCategory === cat ? 'white' : '#475569',
-                    transition: 'all 0.2s'
+                    transition: 'all 0.2s',
+                    boxShadow: activeCategory === category ? '0 4px 6px -1px rgba(22,101,52,0.2)' : 'none'
                   }}
                 >
-                  {cat}
+                  {category}
                 </button>
               ))}
             </div>
 
-            {/* Uniform Structured Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1.5rem' }}>
               <AnimatePresence mode="popLayout">
                 {filteredPhotos.map((photo, index) => (
                   <motion.div

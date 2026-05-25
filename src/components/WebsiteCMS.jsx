@@ -14,6 +14,7 @@ export default function WebsiteCMS() {
 
   // Gallery State
   const [galleryCategory, setGalleryCategory] = useState('');
+  const [galleryYear, setGalleryYear] = useState(new Date().getFullYear().toString());
   const [galleryFiles, setGalleryFiles] = useState([]);
   const [uploadingGallery, setUploadingGallery] = useState(false);
   const [galleryUploadProgress, setGalleryUploadProgress] = useState({ current: 0, total: 0 });
@@ -144,6 +145,7 @@ export default function WebsiteCMS() {
         await supabase.from('gallery').insert([{
           title: title,
           category: galleryCategory,
+          year: galleryYear,
           image_url: imageUrl
         }]);
 
@@ -274,7 +276,10 @@ export default function WebsiteCMS() {
           <ImageIcon size={20} color="#10b981" /> Bulk Photo Gallery Manager
         </h3>
         <form onSubmit={handleAddPhotos} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
-          <input type="text" placeholder="Category for these photos (e.g. Sports, Academics)" className="input-field" style={{ width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0' }} value={galleryCategory} onChange={e => setGalleryCategory(e.target.value)} required />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <input type="text" placeholder="Category (e.g. Sports, Academics)" className="input-field" style={{ width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0' }} value={galleryCategory} onChange={e => setGalleryCategory(e.target.value)} required />
+            <input type="text" placeholder="Year (e.g. 2026)" className="input-field" style={{ width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0' }} value={galleryYear} onChange={e => setGalleryYear(e.target.value)} required />
+          </div>
           
           <div style={{ border: '2px dashed #10b981', padding: '1.5rem', borderRadius: '0.5rem', background: 'rgba(16, 185, 129, 0.05)', textAlign: 'center' }}>
             <UploadCloud size={32} color="#10b981" style={{ margin: '0 auto 0.5rem' }} />
