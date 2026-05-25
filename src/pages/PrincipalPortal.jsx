@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Search, Users, BookOpen, Bell, Send, Shield, User } from 'lucide-react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import Editor from 'react-simple-wysiwyg';
 
 const PrincipalPortal = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -178,8 +177,8 @@ const PrincipalPortal = () => {
               </div>
               <div className="mb-8">
                 <label className="block font-bold mb-1">Message</label>
-                <div style={{ height: '150px', marginBottom: '40px' }}>
-                  <ReactQuill theme="snow" value={noticeMessage} onChange={setNoticeMessage} style={{ height: '100%' }} />
+                <div style={{ marginBottom: '10px' }}>
+                  <Editor value={noticeMessage} onChange={e => setNoticeMessage(e.target.value)} style={{ minHeight: '150px' }} />
                 </div>
               </div>
               <div>
