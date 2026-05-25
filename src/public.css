@@ -125,6 +125,8 @@ html.dark .nav-link {
   font-weight: 800;
   line-height: 1.1;
   margin-bottom: 1.5rem;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .hero-subtitle {
@@ -133,6 +135,8 @@ html.dark .nav-link {
   max-width: 48rem;
   margin: 0 auto 2.5rem;
   font-weight: 300;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .hero-buttons {
