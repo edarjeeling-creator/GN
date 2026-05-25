@@ -8,11 +8,37 @@ const Home = () => {
   const [news, setNews] = useState([]);
   const [heroSlides, setHeroSlides] = useState([]);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [heroStyle, setHeroStyle] = useState({
+    title: 'HIMALAYAN ICSE SCHOOL',
+    subtitle: 'WELCOME TO',
+    description: 'Nurturing Minds, Building Futures | K-12 Excellence | Est. 1996',
+    titleColor: '#ffffff',
+    subtitleColor: '#fcd34d',
+    btnPrimaryText: 'ADMISSIONS OPEN (2026-27)',
+    btnPrimaryLink: '/admissions',
+    btnPrimaryColor: '#f59e0b',
+    btnSecondaryText: 'EXPLORE ACADEMICS',
+    btnSecondaryLink: '/academics',
+    btnSecondaryColor: '#166534',
+    btnShape: '2rem'
+  });
 
   useEffect(() => {
     fetchNews();
     fetchHeroSlides();
+    fetchHeroStyling();
   }, []);
+
+  const fetchHeroStyling = async () => {
+    try {
+      const { data, error } = await supabase.from('site_settings').select('value').eq('key', 'hero_styling').single();
+      if (!error && data && data.value) {
+        setHeroStyle({ ...heroStyle, ...JSON.parse(data.value) });
+      }
+    } catch (e) {
+      console.log('Hero styling fetch error:', e);
+    }
+  };
 
   const fetchHeroSlides = async () => {
     try {
@@ -151,12 +177,12 @@ const Home = () => {
             )}
 
             <div className="portal-hero-overlay" style={{ position: 'relative', zIndex: 1 }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '0.5rem', color: '#fcd34d' }}>WELCOME TO</h2>
-              <h1 style={{ fontSize: '3.5rem', fontWeight: '900', lineHeight: '1.1', marginBottom: '1rem' }}>HIMALAYAN ICSE SCHOOL</h1>
-              <p style={{ fontSize: '1.2rem', marginBottom: '2rem', opacity: 0.9 }}>Nurturing Minds, Building Futures | K-12 Excellence | Est. 1996</p>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '0.5rem', color: heroStyle.subtitleColor }}>{heroStyle.subtitle}</h2>
+              <h1 style={{ fontSize: '3.5rem', fontWeight: '900', lineHeight: '1.1', marginBottom: '1rem', color: heroStyle.titleColor }}>{heroStyle.title}</h1>
+              <p style={{ fontSize: '1.2rem', marginBottom: '2rem', opacity: 0.9, color: heroStyle.titleColor }}>{heroStyle.description}</p>
               <div style={{ display: 'flex', gap: '1rem' }}>
-                <Link to="/admissions" className="btn-hero-primary" style={{ background: '#f59e0b', color: 'white', border: 'none' }}>ADMISSIONS OPEN (2026-27)</Link>
-                <Link to="/academics" className="btn-hero-outline" style={{ border: '2px solid white', background: 'rgba(22, 101, 52, 0.8)' }}>EXPLORE ACADEMICS</Link>
+                <Link to={heroStyle.btnPrimaryLink} className="btn-hero-primary" style={{ background: heroStyle.btnPrimaryColor, color: 'white', border: 'none', borderRadius: heroStyle.btnShape }}>{heroStyle.btnPrimaryText}</Link>
+                <Link to={heroStyle.btnSecondaryLink} className="btn-hero-outline" style={{ border: '2px solid white', background: heroStyle.btnSecondaryColor, color: 'white', borderRadius: heroStyle.btnShape }}>{heroStyle.btnSecondaryText}</Link>
               </div>
             </div>
           </div>

@@ -25,12 +25,51 @@ export default function WebsiteCMS() {
   const [heroFiles, setHeroFiles] = useState([]);
   const [uploadingHero, setUploadingHero] = useState(false);
   const heroFileRef = useRef(null);
+  
+  // Hero Styling State
+  const [heroStyle, setHeroStyle] = useState({
+    title: 'HIMALAYAN ICSE SCHOOL',
+    subtitle: 'WELCOME TO',
+    description: 'Nurturing Minds, Building Futures | K-12 Excellence | Est. 1996',
+    titleColor: '#ffffff',
+    subtitleColor: '#fcd34d',
+    btnPrimaryText: 'ADMISSIONS OPEN (2026-27)',
+    btnPrimaryLink: '/admissions',
+    btnPrimaryColor: '#f59e0b',
+    btnSecondaryText: 'EXPLORE ACADEMICS',
+    btnSecondaryLink: '/academics',
+    btnSecondaryColor: '#166534',
+    btnShape: '2rem' // rounded-full default
+  });
+  const [savingHeroStyle, setSavingHeroStyle] = useState(false);
 
   useEffect(() => {
     fetchFaculty();
     fetchGallery();
     fetchHeroSlides();
+    fetchHeroStyling();
   }, []);
+
+  const fetchHeroStyling = async () => {
+    const { data } = await supabase.from('site_settings').select('value').eq('key', 'hero_styling').single();
+    if (data && data.value) {
+      setHeroStyle(JSON.parse(data.value));
+    }
+  };
+
+  const saveHeroStyling = async (e) => {
+    e.preventDefault();
+    setSavingHeroStyle(true);
+    try {
+      const { error } = await supabase.from('site_settings').upsert({ key: 'hero_styling', value: JSON.stringify(heroStyle) });
+      if (error) throw error;
+      alert("Hero styling saved successfully!");
+    } catch (err) {
+      alert("Failed to save: " + err.message);
+    } finally {
+      setSavingHeroStyle(false);
+    }
+  };
 
   const fetchHeroSlides = async () => {
     const { data } = await supabase.from('hero_slides').select('*').order('created_at', { ascending: false });
@@ -222,6 +261,92 @@ export default function WebsiteCMS() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Hero Content & Style Manager */}
+      <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Monitor size={20} color="#3b82f6" /> Hero Content & Style Manager
+        </h3>
+        <form onSubmit={saveHeroStyling} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+          
+          {/* Texts */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <h4 style={{ fontWeight: 'bold', color: 'var(--text-secondary)', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>Text Content</h4>
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Subtitle</label>
+              <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc' }} value={heroStyle.subtitle} onChange={e => setHeroStyle({...heroStyle, subtitle: e.target.value})} />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Main Title</label>
+              <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc' }} value={heroStyle.title} onChange={e => setHeroStyle({...heroStyle, title: e.target.value})} />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Description</label>
+              <textarea rows="2" className="input-field" style={{ width: '100%', background: '#f8fafc' }} value={heroStyle.description} onChange={e => setHeroStyle({...heroStyle, description: e.target.value})}></textarea>
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <h4 style={{ fontWeight: 'bold', color: 'var(--text-secondary)', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>Buttons</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Primary Text</label>
+                <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc' }} value={heroStyle.btnPrimaryText} onChange={e => setHeroStyle({...heroStyle, btnPrimaryText: e.target.value})} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Primary Link</label>
+                <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc' }} value={heroStyle.btnPrimaryLink} onChange={e => setHeroStyle({...heroStyle, btnPrimaryLink: e.target.value})} />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Secondary Text</label>
+                <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc' }} value={heroStyle.btnSecondaryText} onChange={e => setHeroStyle({...heroStyle, btnSecondaryText: e.target.value})} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Secondary Link</label>
+                <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc' }} value={heroStyle.btnSecondaryLink} onChange={e => setHeroStyle({...heroStyle, btnSecondaryLink: e.target.value})} />
+              </div>
+            </div>
+          </div>
+
+          {/* Styling */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <h4 style={{ fontWeight: 'bold', color: 'var(--text-secondary)', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>Colors & Shapes</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Title Color</label>
+                <input type="color" style={{ width: '100%', height: '40px', cursor: 'pointer' }} value={heroStyle.titleColor} onChange={e => setHeroStyle({...heroStyle, titleColor: e.target.value})} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Subtitle Color</label>
+                <input type="color" style={{ width: '100%', height: '40px', cursor: 'pointer' }} value={heroStyle.subtitleColor} onChange={e => setHeroStyle({...heroStyle, subtitleColor: e.target.value})} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Primary Btn Color</label>
+                <input type="color" style={{ width: '100%', height: '40px', cursor: 'pointer' }} value={heroStyle.btnPrimaryColor} onChange={e => setHeroStyle({...heroStyle, btnPrimaryColor: e.target.value})} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Secondary Btn Color</label>
+                <input type="color" style={{ width: '100%', height: '40px', cursor: 'pointer' }} value={heroStyle.btnSecondaryColor} onChange={e => setHeroStyle({...heroStyle, btnSecondaryColor: e.target.value})} />
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Button Shape</label>
+              <select className="input-field" style={{ width: '100%', background: '#f8fafc' }} value={heroStyle.btnShape} onChange={e => setHeroStyle({...heroStyle, btnShape: e.target.value})}>
+                <option value="0px">Square (0px)</option>
+                <option value="8px">Rounded (8px)</option>
+                <option value="2rem">Pill (Fully Rounded)</option>
+              </select>
+            </div>
+            
+            <button type="submit" className="btn-hero-primary" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', background: '#3b82f6', color: 'white', border: 'none', padding: '0.75rem', width: '100%', marginTop: 'auto' }} disabled={savingHeroStyle}>
+              {savingHeroStyle ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : 'Save Hero Styling'}
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* Faculty Manager */}
