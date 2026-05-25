@@ -8,6 +8,7 @@ export const useTheme = () => useContext(ThemeContext);
 export const ThemeProvider = ({ children }) => {
   const [siteBranding, setSiteBranding] = useState({
     siteName: 'SMARTGRADES ICSE SCHOOL',
+    siteMotto: '',
     logoUrl: '/logo.png',
   });
 

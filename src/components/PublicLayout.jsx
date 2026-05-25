@@ -49,6 +49,7 @@ const PublicLayout = ({ children }) => {
               <img src={siteBranding.logoUrl} alt="Logo" style={{ height: '3.5rem', width: '3.5rem', objectFit: 'contain' }} />
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <span style={{ fontWeight: '800', fontSize: '1.2rem', letterSpacing: '0.05em', color: 'var(--heading-color, var(--text-primary))' }}>{siteBranding.siteName}</span>
+                {siteBranding.siteMotto && <span style={{ fontSize: '0.75rem', fontWeight: '500', color: 'var(--body-text-color, var(--text-secondary))', letterSpacing: '0.025em' }}>{siteBranding.siteMotto}</span>}
               </div>
             </Link>
 

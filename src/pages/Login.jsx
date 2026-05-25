@@ -49,7 +49,10 @@ const Login = () => {
           <Link to="/" style={{ display: 'block', textDecoration: 'none' }}>
             <img src={siteBranding.logoUrl} alt="School Logo" style={{ width: '100px', height: '100px', objectFit: 'contain', margin: '0 auto 1.5rem', display: 'block' }} />
           </Link>
-          <h2 style={{ textAlign: 'center', marginBottom: '2rem', color: 'var(--heading-color, var(--primary-color))', fontSize: '1.8rem', fontWeight: 'bold' }}>{siteBranding.siteName} Login</h2>
+          <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
+            <h2 style={{ color: 'var(--heading-color, var(--primary-color))', fontSize: '1.8rem', fontWeight: 'bold', marginBottom: siteBranding.siteMotto ? '0.25rem' : '0' }}>{siteBranding.siteName} Login</h2>
+            {siteBranding.siteMotto && <p style={{ color: 'var(--body-text-color, #64748b)', fontSize: '0.9rem', fontWeight: '500' }}>{siteBranding.siteMotto}</p>}
+          </div>
           
           {error && <div className="badge badge-danger" style={{ width: '100%', textAlign: 'center', marginBottom: '1.5rem', padding: '0.75rem', borderRadius: '0.5rem' }}>{error}</div>}
           

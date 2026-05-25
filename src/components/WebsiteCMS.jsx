@@ -46,6 +46,7 @@ export default function WebsiteCMS() {
   // Site Branding State (v2)
   const [siteBranding, setSiteBranding] = useState({
     siteName: 'SMARTGRADES ICSE SCHOOL',
+    siteMotto: '',
     logoUrl: '/logo.png'
   });
   const [savingSiteBranding, setSavingSiteBranding] = useState(false);
@@ -151,7 +152,7 @@ export default function WebsiteCMS() {
 
   const resetBranding = async () => {
     if (!window.confirm("Are you sure you want to reset branding to default?")) return;
-    setSiteBranding({ siteName: 'SMARTGRADES ICSE SCHOOL', logoUrl: '/logo.png' });
+    setSiteBranding({ siteName: 'SMARTGRADES ICSE SCHOOL', siteMotto: '', logoUrl: '/logo.png' });
   };
 
   const applyPreset = (preset) => {
@@ -460,16 +461,29 @@ export default function WebsiteCMS() {
         </h3>
         <form onSubmit={saveSiteBranding} style={{ display: 'grid', gap: '1rem' }}>
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <label style={{ fontWeight: '600', fontSize: '0.875rem' }}>Site Name (e.g. SMART GRADES ICSE SCHOOL)</label>
-            <input 
-              type="text" 
-              maxLength="80"
-              value={siteBranding.siteName || ''} 
-              onChange={(e) => setSiteBranding({...siteBranding, siteName: e.target.value})}
-              className="input-field" 
-              required 
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ fontWeight: '600', fontSize: '0.875rem' }}>School Name</label>
+              <input 
+                type="text" 
+                maxLength="80"
+                value={siteBranding.siteName || ''} 
+                onChange={(e) => setSiteBranding({...siteBranding, siteName: e.target.value})}
+                className="input-field" 
+                required 
+              />
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ fontWeight: '600', fontSize: '0.875rem' }}>School Motto (Optional)</label>
+              <input 
+                type="text" 
+                maxLength="80"
+                value={siteBranding.siteMotto || ''} 
+                onChange={(e) => setSiteBranding({...siteBranding, siteMotto: e.target.value})}
+                className="input-field" 
+              />
+            </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
