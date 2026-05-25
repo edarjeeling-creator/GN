@@ -111,7 +111,7 @@ const PublicLayout = ({ children }) => {
       </nav>
 
       {/* Main Content Area */}
-      <main style={{ flexGrow: 1, paddingTop: '5rem', background: 'var(--bg-public)', color: 'var(--text-public)' }}>
+      <main className="public-main-content">
         {children}
       </main>
 

@@ -280,6 +280,19 @@ html.dark .bento-card {
   }
 }
 
+.public-main-content {
+  flex-grow: 1;
+  padding-top: 5rem;
+  background: var(--bg-public);
+  color: var(--text-public);
+}
+
+@media (max-width: 768px) {
+  .public-main-content {
+    padding-top: 10rem;
+  }
+}
+
 /* Footer */
 .public-footer {
   background: #111827;
