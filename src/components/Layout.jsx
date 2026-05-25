@@ -26,7 +26,7 @@ const Layout = ({ children }) => {
       }}>
         <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1.5rem', background: 'linear-gradient(to right, rgba(37, 99, 235, 0.05), transparent)' }}>
           <img src="/logo.png" alt="School Logo" style={{ width: '48px', height: '48px', objectFit: 'contain' }} />
-          <span style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.025em', color: 'var(--primary-color)' }}>SmartGrades</span>
+          <span style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.025em', color: 'var(--primary-color)' }}>Gyanoday Niketan</span>
         </div>
         
         <div style={{ padding: '1.5rem', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
