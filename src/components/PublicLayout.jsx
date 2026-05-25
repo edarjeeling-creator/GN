@@ -121,7 +121,7 @@ const PublicLayout = ({ children }) => {
       {/* Footer */}
       <footer className="portal-footer" style={{ background: themeColors?.nav || '#166534', color: 'white' }}>
         <div className="public-container">
-          <div className="footer-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem', padding: '3rem 0' }}>
+          <div className="footer-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem', padding: '1.5rem 0' }}>
             
             {/* Column 1: Contact */}
             <div>
@@ -159,7 +159,7 @@ const PublicLayout = ({ children }) => {
             <div>
               <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', color: 'white' }}>FIND US</h3>
               {footerSettings?.findUs?.address && (
-                 <p style={{ display: 'flex', gap: '0.5rem', fontSize: '0.875rem', marginBottom: '1rem', whiteSpace: 'pre-wrap' }}>
+                 <p style={{ display: 'flex', gap: '0.5rem', fontSize: '0.875rem', marginBottom: '1rem', whiteSpace: 'pre-wrap', color: 'white' }}>
                    <MapPin size={16} style={{ flexShrink: 0, marginTop: '4px' }} />
                    <span>{footerSettings.findUs.address}</span>
                  </p>
@@ -174,9 +174,9 @@ const PublicLayout = ({ children }) => {
             </div>
           </div>
           
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem', paddingBottom: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', textAlign: 'center' }}>
-            <p style={{ fontWeight: '600' }}>{footerSettings?.legal?.affiliation || 'Affiliated to CISCE, New Delhi (WB046)'}</p>
-            <p>{footerSettings?.legal?.copyright || '© 2026 SmartGrades School. All rights reserved.'}</p>
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem', paddingBottom: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', textAlign: 'center' }}>
+            <p style={{ fontWeight: '600', color: 'white' }}>{footerSettings?.legal?.affiliation || 'Affiliated to CISCE, New Delhi (WB046)'}</p>
+            <p style={{ color: 'white' }}>{footerSettings?.legal?.copyright || '© 2026 SmartGrades School. All rights reserved.'}</p>
           </div>
         </div>
       </footer>
