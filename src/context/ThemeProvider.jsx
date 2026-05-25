@@ -49,7 +49,7 @@ export const ThemeProvider = ({ children }) => {
       address: 'SmartGrades ICSE School\nDarjeeling / West Bengal',
       landmark: '',
       pinCode: '',
-      mapEmbedUrl: ''
+      stats: '1200+ Students | 75+ Teachers | 98% Results | 25 Years of Excellence'
     },
     legal: {
       affiliation: 'Affiliated to CISCE, New Delhi (WB046)',

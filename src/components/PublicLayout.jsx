@@ -164,9 +164,11 @@ const PublicLayout = ({ children }) => {
                    <span>{footerSettings.findUs.address}</span>
                  </p>
               )}
-              {footerSettings?.findUs?.mapEmbedUrl && (
-                <div style={{ width: '100%', height: '120px', borderRadius: '0.5rem', overflow: 'hidden' }}>
-                  <iframe src={footerSettings.findUs.mapEmbedUrl} width="100%" height="100%" style={{ border: 0 }} allowFullScreen="" loading="lazy" referrerPolicy="no-referrer-when-downgrade" title="Google Maps Location"></iframe>
+              {footerSettings?.findUs?.stats && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: '1rem' }}>
+                  {footerSettings.findUs.stats.split('|').map((stat, i) => (
+                    <div key={i} style={{ fontSize: '0.85rem', fontWeight: '600' }}>{stat.trim()}</div>
+                  ))}
                 </div>
               )}
             </div>

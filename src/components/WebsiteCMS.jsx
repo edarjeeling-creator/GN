@@ -77,7 +77,7 @@ export default function WebsiteCMS() {
       { id: '6', label: 'Contact Us', url: '/contact', active: true }
     ],
     socialMedia: { facebook: '', instagram: '', youtube: '', linkedin: '', twitter: '' },
-    findUs: { address: 'SmartGrades ICSE School\nDarjeeling / West Bengal', landmark: '', pinCode: '', mapEmbedUrl: '' },
+    findUs: { address: 'SmartGrades ICSE School\nDarjeeling / West Bengal', landmark: '', pinCode: '', stats: '1200+ Students | 75+ Teachers | 98% Results | 25 Years of Excellence' },
     legal: { affiliation: 'Affiliated to CISCE, New Delhi (WB046)', copyright: '© 2026 SmartGrades School. All rights reserved.' }
   });
   const [savingFooterSettings, setSavingFooterSettings] = useState(false);
@@ -694,8 +694,8 @@ export default function WebsiteCMS() {
                 <textarea className="input-field" rows="3" value={footerSettings.findUs.address} onChange={e => setFooterSettings({...footerSettings, findUs: {...footerSettings.findUs, address: e.target.value}})}></textarea>
               </div>
               <div>
-                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Google Maps Embed URL (src)</label>
-                <input type="text" className="input-field" placeholder="https://www.google.com/maps/embed?..." value={footerSettings.findUs.mapEmbedUrl} onChange={e => setFooterSettings({...footerSettings, findUs: {...footerSettings.findUs, mapEmbedUrl: e.target.value}})} />
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Key Stats (separated by |)</label>
+                <input type="text" className="input-field" placeholder="1200+ Students | 75+ Teachers | 98% Results | 25 Years of Excellence" value={footerSettings.findUs.stats || ''} onChange={e => setFooterSettings({...footerSettings, findUs: {...footerSettings.findUs, stats: e.target.value}})} />
               </div>
             </div>
           </div>
