@@ -2,10 +2,12 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
+import { useTheme } from '../context/ThemeProvider';
 
 const Layout = ({ children }) => {
   const { profile, logout } = useAuth();
   const { academicYear, setAcademicYear } = useData();
+  const { siteBranding } = useTheme();
   const navigate = useNavigate();
 
   const currentYear = new Date().getFullYear();
@@ -25,8 +27,8 @@ const Layout = ({ children }) => {
         zIndex: 40
       }}>
         <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1.5rem', background: 'linear-gradient(to right, rgba(37, 99, 235, 0.05), transparent)' }}>
-          <img src="/logo.png" alt="School Logo" style={{ width: '48px', height: '48px', objectFit: 'contain' }} />
-          <span style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.025em', color: 'var(--primary-color)' }}>Gyanoday Niketan</span>
+          <img src={siteBranding?.logoUrl || "/logo.png"} alt="School Logo" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+          <span style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.025em', color: 'var(--primary-color)' }}>{siteBranding?.siteName || 'Gyanoday Niketan'}</span>
         </div>
         
         <div style={{ padding: '1.5rem', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
