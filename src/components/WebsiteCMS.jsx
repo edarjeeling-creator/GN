@@ -156,8 +156,8 @@ export default function WebsiteCMS() {
 
   const applyPreset = (preset) => {
     switch (preset) {
-      case 'School Blue':
-        setThemeColors({ heading: '#1e3a8a', body: '#334155', button: '#ffffff', nav: '#1e3a8a', footer: '#9ca3af', link: '#2563eb', hover: '#1d4ed8' });
+      case 'School Green':
+        setThemeColors({ heading: '#166534', body: '#334155', button: '#ffffff', nav: '#166534', footer: '#9ca3af', link: '#15803d', hover: '#16a34a' });
         break;
       case 'Classic White':
         setThemeColors({ heading: '#0f172a', body: '#475569', button: '#ffffff', nav: '#0f172a', footer: '#64748b', link: '#0f172a', hover: '#334155' });
@@ -508,7 +508,7 @@ export default function WebsiteCMS() {
           <Palette size={20} color="#eab308" /> Theme Colors
         </h3>
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-          <button onClick={() => applyPreset('School Blue')} className="btn-sm" style={{ background: '#1e3a8a', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.25rem', cursor: 'pointer' }}>School Blue</button>
+          <button onClick={() => applyPreset('School Green')} className="btn-sm" style={{ background: '#166534', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.25rem', cursor: 'pointer' }}>School Green</button>
           <button onClick={() => applyPreset('Classic White')} className="btn-sm" style={{ background: '#f8fafc', color: '#0f172a', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '0.25rem', cursor: 'pointer' }}>Classic White</button>
           <button onClick={() => applyPreset('Modern Dark')} className="btn-sm" style={{ background: '#0f172a', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.25rem', cursor: 'pointer' }}>Modern Dark</button>
           <button onClick={() => applyPreset('Elegant Gold')} className="btn-sm" style={{ background: '#b45309', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.25rem', cursor: 'pointer' }}>Elegant Gold</button>
