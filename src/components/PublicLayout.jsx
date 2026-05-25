@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeProvider';
-import { Menu, X, ChevronDown, Moon, Sun, Phone, Mail, Clock, MapPin, Facebook, Instagram, Youtube, Linkedin, Twitter } from 'lucide-react';
+import { Menu, X, ChevronDown, Moon, Sun, Phone, Mail, Clock, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const PublicLayout = ({ children }) => {
@@ -147,11 +147,11 @@ const PublicLayout = ({ children }) => {
             <div>
               <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', color: 'var(--heading-color)' }}>SOCIAL MEDIA</h3>
               <div style={{ display: 'flex', gap: '1rem' }}>
-                {footerSettings?.socialMedia?.facebook && <a href={footerSettings.socialMedia.facebook} target="_blank" rel="noreferrer" style={{ color: 'var(--footer-text-color)' }}><Facebook size={24} /></a>}
-                {footerSettings?.socialMedia?.instagram && <a href={footerSettings.socialMedia.instagram} target="_blank" rel="noreferrer" style={{ color: 'var(--footer-text-color)' }}><Instagram size={24} /></a>}
-                {footerSettings?.socialMedia?.youtube && <a href={footerSettings.socialMedia.youtube} target="_blank" rel="noreferrer" style={{ color: 'var(--footer-text-color)' }}><Youtube size={24} /></a>}
-                {footerSettings?.socialMedia?.linkedin && <a href={footerSettings.socialMedia.linkedin} target="_blank" rel="noreferrer" style={{ color: 'var(--footer-text-color)' }}><Linkedin size={24} /></a>}
-                {footerSettings?.socialMedia?.twitter && <a href={footerSettings.socialMedia.twitter} target="_blank" rel="noreferrer" style={{ color: 'var(--footer-text-color)' }}><Twitter size={24} /></a>}
+                {footerSettings?.socialMedia?.facebook && <a href={footerSettings.socialMedia.facebook} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}><div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'white', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>f</div></a>}
+                {footerSettings?.socialMedia?.instagram && <a href={footerSettings.socialMedia.instagram} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}><div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'white', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>in</div></a>}
+                {footerSettings?.socialMedia?.youtube && <a href={footerSettings.socialMedia.youtube} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}><div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'white', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>Y</div></a>}
+                {footerSettings?.socialMedia?.linkedin && <a href={footerSettings.socialMedia.linkedin} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}><div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'white', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>in</div></a>}
+                {footerSettings?.socialMedia?.twitter && <a href={footerSettings.socialMedia.twitter} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}><div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'white', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>X</div></a>}
               </div>
             </div>
 
