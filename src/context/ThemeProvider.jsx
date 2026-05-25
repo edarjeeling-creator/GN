@@ -10,6 +10,7 @@ export const ThemeProvider = ({ children }) => {
     siteName: 'SMARTGRADES ICSE SCHOOL',
     siteMotto: '',
     logoUrl: '/logo.png',
+    faviconUrl: '/vite.svg',
   });
 
   const [themeColors, setThemeColors] = useState({
@@ -99,6 +100,17 @@ export const ThemeProvider = ({ children }) => {
 
     // Update document title
     document.title = siteBranding.siteName;
+
+    // Update favicon
+    let link = document.querySelector("link[rel~='icon']");
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.getElementsByTagName('head')[0].appendChild(link);
+    }
+    if(siteBranding.faviconUrl) {
+      link.href = siteBranding.faviconUrl;
+    }
   }, [themeColors, siteBranding]);
 
   return (

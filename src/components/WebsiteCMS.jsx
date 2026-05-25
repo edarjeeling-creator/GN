@@ -47,11 +47,14 @@ export default function WebsiteCMS() {
   const [siteBranding, setSiteBranding] = useState({
     siteName: 'SMARTGRADES ICSE SCHOOL',
     siteMotto: '',
-    logoUrl: '/logo.png'
+    logoUrl: '/logo.png',
+    faviconUrl: '/vite.svg'
   });
   const [savingSiteBranding, setSavingSiteBranding] = useState(false);
   const [logoFile, setLogoFile] = useState(null);
   const logoFileRef = useRef(null);
+  const [faviconFile, setFaviconFile] = useState(null);
+  const faviconFileRef = useRef(null);
 
   // Theme Colors State
   const [themeColors, setThemeColors] = useState({
@@ -128,8 +131,13 @@ export default function WebsiteCMS() {
       if (logoFile) {
         currentLogoUrl = await uploadFileToSupabase(logoFile, 'branding');
       }
+
+      let currentFaviconUrl = siteBranding.faviconUrl;
+      if (faviconFile) {
+        currentFaviconUrl = await uploadFileToSupabase(faviconFile, 'branding');
+      }
       
-      const newBranding = { ...siteBranding, logoUrl: currentLogoUrl };
+      const newBranding = { ...siteBranding, logoUrl: currentLogoUrl, faviconUrl: currentFaviconUrl };
       
       const { error } = await supabase.from('site_settings').upsert({ key: 'site_branding_v2', value: JSON.stringify(newBranding) });
       if (error) throw error;
@@ -137,6 +145,8 @@ export default function WebsiteCMS() {
       setSiteBranding(newBranding);
       setLogoFile(null);
       if (logoFileRef.current) logoFileRef.current.value = '';
+      setFaviconFile(null);
+      if (faviconFileRef.current) faviconFileRef.current.value = '';
       
       alert("Site branding saved successfully!");
       // Force reload to apply changes via ThemeProvider if desired, but user can refresh manually
@@ -191,7 +201,7 @@ export default function WebsiteCMS() {
 
   const resetBranding = async () => {
     if (!window.confirm("Are you sure you want to reset branding to default?")) return;
-    setSiteBranding({ siteName: 'SMARTGRADES ICSE SCHOOL', siteMotto: '', logoUrl: '/logo.png' });
+    setSiteBranding({ siteName: 'SMARTGRADES ICSE SCHOOL', siteMotto: '', logoUrl: '/logo.png', faviconUrl: '/vite.svg' });
   };
 
   const applyPreset = (preset) => {
@@ -525,23 +535,42 @@ export default function WebsiteCMS() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <label style={{ fontWeight: '600', fontSize: '0.875rem' }}>Current Logo</label>
-            <div style={{ background: '#e2e8f0', padding: '1rem', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <img src={siteBranding.logoUrl || '/logo.png'} alt="Logo" style={{ height: '4rem', width: '4rem', objectFit: 'contain', background: 'white', borderRadius: '0.25rem', padding: '0.25rem' }} />
-                <span style={{ fontSize: '0.875rem', color: '#64748b' }}>This is the logo currently displayed on the site.</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ fontWeight: '600', fontSize: '0.875rem' }}>Current Logo</label>
+              <div style={{ background: '#e2e8f0', padding: '1rem', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <img src={siteBranding.logoUrl || '/logo.png'} alt="Logo" style={{ height: '3rem', width: '3rem', objectFit: 'contain', background: 'white', borderRadius: '0.25rem', padding: '0.25rem' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ fontWeight: '600', fontSize: '0.875rem' }}>Upload New Logo</label>
+              <input 
+                type="file" 
+                accept="image/*" 
+                ref={logoFileRef}
+                onChange={(e) => setLogoFile(e.target.files[0])}
+                className="input-field" 
+              />
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <label style={{ fontWeight: '600', fontSize: '0.875rem' }}>Upload New Logo (Optional)</label>
-            <input 
-              type="file" 
-              accept="image/*" 
-              ref={logoFileRef}
-              onChange={(e) => setLogoFile(e.target.files[0])}
-              className="input-field" 
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ fontWeight: '600', fontSize: '0.875rem' }}>Current Favicon</label>
+              <div style={{ background: '#e2e8f0', padding: '1rem', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <img src={siteBranding.faviconUrl || '/vite.svg'} alt="Favicon" style={{ height: '3rem', width: '3rem', objectFit: 'contain', background: 'white', borderRadius: '0.25rem', padding: '0.25rem' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ fontWeight: '600', fontSize: '0.875rem' }}>Upload New Favicon (.ico/png)</label>
+              <input 
+                type="file" 
+                accept="image/*,.ico" 
+                ref={faviconFileRef}
+                onChange={(e) => setFaviconFile(e.target.files[0])}
+                className="input-field" 
+              />
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
