@@ -1,155 +1,214 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Search, Loader2, Shield, User } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Search, Users, BookOpen, Bell, Send, Shield, User } from 'lucide-react';
 
 const PrincipalPortal = () => {
-  const [pin, setPin] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [results, setResults] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview');
   
-  const navigate = useNavigate();
+  // Dashboard state
+  const [metrics, setMetrics] = useState({ students: 0, teachers: 0, assignments: 0 });
+  const [recentNotices, setRecentNotices] = useState([]);
+  
+  // Notice state
+  const [noticeTitle, setNoticeTitle] = useState('');
+  const [noticeMessage, setNoticeMessage] = useState('');
+  const [noticeAudience, setNoticeAudience] = useState('all');
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!pin || !searchQuery) return;
+  useEffect(() => {
+    fetchMetrics();
+    fetchNotices();
+  }, []);
+
+  const fetchMetrics = async () => {
+    // In a real app, these would be robust COUNT queries
+    const { count: studentCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student');
+    const { count: teacherCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'teacher');
+    const { count: assignmentCount } = await supabase.from('assignments').select('*', { count: 'exact', head: true }).eq('status', 'submitted');
     
-    setLoading(true);
-    setError('');
-    setResults(null);
+    setMetrics({
+      students: studentCount || 0,
+      teachers: teacherCount || 0,
+      assignments: assignmentCount || 0
+    });
+  };
 
-    try {
-      const { data, error } = await supabase.rpc('search_students_by_principal', { 
-        p_pin: pin,
-        p_query: searchQuery
-      });
+  const fetchNotices = async () => {
+    const { data } = await supabase.from('notices').select('*').order('publish_date', { ascending: false }).limit(5);
+    if (data) setRecentNotices(data);
+  };
 
-      if (error) throw error;
-      if (!data) {
-        setError('Invalid Principal PIN.');
-        return;
-      }
+  const handleSendNotice = async (e) => {
+    e.preventDefault();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-      setResults(data);
-    } catch (err) {
-      console.error(err);
-      setError('An error occurred while searching. Ensure your PIN is correct.');
-    } finally {
-      setLoading(false);
+    const { error } = await supabase.from('notices').insert([{
+      sender_uid: user.id,
+      title: noticeTitle,
+      message: noticeMessage,
+      audience: noticeAudience
+    }]);
+
+    if (!error) {
+      setNoticeTitle('');
+      setNoticeMessage('');
+      fetchNotices();
+      alert('Notice sent successfully!');
+    } else {
+      alert('Failed to send notice: ' + error.message);
     }
   };
 
-  const handlePrintCard = (uid) => {
-    window.open(`/result?uid=${uid}`, '_blank');
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery) return;
+    setSearching(true);
+    
+    // Search profiles by name or UID
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .or(`name.ilike.%${searchQuery}%,id.eq.${searchQuery}`);
+
+    if (data) setSearchResults(data);
+    setSearching(false);
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-color)', padding: '2rem' }}>
-      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-        
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'var(--primary-color)', color: 'white', width: '60px', height: '60px', borderRadius: '50%', marginBottom: '1rem' }}>
-            <Shield size={32} />
-          </div>
-          <h1 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Principal Portal</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Securely search the global student database.</p>
-        </div>
+    <div className="p-6">
+      <div className="flex items-center gap-3 mb-8">
+        <Shield size={32} className="text-primary" />
+        <h1 className="text-2xl font-bold">Principal Dashboard</h1>
+      </div>
 
-        <div className="card p-6 mb-6" style={{ background: 'var(--surface-color)' }}>
-          <form onSubmit={handleSearch} className="flex flex-col gap-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Principal Master PIN</label>
-                <input
-                  type="password"
-                  placeholder="Enter Master PIN"
-                  className="input-field w-full"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  required
-                />
-              </div>
-              
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Student Name Search</label>
-                <div className="relative">
-                  <Search size={20} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input
-                    type="text"
-                    placeholder="e.g. Ahmed"
-                    className="input-field w-full"
-                    style={{ paddingLeft: '40px' }}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
+      {/* Tabs */}
+      <div className="flex gap-4 mb-6 border-b pb-2">
+        <button onClick={() => setActiveTab('overview')} className={`font-bold pb-2 ${activeTab === 'overview' ? 'text-primary border-b-2 border-primary' : 'text-gray-500'}`}>Overview</button>
+        <button onClick={() => setActiveTab('search')} className={`font-bold pb-2 ${activeTab === 'search' ? 'text-primary border-b-2 border-primary' : 'text-gray-500'}`}>User Search</button>
+        <button onClick={() => setActiveTab('notices')} className={`font-bold pb-2 ${activeTab === 'notices' ? 'text-primary border-b-2 border-primary' : 'text-gray-500'}`}>Notices & Announcements</button>
+      </div>
+
+      {/* Overview Tab */}
+      {activeTab === 'overview' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="card p-6 bg-white shadow-sm rounded-lg flex items-center gap-4">
+            <div className="bg-blue-100 p-4 rounded-full text-blue-600"><Users size={24} /></div>
+            <div>
+              <p className="text-gray-500 text-sm font-bold uppercase">Total Students</p>
+              <h2 className="text-3xl font-black">{metrics.students}</h2>
             </div>
+          </div>
+          <div className="card p-6 bg-white shadow-sm rounded-lg flex items-center gap-4">
+            <div className="bg-green-100 p-4 rounded-full text-green-600"><User size={24} /></div>
+            <div>
+              <p className="text-gray-500 text-sm font-bold uppercase">Total Teachers</p>
+              <h2 className="text-3xl font-black">{metrics.teachers}</h2>
+            </div>
+          </div>
+          <div className="card p-6 bg-white shadow-sm rounded-lg flex items-center gap-4">
+            <div className="bg-orange-100 p-4 rounded-full text-orange-600"><BookOpen size={24} /></div>
+            <div>
+              <p className="text-gray-500 text-sm font-bold uppercase">Pending Assignments</p>
+              <h2 className="text-3xl font-black">{metrics.assignments}</h2>
+            </div>
+          </div>
+        </div>
+      )}
 
-            {error && (
-              <div style={{ color: 'var(--danger-color)', padding: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
-                {error}
-              </div>
-            )}
-
-            <button type="submit" className="btn btn-primary w-full py-3 mt-2" disabled={loading}>
-              {loading ? <Loader2 className="animate-spin" /> : 'Search Database'}
+      {/* Search Tab */}
+      {activeTab === 'search' && (
+        <div className="card p-6 bg-white shadow-sm rounded-lg">
+          <h2 className="text-xl font-bold mb-4">Global User Search</h2>
+          <form onSubmit={handleSearch} className="flex gap-4 mb-6">
+            <input 
+              type="text" 
+              placeholder="Search by Name or UID..." 
+              className="input-field flex-1 p-2 border rounded"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <button type="submit" className="btn btn-primary px-6" disabled={searching}>
+              {searching ? 'Searching...' : 'Search'}
             </button>
           </form>
-        </div>
 
-        {results && (
-          <div className="card p-6" style={{ background: 'var(--surface-color)' }}>
-            <h3 className="mb-4">Search Results ({results.length})</h3>
-            
-            {results.length === 0 ? (
-              <div className="text-center p-8 text-muted" style={{ color: 'var(--text-muted)' }}>
-                No students found matching "{searchQuery}"
-              </div>
-            ) : (
-              <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
-                <table className="data-table" style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
-                      <th style={{ padding: '0.75rem' }}>Name</th>
-                      <th style={{ padding: '0.75rem' }}>Class</th>
-                      <th style={{ padding: '0.75rem' }}>Roll No</th>
-                      <th style={{ padding: '0.75rem' }}>UID (PIN)</th>
-                      <th style={{ padding: '0.75rem' }}>Action</th>
+          {searchResults.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b">
+                    <th className="p-2">Name</th>
+                    <th className="p-2">Role</th>
+                    <th className="p-2">Class/Subject</th>
+                    <th className="p-2">UID</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {searchResults.map(user => (
+                    <tr key={user.id} className="border-b">
+                      <td className="p-2 font-bold">{user.name}</td>
+                      <td className="p-2 uppercase text-sm text-gray-500">{user.role}</td>
+                      <td className="p-2">{user.class ? `${user.class} ${user.section || ''}` : (user.subject || 'N/A')}</td>
+                      <td className="p-2 text-xs text-gray-400">{user.id}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {results.map(student => (
-                      <tr key={student.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '0.75rem', fontWeight: '500' }}>
-                          <div className="flex items-center gap-2">
-                            <User size={16} className="text-primary" />
-                            {student.name}
-                          </div>
-                        </td>
-                        <td style={{ padding: '0.75rem' }}>{student.class_name} {student.class_section}</td>
-                        <td style={{ padding: '0.75rem' }}>{student.roll_no}</td>
-                        <td style={{ padding: '0.75rem', letterSpacing: '1px' }}>{student.uid}</td>
-                        <td style={{ padding: '0.75rem' }}>
-                          <button 
-                            className="btn btn-primary btn-sm"
-                            onClick={() => handlePrintCard(student.uid)}
-                          >
-                            View Report Card
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Notices Tab */}
+      {activeTab === 'notices' && (
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="card p-6 bg-white shadow-sm rounded-lg">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Send size={20} /> Create Notice</h2>
+            <form onSubmit={handleSendNotice} className="flex flex-col gap-4">
+              <div>
+                <label className="block font-bold mb-1">Notice Title</label>
+                <input required type="text" className="input-field w-full p-2 border rounded" value={noticeTitle} onChange={e => setNoticeTitle(e.target.value)} />
+              </div>
+              <div>
+                <label className="block font-bold mb-1">Message</label>
+                <textarea required rows="4" className="input-field w-full p-2 border rounded" value={noticeMessage} onChange={e => setNoticeMessage(e.target.value)}></textarea>
+              </div>
+              <div>
+                <label className="block font-bold mb-1">Target Audience</label>
+                <select className="input-field w-full p-2 border rounded" value={noticeAudience} onChange={e => setNoticeAudience(e.target.value)}>
+                  <option value="all">Entire School</option>
+                  <option value="students">All Students</option>
+                  <option value="teachers">All Teachers</option>
+                </select>
+              </div>
+              <button type="submit" className="btn btn-primary mt-2">Publish Notice</button>
+            </form>
+          </div>
+
+          <div className="card p-6 bg-white shadow-sm rounded-lg">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Bell size={20} /> Recent Notices</h2>
+            {recentNotices.length === 0 ? <p className="text-gray-500">No recent notices.</p> : (
+              <div className="flex flex-col gap-4">
+                {recentNotices.map(notice => (
+                  <div key={notice.id} className="p-4 border rounded-lg bg-gray-50">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-bold text-lg">{notice.title}</h3>
+                      <span className="text-xs font-bold uppercase bg-gray-200 px-2 py-1 rounded text-gray-600">{notice.audience}</span>
+                    </div>
+                    <p className="text-gray-600 text-sm whitespace-pre-wrap">{notice.message}</p>
+                    <p className="text-xs text-gray-400 mt-2">{new Date(notice.publish_date).toLocaleDateString()}</p>
+                  </div>
+                ))}
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

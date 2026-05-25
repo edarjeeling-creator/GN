@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeProvider';
@@ -65,22 +65,54 @@ const Layout = ({ children }) => {
         <nav className="sidebar-nav" style={{ padding: '1rem' }}>
           <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', fontWeight: 600, padding: '0 0.5rem 0.5rem' }}>Menu</p>
           
-          <NavLink to="/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
-            <LayoutDashboard size={18} /> Dashboard
-          </NavLink>
-          <NavLink to="/classes" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
-            <Users size={18} /> My Classes
-          </NavLink>
-          <NavLink to="/attendance" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
-            <CalendarCheck size={18} /> Attendance
-          </NavLink>
-          <NavLink to="/analytics" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
-            <BarChart3 size={18} /> Analytics
-          </NavLink>
-          <NavLink to="/search" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
-            <Search size={18} /> Search Students
-          </NavLink>
-          
+          {profile?.role === 'student' && (
+            <NavLink to="/student-portal" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+              <LayoutDashboard size={18} /> Student Portal
+            </NavLink>
+          )}
+
+          {(profile?.role === 'teacher' || profile?.role === 'admin' || profile?.role === 'principal') && (
+            <NavLink to="/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+              <LayoutDashboard size={18} /> Dashboard
+            </NavLink>
+          )}
+
+          {(profile?.role === 'student' || profile?.role === 'teacher' || profile?.role === 'admin') && (
+            <>
+              <NavLink to="/study-materials" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                <BookOpen size={18} /> Study Materials
+              </NavLink>
+              <NavLink to="/assignments" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                <FileText size={18} /> Assignments
+              </NavLink>
+            </>
+          )}
+
+          {(profile?.role === 'teacher' || profile?.role === 'admin') && (
+            <>
+              <NavLink to="/classes" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                <Users size={18} /> My Classes
+              </NavLink>
+              <NavLink to="/attendance" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                <CalendarCheck size={18} /> Attendance
+              </NavLink>
+            </>
+          )}
+
+          {(profile?.role === 'principal' || profile?.role === 'admin') && (
+            <>
+              <NavLink to="/principal" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                <Shield size={18} /> Principal Portal
+              </NavLink>
+              <NavLink to="/analytics" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                <BarChart3 size={18} /> Analytics
+              </NavLink>
+              <NavLink to="/search" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                <Search size={18} /> Search Users
+              </NavLink>
+            </>
+          )}
+
           {profile?.role === 'admin' && (
              <NavLink to="/admin" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
                <Shield size={18} /> Admin Panel
