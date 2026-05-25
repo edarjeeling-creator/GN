@@ -295,10 +295,22 @@ p {
 .mt-4 { margin-top: 1rem; }
 .mb-2 { margin-bottom: 0.5rem; }
 .mb-4 { margin-bottom: 1rem; }
+.mb-6 { margin-bottom: 1.5rem; }
+.mb-8 { margin-bottom: 2rem; }
+.pb-2 { padding-bottom: 0.5rem; }
 .flex { display: flex; }
+.flex-col { flex-direction: column; }
+.w-full { width: 100%; }
+.h-full { height: 100%; }
 .items-center { align-items: center; }
 .justify-between { justify-content: space-between; }
 .gap-2 { gap: 0.5rem; }
+
+.border-b { border-bottom: 1px solid var(--border-color); }
+.border-b-2 { border-bottom: 2px solid; }
+.border-primary { border-color: var(--primary-color); }
+.text-primary { color: var(--primary-color); }
+.text-gray-500 { color: var(--text-secondary); }
 
 /* Print Styles */
 @media print {
