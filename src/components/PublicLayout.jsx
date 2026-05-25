@@ -13,7 +13,7 @@ const PublicLayout = ({ children }) => {
     document.documentElement.classList.toggle('dark');
   };
 
-  const { siteBranding, footerSettings } = useTheme();
+  const { siteBranding, footerSettings, themeColors } = useTheme();
 
   const navLinks = [
     { name: 'ABOUT US', path: '/about' },
@@ -28,7 +28,7 @@ const PublicLayout = ({ children }) => {
   return (
     <div className={`app-layout-public ${isDarkMode ? 'dark' : ''}`} style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', width: '100vw', maxWidth: '100%', overflowX: 'hidden' }}>
       {/* Top Navbar */}
-      <nav className="public-nav" style={{ padding: '0.5rem 0' }}>
+      <nav className="public-nav" style={{ padding: '0.5rem 0', backgroundColor: themeColors?.nav || '#166534', color: 'white' }}>
         <div className="public-container">
           {/* Top Top Bar: Buttons and Search */}
           <div className="top-bar-container" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginBottom: '0.5rem' }}>
@@ -48,8 +48,8 @@ const PublicLayout = ({ children }) => {
             <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <img src={siteBranding.logoUrl} alt="Logo" style={{ height: '3.5rem', width: '3.5rem', objectFit: 'contain' }} />
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontWeight: '800', fontSize: '1.2rem', letterSpacing: '0.05em', color: 'var(--heading-color, var(--text-primary))' }}>{siteBranding.siteName}</span>
-                {siteBranding.siteMotto && <span style={{ fontSize: '0.75rem', fontWeight: '500', color: 'var(--body-text-color, var(--text-secondary))', letterSpacing: '0.025em' }}>{siteBranding.siteMotto}</span>}
+                <span style={{ fontWeight: '800', fontSize: '1.2rem', letterSpacing: '0.05em', color: 'white' }}>{siteBranding.siteName}</span>
+                {siteBranding.siteMotto && <span style={{ fontSize: '0.75rem', fontWeight: '500', color: 'rgba(255,255,255,0.8)', letterSpacing: '0.025em' }}>{siteBranding.siteMotto}</span>}
               </div>
             </Link>
 
@@ -60,11 +60,11 @@ const PublicLayout = ({ children }) => {
                   <NavLink 
                     to={link.path}
                     className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-                    style={{ fontWeight: '700', fontSize: '0.85rem' }}
+                    style={{ fontWeight: '700', fontSize: '0.85rem', color: 'white' }}
                   >
                     {link.name}
                   </NavLink>
-                  {link.sub && <span style={{ fontSize: '0.6rem', color: '#6b7280' }}>{link.sub}</span>}
+                  {link.sub && <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.7)' }}>{link.sub}</span>}
                 </div>
               ))}
             </div>
@@ -119,13 +119,13 @@ const PublicLayout = ({ children }) => {
       </main>
 
       {/* Footer */}
-      <footer className="portal-footer" style={{ background: 'var(--nav-bg, #0f172a)', color: 'var(--footer-text-color, #e5e7eb)' }}>
+      <footer className="portal-footer" style={{ background: themeColors?.nav || '#166534', color: 'white' }}>
         <div className="public-container">
           <div className="footer-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem', padding: '3rem 0' }}>
             
             {/* Column 1: Contact */}
             <div>
-              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', color: 'var(--heading-color)' }}>CONTACT</h3>
+              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', color: 'white' }}>CONTACT</h3>
               <ul style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.875rem' }}>
                 {footerSettings?.contact?.phone && <li style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}><Phone size={16} /> <span>{footerSettings.contact.phone}</span></li>}
                 {footerSettings?.contact?.email && <li style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}><Mail size={16} /> <span>{footerSettings.contact.email}</span></li>}
@@ -135,17 +135,17 @@ const PublicLayout = ({ children }) => {
             
             {/* Column 2: Quick Links */}
             <div>
-              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', color: 'var(--heading-color)' }}>QUICK LINKS</h3>
+              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', color: 'white' }}>QUICK LINKS</h3>
               <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.875rem' }}>
                 {footerSettings?.quickLinks?.filter(link => link.active).map(link => (
-                  <li key={link.id}><Link to={link.url} className="footer-link" style={{ color: 'var(--footer-text-color)', textDecoration: 'none' }}>{link.label}</Link></li>
+                  <li key={link.id}><Link to={link.url} className="footer-link" style={{ color: 'white', textDecoration: 'none' }}>{link.label}</Link></li>
                 ))}
               </ul>
             </div>
 
             {/* Column 3: Social Media */}
             <div>
-              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', color: 'var(--heading-color)' }}>SOCIAL MEDIA</h3>
+              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', color: 'white' }}>SOCIAL MEDIA</h3>
               <div style={{ display: 'flex', gap: '1rem' }}>
                 {footerSettings?.socialMedia?.facebook && <a href={footerSettings.socialMedia.facebook} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}><div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'white', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>f</div></a>}
                 {footerSettings?.socialMedia?.instagram && <a href={footerSettings.socialMedia.instagram} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}><div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'white', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>in</div></a>}
@@ -157,7 +157,7 @@ const PublicLayout = ({ children }) => {
 
             {/* Column 4: Find Us */}
             <div>
-              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', color: 'var(--heading-color)' }}>FIND US</h3>
+              <h3 style={{ fontWeight: '800', fontSize: '1.125rem', marginBottom: '1.5rem', color: 'white' }}>FIND US</h3>
               {footerSettings?.findUs?.address && (
                  <p style={{ display: 'flex', gap: '0.5rem', fontSize: '0.875rem', marginBottom: '1rem', whiteSpace: 'pre-wrap' }}>
                    <MapPin size={16} style={{ flexShrink: 0, marginTop: '4px' }} />
