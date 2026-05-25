@@ -374,8 +374,10 @@ html.dark .form-actions {
   grid-template-columns: 1fr;
   gap: 2rem;
   max-width: 1400px;
+  width: 100%;
   margin: 0 auto;
   padding: 2rem 1rem;
+  overflow: hidden;
 }
 @media (min-width: 1024px) {
   .portal-main-wrapper { grid-template-columns: 320px 1fr 320px; }
@@ -385,18 +387,21 @@ html.dark .form-actions {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  min-width: 0;
 }
 
 .portal-center-content {
   display: flex;
   flex-direction: column;
   gap: 3rem;
+  min-width: 0;
 }
 
 .portal-sidebar-right {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  min-width: 0;
 }
 
 .portal-section-title {
