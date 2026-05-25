@@ -121,24 +121,18 @@ html.dark .nav-link {
 }
 
 .hero-title {
-  font-size: 3rem;
+  font-size: clamp(2rem, 8vw, 3.5rem);
   font-weight: 800;
   line-height: 1.1;
   margin-bottom: 1.5rem;
 }
-@media (min-width: 768px) {
-  .hero-title { font-size: 4.5rem; }
-}
 
 .hero-subtitle {
-  font-size: 1.25rem;
+  font-size: clamp(1rem, 4vw, 1.5rem);
   color: #dbeafe;
   max-width: 48rem;
   margin: 0 auto 2.5rem;
   font-weight: 300;
-}
-@media (min-width: 768px) {
-  .hero-subtitle { font-size: 1.5rem; }
 }
 
 .hero-buttons {
@@ -257,7 +251,29 @@ html.dark .bento-card {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 1.5rem;
+  align-items: center;
+}
+
+/* Responsive Utilities */
+@media (max-width: 768px) {
+  .md-flex {
+    display: none !important;
+  }
+  .top-bar-container {
+    flex-wrap: wrap;
+    justify-content: center !important;
+  }
+  .portal-hero-overlay h1, .portal-hero-overlay h2, .portal-hero-overlay p {
+    word-break: break-word;
+  }
+}
+@media (min-width: 769px) {
+  .md-hidden {
+    display: none !important;
+  }
+  .md-flex {
+    display: flex !important;
+  }
 }
 
 /* Footer */

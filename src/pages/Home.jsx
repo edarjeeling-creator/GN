@@ -176,11 +176,11 @@ const Home = () => {
               </>
             )}
 
-            <div className="portal-hero-overlay" style={{ position: 'relative', zIndex: 1 }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '0.5rem', color: heroStyle.subtitleColor }}>{heroStyle.subtitle}</h2>
-              <h1 style={{ fontSize: '3.5rem', fontWeight: '900', lineHeight: '1.1', marginBottom: '1rem', color: heroStyle.titleColor }}>{heroStyle.title}</h1>
-              <p style={{ fontSize: '1.2rem', marginBottom: '2rem', opacity: 0.9, color: heroStyle.titleColor }}>{heroStyle.description}</p>
-              <div style={{ display: 'flex', gap: '1rem' }}>
+            <div className="portal-hero-overlay" style={{ position: 'relative', zIndex: 1, padding: '0 1rem' }}>
+              <h2 className="hero-subtitle" style={{ marginBottom: '0.5rem', color: heroStyle.subtitleColor, fontWeight: '600' }}>{heroStyle.subtitle}</h2>
+              <h1 className="hero-title" style={{ marginBottom: '1rem', color: heroStyle.titleColor }}>{heroStyle.title}</h1>
+              <p style={{ fontSize: 'clamp(1rem, 3vw, 1.2rem)', marginBottom: '2rem', opacity: 0.9, color: heroStyle.titleColor, maxWidth: '600px', margin: '0 auto 2rem' }}>{heroStyle.description}</p>
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
                 <Link to={heroStyle.btnPrimaryLink} className="btn-hero-primary" style={{ background: heroStyle.btnPrimaryColor, color: 'white', border: 'none', borderRadius: heroStyle.btnShape }}>{heroStyle.btnPrimaryText}</Link>
                 <Link to={heroStyle.btnSecondaryLink} className="btn-hero-outline" style={{ border: '2px solid white', background: heroStyle.btnSecondaryColor, color: 'white', borderRadius: heroStyle.btnShape }}>{heroStyle.btnSecondaryText}</Link>
               </div>
@@ -188,9 +188,9 @@ const Home = () => {
           </div>
 
           {/* Our Divisions */}
-          <div>
+          <div style={{ padding: '0 1rem' }}>
             <h2 className="portal-section-title">OUR DIVISIONS</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
               <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                 <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
                   <Users color="#d97706" size={32} />
