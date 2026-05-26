@@ -1,13 +1,15 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText, AlertTriangle, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeProvider';
+import { useSubscription } from '../context/SubscriptionContext';
 
 const Layout = ({ children }) => {
   const { profile, logout } = useAuth();
   const { academicYear, setAcademicYear } = useData();
   const { siteBranding } = useTheme();
+  const { school, isReadOnly, isSuspended, hasWarning } = useSubscription();
   const navigate = useNavigate();
 
   const currentYear = new Date().getFullYear();
@@ -17,6 +19,88 @@ const Layout = ({ children }) => {
     await logout();
     navigate('/login');
   };
+
+  if (isSuspended) {
+    return (
+      <div style={{
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(to right, #0f172a, #1e293b)',
+        color: '#ffffff',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        padding: '2rem',
+        textAlign: 'center'
+      }}>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.05)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(239, 68, 68, 0.2)',
+          borderRadius: '1.5rem',
+          padding: '3rem 2.5rem',
+          maxWidth: '550px',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+        }}>
+          <div style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '50%',
+            background: 'rgba(239, 68, 68, 0.1)',
+            color: '#ef4444',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 1.5rem'
+          }}>
+            <Lock size={32} />
+          </div>
+          <h2 style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '1rem', letterSpacing: '-0.025em' }}>
+            Portal Access Suspended
+          </h2>
+          <p style={{ color: '#94a3b8', fontSize: '1.05rem', lineHeight: '1.6', marginBottom: '2rem' }}>
+            The subscription for <strong style={{ color: '#f8fafc' }}>{school?.school_name}</strong> is currently inactive or suspended. Please contact Gyanoday Niketan Billing to reactivate your school portal.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <a 
+              href="mailto:billing@gn.cloud" 
+              style={{
+                background: '#ef4444',
+                color: 'white',
+                textDecoration: 'none',
+                padding: '0.875rem',
+                borderRadius: '0.75rem',
+                fontWeight: 'bold',
+                transition: 'background 0.2s'
+              }}
+              onMouseOver={e => e.currentTarget.style.background = '#dc2626'}
+              onMouseOut={e => e.currentTarget.style.background = '#ef4444'}
+            >
+              Contact Billing (billing@gn.cloud)
+            </a>
+            <button 
+              onClick={handleLogout}
+              style={{
+                background: 'transparent',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: '#cbd5e1',
+                padding: '0.875rem',
+                borderRadius: '0.75rem',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseOver={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'; e.currentTarget.style.color = '#fff'; }}
+              onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#cbd5e1'; }}
+            >
+              Logout Account
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-layout" style={{ background: 'var(--bg-color)', minHeight: '100vh' }}>
@@ -125,8 +209,43 @@ const Layout = ({ children }) => {
         </nav>
       </aside>
       
-      <main className="main-content" style={{ background: '#f8fafc' }}>
-        {children}
+      <main className="main-content" style={{ background: '#f8fafc', display: 'flex', flexDirection: 'column' }}>
+        {isReadOnly && (
+          <div style={{
+            background: 'linear-gradient(to right, #ef4444, #b91c1c)',
+            color: 'white',
+            padding: '0.75rem 1.5rem',
+            fontWeight: '600',
+            fontSize: '0.9rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
+          }}>
+            <AlertTriangle size={18} />
+            <span>School subscription has expired. The portal is in <strong>Read-Only Mode</strong>. Data changes are locked.</span>
+          </div>
+        )}
+        {!isReadOnly && hasWarning && (
+          <div style={{
+            background: 'linear-gradient(to right, #f59e0b, #d97706)',
+            color: 'white',
+            padding: '0.75rem 1.5rem',
+            fontWeight: '600',
+            fontSize: '0.9rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
+          }}>
+            <AlertTriangle size={18} />
+            <span>Subscription Notice: School license expires soon. Please renew subscription to avoid portal locking.</span>
+          </div>
+        )}
+
+        <div style={{ padding: '2rem 1.5rem', flex: 1 }}>
+          {children}
+        </div>
       </main>
     </div>
   );

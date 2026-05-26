@@ -44,6 +44,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const rolesToTry = ['student', 'teacher', 'admin'];
       let email = null;
+      let resolvedRole = null;
 
       // Try finding the user in each role
       for (const role of rolesToTry) {
@@ -55,6 +56,7 @@ export const AuthProvider = ({ children }) => {
         
         if (data) {
           email = data;
+          resolvedRole = role;
           break; // Found the user
         }
       }
@@ -62,7 +64,24 @@ export const AuthProvider = ({ children }) => {
       if (!email) return { error: { message: 'Invalid Name or UID' } };
 
       // Step 2: Sign in with the retrieved email and the UID as the password
-      return await supabase.auth.signInWithPassword({ email, password: uid });
+      const result = await supabase.auth.signInWithPassword({ email, password: uid });
+      
+      // Auto-signup for students on their very first login!
+      if (result.error && resolvedRole === 'student') {
+        const signUpResult = await supabase.auth.signUp({
+          email,
+          password: uid,
+          options: {
+            data: {
+              full_name: name,
+              role: 'student'
+            }
+          }
+        });
+        return signUpResult;
+      }
+      
+      return result;
     } catch (err) {
       console.error("Unified login error:", err);
       return { error: err };

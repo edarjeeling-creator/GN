@@ -183,24 +183,62 @@ const Admin = () => {
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
-        const bstr = evt.target.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws);
+        const dataArray = new Uint8Array(evt.target.result);
+        const wb = XLSX.read(dataArray, { type: 'array' });
         
-        const formattedStudents = data.map(row => {
-          const name = row['Name'] || row['name'] || row['Student Name'] || row["Student's Name"];
-          const rollNo = row['Roll No'] || row['Roll Number'] || row['roll no'] || row['Roll'] || row['No.'];
-          const secLang = row['2nd Language'] || row['Second Language'] || row['2nd Lang'] || null;
-          const thirdLang = row['3rd Language'] || row['Third Language'] || row['3rd Lang'] || null;
+        let ws = null;
+        let rawRows = [];
+        
+        // Loop through all sheets to find the one containing actual student data
+        for (const sheetName of wb.SheetNames) {
+          const currentWs = wb.Sheets[sheetName];
+          const rows = XLSX.utils.sheet_to_json(currentWs);
+          if (rows.length > 0) {
+            const firstRow = rows[0];
+            // Check if keys in this sheet contain "name" or "roll" columns
+            const hasName = Object.keys(firstRow).some(k => k.toLowerCase().replace(/[\s_\-.]/g, '').includes('name'));
+            const hasRoll = Object.keys(firstRow).some(k => k.toLowerCase().replace(/[\s_\-.]/g, '').includes('roll') || k.toLowerCase().replace(/[\s_\-.]/g, '') === 'no');
+            
+            if (hasName && hasRoll) {
+              ws = currentWs;
+              rawRows = rows;
+              break;
+            }
+          }
+        }
+        
+        // Fallback to the first sheet if no sheets explicitly matched both headers
+        if (!ws && wb.SheetNames.length > 0) {
+          ws = wb.Sheets[wb.SheetNames[0]];
+          rawRows = XLSX.utils.sheet_to_json(ws);
+        }
+        
+        // Robust key matching helper to ignore capitalization, spacing, dots and underscores in headers
+        const getRowValue = (row, possibleHeaders) => {
+          const cleanHeaders = possibleHeaders.map(h => h.toLowerCase().replace(/[\s_\-.]/g, ''));
+          for (const key of Object.keys(row)) {
+            const cleanKey = key.toLowerCase().replace(/[\s_\-.]/g, '');
+            if (cleanHeaders.includes(cleanKey)) {
+              return row[key];
+            }
+          }
+          return null;
+        };
+
+        const formattedStudents = rawRows.map(row => {
+          const name = getRowValue(row, ['Name', 'Student Name', "Student's Name"]);
+          const rollNo = getRowValue(row, ['Roll No', 'Roll Number', 'Roll', 'No', 'No.']);
+          const secLang = getRowValue(row, ['2nd Language', 'Second Language', '2nd Lang']);
+          const thirdLang = getRowValue(row, ['3rd Language', 'Third Language', '3rd Lang']);
+          const uid = getRowValue(row, ['UID', 'Student UID', 'uid']);
           
           return {
             class_id: importClassId,
-            name: name,
-            roll_no: parseInt(rollNo),
-            second_language: secLang,
-            third_language: thirdLang
+            name: name ? String(name).trim() : null,
+            roll_no: rollNo ? parseInt(String(rollNo).trim(), 10) : NaN,
+            second_language: secLang ? String(secLang).trim() : null,
+            third_language: thirdLang ? String(thirdLang).trim() : null,
+            uid: uid ? String(uid).trim() : null
           };
         }).filter(s => s.name && !isNaN(s.roll_no));
 
@@ -221,7 +259,7 @@ const Admin = () => {
         fileInputRef.current.value = "";
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const handleUploadFlowsheet = () => {

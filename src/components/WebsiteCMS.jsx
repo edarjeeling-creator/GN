@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Plus, Trash2, Image as ImageIcon, Users, UploadCloud, Loader2, Monitor, Palette, Layout, List, ArrowUp, ArrowDown, Edit2, CheckCircle2, FileText } from 'lucide-react';
+import { useSubscription } from '../context/SubscriptionContext';
 
 export default function WebsiteCMS() {
+  const { isReadOnly, allowedTeachers } = useSubscription();
   const [faculty, setFaculty] = useState([]);
   const [gallery, setGallery] = useState([]);
   
@@ -488,6 +490,14 @@ export default function WebsiteCMS() {
 
   const handleAddFaculty = async (e) => {
     e.preventDefault();
+    if (isReadOnly) {
+      alert("This action is disabled. The portal is in Read-Only Mode because the school subscription has expired.");
+      return;
+    }
+    if (faculty.length >= allowedTeachers) {
+      alert(`Teacher/Faculty limit reached (${allowedTeachers} allowed). Please upgrade your subscription plan.`);
+      return;
+    }
     if (!newFaculty.name || !newFaculty.designation) return alert('Name and Designation are required');
     
     setUploadingFaculty(true);

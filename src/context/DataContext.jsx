@@ -1,6 +1,7 @@
 import { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import { useSubscription } from './SubscriptionContext';
 
 const DataContext = createContext();
 
@@ -8,6 +9,7 @@ export const useData = () => useContext(DataContext);
 
 export const DataProvider = ({ children }) => {
   const { session, profile } = useAuth();
+  const { isReadOnly, allowedStudents } = useSubscription();
   
   const [academicYear, setAcademicYear] = useState(() => localStorage.getItem('academicYear') || '2026');
   
@@ -88,6 +90,11 @@ export const DataProvider = ({ children }) => {
   }, [session]);
 
   const updateMark = async (studentId, subjectId, term, score) => {
+    if (isReadOnly) {
+      alert("This action is disabled. The portal is in Read-Only Mode because the school subscription has expired.");
+      return;
+    }
+
     const fullTerm = term.startsWith('202') ? term : `${academicYear}_${term}`;
 
     // Optimistic UI update
@@ -108,6 +115,11 @@ export const DataProvider = ({ children }) => {
   };
 
   const toggleTeacherSubject = async (classId, subjectId) => {
+    if (isReadOnly) {
+      alert("This action is disabled. The portal is in Read-Only Mode.");
+      return;
+    }
+
     const current = teacherSubjects[classId] || [];
     const isSelected = current.includes(subjectId);
 
@@ -130,6 +142,14 @@ export const DataProvider = ({ children }) => {
   };
 
   const addStudent = async (classId, name, rollNo) => {
+    if (isReadOnly) {
+      return { success: false, error: { message: "Portal is in Read-Only Mode. Please renew your subscription to register new students." } };
+    }
+
+    if (students.length >= allowedStudents) {
+      return { success: false, error: { message: `Student limit reached (${allowedStudents} allowed). Please upgrade your subscription plan.` } };
+    }
+
     const { data, error } = await supabase.from('students').insert([{ class_id: classId, name, roll_no: rollNo }]).select();
     if (!error && data) {
       setStudents(prev => [...prev, data[0]]);
@@ -139,6 +159,11 @@ export const DataProvider = ({ children }) => {
   };
 
   const updateStudentLanguages = async (studentId, secondLang, thirdLang, electiveSubject = null, sixthSubject = null) => {
+    if (isReadOnly) {
+      alert("This action is disabled. The portal is in Read-Only Mode.");
+      return;
+    }
+
     // Optimistic UI
     setStudents(prev => prev.map(s => 
       s.id === studentId ? { ...s, second_language: secondLang, third_language: thirdLang, elective_subject: electiveSubject, sixth_subject: sixthSubject } : s
