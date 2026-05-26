@@ -2,10 +2,17 @@ import { useData } from '../context/DataContext';
 import { motion } from 'framer-motion';
 import { BookOpen, AlertCircle, CheckCircle, Clock, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { Navigate } from 'react-router-dom';
 
 const Dashboard = () => {
-  const { classes, teacherSubjects, marks, students, academicYear } = useData();
   const { profile } = useAuth();
+
+  // Student Redirect Guard
+  if (profile?.role === 'student') {
+    return <Navigate to="/student-portal" replace />;
+  }
+
+  const { classes, teacherSubjects, marks, students, academicYear } = useData();
 
   // Calculate real stats based on filtered classes
   const assignedActiveClasses = Object.keys(teacherSubjects).filter(classId => classes.some(c => c.id === classId));
