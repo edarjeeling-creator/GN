@@ -369,15 +369,10 @@ const Home = () => {
               MANDATORY DISCLOSURES
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <button style={{ background: '#f59e0b', color: 'white', padding: '0.75rem', borderRadius: '0.5rem', fontWeight: 'bold', border: 'none', textAlign: 'left', display: 'flex', justifyContent: 'space-between' }}>
-                CISCE Oasis <ChevronRight size={18} />
-              </button>
-              <button style={{ background: '#f8fafc', color: '#475569', padding: '0.75rem', borderRadius: '0.5rem', fontWeight: 'bold', border: '1px solid #cbd5e1', textAlign: 'left', display: 'flex', justifyContent: 'space-between' }}>
-                PTA Members <ChevronRight size={18} />
-              </button>
-              <button style={{ background: '#f8fafc', color: '#475569', padding: '0.75rem', borderRadius: '0.5rem', fontWeight: 'bold', border: '1px solid #cbd5e1', textAlign: 'left', display: 'flex', justifyContent: 'space-between' }}>
-                School Committees <ChevronRight size={18} />
-              </button>
+              <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.5rem' }}>View our official compliance documents, affiliation certificates, safety reports, and committee details.</p>
+              <Link to="/mandatory-disclosures" className="btn-hero-primary" style={{ background: '#f59e0b', color: 'white', padding: '0.75rem', borderRadius: '0.5rem', fontWeight: 'bold', border: 'none', textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}>
+                <FileText size={18} /> View All Disclosures
+              </Link>
             </div>
           </div>
 

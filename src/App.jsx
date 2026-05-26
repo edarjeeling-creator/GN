@@ -22,6 +22,7 @@ import PythonStudent from './pages/PythonStudent';
 import PublicLayout from './components/PublicLayout';
 import Home from './pages/Home';
 import { About, Academics, Admissions, Faculty, Contact, Gallery } from './pages/PublicPages';
+import MandatoryDisclosures from './pages/MandatoryDisclosures';
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
           <Route path="/faculty" element={<PublicLayout><Faculty /></PublicLayout>} />
           <Route path="/gallery" element={<PublicLayout><Gallery /></PublicLayout>} />
           <Route path="/contact" element={<PublicLayout><Contact /></PublicLayout>} />
+          <Route path="/mandatory-disclosures" element={<PublicLayout><MandatoryDisclosures /></PublicLayout>} />
           
           {/* Standalone Public Pages */}
           <Route path="/login" element={<Login />} />

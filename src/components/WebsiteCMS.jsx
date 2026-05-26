@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Trash2, Image as ImageIcon, Users, UploadCloud, Loader2, Monitor, Palette, Layout, List, ArrowUp, ArrowDown, Edit2, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, Image as ImageIcon, Users, UploadCloud, Loader2, Monitor, Palette, Layout, List, ArrowUp, ArrowDown, Edit2, CheckCircle2, FileText } from 'lucide-react';
 
 export default function WebsiteCMS() {
   const [faculty, setFaculty] = useState([]);
@@ -102,6 +102,18 @@ export default function WebsiteCMS() {
   const aeRef2 = useRef(null);
   const aeRef3 = useRef(null);
 
+  // Mandatory Disclosures State
+  const [mandatoryDisclosures, setMandatoryDisclosures] = useState([]);
+  const [savingDisclosures, setSavingDisclosures] = useState(false);
+  const [newDisclosure, setNewDisclosure] = useState({
+    title: '',
+    category: 'Legal',
+    order: 1,
+    isActive: true
+  });
+  const disclosureFileRef = useRef(null);
+  const disclosureCategories = ['Legal', 'Safety', 'Academic', 'Administrative', 'PTA/SMC', 'Others'];
+
   useEffect(() => {
     fetchFaculty();
     fetchGallery();
@@ -112,6 +124,7 @@ export default function WebsiteCMS() {
     fetchFooterSettings();
     fetchMainMenu();
     fetchAcademicExcellence();
+    fetchMandatoryDisclosures();
   }, []);
 
   const fetchHeroStyling = async () => {
@@ -282,6 +295,62 @@ export default function WebsiteCMS() {
     } finally {
       setSavingAcademicExcellence(false);
     }
+  };
+
+  const fetchMandatoryDisclosures = async () => {
+    const { data } = await supabase.from('site_settings').select('value').eq('key', 'mandatory_disclosures').single();
+    if (data && data.value) {
+      setMandatoryDisclosures(JSON.parse(data.value));
+    }
+  };
+
+  const saveNewDisclosure = async (e) => {
+    e.preventDefault();
+    if (!disclosureFileRef.current.files[0]) {
+      alert("Please select a file to upload.");
+      return;
+    }
+    setSavingDisclosures(true);
+    try {
+      const fileUrl = await uploadFileToSupabase(disclosureFileRef.current.files[0], 'disclosures');
+      
+      const newDoc = {
+        id: Date.now().toString(),
+        title: newDisclosure.title,
+        category: newDisclosure.category,
+        order: parseInt(newDisclosure.order, 10),
+        isActive: newDisclosure.isActive,
+        fileUrl: fileUrl,
+        created_at: new Date().toISOString()
+      };
+      
+      const updatedList = [...mandatoryDisclosures, newDoc];
+      
+      const { error } = await supabase.from('site_settings').upsert({ key: 'mandatory_disclosures', value: JSON.stringify(updatedList) });
+      if (error) throw error;
+      
+      setMandatoryDisclosures(updatedList);
+      setNewDisclosure({ title: '', category: 'Legal', order: 1, isActive: true });
+      disclosureFileRef.current.value = '';
+      alert("Disclosure document added successfully!");
+    } catch (err) {
+      alert("Failed to save disclosure: " + err.message);
+    } finally {
+      setSavingDisclosures(false);
+    }
+  };
+
+  const toggleDisclosureActive = async (id) => {
+    const updatedList = mandatoryDisclosures.map(d => d.id === id ? { ...d, isActive: !d.isActive } : d);
+    setMandatoryDisclosures(updatedList);
+    await supabase.from('site_settings').upsert({ key: 'mandatory_disclosures', value: JSON.stringify(updatedList) });
+  };
+
+  const deleteDisclosure = async (id) => {
+    if(!window.confirm("Delete this document?")) return;
+    const updatedList = mandatoryDisclosures.filter(d => d.id !== id);
+    setMandatoryDisclosures(updatedList);
+    await supabase.from('site_settings').upsert({ key: 'mandatory_disclosures', value: JSON.stringify(updatedList) });
   };
 
   const updateMenu = (newMenu) => setMainMenu([...newMenu]);
@@ -545,6 +614,83 @@ export default function WebsiteCMS() {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Mandatory Disclosures Manager */}
+      <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <FileText size={20} color="#0284c7" /> Mandatory Disclosures Manager
+        </h3>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+          {/* Add New Form */}
+          <form onSubmit={saveNewDisclosure} style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <h4 style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>Add New Document</h4>
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Title</label>
+              <input type="text" required className="input-field w-full" value={newDisclosure.title} onChange={e => setNewDisclosure({...newDisclosure, title: e.target.value})} placeholder="e.g. Fire Safety Certificate 2026" />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Category</label>
+              <select className="input-field w-full" value={newDisclosure.category} onChange={e => setNewDisclosure({...newDisclosure, category: e.target.value})}>
+                {disclosureCategories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Upload PDF/Document</label>
+              <input type="file" required ref={disclosureFileRef} className="input-field w-full" accept=".pdf,.doc,.docx" />
+            </div>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Display Order</label>
+                <input type="number" required className="input-field w-full" value={newDisclosure.order} onChange={e => setNewDisclosure({...newDisclosure, order: e.target.value})} min="1" />
+              </div>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', paddingBottom: '0.5rem' }}>
+                  <input type="checkbox" checked={newDisclosure.isActive} onChange={e => setNewDisclosure({...newDisclosure, isActive: e.target.checked})} style={{ width: '1.2rem', height: '1.2rem' }} />
+                  <span style={{ fontWeight: 'bold', color: '#1f2937' }}>Active</span>
+                </label>
+              </div>
+            </div>
+            <button type="submit" className="btn-hero-primary" style={{ background: '#0284c7', color: 'white', border: 'none', padding: '0.75rem', marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }} disabled={savingDisclosures}>
+              {savingDisclosures ? <><Loader2 size={16} className="animate-spin inline mr-2" /> Uploading...</> : 'Add Document'}
+            </button>
+          </form>
+
+          {/* Current Documents List */}
+          <div style={{ maxHeight: '450px', overflowY: 'auto' }}>
+            <h4 style={{ fontWeight: 'bold', marginBottom: '1rem' }}>Current Documents ({mandatoryDisclosures.length})</h4>
+            {mandatoryDisclosures.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8', border: '2px dashed #cbd5e1', borderRadius: '0.5rem' }}>No documents added yet.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {[...mandatoryDisclosures].sort((a,b) => a.order - b.order).map(doc => (
+                  <div key={doc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: 'white', borderRadius: '0.5rem', border: '1px solid #e2e8f0', gap: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                      <div style={{ background: '#f0f9ff', color: '#0284c7', padding: '0.5rem', borderRadius: '0.5rem' }}><FileText size={20} /></div>
+                      <div>
+                        <div style={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '0.25rem' }}>{doc.title}</div>
+                        <div style={{ fontSize: '0.8rem', color: '#64748b', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <span style={{ background: '#f1f5f9', padding: '0.1rem 0.4rem', borderRadius: '0.25rem' }}>{doc.category}</span>
+                          <span style={{ background: '#f1f5f9', padding: '0.1rem 0.4rem', borderRadius: '0.25rem' }}>Order: {doc.order}</span>
+                          <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 'bold' }}>View</a>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <button onClick={() => toggleDisclosureActive(doc.id)} style={{ padding: '0.4rem 0.8rem', borderRadius: '0.25rem', border: 'none', fontSize: '0.75rem', fontWeight: 'bold', background: doc.isActive ? '#dcfce7' : '#f1f5f9', color: doc.isActive ? '#166534' : '#64748b', cursor: 'pointer', minWidth: '70px' }}>
+                        {doc.isActive ? 'Active' : 'Inactive'}
+                      </button>
+                      <button onClick={() => deleteDisclosure(doc.id)} style={{ padding: '0.4rem', borderRadius: '0.25rem', border: 'none', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Homepage Hero Manager */}
