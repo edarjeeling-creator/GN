@@ -5,13 +5,12 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeProvider';
 
 const Login = () => {
-  const [loginType, setLoginType] = useState('student'); // 'student' or 'faculty'
   const [name, setName] = useState('');
   const [uid, setUid] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
-  const { session, customLogin } = useAuth();
+  const { session, unifiedLogin } = useAuth();
   const { siteBranding } = useTheme();
 
   if (session) {
@@ -23,10 +22,7 @@ const Login = () => {
     setLoading(true);
     setError('');
     
-    // Map login type to internal role ('student' or 'teacher')
-    const role = loginType === 'faculty' ? 'teacher' : 'student';
-    
-    const { error } = await customLogin(role, name, uid);
+    const { error } = await unifiedLogin(name, uid);
     if (error) setError(error.message);
     setLoading(false);
   };
@@ -53,40 +49,24 @@ const Login = () => {
             <img src={siteBranding.logoUrl} alt="School Logo" style={{ width: '100px', height: '100px', objectFit: 'contain', margin: '0 auto 1.5rem', display: 'block' }} />
           </Link>
           <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
-            <h2 style={{ color: 'var(--heading-color, var(--primary-color))', fontSize: '1.8rem', fontWeight: 'bold', marginBottom: siteBranding.siteMotto ? '0.25rem' : '0' }}>{siteBranding.siteName}</h2>
+            <h2 style={{ color: 'var(--heading-color, var(--primary-color))', fontSize: '1.8rem', fontWeight: 'bold', marginBottom: siteBranding.siteMotto ? '0.25rem' : '0' }}>{siteBranding.siteName} Login</h2>
             {siteBranding.siteMotto && <p style={{ color: 'var(--body-text-color, #64748b)', fontSize: '0.9rem', fontWeight: '500' }}>{siteBranding.siteMotto}</p>}
           </div>
 
-          <div style={{ display: 'flex', marginBottom: '2rem', background: '#f1f5f9', borderRadius: '0.5rem', padding: '0.25rem' }}>
-            <button 
-              onClick={() => setLoginType('student')}
-              style={{ flex: 1, padding: '0.75rem', border: 'none', background: loginType === 'student' ? 'white' : 'transparent', borderRadius: '0.375rem', fontWeight: loginType === 'student' ? 'bold' : 'normal', color: loginType === 'student' ? '#0f172a' : '#64748b', boxShadow: loginType === 'student' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}
-            >
-              Student Portal
-            </button>
-            <button 
-              onClick={() => setLoginType('faculty')}
-              style={{ flex: 1, padding: '0.75rem', border: 'none', background: loginType === 'faculty' ? 'white' : 'transparent', borderRadius: '0.375rem', fontWeight: loginType === 'faculty' ? 'bold' : 'normal', color: loginType === 'faculty' ? '#0f172a' : '#64748b', boxShadow: loginType === 'faculty' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}
-            >
-              Faculty Portal
-            </button>
-          </div>
-          
           {error && <div className="badge badge-danger" style={{ width: '100%', textAlign: 'center', marginBottom: '1.5rem', padding: '0.75rem', borderRadius: '0.5rem' }}>{error}</div>}
           
           <AnimatePresence mode="wait">
             <motion.form 
-              key={loginType}
-              initial={{ opacity: 0, x: loginType === 'student' ? -20 : 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: loginType === 'student' ? 20 : -20 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onSubmit={handleLogin} 
               style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
             >
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#374151' }}>
-                  {loginType === 'student' ? 'Student Name' : 'Faculty Name'}
+                  Full Name
                 </label>
                 <input 
                   type="text" 
@@ -94,13 +74,13 @@ const Login = () => {
                   style={{ background: '#f9fafb', border: '1px solid #e5e7eb', padding: '0.875rem' }}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder={loginType === 'student' ? "e.g. John Doe" : "e.g. Rahul Sharma"}
+                  placeholder="e.g. John Doe"
                   required 
                 />
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#374151' }}>
-                  {loginType === 'student' ? 'Student UID (Password)' : 'Faculty UID (Password)'}
+                  UID (Password)
                 </label>
                 <input 
                   type="password" 
@@ -113,7 +93,7 @@ const Login = () => {
                 />
               </div>
               <button type="submit" className="btn-hero-primary" style={{ marginTop: '1rem', background: 'var(--primary-color)', color: 'white', border: 'none', width: '100%' }} disabled={loading}>
-                {loading ? 'Authenticating...' : `Sign in to ${loginType === 'student' ? 'Student' : 'Faculty'} Portal`}
+                {loading ? 'Authenticating...' : 'Sign In'}
               </button>
             </motion.form>
           </AnimatePresence>
