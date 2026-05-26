@@ -22,11 +22,17 @@ const Home = () => {
     btnSecondaryColor: '#166534',
     btnShape: '2rem'
   });
+  const [academicExcellence, setAcademicExcellence] = useState([
+    { id: '1', title: 'ICSE Results 2025', imageUrl: '', bgColor: '#fef3c7' },
+    { id: '2', title: 'State Toppers', imageUrl: '', bgColor: '#dcfce7' },
+    { id: '3', title: 'Top Student Achievements', imageUrl: '', bgColor: '#f1f5f9' }
+  ]);
 
   useEffect(() => {
     fetchNews();
     fetchHeroSlides();
     fetchHeroStyling();
+    fetchAcademicExcellence();
   }, []);
 
   const fetchHeroStyling = async () => {
@@ -37,6 +43,17 @@ const Home = () => {
       }
     } catch (e) {
       console.log('Hero styling fetch error:', e);
+    }
+  };
+
+  const fetchAcademicExcellence = async () => {
+    try {
+      const { data, error } = await supabase.from('site_settings').select('value').eq('key', 'academic_excellence').single();
+      if (!error && data && data.value) {
+        setAcademicExcellence(JSON.parse(data.value));
+      }
+    } catch (e) {
+      console.log('Academic Excellence fetch error:', e);
     }
   };
 
@@ -314,22 +331,34 @@ const Home = () => {
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ background: '#fef3c7', width: '100%', aspectRatio: '1', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
-                  <Award size={40} color="#d97706" />
-                </div>
-                <p style={{ fontSize: '0.75rem', fontWeight: '700' }}>ICSE Results 2025</p>
+                {academicExcellence[0].imageUrl ? (
+                  <img src={academicExcellence[0].imageUrl} alt={academicExcellence[0].title} style={{ width: '100%', aspectRatio: '1', borderRadius: '0.5rem', objectFit: 'cover', marginBottom: '0.5rem' }} />
+                ) : (
+                  <div style={{ background: academicExcellence[0].bgColor, width: '100%', aspectRatio: '1', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
+                    <Award size={40} color="#d97706" />
+                  </div>
+                )}
+                <p style={{ fontSize: '0.75rem', fontWeight: '700' }}>{academicExcellence[0].title}</p>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ background: '#dcfce7', width: '100%', aspectRatio: '1', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
-                  <Trophy size={40} color="#16a34a" />
-                </div>
-                <p style={{ fontSize: '0.75rem', fontWeight: '700' }}>State Toppers</p>
+                {academicExcellence[1].imageUrl ? (
+                  <img src={academicExcellence[1].imageUrl} alt={academicExcellence[1].title} style={{ width: '100%', aspectRatio: '1', borderRadius: '0.5rem', objectFit: 'cover', marginBottom: '0.5rem' }} />
+                ) : (
+                  <div style={{ background: academicExcellence[1].bgColor, width: '100%', aspectRatio: '1', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
+                    <Trophy size={40} color="#16a34a" />
+                  </div>
+                )}
+                <p style={{ fontSize: '0.75rem', fontWeight: '700' }}>{academicExcellence[1].title}</p>
               </div>
               <div style={{ textAlign: 'center', gridColumn: 'span 2' }}>
-                 <div style={{ background: '#f1f5f9', width: '100%', height: '100px', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
-                  <Users size={32} color="#64748b" />
-                 </div>
-                 <p style={{ fontSize: '0.75rem', fontWeight: '700' }}>Top Student Achievements</p>
+                {academicExcellence[2].imageUrl ? (
+                  <img src={academicExcellence[2].imageUrl} alt={academicExcellence[2].title} style={{ width: '100%', height: '100px', borderRadius: '0.5rem', objectFit: 'cover', marginBottom: '0.5rem' }} />
+                ) : (
+                  <div style={{ background: academicExcellence[2].bgColor, width: '100%', height: '100px', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
+                    <Users size={32} color="#64748b" />
+                  </div>
+                )}
+                <p style={{ fontSize: '0.75rem', fontWeight: '700' }}>{academicExcellence[2].title}</p>
               </div>
             </div>
           </div>

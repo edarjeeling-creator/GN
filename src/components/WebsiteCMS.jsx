@@ -90,6 +90,18 @@ export default function WebsiteCMS() {
   const [savingMenu, setSavingMenu] = useState(false);
   const [editingMenuItem, setEditingMenuItem] = useState(null);
 
+  // Academic Excellence State
+  const [academicExcellence, setAcademicExcellence] = useState([
+    { id: '1', title: 'ICSE Results 2025', imageUrl: '', bgColor: '#fef3c7' },
+    { id: '2', title: 'State Toppers', imageUrl: '', bgColor: '#dcfce7' },
+    { id: '3', title: 'Top Student Achievements', imageUrl: '', bgColor: '#f1f5f9' }
+  ]);
+  const [savingAcademicExcellence, setSavingAcademicExcellence] = useState(false);
+  const [aeFiles, setAeFiles] = useState({ '1': null, '2': null, '3': null });
+  const aeRef1 = useRef(null);
+  const aeRef2 = useRef(null);
+  const aeRef3 = useRef(null);
+
   useEffect(() => {
     fetchFaculty();
     fetchGallery();
@@ -99,6 +111,7 @@ export default function WebsiteCMS() {
     fetchThemeColors();
     fetchFooterSettings();
     fetchMainMenu();
+    fetchAcademicExcellence();
   }, []);
 
   const fetchHeroStyling = async () => {
@@ -232,6 +245,42 @@ export default function WebsiteCMS() {
       alert("Failed to save menu: " + err.message);
     } finally {
       setSavingMenu(false);
+    }
+  };
+
+  const fetchAcademicExcellence = async () => {
+    const { data } = await supabase.from('site_settings').select('value').eq('key', 'academic_excellence').single();
+    if (data && data.value) {
+      setAcademicExcellence(JSON.parse(data.value));
+    }
+  };
+
+  const saveAcademicExcellence = async (e) => {
+    e.preventDefault();
+    setSavingAcademicExcellence(true);
+    try {
+      const updatedAE = [...academicExcellence];
+      for (let i = 0; i < updatedAE.length; i++) {
+        const file = aeFiles[updatedAE[i].id];
+        if (file) {
+          updatedAE[i].imageUrl = await uploadFileToSupabase(file, 'academic_excellence');
+        }
+      }
+      
+      const { error } = await supabase.from('site_settings').upsert({ key: 'academic_excellence', value: JSON.stringify(updatedAE) });
+      if (error) throw error;
+      
+      setAcademicExcellence(updatedAE);
+      setAeFiles({ '1': null, '2': null, '3': null });
+      if(aeRef1.current) aeRef1.current.value = '';
+      if(aeRef2.current) aeRef2.current.value = '';
+      if(aeRef3.current) aeRef3.current.value = '';
+      
+      alert("Academic Excellence settings saved successfully!");
+    } catch (err) {
+      alert("Failed to save: " + err.message);
+    } finally {
+      setSavingAcademicExcellence(false);
     }
   };
 
@@ -449,6 +498,55 @@ export default function WebsiteCMS() {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginTop: '2rem' }}>
       
+      {/* Academic Excellence Manager */}
+      <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Layout size={20} color="#166534" /> Academic Excellence Manager
+        </h3>
+        <form onSubmit={saveAcademicExcellence} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+          {academicExcellence.map((item, index) => (
+            <div key={item.id} style={{ border: '1px solid #e2e8f0', padding: '1.5rem', borderRadius: '0.5rem', background: '#f8fafc' }}>
+              <h4 style={{ fontWeight: 'bold', marginBottom: '1rem', color: 'var(--text-secondary)' }}>Card {index + 1}</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Title</label>
+                  <input type="text" className="input-field w-full" value={item.title} onChange={e => {
+                    const newAE = [...academicExcellence];
+                    newAE[index].title = e.target.value;
+                    setAcademicExcellence(newAE);
+                  }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Current Image</label>
+                  {item.imageUrl ? (
+                    <img src={item.imageUrl} alt={item.title} style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '0.25rem', marginBottom: '0.5rem' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100px', background: item.bgColor, borderRadius: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Default Icon</span>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Upload New Image</label>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    ref={index === 0 ? aeRef1 : index === 1 ? aeRef2 : aeRef3}
+                    onChange={e => setAeFiles({...aeFiles, [item.id]: e.target.files[0]})} 
+                    className="input-field w-full" 
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+          <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem' }}>
+            <button type="submit" className="btn-hero-primary" style={{ background: '#166534', color: 'white', border: 'none', padding: '0.75rem', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }} disabled={savingAcademicExcellence}>
+              {savingAcademicExcellence ? <><Loader2 size={16} className="animate-spin inline mr-2" /> Saving...</> : 'Save Academic Excellence'}
+            </button>
+          </div>
+        </form>
+      </div>
+
       {/* Homepage Hero Manager */}
       <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
