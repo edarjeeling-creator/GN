@@ -17,6 +17,8 @@ import Admin from './pages/Admin';
 import StudentSearch from './pages/StudentSearch';
 import Attendance from './pages/Attendance';
 import AttendanceReports from './pages/AttendanceReports';
+import PythonTeacher from './pages/PythonTeacher';
+import PythonStudent from './pages/PythonStudent';
 import PublicLayout from './components/PublicLayout';
 import Home from './pages/Home';
 import { About, Academics, Admissions, Faculty, Contact, Gallery } from './pages/PublicPages';
@@ -48,9 +50,11 @@ function App() {
             
             {/* Student Only Routes */}
             <Route path="/student-portal" element={<StudentRoute><StudentPortal /></StudentRoute>} />
+            <Route path="/python-student" element={<StudentRoute><PythonStudent /></StudentRoute>} />
 
             {/* Teacher & Admin Routes */}
             <Route path="/classes" element={<TeacherRoute><Classes /></TeacherRoute>} />
+            <Route path="/python-teacher" element={<TeacherRoute><PythonTeacher /></TeacherRoute>} />
             <Route path="/classes/:classId/subjects/:subjectId" element={<TeacherRoute><SubjectMarks /></TeacherRoute>} />
             <Route path="/classes/:classId/flowsheet" element={<TeacherRoute><Flowsheet /></TeacherRoute>} />
             <Route path="/classes/:classId/reports" element={<TeacherRoute><ReportCards /></TeacherRoute>} />

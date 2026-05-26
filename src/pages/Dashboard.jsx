@@ -92,11 +92,19 @@ const Dashboard = () => {
                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Navigate to classes to input marks</span>
                </div>
             </div>
-            <div className="bento-card" style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', padding: '1.5rem', cursor: 'pointer', border: '1px solid var(--border-color)', transition: 'border 0.2s' }} onMouseOver={e=>e.currentTarget.style.borderColor='var(--primary-color)'} onMouseOut={e=>e.currentTarget.style.borderColor='var(--border-color)'}>
+            <div className="bento-card" onClick={() => window.location.href='/attendance'} style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', padding: '1.5rem', cursor: 'pointer', border: '1px solid var(--border-color)', transition: 'border 0.2s' }} onMouseOver={e=>e.currentTarget.style.borderColor='var(--primary-color)'} onMouseOut={e=>e.currentTarget.style.borderColor='var(--border-color)'}>
                <div style={{ background: '#f0fdf4', padding: '1rem', borderRadius: '1rem', color: '#10b981' }}><CheckCircle size={28} /></div>
                <div>
                  <strong style={{ display: 'block', fontSize: '1.1rem' }}>Generate Reports</strong>
                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Review flowsheet and print cards</span>
+               </div>
+            </div>
+            
+            <div className="bento-card" onClick={() => window.location.href='/python-teacher'} style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', padding: '1.5rem', cursor: 'pointer', border: '1px solid #bfdbfe', background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', transition: 'border 0.2s' }} onMouseOver={e=>e.currentTarget.style.borderColor='#3b82f6'} onMouseOut={e=>e.currentTarget.style.borderColor='#bfdbfe'}>
+               <div style={{ background: '#ffffff', padding: '1rem', borderRadius: '1rem', color: '#3b82f6', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🐍</div>
+               <div>
+                 <strong style={{ display: 'block', fontSize: '1.1rem', color: '#1e40af' }}>Python Portal</strong>
+                 <span style={{ color: '#3b82f6', fontSize: '0.9rem', fontWeight: 500 }}>Manage lessons & review code</span>
                </div>
             </div>
          </div>
