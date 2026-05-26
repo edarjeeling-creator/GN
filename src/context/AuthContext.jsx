@@ -40,12 +40,32 @@ export const AuthProvider = ({ children }) => {
     return await supabase.auth.signInWithPassword({ email, password });
   };
 
+  const customLogin = async (role, name, uid) => {
+    try {
+      // Step 1: Look up the underlying email
+      const { data: email, error: rpcError } = await supabase.rpc('lookup_user_email', {
+        p_role: role,
+        p_name: name,
+        p_uid: uid
+      });
+
+      if (rpcError) throw rpcError;
+      if (!email) return { error: { message: 'Invalid Name or UID' } };
+
+      // Step 2: Sign in with the retrieved email and the UID as the password
+      return await supabase.auth.signInWithPassword({ email, password: uid });
+    } catch (err) {
+      console.error("Custom login error:", err);
+      return { error: err };
+    }
+  };
+
   const logout = async () => {
     await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ session, profile, loading, login, logout }}>
+    <AuthContext.Provider value={{ session, profile, loading, login, customLogin, logout }}>
       {!loading && children}
     </AuthContext.Provider>
   );
