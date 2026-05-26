@@ -176,7 +176,7 @@ const Home = () => {
               </>
             )}
 
-            <div className="portal-hero-overlay" style={{ position: 'relative', zIndex: 1, padding: '0 1rem' }}>
+            <div className="portal-hero-overlay" style={{ position: 'relative', zIndex: 1, padding: '2rem 1rem 4rem 1rem' }}>
               <h2 className="hero-subtitle" style={{ marginBottom: '0.5rem', color: heroStyle.subtitleColor, fontWeight: '600' }}>{heroStyle.subtitle}</h2>
               <h1 className="hero-title" style={{ marginBottom: '1rem', color: heroStyle.titleColor }}>{heroStyle.title}</h1>
               <p style={{ fontSize: 'clamp(1rem, 3vw, 1.2rem)', marginBottom: '2rem', opacity: 0.9, color: heroStyle.titleColor, maxWidth: '600px', margin: '0 auto 2rem' }}>{heroStyle.description}</p>
