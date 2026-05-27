@@ -53,8 +53,13 @@ const Login = () => {
   if (session) {
     const params = new URLSearchParams(window.location.search);
     const auto = params.get('auto');
-    // If auto is true, do not redirect immediately; wait for the useEffect to clean the session
-    if (auto !== 'true') {
+    const urlName = params.get('name');
+    const urlUid = params.get('uid');
+    const sessionKey = `attempted_auto_${urlName}_${urlUid}`;
+    const alreadyAttempted = sessionStorage.getItem(sessionKey);
+
+    // If auto is true, only redirect if we have already run the auto-login process (stale session is gone)
+    if (auto !== 'true' || alreadyAttempted === 'true') {
       return <Navigate to="/dashboard" replace />;
     }
   }
