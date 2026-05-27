@@ -165,6 +165,38 @@ ${code}
     setOutput('');
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = e.target.selectionStart;
+      const end = e.target.selectionEnd;
+      const newCode = code.substring(0, start) + '    ' + code.substring(end);
+      setCode(newCode);
+      setTimeout(() => {
+        e.target.selectionStart = e.target.selectionEnd = start + 4;
+      }, 0);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const start = e.target.selectionStart;
+      const lines = code.substring(0, start).split('\n');
+      const currentLine = lines[lines.length - 1];
+      
+      const match = currentLine.match(/^\s*/);
+      let indent = match ? match[0] : '';
+      
+      if (currentLine.trim().endsWith(':')) {
+        indent += '    ';
+      }
+      
+      const newCode = code.substring(0, start) + '\n' + indent + code.substring(start);
+      setCode(newCode);
+      
+      setTimeout(() => {
+        e.target.selectionStart = e.target.selectionEnd = start + 1 + indent.length;
+      }, 0);
+    }
+  };
+
   // Generate line numbers array
   const lineCount = code.split('\n').length;
   const lineNumbers = Array.from({ length: Math.max(1, lineCount) }, (_, i) => i + 1);
@@ -445,6 +477,7 @@ ${code}
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 onScroll={handleScroll}
+                onKeyDown={handleKeyDown}
                 style={{
                   flex: 1,
                   backgroundColor: 'transparent',

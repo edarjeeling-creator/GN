@@ -5,6 +5,85 @@ import Layout from '../components/Layout';
 import { BookOpen, Code, Trophy, Star, CheckCircle, Video, FileText } from 'lucide-react';
 import PythonIDE from '../components/PythonIDE';
 
+const highlightPython = (source) => {
+  if (!source) return '';
+  
+  // Escape HTML characters
+  let escaped = source
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+    
+  const keywords = [
+    'False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await', 
+    'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except', 
+    'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is', 
+    'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 
+    'try', 'while', 'with', 'yield'
+  ];
+  
+  const builtins = [
+    'print', 'input', 'len', 'range', 'str', 'int', 'float', 'list', 
+    'dict', 'set', 'tuple', 'bool', 'type', 'open', 'sum', 'min', 'max'
+  ];
+
+  const placeholders = [];
+  let tokenCounter = 0;
+  
+  const addPlaceholder = (html) => {
+    const token = `___TOKEN_${tokenCounter++}___`;
+    placeholders.push({ token, html });
+    return token;
+  };
+  
+  // A. Protect Strings
+  escaped = escaped.replace(/"[^"\\]*(?:\\.[^"\\]*)*"/g, (match) => {
+    return addPlaceholder(`<span style="color: #a3e635;">${match}</span>`);
+  });
+  
+  escaped = escaped.replace(/'[^'\\]*(?:\\.[^'\\]*)*'/g, (match) => {
+    return addPlaceholder(`<span style="color: #a3e635;">${match}</span>`);
+  });
+  
+  // B. Protect Comments
+  escaped = escaped.replace(/#[^\n]*/g, (match) => {
+    return addPlaceholder(`<span style="color: #64748b; font-style: italic;">${match}</span>`);
+  });
+  
+  // C. Color Def and Class definitions
+  escaped = escaped.replace(/\b(def|class)\s+([a-zA-Z_][a-zA-Z0-9_]*)/g, (match, p1, p2) => {
+    return `${addPlaceholder(`<span style="color: #f43f5e; font-weight: bold;">${p1}</span>`)} ${addPlaceholder(`<span style="color: #38bdf8; font-weight: bold;">${p2}</span>`)}`;
+  });
+  
+  // D. Color Keywords
+  keywords.forEach(keyword => {
+    const regex = new RegExp(`\\b${keyword}\\b`, 'g');
+    escaped = escaped.replace(regex, () => {
+      return addPlaceholder(`<span style="color: #f43f5e; font-weight: bold;">${keyword}</span>`);
+    });
+  });
+  
+  // E. Color Builtins
+  builtins.forEach(builtin => {
+    const regex = new RegExp(`\\b${builtin}\\b`, 'g');
+    escaped = escaped.replace(regex, () => {
+      return addPlaceholder(`<span style="color: #38bdf8;">${builtin}</span>`);
+    });
+  });
+  
+  // F. Color Numbers
+  escaped = escaped.replace(/\b\d+\b/g, (match) => {
+    return addPlaceholder(`<span style="color: #fb923c;">${match}</span>`);
+  });
+  
+  // Restore placeholders
+  for (let i = placeholders.length - 1; i >= 0; i--) {
+    escaped = escaped.replace(placeholders[i].token, placeholders[i].html);
+  }
+  
+  return escaped;
+};
+
 const PythonStudent = () => {
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState('lessons'); // 'lessons', 'assignments', 'progress'
@@ -141,7 +220,7 @@ const PythonStudent = () => {
           
           <div className="col-span-2">
             {selectedLesson ? (
-              <div className="card p-8">
+              <div className="card p-8 bg-white border border-slate-200 shadow-sm rounded-xl">
                 <h2 className="text-3xl font-bold text-slate-800 mb-2">{selectedLesson.title}</h2>
                 <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-bold mb-6">{selectedLesson.module}</span>
                 
@@ -159,9 +238,23 @@ const PythonStudent = () => {
                   <p className="text-slate-700 mb-6">{selectedLesson.description}</p>
                   
                   {selectedLesson.content && (
-                    <div className="bg-slate-50 p-6 rounded-lg border border-slate-200 mt-6 whitespace-pre-wrap font-mono text-sm text-slate-800">
-                      {selectedLesson.content}
-                    </div>
+                    <pre 
+                      style={{
+                        backgroundColor: '#0b0f19',
+                        color: '#cbd5e1',
+                        padding: '1.5rem',
+                        borderRadius: '8px',
+                        border: '1px solid #1e293b',
+                        marginTop: '1.5rem',
+                        overflowX: 'auto',
+                        fontFamily: 'monospace',
+                        fontSize: '14px',
+                        lineHeight: '1.6',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-all'
+                      }}
+                      dangerouslySetInnerHTML={{ __html: highlightPython(selectedLesson.content) }}
+                    />
                   )}
                 </div>
               </div>
