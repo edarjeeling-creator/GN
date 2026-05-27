@@ -12,7 +12,7 @@ const Login = () => {
   const [autoLoginSuccess, setAutoLoginSuccess] = useState(false);
   const hasAttempted = useRef(false);
   
-  const { session, unifiedLogin, logout } = useAuth();
+  const { session, profile, unifiedLogin } = useAuth();
   const { siteBranding } = useTheme();
 
   useEffect(() => {
@@ -30,13 +30,6 @@ const Login = () => {
         setLoading(true);
         setError('');
         
-        // Failsafe: Log out any active teacher session first to prevent session leakage!
-        try {
-          await logout();
-        } catch (e) {
-          console.warn("Session clean up warning:", e);
-        }
-
         const { error } = await unifiedLogin(urlName, urlUid);
         if (error) {
           setError(error.message || 'Auto-login failed.');
@@ -49,15 +42,15 @@ const Login = () => {
       
       performAutoLogin();
     }
-  }, [unifiedLogin, logout]);
+  }, [unifiedLogin]);
 
-  if (session) {
+  if (session || profile?.role === 'student') {
     const params = new URLSearchParams(window.location.search);
     const auto = params.get('auto');
 
     // Only redirect if it is a normal login OR if auto-login successfully completed
     if (auto !== 'true' || autoLoginSuccess) {
-      return <Navigate to="/dashboard" replace />;
+      return <Navigate to={profile?.role === 'student' ? "/student-portal" : "/dashboard"} replace />;
     }
   }
 

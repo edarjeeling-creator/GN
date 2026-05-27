@@ -11,18 +11,38 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const savedStudent = localStorage.getItem('studentProfile');
+    if (savedStudent) {
+      try {
+        const parsed = JSON.parse(savedStudent);
+        setProfile(parsed);
+        setSession(null);
+        setLoading(false);
+        return;
+      } catch (e) {
+        console.error("Error parsing student profile", e);
+        localStorage.removeItem('studentProfile');
+      }
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) fetchProfile(session.user.id);
-      else setLoading(false);
+      const isStudentLocal = localStorage.getItem('studentProfile') !== null;
+      if (!isStudentLocal) {
+        setSession(session);
+        if (session) fetchProfile(session.user.id);
+        else setLoading(false);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) fetchProfile(session.user.id);
-      else {
-        setProfile(null);
-        setLoading(false);
+      const isStudentLocal = localStorage.getItem('studentProfile') !== null;
+      if (!isStudentLocal) {
+        setSession(session);
+        if (session) fetchProfile(session.user.id);
+        else {
+          setProfile(null);
+          setLoading(false);
+        }
       }
     });
 
@@ -37,6 +57,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
+    localStorage.removeItem('studentProfile');
     return await supabase.auth.signInWithPassword({ email, password });
   };
 
@@ -63,24 +84,38 @@ export const AuthProvider = ({ children }) => {
 
       if (!email) return { error: { message: 'Invalid Name or UID' } };
 
-      // Step 2: Sign in with the retrieved email and the UID as the password
-      const result = await supabase.auth.signInWithPassword({ email, password: uid });
-      
-      // Auto-signup for students on their very first login!
-      if (result.error && resolvedRole === 'student') {
-        const signUpResult = await supabase.auth.signUp({
-          email,
-          password: uid,
-          options: {
-            data: {
-              full_name: name,
-              role: 'student'
-            }
-          }
-        });
-        return signUpResult;
+      // Zero-Auth student login: Bypasses supabase.auth entirely to prevent rate limits & teacher logouts!
+      if (resolvedRole === 'student') {
+        const { data: student, error: studentError } = await supabase
+          .from('students')
+          .select('*, classes(name, section)')
+          .eq('uid', uid)
+          .single();
+          
+        if (studentError || !student) {
+          return { error: { message: 'Student record could not be loaded.' } };
+        }
+
+        const studentProfile = {
+          id: student.id,
+          name: student.name,
+          role: 'student',
+          student_id: student.id,
+          class_id: student.class_id,
+          school_id: student.school_id,
+          className: student.classes ? `${student.classes.name} ${student.classes.section}` : ''
+        };
+
+        localStorage.setItem('studentProfile', JSON.stringify(studentProfile));
+        setProfile(studentProfile);
+        setSession(null); // Keep supabase auth session empty for this student tab
+        setLoading(false);
+        return { success: true };
       }
-      
+
+      // Teachers & Admins use standard Supabase Auth
+      localStorage.removeItem('studentProfile');
+      const result = await supabase.auth.signInWithPassword({ email, password: uid });
       return result;
     } catch (err) {
       console.error("Unified login error:", err);
@@ -89,6 +124,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    localStorage.removeItem('studentProfile');
     await supabase.auth.signOut();
   };
 

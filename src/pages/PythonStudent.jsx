@@ -25,7 +25,7 @@ const PythonStudent = () => {
     fetchLessons();
     fetchAssignments();
     if (profile?.id) {
-      fetchStudentRecordAndSubmissions(profile.id);
+      fetchStudentRecordAndSubmissions();
     }
   }, [profile]);
 
@@ -39,19 +39,26 @@ const PythonStudent = () => {
     if (data) setAssignments(data);
   };
 
-  const fetchStudentRecordAndSubmissions = async (userId) => {
-    // Lookup student by user_id
-    // Wait, in our auth model, the auth.users ID is used for auth.
-    // If we created auth users for students, their ID is in auth.users, but the students table doesn't have an auth_id column natively.
-    // However, we set up students with custom emails. Let's lookup student by profile ID or email
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user && user.email) {
-      const uid = user.email.split('@')[0]; // since email is uid@gn.cloud
-      const { data: student } = await supabase.from('students').select('*').eq('uid', uid).single();
+  const fetchStudentRecordAndSubmissions = async () => {
+    if (profile && profile.role === 'student') {
+      const studentId = profile.id;
+      const { data: student } = await supabase.from('students').select('*').eq('id', studentId).single();
       if (student) {
         setStudentRecord(student);
         const { data: subs } = await supabase.from('python_submissions').select('*, python_assignments(title, module)').eq('student_id', student.id);
         if (subs) setMySubmissions(subs);
+      }
+    } else {
+      // Fallback/Legacy session checking for standard Supabase Auth
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && user.email) {
+        const uid = user.email.split('@')[0];
+        const { data: student } = await supabase.from('students').select('*').eq('uid', uid).single();
+        if (student) {
+          setStudentRecord(student);
+          const { data: subs } = await supabase.from('python_submissions').select('*, python_assignments(title, module)').eq('student_id', student.id);
+          if (subs) setMySubmissions(subs);
+        }
       }
     }
   };
@@ -59,38 +66,18 @@ const PythonStudent = () => {
   const handleSubmitAssignment = async (code, output) => {
     if (!studentRecord || !selectedAssignment) return;
     
-    // Check if already submitted
-    const existing = mySubmissions.find(s => s.assignment_id === selectedAssignment.id);
+    const { error } = await supabase.rpc('submit_student_code', {
+      p_student_id: studentRecord.id,
+      p_assignment_id: selectedAssignment.id,
+      p_code: code
+    });
     
-    if (existing) {
-      // Update
-      const { error } = await supabase.from('python_submissions').update({
-        code: code,
-        status: 'submitted',
-        updated_at: new Date()
-      }).match({ id: existing.id });
-      
-      if (!error) {
-        alert("Assignment updated!");
-        fetchStudentRecordAndSubmissions();
-        setSelectedAssignment(null);
-      }
+    if (!error) {
+      alert("Assignment submitted successfully!");
+      fetchStudentRecordAndSubmissions();
+      setSelectedAssignment(null);
     } else {
-      // Insert
-      const { error } = await supabase.from('python_submissions').insert([{
-        assignment_id: selectedAssignment.id,
-        student_id: studentRecord.id,
-        code: code,
-        status: 'submitted'
-      }]);
-      
-      if (!error) {
-        alert("Assignment submitted successfully!");
-        fetchStudentRecordAndSubmissions();
-        setSelectedAssignment(null);
-      } else {
-        alert("Error: " + error.message);
-      }
+      alert("Error: " + error.message);
     }
   };
 
