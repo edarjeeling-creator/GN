@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import Layout from '../components/Layout';
-import { BookOpen, FileCode2, Inbox, Plus, Edit, Trash2 } from 'lucide-react';
+import { BookOpen, FileCode2, Inbox, Plus, Edit, Trash2, Users, Key, Printer, Copy, ExternalLink, Search, CheckCircle } from 'lucide-react';
 import PythonIDE from '../components/PythonIDE';
+import { useData } from '../context/DataContext';
 
 const MODULES = [
   "Module 1: Introduction to Coding",
@@ -18,10 +19,17 @@ const MODULES = [
 ];
 
 const PythonTeacher = () => {
-  const [activeTab, setActiveTab] = useState('lessons'); // 'lessons', 'assignments', 'submissions'
+  const { classes, students, updateStudentUid } = useData();
+  const [activeTab, setActiveTab] = useState('lessons'); // 'lessons', 'assignments', 'submissions', 'lab-manager'
   const [lessons, setLessons] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [submissions, setSubmissions] = useState([]);
+  
+  // Lab Manager States
+  const [selectedClassId, setSelectedClassId] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [editingStudentId, setEditingStudentId] = useState(null);
+  const [tempUid, setTempUid] = useState('');
   
   // Forms
   const [newLesson, setNewLesson] = useState({ title: '', module: MODULES[0], description: '', video_url: '', content: '' });
@@ -36,7 +44,10 @@ const PythonTeacher = () => {
     fetchLessons();
     fetchAssignments();
     fetchSubmissions();
-  }, []);
+    if (classes && classes.length > 0) {
+      setSelectedClassId(classes[0].id);
+    }
+  }, [classes]);
 
   const fetchLessons = async () => {
     const { data } = await supabase.from('python_lessons').select('*').order('created_at', { ascending: false });
@@ -115,6 +126,67 @@ const PythonTeacher = () => {
     }
   };
 
+  const handlePrintPassSheet = () => {
+    const cls = classes.find(c => c.id === selectedClassId);
+    const className = cls ? `${cls.name} ${cls.section}` : '';
+    const classStudents = students.filter(s => s.class_id === selectedClassId).sort((a,b) => a.roll_no - b.roll_no);
+    
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Lab Pass Sheet - Class ${className}</title>
+          <style>
+            body { font-family: system-ui, -apple-system, sans-serif; padding: 2rem; color: #1e293b; }
+            h1 { font-size: 1.75rem; font-weight: bold; margin-bottom: 0.5rem; }
+            p { color: #64748b; margin-bottom: 2rem; }
+            table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+            th, td { border: 1px solid #e2e8f0; padding: 0.75rem 1rem; text-align: left; }
+            th { background-color: #f8fafc; font-weight: bold; }
+            tr:nth-child(even) { background-color: #f8fafc; }
+            .badge { background-color: #dbeafe; color: #1e40af; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-family: monospace; font-size: 0.9rem; font-weight: bold; }
+            @media print {
+              body { padding: 0; }
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h1>Gyanoday Niketan - Computer Lab Pass Sheet</h1>
+              <p>Class: <strong>${className}</strong> | Academic Year: 2026</p>
+            </div>
+            <button onclick="window.print()" style="background: #2563eb; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; font-weight: bold; cursor: pointer;">Print Page</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 80px;">Roll No</th>
+                <th>Student Name</th>
+                <th>UID (Password)</th>
+                <th>Login Link</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${classStudents.map(s => `
+                <tr>
+                  <td>${s.roll_no}</td>
+                  <td><strong>${s.name}</strong></td>
+                  <td><span class="badge">${s.uid || '---'}</span></td>
+                  <td style="font-size: 0.8rem; color: #64748b; font-family: monospace;">
+                    ${window.location.origin}/login?auto=true&name=${encodeURIComponent(s.name)}&uid=${s.uid || ''}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   return (
     <Layout>
       <div className="page-header">
@@ -142,6 +214,12 @@ const PythonTeacher = () => {
           style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'submissions' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'submissions' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: 'bold', cursor: 'pointer' }}
         >
           <div className="flex items-center gap-2"><Inbox size={18} /> Submissions</div>
+        </button>
+        <button 
+          onClick={() => setActiveTab('lab-manager')} 
+          style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'lab-manager' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'lab-manager' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: 'bold', cursor: 'pointer' }}
+        >
+          <div className="flex items-center gap-2"><Users size={18} /> Lab Manager</div>
         </button>
       </div>
 
@@ -299,6 +377,167 @@ const PythonTeacher = () => {
                 </tbody>
               </table>
             </>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'lab-manager' && (
+        <div className="card" style={{ padding: '2rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
+            <div>
+              <h3 className="text-xl font-bold">Coding Lab Manager</h3>
+              <p className="text-slate-500 text-sm">Manage student credentials and easily log them into lab computers.</p>
+            </div>
+            <button onClick={handlePrintPassSheet} className="btn btn-outline text-sm flex items-center gap-2" style={{ borderColor: 'var(--primary-color)', color: 'var(--primary-color)' }} disabled={!selectedClassId}>
+              <Printer size={16} /> Print Lab Pass Sheet
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: '200px' }}>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Select Class</label>
+              <select 
+                className="input-field w-full"
+                value={selectedClassId}
+                onChange={e => setSelectedClassId(e.target.value)}
+              >
+                <option value="">-- Choose Class --</option>
+                {classes.map(c => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
+              </select>
+            </div>
+            
+            <div style={{ flex: 1, minWidth: '250px' }}>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Search Student</label>
+              <div style={{ position: 'relative' }}>
+                <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                <input 
+                  type="text"
+                  placeholder="Search by student name..."
+                  className="input-field w-full"
+                  style={{ paddingLeft: '2.5rem' }}
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {selectedClassId ? (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table w-full">
+                <thead>
+                  <tr className="bg-slate-50">
+                    <th style={{ width: '80px' }}>Roll No</th>
+                    <th>Name</th>
+                    <th>UID (Passcode)</th>
+                    <th style={{ width: '250px' }}>One-Click Login Link</th>
+                    <th style={{ width: '220px' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {students
+                    .filter(s => s.class_id === selectedClassId && s.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                    .sort((a, b) => a.roll_no - b.roll_no)
+                    .map(student => {
+                      const autoLoginUrl = `${window.location.origin}/login?auto=true&name=${encodeURIComponent(student.name)}&uid=${student.uid || ''}`;
+                      
+                      return (
+                        <tr key={student.id} className="border-b border-slate-100">
+                          <td className="p-3 font-semibold">{student.roll_no}</td>
+                          <td className="p-3"><strong>{student.name}</strong></td>
+                          <td className="p-3">
+                            {editingStudentId === student.id ? (
+                              <div className="flex gap-2 items-center">
+                                <input 
+                                  type="text"
+                                  className="input-field"
+                                  style={{ width: '100px', padding: '0.25rem 0.5rem', fontSize: '0.9rem' }}
+                                  value={tempUid}
+                                  onChange={e => setTempUid(e.target.value)}
+                                  placeholder="UID"
+                                />
+                                <button 
+                                  onClick={async () => {
+                                    const res = await updateStudentUid(student.id, tempUid);
+                                    if (res.success) {
+                                      setEditingStudentId(null);
+                                    } else {
+                                      alert("Error: " + res.error.message);
+                                    }
+                                  }}
+                                  className="text-green-600 hover:text-green-800 font-bold text-xs"
+                                >
+                                  Save
+                                </button>
+                                <button 
+                                  onClick={() => setEditingStudentId(null)}
+                                  className="text-slate-500 hover:text-slate-700 text-xs"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex gap-2 items-center">
+                                <span className="font-mono bg-blue-50 text-blue-700 px-2 py-1 rounded text-sm font-semibold">{student.uid || '---'}</span>
+                                <button 
+                                  onClick={() => {
+                                    setEditingStudentId(student.id);
+                                    setTempUid(student.uid || '');
+                                  }}
+                                  className="text-slate-400 hover:text-slate-600"
+                                  title="Edit Passcode"
+                                >
+                                  <Edit size={14} />
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <div className="flex gap-2 items-center">
+                              <button 
+                                onClick={() => {
+                                  navigator.clipboard.writeText(autoLoginUrl);
+                                  alert(`Login link for ${student.name} copied to clipboard!`);
+                                }}
+                                className="btn btn-outline btn-sm flex items-center gap-1"
+                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                              >
+                                <Copy size={12} /> Copy Link
+                              </button>
+                              <a 
+                                href={autoLoginUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-sm font-semibold"
+                              >
+                                <ExternalLink size={12} /> Open Portal
+                              </a>
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <button 
+                              onClick={() => {
+                                window.open(autoLoginUrl, '_blank');
+                              }}
+                              className="btn btn-primary btn-sm flex items-center gap-1"
+                              style={{ background: 'var(--primary-color)', color: 'white', border: 'none', padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}
+                            >
+                              💻 Launch Coding Portal
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  {students.filter(s => s.class_id === selectedClassId && s.name.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && (
+                    <tr><td colSpan="5" className="p-4 text-center text-slate-500">No students found matching filters.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+              Select a class above to load student coding roster.
+            </div>
           )}
         </div>
       )}

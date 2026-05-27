@@ -175,6 +175,23 @@ export const DataProvider = ({ children }) => {
       .eq('id', studentId);
   };
 
+  const updateStudentUid = async (studentId, newUid) => {
+    if (isReadOnly) {
+      alert("This action is disabled. The portal is in Read-Only Mode.");
+      return { success: false, error: { message: "Portal is in Read-Only Mode." } };
+    }
+
+    const { error } = await supabase.from('students')
+      .update({ uid: newUid })
+      .eq('id', studentId);
+
+    if (!error) {
+      setStudents(prev => prev.map(s => s.id === studentId ? { ...s, uid: newUid } : s));
+      return { success: true };
+    }
+    return { success: false, error };
+  };
+
   // Filter classes by academic year
   const activeClasses = classes.filter(c => c.academic_year === academicYear || (!c.academic_year && academicYear === '2026'));
 
@@ -182,7 +199,7 @@ export const DataProvider = ({ children }) => {
     <DataContext.Provider value={{
       academicYear, setAcademicYear,
       classes: activeClasses, subjects, students, teacherSubjects, marks, attendance,
-      updateMark, toggleTeacherSubject, addStudent, updateStudentLanguages, loadingData
+      updateMark, toggleTeacherSubject, addStudent, updateStudentLanguages, updateStudentUid, loadingData
     }}>
       {children}
     </DataContext.Provider>

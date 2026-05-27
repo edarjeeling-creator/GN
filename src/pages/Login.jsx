@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -12,6 +12,30 @@ const Login = () => {
   
   const { session, unifiedLogin } = useAuth();
   const { siteBranding } = useTheme();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const auto = params.get('auto');
+    const urlName = params.get('name');
+    const urlUid = params.get('uid');
+
+    if (auto === 'true' && urlName && urlUid) {
+      setName(urlName);
+      setUid(urlUid);
+      
+      const performAutoLogin = async () => {
+        setLoading(true);
+        setError('');
+        const { error } = await unifiedLogin(urlName, urlUid);
+        if (error) {
+          setError(error.message || 'Auto-login failed.');
+          setLoading(false);
+        }
+      };
+      
+      performAutoLogin();
+    }
+  }, [unifiedLogin]);
 
   if (session) {
     return <Navigate to="/dashboard" replace />;
