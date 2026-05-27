@@ -2,6 +2,85 @@ import React, { useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { Play, RotateCcw, Save, CheckCircle, Terminal, Maximize2, Minimize2, Sparkles, Loader2 } from 'lucide-react';
 
+const highlightPython = (source) => {
+  if (!source) return '';
+  
+  // Escape HTML characters
+  let escaped = source
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+    
+  const keywords = [
+    'False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await', 
+    'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except', 
+    'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is', 
+    'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 
+    'try', 'while', 'with', 'yield'
+  ];
+  
+  const builtins = [
+    'print', 'input', 'len', 'range', 'str', 'int', 'float', 'list', 
+    'dict', 'set', 'tuple', 'bool', 'type', 'open', 'sum', 'min', 'max'
+  ];
+
+  const placeholders = [];
+  let tokenCounter = 0;
+  
+  const addPlaceholder = (html) => {
+    const token = `___TOKEN_${tokenCounter++}___`;
+    placeholders.push({ token, html });
+    return token;
+  };
+  
+  // A. Protect Strings
+  escaped = escaped.replace(/"[^"\\]*(?:\\.[^"\\]*)*"/g, (match) => {
+    return addPlaceholder(`<span style="color: #a3e635;">${match}</span>`);
+  });
+  
+  escaped = escaped.replace(/'[^'\\]*(?:\\.[^'\\]*)*'/g, (match) => {
+    return addPlaceholder(`<span style="color: #a3e635;">${match}</span>`);
+  });
+  
+  // B. Protect Comments
+  escaped = escaped.replace(/#[^\n]*/g, (match) => {
+    return addPlaceholder(`<span style="color: #64748b; font-style: italic;">${match}</span>`);
+  });
+  
+  // C. Color Def and Class definitions
+  escaped = escaped.replace(/\b(def|class)\s+([a-zA-Z_][a-zA-Z0-9_]*)/g, (match, p1, p2) => {
+    return `${addPlaceholder(`<span style="color: #f43f5e; font-weight: bold;">${p1}</span>`)} ${addPlaceholder(`<span style="color: #38bdf8; font-weight: bold;">${p2}</span>`)}`;
+  });
+  
+  // D. Color Keywords
+  keywords.forEach(keyword => {
+    const regex = new RegExp(`\\b${keyword}\\b`, 'g');
+    escaped = escaped.replace(regex, () => {
+      return addPlaceholder(`<span style="color: #f43f5e; font-weight: bold;">${keyword}</span>`);
+    });
+  });
+  
+  // E. Color Builtins
+  builtins.forEach(builtin => {
+    const regex = new RegExp(`\\b${builtin}\\b`, 'g');
+    escaped = escaped.replace(regex, () => {
+      return addPlaceholder(`<span style="color: #38bdf8;">${builtin}</span>`);
+    });
+  });
+  
+  // F. Color Numbers
+  escaped = escaped.replace(/\b\d+\b/g, (match) => {
+    return addPlaceholder(`<span style="color: #fb923c;">${match}</span>`);
+  });
+  
+  // Restore placeholders
+  for (let i = placeholders.length - 1; i >= 0; i--) {
+    escaped = escaped.replace(placeholders[i].token, placeholders[i].html);
+  }
+  
+  return escaped;
+};
+
 const PythonIDE = ({ initialCode = '', onSave, onSubmit, height = '500px' }) => {
   const [code, setCode] = useState(initialCode || 'print("Hello Python!")');
   const [output, setOutput] = useState('');
@@ -18,6 +97,7 @@ const PythonIDE = ({ initialCode = '', onSave, onSubmit, height = '500px' }) => 
   const consoleEndRef = useRef(null);
   const textareaRef = useRef(null);
   const lineNumbersRef = useRef(null);
+  const highlightRef = useRef(null);
 
   // 1. Pyodide Multi-CDN Resilient Bootstrapper
   useEffect(() => {
@@ -110,12 +190,20 @@ const PythonIDE = ({ initialCode = '', onSave, onSubmit, height = '500px' }) => 
     if (lineNumbersRef.current) {
       lineNumbersRef.current.scrollTop = e.target.scrollTop;
     }
+    if (highlightRef.current) {
+      highlightRef.current.scrollTop = e.target.scrollTop;
+      highlightRef.current.scrollLeft = e.target.scrollLeft;
+    }
   };
 
   // Sync scroll for textarea in case of external layout shifts
   useEffect(() => {
     if (textareaRef.current && lineNumbersRef.current) {
       lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+    if (textareaRef.current && highlightRef.current) {
+      highlightRef.current.scrollTop = textareaRef.current.scrollTop;
+      highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
     }
   }, [code]);
 
@@ -133,15 +221,16 @@ const PythonIDE = ({ initialCode = '', onSave, onSubmit, height = '500px' }) => 
     setOutput(''); // Clear output console
 
     try {
+      // Clean synchronous prompt inputs (prevents coroutine errors!)
       const runCode = `
 import builtins
 import js
 
-async def _custom_input(prompt_text=""):
+def _custom_input(prompt_text=""):
     result = js.prompt(prompt_text)
     if result is None:
         return ""
-    return result
+    return str(result)
 
 builtins.input = _custom_input
 
@@ -472,27 +561,63 @@ ${code}
                   <div key={n} style={{ height: '22px' }}>{n}</div>
                 ))}
               </div>
-              <textarea
-                ref={textareaRef}
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                onScroll={handleScroll}
-                onKeyDown={handleKeyDown}
-                style={{
-                  flex: 1,
-                  backgroundColor: 'transparent',
-                  color: '#f8fafc',
-                  padding: '12px 16px',
-                  outline: 'none',
-                  resize: 'none',
-                  border: 'none',
-                  fontFamily: 'monospace',
-                  fontSize: '14px',
-                  lineHeight: '22px',
-                  overflowY: 'auto'
-                }}
-                placeholder="# Write your python code here... (Type or Paste instantly!)"
-              />
+              
+              <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+                {/* The highlighted code pre block behind */}
+                <pre
+                  ref={highlightRef}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    margin: 0,
+                    padding: '12px 16px',
+                    backgroundColor: '#1e1e1e',
+                    color: '#f8fafc',
+                    fontFamily: 'monospace',
+                    fontSize: '14px',
+                    lineHeight: '22px',
+                    whiteSpace: 'pre',
+                    overflow: 'hidden',
+                    pointerEvents: 'none',
+                    border: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                  dangerouslySetInnerHTML={{ __html: highlightPython(code) + '\n\n' }}
+                />
+                
+                {/* The transparent interactive textarea on top */}
+                <textarea
+                  ref={textareaRef}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  onScroll={handleScroll}
+                  onKeyDown={handleKeyDown}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: 'transparent',
+                    color: 'transparent', // Make text transparent so the colored code behind shows through!
+                    caretColor: '#38bdf8', // Keep the blinking cursor visible and styled!
+                    padding: '12px 16px',
+                    outline: 'none',
+                    resize: 'none',
+                    border: 'none',
+                    fontFamily: 'monospace',
+                    fontSize: '14px',
+                    lineHeight: '22px',
+                    overflow: 'auto',
+                    whiteSpace: 'pre',
+                    boxSizing: 'border-box'
+                  }}
+                  placeholder="# Write your python code here... (Type or Paste instantly!)"
+                />
+              </div>
             </div>
           )}
         </div>
