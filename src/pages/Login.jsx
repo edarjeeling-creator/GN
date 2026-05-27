@@ -9,6 +9,7 @@ const Login = () => {
   const [uid, setUid] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [autoLoginSuccess, setAutoLoginSuccess] = useState(false);
   const hasAttempted = useRef(false);
   
   const { session, unifiedLogin, logout } = useAuth();
@@ -20,11 +21,8 @@ const Login = () => {
     const urlName = params.get('name');
     const urlUid = params.get('uid');
 
-    const sessionKey = `attempted_auto_${urlName}_${urlUid}`;
-    const alreadyAttempted = sessionStorage.getItem(sessionKey);
-
-    if (auto === 'true' && urlName && urlUid && !alreadyAttempted) {
-      sessionStorage.setItem(sessionKey, 'true');
+    if (auto === 'true' && urlName && urlUid && !hasAttempted.current) {
+      hasAttempted.current = true;
       setName(urlName);
       setUid(urlUid);
       
@@ -43,6 +41,9 @@ const Login = () => {
         if (error) {
           setError(error.message || 'Auto-login failed.');
           setLoading(false);
+        } else {
+          // Success! Mark auto-login as completed to allow redirect
+          setAutoLoginSuccess(true);
         }
       };
       
@@ -53,13 +54,9 @@ const Login = () => {
   if (session) {
     const params = new URLSearchParams(window.location.search);
     const auto = params.get('auto');
-    const urlName = params.get('name');
-    const urlUid = params.get('uid');
-    const sessionKey = `attempted_auto_${urlName}_${urlUid}`;
-    const alreadyAttempted = sessionStorage.getItem(sessionKey);
 
-    // If auto is true, only redirect if we have already run the auto-login process (stale session is gone)
-    if (auto !== 'true' || alreadyAttempted === 'true') {
+    // Only redirect if it is a normal login OR if auto-login successfully completed
+    if (auto !== 'true' || autoLoginSuccess) {
       return <Navigate to="/dashboard" replace />;
     }
   }
