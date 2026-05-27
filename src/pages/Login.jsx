@@ -10,7 +10,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
-  const { session, unifiedLogin } = useAuth();
+  const { session, unifiedLogin, logout } = useAuth();
   const { siteBranding } = useTheme();
 
   useEffect(() => {
@@ -26,6 +26,14 @@ const Login = () => {
       const performAutoLogin = async () => {
         setLoading(true);
         setError('');
+        
+        // Failsafe: Log out any active teacher session first to prevent session leakage!
+        try {
+          await logout();
+        } catch (e) {
+          console.warn("Session clean up warning:", e);
+        }
+
         const { error } = await unifiedLogin(urlName, urlUid);
         if (error) {
           setError(error.message || 'Auto-login failed.');
@@ -35,10 +43,15 @@ const Login = () => {
       
       performAutoLogin();
     }
-  }, [unifiedLogin]);
+  }, [unifiedLogin, logout]);
 
   if (session) {
-    return <Navigate to="/dashboard" replace />;
+    const params = new URLSearchParams(window.location.search);
+    const auto = params.get('auto');
+    // If auto is true, do not redirect immediately; wait for the useEffect to clean the session
+    if (auto !== 'true') {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   const handleLogin = async (e) => {
