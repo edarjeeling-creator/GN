@@ -6,7 +6,7 @@ import { useTheme } from '../context/ThemeProvider';
 import { useSubscription } from '../context/SubscriptionContext';
 
 const Layout = ({ children }) => {
-  const { profile, logout } = useAuth();
+  const { profile, logout, loading } = useAuth();
   const { academicYear, setAcademicYear } = useData();
   const { siteBranding } = useTheme();
   const { school, isReadOnly, isSuspended, hasWarning } = useSubscription();
@@ -19,6 +19,35 @@ const Layout = ({ children }) => {
     await logout();
     navigate('/login');
   };
+
+  if (loading || !profile) {
+    return (
+      <div style={{
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#0f172a',
+        color: '#ffffff',
+        fontFamily: 'system-ui, -apple-system, sans-serif'
+      }}>
+        <div style={{
+          width: '40px',
+          height: '40px',
+          border: '4px solid rgba(255,255,255,0.1)',
+          borderTopColor: '#38bdf8',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite',
+          marginBottom: '1rem'
+        }} />
+        <p style={{ color: '#94a3b8' }}>Loading secure session...</p>
+        <style>{`
+          @keyframes spin { to { transform: rotate(360deg); } }
+        `}</style>
+      </div>
+    );
+  }
 
   if (isSuspended) {
     return (
