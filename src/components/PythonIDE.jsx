@@ -50,7 +50,6 @@ const PythonIDE = ({ initialCode = '', onSave, onSubmit, height = '500px' }) => 
 
     const loadScript = (src) => {
       return new Promise((resolve, reject) => {
-        // Check if script is already in the document
         const existingScript = document.querySelector(`script[src="${src}"]`);
         if (existingScript) {
           if (window.loadPyodide) {
@@ -79,7 +78,7 @@ const PythonIDE = ({ initialCode = '', onSave, onSubmit, height = '500px' }) => 
       }
 
       const activeCdn = cdns[index];
-      setPyodideStatus(`Loading python core (Mirror ${index + 1}/${cdns.length})...`);
+      setPyodideStatus(`Loading core (Mirror ${index + 1}/${cdns.length})...`);
 
       try {
         await loadScript(activeCdn.js);
@@ -111,7 +110,6 @@ const PythonIDE = ({ initialCode = '', onSave, onSubmit, height = '500px' }) => 
         setPyodideStatus('Ready');
       } catch (err) {
         console.warn(`Pyodide load failed on Mirror ${index + 1}:`, err);
-        // Try the next mirror
         tryLoadPyodide(index + 1);
       }
     };
@@ -140,7 +138,6 @@ const PythonIDE = ({ initialCode = '', onSave, onSubmit, height = '500px' }) => 
     setOutput(''); // Clear output console
 
     try {
-      // Mock CPython's synchronous input to use standard browser window prompts
       const runCode = `
 import builtins
 import js
@@ -178,29 +175,67 @@ ${code}
   const lineNumbers = Array.from({ length: Math.max(1, lineCount) }, (_, i) => i + 1);
 
   return (
-    <div className="flex flex-col rounded-lg overflow-hidden border border-slate-700 bg-slate-900 shadow-xl" style={{ minHeight: '520px' }}>
+    <div 
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: '12px',
+        overflow: 'hidden',
+        border: '1px solid #334155',
+        backgroundColor: '#0f172a',
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)',
+        minHeight: '520px',
+        width: '100%',
+        fontFamily: 'system-ui, -apple-system, sans-serif'
+      }}
+    >
       
       {/* IDE Header Toolbar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-800 border-b border-slate-700 select-none">
-        <div className="flex items-center gap-2">
-          <Terminal size={20} className="text-sky-400" />
-          <span className="font-bold text-slate-200 text-sm tracking-wide">Python Workspace</span>
+      <div 
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0.75rem 1.25rem',
+          backgroundColor: '#1e293b',
+          borderBottom: '1px solid #334155',
+          userSelect: 'none'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Terminal size={20} style={{ color: '#38bdf8' }} />
+          <span style={{ fontWeight: 'bold', color: '#e2e8f0', fontSize: '0.875rem', letterSpacing: '0.025em' }}>Python Workspace</span>
+          
           {pyodideLoading ? (
-            <div className="flex items-center gap-1.5 ml-3 bg-slate-700/60 px-2.5 py-0.5 rounded-full border border-yellow-500/30">
-              <Loader2 className="h-3 w-3 text-yellow-400 animate-spin" />
-              <span className="text-[10px] text-yellow-400 font-semibold">{pyodideStatus}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginLeft: '0.75rem', backgroundColor: '#334155', padding: '0.25rem 0.625rem', borderRadius: '9999px', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
+              <Loader2 className="animate-spin" size={12} style={{ color: '#eab308' }} />
+              <span style={{ fontSize: '10px', color: '#eab308', fontWeight: '600' }}>{pyodideStatus}</span>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 ml-3 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="text-[10px] text-emerald-400 font-bold tracking-wider uppercase">Active Engine</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginLeft: '0.75rem', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '0.25rem 0.625rem', borderRadius: '9999px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+              <span style={{ height: '6px', width: '6px', borderRadius: '50%', backgroundColor: '#34d399' }}></span>
+              <span style={{ fontSize: '10px', color: '#34d399', fontWeight: 'bold', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Active Engine</span>
             </div>
           )}
         </div>
-        <div className="flex gap-2">
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <button 
             onClick={handleReset}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-md text-slate-300 hover:bg-slate-700 hover:text-white transition-all border border-transparent hover:border-slate-600"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              padding: '0.375rem 0.75rem',
+              fontSize: '12px',
+              fontWeight: '600',
+              borderRadius: '6px',
+              color: '#cbd5e1',
+              backgroundColor: '#334155',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
           >
             <RotateCcw size={14} /> Reset
           </button>
@@ -208,7 +243,20 @@ ${code}
           {onSave && (
             <button 
               onClick={() => onSave(code)}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-md text-slate-300 hover:bg-slate-700 hover:text-white transition-all border border-transparent hover:border-slate-600"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                padding: '0.375rem 0.75rem',
+                fontSize: '12px',
+                fontWeight: '600',
+                borderRadius: '6px',
+                color: '#cbd5e1',
+                backgroundColor: '#334155',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
             >
               <Save size={14} /> Save Draft
             </button>
@@ -217,7 +265,22 @@ ${code}
           <button 
             onClick={handleRun}
             disabled={pyodideLoading || isExecuting}
-            className="flex items-center gap-1.5 px-4.5 py-1.5 text-xs font-bold rounded-md bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-40 transition-all shadow-md shadow-emerald-900/20 active:scale-95 disabled:active:scale-100"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.375rem',
+              padding: '0.375rem 1.125rem',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              borderRadius: '6px',
+              backgroundColor: '#059669',
+              color: 'white',
+              border: 'none',
+              cursor: (pyodideLoading || isExecuting) ? 'not-allowed' : 'pointer',
+              opacity: (pyodideLoading || isExecuting) ? 0.5 : 1,
+              transition: 'all 0.2s',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            }}
           >
             <Play size={14} fill="currentColor" /> {isExecuting ? 'Running...' : 'Run Code'}
           </button>
@@ -225,7 +288,21 @@ ${code}
           {onSubmit && (
             <button 
               onClick={() => onSubmit(code, output)}
-              className="flex items-center gap-1 px-4 py-1.5 text-xs font-bold rounded-md bg-sky-600 text-white hover:bg-sky-500 transition-all shadow-md shadow-sky-900/20 ml-1 active:scale-95"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                padding: '0.375rem 1rem',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                borderRadius: '6px',
+                backgroundColor: '#0284c7',
+                color: 'white',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                marginLeft: '0.25rem'
+              }}
             >
               <CheckCircle size={14} /> Submit
             </button>
@@ -234,14 +311,50 @@ ${code}
       </div>
 
       {/* Editor & Console Split Body */}
-      <div className="flex flex-col md:flex-row relative flex-1" style={{ height }}>
+      <div 
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          flex: 1,
+          height: height,
+          position: 'relative',
+          borderTop: '1px solid #1e293b'
+        }}
+      >
         
         {/* Monaco Editor / Fallback Textarea Editor */}
-        <div className="w-full md:w-3/5 border-b md:border-b-0 md:border-r border-slate-700 bg-slate-950 flex flex-col relative min-h-[300px]">
-          
+        <div 
+          style={{
+            width: '60%',
+            height: '100%',
+            borderRight: '1px solid #334155',
+            backgroundColor: '#020617',
+            display: 'flex',
+            flexDirection: 'column',
+            position: 'relative'
+          }}
+        >
           {/* Fallback notification */}
           {useFallbackEditor && (
-            <div className="absolute top-2 right-2 z-20 flex items-center gap-1 text-[10px] bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5 rounded text-yellow-400 font-semibold select-none">
+            <div 
+              style={{
+                position: 'absolute',
+                top: '8px',
+                right: '8px',
+                zIndex: 20,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                fontSize: '10px',
+                backgroundColor: 'rgba(234, 179, 8, 0.1)',
+                border: '1px solid rgba(234, 179, 8, 0.2)',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                color: '#eab308',
+                fontWeight: '600',
+                userSelect: 'none'
+              }}
+            >
               <HelpCircle size={10} /> Local Fallback Active
             </div>
           )}
@@ -262,22 +375,40 @@ ${code}
                 scrollBeyondLastLine: false,
                 readOnly: false,
                 automaticLayout: true,
-                padding: { top: 12 },
-                scrollbar: {
-                  vertical: 'visible',
-                  horizontal: 'visible',
-                  useShadows: false,
-                  verticalScrollbarSize: 10,
-                  horizontalScrollbarSize: 10
-                }
+                padding: { top: 12 }
               }}
             />
           ) : (
             /* Styled Fallback Text Editor (Zero CDN dependencies!) */
-            <div className="flex-1 flex font-mono text-sm bg-[#1e1e1e] text-slate-100 overflow-hidden relative p-0 border-t border-slate-800">
+            <div 
+              style={{
+                flex: 1,
+                display: 'flex',
+                fontFamily: 'monospace',
+                fontSize: '14px',
+                backgroundColor: '#1e1e1e',
+                color: '#f8fafc',
+                overflow: 'hidden',
+                position: 'relative',
+                margin: 0,
+                borderTop: '1px solid #1e293b'
+              }}
+            >
               <div 
                 ref={lineNumbersRef}
-                className="w-12 bg-[#1e1e1e] text-slate-600 text-right pr-3 select-none border-r border-slate-800 pt-3 overflow-hidden text-xs leading-[21px]"
+                style={{
+                  width: '40px',
+                  backgroundColor: '#1e1e1e',
+                  color: '#64748b',
+                  textAlign: 'right',
+                  paddingRight: '12px',
+                  userSelect: 'none',
+                  borderRight: '1px solid #2d3748',
+                  paddingTop: '12px',
+                  overflow: 'hidden',
+                  fontSize: '12px',
+                  lineHeight: '21px'
+                }}
               >
                 {lineNumbers.map(n => (
                   <div key={n}>{n}</div>
@@ -288,11 +419,18 @@ ${code}
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 onScroll={handleScroll}
-                className="flex-1 bg-transparent text-slate-100 p-3 outline-none resize-none font-mono text-sm leading-[21px] overflow-y-auto"
                 style={{
-                  tabSize: 4,
-                  whiteSpace: 'pre',
-                  wordWrap: 'normal'
+                  flex: 1,
+                  backgroundColor: 'transparent',
+                  color: '#f8fafc',
+                  padding: '12px',
+                  outline: 'none',
+                  resize: 'none',
+                  border: 'none',
+                  fontFamily: 'monospace',
+                  fontSize: '14px',
+                  lineHeight: '21px',
+                  overflowY: 'auto'
                 }}
                 placeholder="# Write your python code here..."
               />
@@ -301,22 +439,55 @@ ${code}
         </div>
 
         {/* Console Panel */}
-        <div className="w-full md:w-2/5 bg-[#0b0f19] flex flex-col min-h-[180px]">
-          <div className="px-4 py-2 bg-slate-800/40 text-[10px] text-slate-400 font-mono tracking-wider border-b border-slate-800/80 font-bold flex items-center justify-between">
+        <div 
+          style={{
+            width: '40%',
+            backgroundColor: '#090d16',
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%'
+          }}
+        >
+          <div 
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: 'rgba(30, 41, 59, 0.4)',
+              fontSize: '10px',
+              color: '#94a3b8',
+              fontFamily: 'monospace',
+              letterSpacing: '0.05em',
+              borderBottom: '1px solid rgba(51, 65, 85, 0.8)',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}
+          >
             <span>OUTPUT CONSOLE</span>
             {isExecuting && (
-              <span className="text-emerald-400 text-[9px] animate-pulse">● Execution Active</span>
+              <span style={{ color: '#34d399', fontSize: '9px', animation: 'pulse 2s infinite' }}>● Execution Active</span>
             )}
           </div>
-          <div className="p-4 flex-1 overflow-y-auto font-mono text-xs text-slate-300 leading-relaxed whitespace-pre-wrap selection:bg-slate-700">
+          <div 
+            style={{
+              padding: '1rem',
+              flex: 1,
+              overflowY: 'auto',
+              fontFamily: 'monospace',
+              fontSize: '12px',
+              color: '#cbd5e1',
+              lineHeight: '1.6',
+              whiteSpace: 'pre-wrap'
+            }}
+          >
             {pyodideError ? (
-              <div className="text-red-400 p-2 border border-red-500/20 bg-red-500/5 rounded">
+              <div style={{ color: '#f87171', padding: '0.5rem', border: '1px solid rgba(248, 113, 113, 0.2)', backgroundColor: 'rgba(248, 113, 113, 0.05)', borderRadius: '4px' }}>
                 ⚠️ {pyodideError}
               </div>
             ) : output ? (
               <div dangerouslySetInnerHTML={{ __html: output }} />
             ) : (
-              <span className="text-slate-600 italic">Code output will appear here after clicking "Run Code"...</span>
+              <span style={{ color: '#475569', fontStyle: 'italic' }}>Code output will appear here after clicking "Run Code"...</span>
             )}
             <div ref={consoleEndRef} />
           </div>
