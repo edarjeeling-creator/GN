@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -9,6 +9,7 @@ const Login = () => {
   const [uid, setUid] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const hasAttempted = useRef(false);
   
   const { session, unifiedLogin, logout } = useAuth();
   const { siteBranding } = useTheme();
@@ -19,7 +20,8 @@ const Login = () => {
     const urlName = params.get('name');
     const urlUid = params.get('uid');
 
-    if (auto === 'true' && urlName && urlUid) {
+    if (auto === 'true' && urlName && urlUid && !hasAttempted.current) {
+      hasAttempted.current = true;
       setName(urlName);
       setUid(urlUid);
       
