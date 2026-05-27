@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
-import { Play, RotateCcw, Save, CheckCircle, Terminal, HelpCircle, Loader2 } from 'lucide-react';
+import { Play, RotateCcw, Save, CheckCircle, Terminal, Maximize2, Minimize2, Sparkles, Loader2 } from 'lucide-react';
 
 const PythonIDE = ({ initialCode = '', onSave, onSubmit, height = '500px' }) => {
   const [code, setCode] = useState(initialCode || 'print("Hello Python!")');
@@ -11,27 +11,15 @@ const PythonIDE = ({ initialCode = '', onSave, onSubmit, height = '500px' }) => 
   const [pyodideLoading, setPyodideLoading] = useState(true);
   const [pyodideError, setPyodideError] = useState(null);
   
-  // Monaco Load State & Timeout Guard
-  const [monacoLoaded, setMonacoLoaded] = useState(false);
-  const [useFallbackEditor, setUseFallbackEditor] = useState(false);
+  // Custom states
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [useMonaco, setUseMonaco] = useState(false); // Default to our highly responsive native editor to prevent loading hangs!
 
   const consoleEndRef = useRef(null);
   const textareaRef = useRef(null);
   const lineNumbersRef = useRef(null);
 
-  // 1. Monaco Editor Load Timeout (4 seconds fallback)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!monacoLoaded) {
-        console.warn("Monaco Editor CDN load timed out. Swapping to highly responsive native fallback editor.");
-        setUseFallbackEditor(true);
-      }
-    }, 4000);
-
-    return () => clearTimeout(timer);
-  }, [monacoLoaded]);
-
-  // 2. Pyodide Multi-CDN Resilient Bootstrapper
+  // 1. Pyodide Multi-CDN Resilient Bootstrapper
   useEffect(() => {
     const cdns = [
       {
@@ -78,7 +66,7 @@ const PythonIDE = ({ initialCode = '', onSave, onSubmit, height = '500px' }) => 
       }
 
       const activeCdn = cdns[index];
-      setPyodideStatus(`Loading core (Mirror ${index + 1}/${cdns.length})...`);
+      setPyodideStatus(`Loading engine (Mirror ${index + 1}/${cdns.length})...`);
 
       try {
         await loadScript(activeCdn.js);
@@ -117,19 +105,26 @@ const PythonIDE = ({ initialCode = '', onSave, onSubmit, height = '500px' }) => 
     tryLoadPyodide(0);
   }, []);
 
-  // 3. Keep scroll offset of output synced
-  useEffect(() => {
-    if (consoleEndRef.current) {
-      consoleEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [output]);
-
   // Sync scroll for the fallback text editor
   const handleScroll = (e) => {
     if (lineNumbersRef.current) {
       lineNumbersRef.current.scrollTop = e.target.scrollTop;
     }
   };
+
+  // Sync scroll for textarea in case of external layout shifts
+  useEffect(() => {
+    if (textareaRef.current && lineNumbersRef.current) {
+      lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  }, [code]);
+
+  // Keep scroll offset of output synced
+  useEffect(() => {
+    if (consoleEndRef.current) {
+      consoleEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [output]);
 
   const handleRun = async () => {
     if (!pyodide) return;
@@ -170,25 +165,37 @@ ${code}
     setOutput('');
   };
 
-  // Generate line numbers array for fallback editor
+  // Generate line numbers array
   const lineCount = code.split('\n').length;
   const lineNumbers = Array.from({ length: Math.max(1, lineCount) }, (_, i) => i + 1);
 
+  // Outer layout styles depending on full screen mode
+  const containerStyle = isFullScreen ? {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100vw',
+    height: '100vh',
+    zIndex: 99999,
+    display: 'flex',
+    flexDirection: 'column',
+    backgroundColor: '#0f172a',
+    fontFamily: 'system-ui, -apple-system, sans-serif'
+  } : {
+    display: 'flex',
+    flexDirection: 'column',
+    borderRadius: '12px',
+    overflow: 'hidden',
+    border: '1px solid #334155',
+    backgroundColor: '#0f172a',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)',
+    minHeight: '500px',
+    width: '100%',
+    fontFamily: 'system-ui, -apple-system, sans-serif'
+  };
+
   return (
-    <div 
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        borderRadius: '12px',
-        overflow: 'hidden',
-        border: '1px solid #334155',
-        backgroundColor: '#0f172a',
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)',
-        minHeight: '520px',
-        width: '100%',
-        fontFamily: 'system-ui, -apple-system, sans-serif'
-      }}
-    >
+    <div style={containerStyle}>
       
       {/* IDE Header Toolbar */}
       <div 
@@ -220,6 +227,28 @@ ${code}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {/* Toggle Monaco vs Native Text Editor */}
+          <button
+            onClick={() => setUseMonaco(!useMonaco)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              padding: '0.375rem 0.75rem',
+              fontSize: '11px',
+              fontWeight: '600',
+              borderRadius: '6px',
+              color: useMonaco ? '#38bdf8' : '#94a3b8',
+              backgroundColor: useMonaco ? 'rgba(56, 189, 248, 0.1)' : '#1e293b',
+              border: useMonaco ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid #334155',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+            title="Toggle between standard editor and simple/responsive text editor"
+          >
+            <Sparkles size={12} /> {useMonaco ? "Standard Mode" : "Simple Mode (Instant)"}
+          </button>
+
           <button 
             onClick={handleReset}
             style={{
@@ -227,7 +256,7 @@ ${code}
               alignItems: 'center',
               gap: '0.25rem',
               padding: '0.375rem 0.75rem',
-              fontSize: '12px',
+              fontSize: '11px',
               fontWeight: '600',
               borderRadius: '6px',
               color: '#cbd5e1',
@@ -237,7 +266,7 @@ ${code}
               transition: 'all 0.2s'
             }}
           >
-            <RotateCcw size={14} /> Reset
+            <RotateCcw size={13} /> Reset
           </button>
           
           {onSave && (
@@ -248,7 +277,7 @@ ${code}
                 alignItems: 'center',
                 gap: '0.25rem',
                 padding: '0.375rem 0.75rem',
-                fontSize: '12px',
+                fontSize: '11px',
                 fontWeight: '600',
                 borderRadius: '6px',
                 color: '#cbd5e1',
@@ -258,7 +287,7 @@ ${code}
                 transition: 'all 0.2s'
               }}
             >
-              <Save size={14} /> Save Draft
+              <Save size={13} /> Save Draft
             </button>
           )}
 
@@ -270,7 +299,7 @@ ${code}
               alignItems: 'center',
               gap: '0.375rem',
               padding: '0.375rem 1.125rem',
-              fontSize: '12px',
+              fontSize: '11px',
               fontWeight: 'bold',
               borderRadius: '6px',
               backgroundColor: '#059669',
@@ -282,7 +311,7 @@ ${code}
               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
             }}
           >
-            <Play size={14} fill="currentColor" /> {isExecuting ? 'Running...' : 'Run Code'}
+            <Play size={13} fill="currentColor" /> {isExecuting ? 'Running...' : 'Run Code'}
           </button>
           
           {onSubmit && (
@@ -293,7 +322,7 @@ ${code}
                 alignItems: 'center',
                 gap: '0.25rem',
                 padding: '0.375rem 1rem',
-                fontSize: '12px',
+                fontSize: '11px',
                 fontWeight: 'bold',
                 borderRadius: '6px',
                 backgroundColor: '#0284c7',
@@ -304,9 +333,33 @@ ${code}
                 marginLeft: '0.25rem'
               }}
             >
-              <CheckCircle size={14} /> Submit
+              <CheckCircle size={13} /> Submit
             </button>
           )}
+
+          {/* Full Screen Mode Toggle Button */}
+          <button
+            onClick={() => setIsFullScreen(!isFullScreen)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              padding: '0.375rem 0.75rem',
+              fontSize: '11px',
+              fontWeight: '600',
+              borderRadius: '6px',
+              color: '#38bdf8',
+              backgroundColor: 'rgba(56, 189, 248, 0.1)',
+              border: '1px solid rgba(56, 189, 248, 0.2)',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              marginLeft: '0.25rem'
+            }}
+            title={isFullScreen ? "Exit Full Screen Mode" : "Open Full Screen Workspace"}
+          >
+            {isFullScreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+            {isFullScreen ? "Exit Full Screen" : "Full Screen"}
+          </button>
         </div>
       </div>
 
@@ -316,57 +369,31 @@ ${code}
           display: 'flex',
           flexDirection: 'row',
           flex: 1,
-          height: height,
+          height: isFullScreen ? 'calc(100vh - 50px)' : height,
           position: 'relative',
           borderTop: '1px solid #1e293b'
         }}
       >
         
-        {/* Monaco Editor / Fallback Textarea Editor */}
+        {/* Editor Area */}
         <div 
           style={{
             width: '60%',
             height: '100%',
             borderRight: '1px solid #334155',
-            backgroundColor: '#020617',
+            backgroundColor: '#1e1e1e',
             display: 'flex',
             flexDirection: 'column',
             position: 'relative'
           }}
         >
-          {/* Fallback notification */}
-          {useFallbackEditor && (
-            <div 
-              style={{
-                position: 'absolute',
-                top: '8px',
-                right: '8px',
-                zIndex: 20,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-                fontSize: '10px',
-                backgroundColor: 'rgba(234, 179, 8, 0.1)',
-                border: '1px solid rgba(234, 179, 8, 0.2)',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                color: '#eab308',
-                fontWeight: '600',
-                userSelect: 'none'
-              }}
-            >
-              <HelpCircle size={10} /> Local Fallback Active
-            </div>
-          )}
-
-          {!useFallbackEditor ? (
+          {useMonaco ? (
             <Editor
               height="100%"
               defaultLanguage="python"
               theme="vs-dark"
               value={code}
               onChange={(val) => setCode(val || '')}
-              onMount={() => setMonacoLoaded(true)}
               options={{
                 minimap: { enabled: false },
                 fontSize: 14,
@@ -379,7 +406,7 @@ ${code}
               }}
             />
           ) : (
-            /* Styled Fallback Text Editor (Zero CDN dependencies!) */
+            /* Highly Responsive, Styled Fallback Text Editor (Zero CDN dependencies!) */
             <div 
               style={{
                 flex: 1,
@@ -390,15 +417,14 @@ ${code}
                 color: '#f8fafc',
                 overflow: 'hidden',
                 position: 'relative',
-                margin: 0,
-                borderTop: '1px solid #1e293b'
+                margin: 0
               }}
             >
               <div 
                 ref={lineNumbersRef}
                 style={{
-                  width: '40px',
-                  backgroundColor: '#1e1e1e',
+                  width: '44px',
+                  backgroundColor: '#181818',
                   color: '#64748b',
                   textAlign: 'right',
                   paddingRight: '12px',
@@ -407,11 +433,11 @@ ${code}
                   paddingTop: '12px',
                   overflow: 'hidden',
                   fontSize: '12px',
-                  lineHeight: '21px'
+                  lineHeight: '22px'
                 }}
               >
                 {lineNumbers.map(n => (
-                  <div key={n}>{n}</div>
+                  <div key={n} style={{ height: '22px' }}>{n}</div>
                 ))}
               </div>
               <textarea
@@ -423,16 +449,16 @@ ${code}
                   flex: 1,
                   backgroundColor: 'transparent',
                   color: '#f8fafc',
-                  padding: '12px',
+                  padding: '12px 16px',
                   outline: 'none',
                   resize: 'none',
                   border: 'none',
                   fontFamily: 'monospace',
                   fontSize: '14px',
-                  lineHeight: '21px',
+                  lineHeight: '22px',
                   overflowY: 'auto'
                 }}
-                placeholder="# Write your python code here..."
+                placeholder="# Write your python code here... (Type or Paste instantly!)"
               />
             </div>
           )}
@@ -465,7 +491,7 @@ ${code}
           >
             <span>OUTPUT CONSOLE</span>
             {isExecuting && (
-              <span style={{ color: '#34d399', fontSize: '9px', animation: 'pulse 2s infinite' }}>● Execution Active</span>
+              <span style={{ color: '#34d399', fontSize: '9px' }}>● Execution Active</span>
             )}
           </div>
           <div 
