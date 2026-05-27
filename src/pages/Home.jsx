@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, MapPin, Users, Phone, ArrowRight, FileText, CheckCircle, ChevronRight, Award, ImageIcon, Trophy, ChevronLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import SchoolPopup from '../components/SchoolPopup';
 import '../public.css';
 
 const Home = () => {
@@ -379,6 +380,7 @@ const Home = () => {
         </div>
 
       </div>
+      <SchoolPopup />
     </div>
   );
 };
