@@ -20,8 +20,11 @@ const Login = () => {
     const urlName = params.get('name');
     const urlUid = params.get('uid');
 
-    if (auto === 'true' && urlName && urlUid && !hasAttempted.current) {
-      hasAttempted.current = true;
+    const sessionKey = `attempted_auto_${urlName}_${urlUid}`;
+    const alreadyAttempted = sessionStorage.getItem(sessionKey);
+
+    if (auto === 'true' && urlName && urlUid && !alreadyAttempted) {
+      sessionStorage.setItem(sessionKey, 'true');
       setName(urlName);
       setUid(urlUid);
       
