@@ -135,6 +135,11 @@ export default function WebsiteCMS() {
   const [divisionsTitle, setDivisionsTitle] = useState("OUR DIVISIONS");
   const [pillarsTitle, setPillarsTitle] = useState("OUR PILLARS");
 
+  // Campus Facilities State
+  const [facilities, setFacilities] = useState([]);
+  const [savingFacilities, setSavingFacilities] = useState(false);
+  const [facilityFiles, setFacilityFiles] = useState({});
+
   useEffect(() => {
     fetchFaculty();
     fetchGallery();
@@ -148,7 +153,63 @@ export default function WebsiteCMS() {
     fetchMandatoryDisclosures();
     fetchPopupConfig();
     fetchDivisions();
+    fetchFacilities();
   }, []);
+
+  const fetchFacilities = async () => {
+    const { data } = await supabase.from('site_settings').select('value').eq('key', 'campus_facilities').single();
+    if (data && data.value) {
+      setFacilities(JSON.parse(data.value));
+    } else {
+      setFacilities([
+        { id: '1', title: 'Library', imageUrl: '/facility_library.png' },
+        { id: '2', title: 'Science Labs', imageUrl: '/facility_science.png' },
+        { id: '3', title: 'Sports Field', imageUrl: '/facility_sports.png' }
+      ]);
+    }
+  };
+
+  const saveFacilities = async (e) => {
+    if (e) e.preventDefault();
+    setSavingFacilities(true);
+    try {
+      const updated = [...facilities];
+      for (let i = 0; i < updated.length; i++) {
+        const file = facilityFiles[updated[i].id];
+        if (file) {
+          updated[i].imageUrl = await uploadFileToSupabase(file, 'facilities');
+        }
+      }
+      const { error } = await supabase.from('site_settings').upsert({ key: 'campus_facilities', value: JSON.stringify(updated) });
+      if (error) throw error;
+      setFacilities(updated);
+      setFacilityFiles({});
+      alert("Campus Facilities saved successfully!");
+    } catch (err) {
+      alert("Failed to save facilities: " + err.message);
+    } finally {
+      setSavingFacilities(false);
+    }
+  };
+
+  const handleAddFacility = () => {
+    setFacilities([
+      ...facilities,
+      {
+        id: Date.now().toString(),
+        title: 'New Facility',
+        imageUrl: '/facility_library.png'
+      }
+    ]);
+  };
+
+  const handleDeleteFacility = (id) => {
+    if (!window.confirm("Are you sure you want to delete this facility card?")) return;
+    setFacilities(facilities.filter(f => f.id !== id));
+    const nextFiles = { ...facilityFiles };
+    delete nextFiles[id];
+    setFacilityFiles(nextFiles);
+  };
 
   const fetchPopupConfig = async () => {
     const { data } = await supabase.from('site_settings').select('value').eq('key', 'active_homepage_popup').single();
@@ -991,6 +1052,96 @@ export default function WebsiteCMS() {
           <div style={{ marginTop: '0.5rem' }}>
             <button type="submit" className="btn-hero-primary" style={{ background: '#ea580c', color: 'white', border: 'none', padding: '0.75rem', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }} disabled={savingDivisions}>
               {savingDivisions ? <><Loader2 size={16} className="animate-spin inline mr-2" /> Saving Divisions...</> : 'Save Divisions & Message Desks'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Campus Facilities Manager */}
+      <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+              <ImageIcon size={20} color="#166534" /> 🏫 Campus Facilities Manager
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0.25rem 0 0' }}>Manage the list of campus facilities cards, customize titles, upload high-quality pictures, add new facilities, or remove them.</p>
+          </div>
+          <div>
+            <button 
+              type="button" 
+              onClick={handleAddFacility}
+              className="btn-hero-primary" 
+              style={{ background: '#166534', border: 'none', color: 'white', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.85rem', padding: '0.5rem 1rem' }}
+            >
+              <Plus size={16} /> Add New Facility
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={saveFacilities} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+            {facilities.map((fac, index) => (
+              <div key={fac.id} style={{ border: '1px solid #e2e8f0', padding: '1.5rem', borderRadius: '0.75rem', background: '#f8fafc', position: 'relative' }}>
+                <button 
+                  type="button"
+                  onClick={() => handleDeleteFacility(fac.id)}
+                  style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                >
+                  <Trash2 size={16} />
+                </button>
+
+                <h4 style={{ fontWeight: '800', marginBottom: '1rem', color: '#475569', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Facility {index + 1}</h4>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.2' }}>Facility Title</label>
+                    <input 
+                      type="text" 
+                      className="input-field w-full" 
+                      value={fac.title} 
+                      onChange={e => {
+                        const next = [...facilities];
+                        next[index].title = e.target.value;
+                        setFacilities(next);
+                      }}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.2rem' }}>Current Image Preview</label>
+                    {fac.imageUrl ? (
+                      <img src={fac.imageUrl} alt={fac.title} style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '0.5rem', marginBottom: '0.5rem', border: '1px solid #cbd5e1' }} />
+                    ) : (
+                      <div style={{ width: '100%', height: '140px', background: '#e2e8f0', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
+                        <span style={{ fontSize: '0.8rem', color: '#64748b' }}>No image loaded</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.2rem' }}>Upload New Image</label>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={e => setFacilityFiles({...facilityFiles, [fac.id]: e.target.files[0]})}
+                      className="input-field w-full"
+                      style={{ padding: '0.42rem', background: '#f8fafc' }}
+                    />
+                    {facilityFiles[fac.id] && (
+                      <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: '600', display: 'block', marginTop: '0.25rem' }}>
+                        ✓ New image queued for upload
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: '0.5rem' }}>
+            <button type="submit" className="btn-hero-primary" style={{ background: '#166534', color: 'white', border: 'none', padding: '0.75rem', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }} disabled={savingFacilities}>
+              {savingFacilities ? <><Loader2 size={16} className="animate-spin inline mr-2" /> Saving Facilities...</> : 'Save Campus Facilities'}
             </button>
           </div>
         </form>

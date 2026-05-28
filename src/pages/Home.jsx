@@ -37,6 +37,7 @@ const Home = () => {
   const [selectedDeskMessage, setSelectedDeskMessage] = useState(null);
   const [divisionsTitle, setDivisionsTitle] = useState("OUR DIVISIONS");
   const [pillarsTitle, setPillarsTitle] = useState("OUR PILLARS");
+  const [facilities, setFacilities] = useState([]);
 
   useEffect(() => {
     fetchNews();
@@ -44,7 +45,30 @@ const Home = () => {
     fetchHeroStyling();
     fetchAcademicExcellence();
     fetchDivisions();
+    fetchFacilities();
   }, []);
+
+  const fetchFacilities = async () => {
+    try {
+      const { data, error } = await supabase.from('site_settings').select('value').eq('key', 'campus_facilities').single();
+      if (!error && data && data.value) {
+        setFacilities(JSON.parse(data.value));
+      } else {
+        setFacilities([
+          { id: '1', title: 'Library', imageUrl: '/facility_library.png' },
+          { id: '2', title: 'Science Labs', imageUrl: '/facility_science.png' },
+          { id: '3', title: 'Sports Field', imageUrl: '/facility_sports.png' }
+        ]);
+      }
+    } catch (e) {
+      console.log('Facilities fetch error:', e);
+      setFacilities([
+        { id: '1', title: 'Library', imageUrl: '/facility_library.png' },
+        { id: '2', title: 'Science Labs', imageUrl: '/facility_science.png' },
+        { id: '3', title: 'Sports Field', imageUrl: '/facility_sports.png' }
+      ]);
+    }
+  };
 
   const fetchHeroStyling = async () => {
     try {
@@ -356,23 +380,19 @@ const Home = () => {
           )}
 
           {/* Campus Facilities */}
-          <div>
-            <h2 className="portal-section-title">CAMPUS FACILITIES</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
-              <div className="facility-card">
-                <img src="/facility_library.png" alt="Library" />
-                <div className="facility-card-title">Library</div>
-              </div>
-              <div className="facility-card">
-                <img src="/facility_science.png" alt="Science Labs" />
-                <div className="facility-card-title">Science Labs</div>
-              </div>
-              <div className="facility-card">
-                <img src="/facility_sports.png" alt="Sports Field" />
-                <div className="facility-card-title">Sports Field</div>
+          {facilities.length > 0 && (
+            <div>
+              <h2 className="portal-section-title">CAMPUS FACILITIES</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                {facilities.map((fac) => (
+                  <div key={fac.id} className="facility-card">
+                    <img src={fac.imageUrl} alt={fac.title} />
+                    <div className="facility-card-title">{fac.title}</div>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
+          )}
 
           {/* Admissions Process */}
           <div style={{ background: '#fdfbf7', padding: '2rem', borderRadius: '1rem', border: '1px solid #e5e7eb' }}>
