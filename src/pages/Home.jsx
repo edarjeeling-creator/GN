@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, MapPin, Users, Phone, ArrowRight, FileText, CheckCircle, ChevronRight, Award, ImageIcon, Trophy, ChevronLeft } from 'lucide-react';
+import { BookOpen, MapPin, Users, Phone, ArrowRight, FileText, CheckCircle, ChevronRight, Award, ImageIcon, Trophy, ChevronLeft, Shield, Megaphone, Bell } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import SchoolPopup from '../components/SchoolPopup';
 import '../public.css';
@@ -28,12 +28,20 @@ const Home = () => {
     { id: '2', title: 'State Toppers', imageUrl: '', bgColor: '#dcfce7' },
     { id: '3', title: 'Top Student Achievements', imageUrl: '', bgColor: '#f1f5f9' }
   ]);
+  const [divisions, setDivisions] = useState([
+    { id: '1', title: 'Kindergarten', description: 'Sensory and foundational learning.', icon: 'Users', color: '#d97706', bgColor: '#fef3c7' },
+    { id: '2', title: 'Primary', description: 'Building strong core academic skills.', icon: 'BookOpen', color: '#ea580c', bgColor: '#ffedd5' },
+    { id: '3', title: 'Middle', description: 'Exploration and critical thinking.', icon: 'Users', color: '#16a34a', bgColor: '#dcfce7' },
+    { id: '4', title: 'Senior School', description: 'Career readiness and leadership.', icon: 'Award', color: '#2563eb', bgColor: '#dbeafe' }
+  ]);
+  const [selectedDeskMessage, setSelectedDeskMessage] = useState(null);
 
   useEffect(() => {
     fetchNews();
     fetchHeroSlides();
     fetchHeroStyling();
     fetchAcademicExcellence();
+    fetchDivisions();
   }, []);
 
   const fetchHeroStyling = async () => {
@@ -44,6 +52,17 @@ const Home = () => {
       }
     } catch (e) {
       console.log('Hero styling fetch error:', e);
+    }
+  };
+
+  const fetchDivisions = async () => {
+    try {
+      const { data, error } = await supabase.from('site_settings').select('value').eq('key', 'our_divisions').single();
+      if (!error && data && data.value) {
+        setDivisions(JSON.parse(data.value));
+      }
+    } catch (e) {
+      console.log('Divisions fetch error:', e);
     }
   };
 
@@ -209,34 +228,60 @@ const Home = () => {
           <div style={{ padding: '0 1rem' }}>
             <h2 className="portal-section-title">OUR DIVISIONS</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-              <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
-                  <Users color="#d97706" size={32} />
-                </div>
-                <h3 style={{ fontWeight: '800', marginBottom: '0.5rem' }}>Kindergarten</h3>
-                <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Sensory and foundational learning.</p>
-              </div>
-              <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#ffedd5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
-                  <BookOpen color="#ea580c" size={32} />
-                </div>
-                <h3 style={{ fontWeight: '800', marginBottom: '0.5rem' }}>Primary</h3>
-                <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Building strong core academic skills.</p>
-              </div>
-              <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
-                  <Users color="#16a34a" size={32} />
-                </div>
-                <h3 style={{ fontWeight: '800', marginBottom: '0.5rem' }}>Middle</h3>
-                <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Exploration and critical thinking.</p>
-              </div>
-              <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
-                  <Award color="#2563eb" size={32} />
-                </div>
-                <h3 style={{ fontWeight: '800', marginBottom: '0.5rem' }}>Senior School</h3>
-                <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Career readiness and leadership.</p>
-              </div>
+              {divisions.map((card) => {
+                const iconMap = {
+                  Users: <Users size={32} />,
+                  BookOpen: <BookOpen size={32} />,
+                  Award: <Award size={32} />,
+                  FileText: <FileText size={32} />,
+                  Phone: <Phone size={32} />,
+                  CheckCircle: <CheckCircle size={32} />,
+                  Trophy: <Trophy size={32} />,
+                  ImageIcon: <ImageIcon size={32} />,
+                  Shield: <Shield size={32} />,
+                  Megaphone: <Megaphone size={32} />,
+                  Bell: <Bell size={32} />
+                };
+                
+                const iconElement = iconMap[card.icon] || <Users size={32} />;
+                const coloredIcon = React.cloneElement(iconElement, { color: card.color });
+                
+                const cardContent = (
+                  <div key={card.id} style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', height: '100%', minHeight: '220px' }}>
+                    <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: card.bgColor || '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                      {coloredIcon}
+                    </div>
+                    <h3 style={{ fontWeight: '800', marginBottom: '0.5rem', fontSize: '1.05rem', color: 'var(--text-primary)' }}>{card.title}</h3>
+                    <p style={{ fontSize: '0.8rem', color: '#64748b', flexGrow: 1, margin: 0 }}>{card.description}</p>
+                    
+                    {card.message && (
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSelectedDeskMessage(card);
+                        }}
+                        style={{ 
+                          marginTop: '1rem', 
+                          padding: '0.5rem 1rem', 
+                          fontSize: '0.75rem', 
+                          fontWeight: 'bold', 
+                          background: card.color || '#3b82f6', 
+                          color: 'white', 
+                          border: 'none', 
+                          borderRadius: '0.5rem', 
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}
+                      >
+                        Read Desk Message
+                      </button>
+                    )}
+                  </div>
+                );
+
+                return cardContent;
+              })}
             </div>
           </div>
 
@@ -380,6 +425,53 @@ const Home = () => {
         </div>
 
       </div>
+      {selectedDeskMessage && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999999, padding: '1.5rem' }} onClick={() => setSelectedDeskMessage(null)}>
+          <div style={{ backgroundColor: 'white', border: `2px solid ${selectedDeskMessage.color}`, borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)', width: '100%', maxWidth: '600px', padding: '2rem', boxSizing: 'border-box', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+            <button 
+              onClick={() => setSelectedDeskMessage(null)}
+              style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', background: 'rgba(15,23,42,0.05)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' }}
+            >
+              &times;
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: selectedDeskMessage.bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {(() => {
+                  const iconMap = {
+                    Users: <Users size={28} />,
+                    BookOpen: <BookOpen size={28} />,
+                    Award: <Award size={28} />,
+                    FileText: <FileText size={28} />,
+                    Phone: <Phone size={28} />,
+                    CheckCircle: <CheckCircle size={28} />,
+                    Trophy: <Trophy size={28} />,
+                    ImageIcon: <ImageIcon size={28} />,
+                    Shield: <Shield size={28} />,
+                    Megaphone: <Megaphone size={28} />,
+                    Bell: <Bell size={28} />
+                  };
+                  return React.cloneElement(iconMap[selectedDeskMessage.icon] || <Users size={28} />, { color: selectedDeskMessage.color });
+                })()}
+              </div>
+              <div>
+                <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>{selectedDeskMessage.title}</h2>
+                <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Campus Message Desk</span>
+              </div>
+            </div>
+            <div style={{ color: '#334155', fontSize: '0.95rem', lineHeight: '1.6', overflowY: 'auto', maxHeight: '350px', paddingRight: '0.5rem', whiteSpace: 'pre-wrap' }}>
+              {selectedDeskMessage.message}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+              <button 
+                onClick={() => setSelectedDeskMessage(null)}
+                style={{ padding: '0.625rem 1.5rem', fontSize: '0.875rem', fontWeight: 'bold', background: selectedDeskMessage.color, color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
+              >
+                Close Message
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <SchoolPopup />
     </div>
   );

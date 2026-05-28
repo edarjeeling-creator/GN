@@ -129,6 +129,10 @@ export default function WebsiteCMS() {
   const [savingPopupConfig, setSavingPopupConfig] = useState(false);
   const [uploadingPopupVideo, setUploadingPopupVideo] = useState(false);
 
+  // Our Divisions & Campus Desks State
+  const [divisions, setDivisions] = useState([]);
+  const [savingDivisions, setSavingDivisions] = useState(false);
+
   useEffect(() => {
     fetchFaculty();
     fetchGallery();
@@ -141,6 +145,7 @@ export default function WebsiteCMS() {
     fetchAcademicExcellence();
     fetchMandatoryDisclosures();
     fetchPopupConfig();
+    fetchDivisions();
   }, []);
 
   const fetchPopupConfig = async () => {
@@ -149,6 +154,36 @@ export default function WebsiteCMS() {
       setPopupConfig(JSON.parse(data.value));
     }
   };
+
+  const fetchDivisions = async () => {
+    const { data } = await supabase.from('site_settings').select('value').eq('key', 'our_divisions').single();
+    if (data && data.value) {
+      setDivisions(JSON.parse(data.value));
+    } else {
+      setDivisions([
+        { id: '1', title: 'Kindergarten', description: 'Sensory and foundational learning.', icon: 'Users', color: '#d97706', bgColor: '#fef3c7', message: '' },
+        { id: '2', title: 'Primary', description: 'Building strong core academic skills.', icon: 'BookOpen', color: '#ea580c', bgColor: '#ffedd5', message: '' },
+        { id: '3', title: 'Middle', description: 'Exploration and critical thinking.', icon: 'Users', color: '#16a34a', bgColor: '#dcfce7', message: '' },
+        { id: '4', title: 'Senior School', description: 'Career readiness and leadership.', icon: 'Award', color: '#2563eb', bgColor: '#dbeafe', message: '' }
+      ]);
+    }
+  };
+
+  const saveDivisions = async (e) => {
+    if (e) e.preventDefault();
+    setSavingDivisions(true);
+    try {
+      const { error } = await supabase.from('site_settings').upsert({ key: 'our_divisions', value: JSON.stringify(divisions) });
+      if (error) throw error;
+      alert("Our Divisions and Message Desks saved successfully!");
+    } catch (err) {
+      alert("Failed to save divisions: " + err.message);
+    } finally {
+      setSavingDivisions(false);
+    }
+  };
+
+
 
   const savePopupConfig = async (e) => {
     e.preventDefault();
@@ -746,6 +781,155 @@ export default function WebsiteCMS() {
           <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem' }}>
             <button type="submit" className="btn-hero-primary" style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.75rem', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }} disabled={savingPopupConfig}>
               {savingPopupConfig ? <><Loader2 size={16} className="animate-spin inline mr-2" /> Saving Notice...</> : 'Save Campaign Settings'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Our Divisions & Message Desks Manager */}
+      <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+              <Users size={20} color="#ea580c" /> 🏫 Our Divisions & Message Desks Manager
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0.25rem 0 0' }}>Add, edit, or remove home divisions and direct desk message cards (Director, Principal, Headmaster Desks).</p>
+          </div>
+          <div>
+            <button 
+              type="button" 
+              onClick={() => setDivisions([...divisions, { id: Date.now().toString(), title: 'New Division / Desk', description: 'Description of this card...', icon: 'Users', color: '#3b82f6', bgColor: '#eff6ff', message: '' }])}
+              className="btn-hero-primary" 
+              style={{ background: '#ea580c', border: 'none', color: 'white', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.85rem', padding: '0.5rem 1rem' }}
+            >
+              <Plus size={16} /> Add New Desk / Card
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={saveDivisions} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+            {divisions.map((card, index) => (
+              <div key={card.id} style={{ border: '1px solid #e2e8f0', padding: '1.5rem', borderRadius: '0.75rem', background: '#f8fafc', position: 'relative' }}>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    if(window.confirm("Remove this card?")) {
+                      setDivisions(divisions.filter(d => d.id !== card.id));
+                    }
+                  }}
+                  style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                >
+                  <Trash2 size={16} />
+                </button>
+
+                <h4 style={{ fontWeight: '800', marginBottom: '1rem', color: '#475569', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Card {index + 1}</h4>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.2rem' }}>Card Title</label>
+                    <input 
+                      type="text" 
+                      className="input-field w-full" 
+                      value={card.title} 
+                      onChange={e => {
+                        const next = [...divisions];
+                        next[index].title = e.target.value;
+                        setDivisions(next);
+                      }}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.2rem' }}>Card Short Description</label>
+                    <input 
+                      type="text" 
+                      className="input-field w-full" 
+                      value={card.description} 
+                      onChange={e => {
+                        const next = [...divisions];
+                        next[index].description = e.target.value;
+                        setDivisions(next);
+                      }}
+                      required
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.2rem' }}>Icon</label>
+                      <select 
+                        className="input-field w-full" 
+                        value={card.icon} 
+                        onChange={e => {
+                          const next = [...divisions];
+                          next[index].icon = e.target.value;
+                          setDivisions(next);
+                        }}
+                        style={{ padding: '0.4rem' }}
+                      >
+                        <option value="Users">Users</option>
+                        <option value="BookOpen">BookOpen</option>
+                        <option value="Award">Award</option>
+                        <option value="Shield">Shield</option>
+                        <option value="Megaphone">Megaphone</option>
+                        <option value="Bell">Bell</option>
+                        <option value="Trophy">Trophy</option>
+                        <option value="FileText">FileText</option>
+                      </select>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.25rem', flexDirection: 'column' }}>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b' }}>Colors (Text / Bg)</label>
+                      <div style={{ display: 'flex', gap: '0.25rem' }}>
+                        <input 
+                          type="color" 
+                          value={card.color || '#3b82f6'} 
+                          onChange={e => {
+                            const next = [...divisions];
+                            next[index].color = e.target.value;
+                            setDivisions(next);
+                          }}
+                          style={{ width: '100%', height: '34px', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', padding: 0 }}
+                        />
+                        <input 
+                          type="color" 
+                          value={card.bgColor || '#eff6ff'} 
+                          onChange={e => {
+                            const next = [...divisions];
+                            next[index].bgColor = e.target.value;
+                            setDivisions(next);
+                          }}
+                          style={{ width: '100%', height: '34px', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', padding: 0 }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.2rem' }}>Direct Desk Message (Optional)</label>
+                    <textarea 
+                      className="input-field w-full" 
+                      rows="3"
+                      value={card.message || ''} 
+                      onChange={e => {
+                        const next = [...divisions];
+                        next[index].message = e.target.value;
+                        setDivisions(next);
+                      }}
+                      placeholder="Write the message from Director, Principal, or Headmaster here. Leaves empty to disable the 'Read Desk Message' button."
+                      style={{ padding: '0.5rem', fontSize: '0.8rem' }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: '0.5rem' }}>
+            <button type="submit" className="btn-hero-primary" style={{ background: '#ea580c', color: 'white', border: 'none', padding: '0.75rem', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }} disabled={savingDivisions}>
+              {savingDivisions ? <><Loader2 size={16} className="animate-spin inline mr-2" /> Saving Divisions...</> : 'Save Divisions & Message Desks'}
             </button>
           </div>
         </form>
