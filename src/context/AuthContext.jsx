@@ -63,6 +63,14 @@ export const AuthProvider = ({ children }) => {
 
   const unifiedLogin = async (name, uid) => {
     try {
+      const trimmedName = name.trim();
+      
+      // If name is an email, attempt direct Supabase Auth login (common for admins & teachers)
+      if (trimmedName.includes('@')) {
+        localStorage.removeItem('studentProfile');
+        return await supabase.auth.signInWithPassword({ email: trimmedName, password: uid });
+      }
+
       const rolesToTry = ['student', 'teacher', 'admin'];
       let email = null;
       let resolvedRole = null;

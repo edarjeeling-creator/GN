@@ -103,7 +103,7 @@ const Login = () => {
             >
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#374151' }}>
-                  Full Name
+                  Full Name or Email Address
                 </label>
                 <input 
                   type="text" 
@@ -111,13 +111,13 @@ const Login = () => {
                   style={{ background: '#f9fafb', border: '1px solid #e5e7eb', padding: '0.875rem' }}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. John Doe"
+                  placeholder="e.g. John Doe or email@example.com"
                   required 
                 />
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#374151' }}>
-                  UID (Password)
+                  UID or Password
                 </label>
                 <input 
                   type="password" 
@@ -125,7 +125,7 @@ const Login = () => {
                   style={{ background: '#f9fafb', border: '1px solid #e5e7eb', padding: '0.875rem' }}
                   value={uid}
                   onChange={(e) => setUid(e.target.value)}
-                  placeholder="Enter your secure UID"
+                  placeholder="Enter UID or Password"
                   required 
                 />
               </div>
