@@ -132,6 +132,8 @@ export default function WebsiteCMS() {
   // Our Divisions & Campus Desks State
   const [divisions, setDivisions] = useState([]);
   const [savingDivisions, setSavingDivisions] = useState(false);
+  const [divisionsTitle, setDivisionsTitle] = useState("OUR DIVISIONS");
+  const [pillarsTitle, setPillarsTitle] = useState("OUR PILLARS");
 
   useEffect(() => {
     fetchFaculty();
@@ -158,14 +160,25 @@ export default function WebsiteCMS() {
   const fetchDivisions = async () => {
     const { data } = await supabase.from('site_settings').select('value').eq('key', 'our_divisions').single();
     if (data && data.value) {
-      setDivisions(JSON.parse(data.value));
+      const parsed = JSON.parse(data.value);
+      if (parsed.cards) {
+        setDivisions(parsed.cards);
+        setDivisionsTitle(parsed.divisionsTitle || "OUR DIVISIONS");
+        setPillarsTitle(parsed.pillarsTitle || "OUR PILLARS");
+      } else {
+        setDivisions(parsed);
+        setDivisionsTitle("OUR DIVISIONS");
+        setPillarsTitle("OUR PILLARS");
+      }
     } else {
       setDivisions([
-        { id: '1', title: 'Kindergarten', description: 'Sensory and foundational learning.', icon: 'Users', color: '#d97706', bgColor: '#fef3c7', message: '' },
-        { id: '2', title: 'Primary', description: 'Building strong core academic skills.', icon: 'BookOpen', color: '#ea580c', bgColor: '#ffedd5', message: '' },
-        { id: '3', title: 'Middle', description: 'Exploration and critical thinking.', icon: 'Users', color: '#16a34a', bgColor: '#dcfce7', message: '' },
-        { id: '4', title: 'Senior School', description: 'Career readiness and leadership.', icon: 'Award', color: '#2563eb', bgColor: '#dbeafe', message: '' }
+        { id: '1', title: 'Kindergarten', description: 'Sensory and foundational learning.', icon: 'Users', color: '#d97706', bgColor: '#fef3c7', message: '', isPillar: false },
+        { id: '2', title: 'Primary', description: 'Building strong core academic skills.', icon: 'BookOpen', color: '#ea580c', bgColor: '#ffedd5', message: '', isPillar: false },
+        { id: '3', title: 'Middle', description: 'Exploration and critical thinking.', icon: 'Users', color: '#16a34a', bgColor: '#dcfce7', message: '', isPillar: false },
+        { id: '4', title: 'Senior School', description: 'Career readiness and leadership.', icon: 'Award', color: '#2563eb', bgColor: '#dbeafe', message: '', isPillar: false }
       ]);
+      setDivisionsTitle("OUR DIVISIONS");
+      setPillarsTitle("OUR PILLARS");
     }
   };
 
@@ -173,7 +186,12 @@ export default function WebsiteCMS() {
     if (e) e.preventDefault();
     setSavingDivisions(true);
     try {
-      const { error } = await supabase.from('site_settings').upsert({ key: 'our_divisions', value: JSON.stringify(divisions) });
+      const payload = {
+        divisionsTitle,
+        pillarsTitle,
+        cards: divisions
+      };
+      const { error } = await supabase.from('site_settings').upsert({ key: 'our_divisions', value: JSON.stringify(payload) });
       if (error) throw error;
       alert("Our Divisions and Message Desks saved successfully!");
     } catch (err) {
@@ -808,6 +826,33 @@ export default function WebsiteCMS() {
         </div>
 
         <form onSubmit={saveDivisions} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          
+          {/* Section Titles Editing Block */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', background: '#f1f5f9', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid #e2e8f0', marginBottom: '0.5rem' }}>
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '0.25rem' }}>Academic Divisions Section Title</label>
+              <input 
+                type="text" 
+                className="input-field w-full"
+                value={divisionsTitle}
+                onChange={e => setDivisionsTitle(e.target.value)}
+                placeholder="e.g. OUR DIVISIONS"
+                required
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '0.25rem' }}>Leadership Pillars Section Title</label>
+              <input 
+                type="text" 
+                className="input-field w-full"
+                value={pillarsTitle}
+                onChange={e => setPillarsTitle(e.target.value)}
+                placeholder="e.g. OUR PILLARS"
+                required
+              />
+            </div>
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
             {divisions.map((card, index) => (
               <div key={card.id} style={{ border: '1px solid #e2e8f0', padding: '1.5rem', borderRadius: '0.75rem', background: '#f8fafc', position: 'relative' }}>
@@ -921,6 +966,22 @@ export default function WebsiteCMS() {
                       placeholder="Write the message from Director, Principal, or Headmaster here. Leaves empty to disable the 'Read Desk Message' button."
                       style={{ padding: '0.5rem', fontSize: '0.8rem' }}
                     />
+                  </div>
+
+                  <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '0.5rem', marginTop: '0.25rem' }}>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#475569', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={card.isPillar || false} 
+                        onChange={e => {
+                          const next = [...divisions];
+                          next[index].isPillar = e.target.checked;
+                          setDivisions(next);
+                        }}
+                        style={{ width: '1.05rem', height: '1.05rem', accentColor: '#ea580c', cursor: 'pointer' }}
+                      />
+                      <span>Is Leadership Desk / Pillar Card?</span>
+                    </label>
                   </div>
                 </div>
               </div>

@@ -35,6 +35,8 @@ const Home = () => {
     { id: '4', title: 'Senior School', description: 'Career readiness and leadership.', icon: 'Award', color: '#2563eb', bgColor: '#dbeafe' }
   ]);
   const [selectedDeskMessage, setSelectedDeskMessage] = useState(null);
+  const [divisionsTitle, setDivisionsTitle] = useState("OUR DIVISIONS");
+  const [pillarsTitle, setPillarsTitle] = useState("OUR PILLARS");
 
   useEffect(() => {
     fetchNews();
@@ -224,11 +226,11 @@ const Home = () => {
             </div>
           </div>
 
-          {/* Our Divisions */}
+          {/* Our Divisions Section */}
           <div style={{ padding: '0 1rem' }}>
-            <h2 className="portal-section-title">OUR DIVISIONS</h2>
+            <h2 className="portal-section-title">{divisionsTitle}</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-              {divisions.map((card) => {
+              {divisions.filter(c => !c.isPillar).map((card) => {
                 const iconMap = {
                   Users: <Users size={32} />,
                   BookOpen: <BookOpen size={32} />,
@@ -246,7 +248,7 @@ const Home = () => {
                 const iconElement = iconMap[card.icon] || <Users size={32} />;
                 const coloredIcon = React.cloneElement(iconElement, { color: card.color });
                 
-                const cardContent = (
+                return (
                   <div key={card.id} style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', height: '100%', minHeight: '220px' }}>
                     <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: card.bgColor || '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
                       {coloredIcon}
@@ -279,11 +281,70 @@ const Home = () => {
                     )}
                   </div>
                 );
-
-                return cardContent;
               })}
             </div>
           </div>
+
+          {/* Our Pillars Section (Only rendered if leadership cards exist) */}
+          {divisions.some(c => c.isPillar) && (
+            <div style={{ padding: '2rem 1rem 0' }}>
+              <h2 className="portal-section-title">{pillarsTitle}</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                {divisions.filter(c => c.isPillar).map((card) => {
+                  const iconMap = {
+                    Users: <Users size={32} />,
+                    BookOpen: <BookOpen size={32} />,
+                    Award: <Award size={32} />,
+                    FileText: <FileText size={32} />,
+                    Phone: <Phone size={32} />,
+                    CheckCircle: <CheckCircle size={32} />,
+                    Trophy: <Trophy size={32} />,
+                    ImageIcon: <ImageIcon size={32} />,
+                    Shield: <Shield size={32} />,
+                    Megaphone: <Megaphone size={32} />,
+                    Bell: <Bell size={32} />
+                  };
+                  
+                  const iconElement = iconMap[card.icon] || <Users size={32} />;
+                  const coloredIcon = React.cloneElement(iconElement, { color: card.color });
+                  
+                  return (
+                    <div key={card.id} style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', height: '100%', minHeight: '220px' }}>
+                      <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: card.bgColor || '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                        {coloredIcon}
+                      </div>
+                      <h3 style={{ fontWeight: '800', marginBottom: '0.5rem', fontSize: '1.05rem', color: 'var(--text-primary)' }}>{card.title}</h3>
+                      <p style={{ fontSize: '0.8rem', color: '#64748b', flexGrow: 1, margin: 0 }}>{card.description}</p>
+                      
+                      {card.message && (
+                        <button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSelectedDeskMessage(card);
+                          }}
+                          style={{ 
+                            marginTop: '1rem', 
+                            padding: '0.5rem 1rem', 
+                            fontSize: '0.75rem', 
+                            fontWeight: 'bold', 
+                            background: card.color || '#3b82f6', 
+                            color: 'white', 
+                            border: 'none', 
+                            borderRadius: '0.5rem', 
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                          }}
+                        >
+                          Read Desk Message
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Campus Facilities */}
           <div>
