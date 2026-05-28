@@ -250,8 +250,8 @@ const PythonStudent = () => {
                         fontFamily: 'monospace',
                         fontSize: '14px',
                         lineHeight: '1.6',
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-all'
+                        whiteSpace: 'pre',
+                        wordBreak: 'normal'
                       }}
                       dangerouslySetInnerHTML={{ __html: highlightPython(selectedLesson.content) }}
                     />
