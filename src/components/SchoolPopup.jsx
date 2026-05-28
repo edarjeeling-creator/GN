@@ -264,16 +264,28 @@ const SchoolPopup = () => {
               ) : (
                 /* The Live YouTube iFrame Embed */
                 <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-                  <iframe
-                    width="100%"
-                    height="100%"
-                    src={getEmbedUrl(popupConfig.videoUrl)}
-                    title="School video player"
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                    style={{ border: 'none' }}
-                  />
+                  {!popupConfig.videoUrl.includes('youtube') && !popupConfig.videoUrl.includes('youtu.be') ? (
+                    <video
+                      src={popupConfig.videoUrl}
+                      autoPlay
+                      muted={isMuted}
+                      controls
+                      loop
+                      playsInline
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', border: 'none' }}
+                    />
+                  ) : (
+                    <iframe
+                      width="100%"
+                      height="100%"
+                      src={getEmbedUrl(popupConfig.videoUrl)}
+                      title="School video player"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      style={{ border: 'none' }}
+                    />
+                  )}
                   {/* Audio Mute Controller Toggle */}
                   <button 
                     onClick={() => setIsMuted(!isMuted)}

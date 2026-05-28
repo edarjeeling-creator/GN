@@ -127,6 +127,7 @@ export default function WebsiteCMS() {
     buttonUrl: '/admissions'
   });
   const [savingPopupConfig, setSavingPopupConfig] = useState(false);
+  const [uploadingPopupVideo, setUploadingPopupVideo] = useState(false);
 
   useEffect(() => {
     fetchFaculty();
@@ -685,6 +686,39 @@ export default function WebsiteCMS() {
               onChange={e => setPopupConfig({ ...popupConfig, videoUrl: e.target.value })}
               placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ"
             />
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>OR Upload Custom Video (.mp4, .webm)</label>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input 
+                type="file" 
+                accept="video/*" 
+                onChange={async (e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+                  setUploadingPopupVideo(true);
+                  try {
+                    const videoUrl = await uploadFileToSupabase(file, 'popups');
+                    setPopupConfig({ ...popupConfig, videoUrl: videoUrl });
+                    alert("Video uploaded and saved to Supabase storage successfully!");
+                  } catch (err) {
+                    alert("Video upload failed: " + err.message);
+                  } finally {
+                    setUploadingPopupVideo(false);
+                  }
+                }}
+                className="input-field w-full"
+                style={{ padding: '0.42rem', background: '#f8fafc' }}
+                disabled={uploadingPopupVideo}
+              />
+              {uploadingPopupVideo && <Loader2 className="animate-spin" size={20} color="#3b82f6" />}
+            </div>
+            {popupConfig.videoUrl && popupConfig.videoUrl.startsWith('http') && !popupConfig.videoUrl.includes('youtube') && !popupConfig.videoUrl.includes('youtu.be') && (
+              <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '600', display: 'block', marginTop: '0.25rem' }}>
+                ✓ Custom video active (uploaded to storage)
+              </span>
+            )}
           </div>
 
           <div>
