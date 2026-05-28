@@ -161,11 +161,11 @@ export default function WebsiteCMS() {
     const { data } = await supabase.from('site_settings').select('value').eq('key', 'our_divisions').single();
     if (data && data.value) {
       const parsed = JSON.parse(data.value);
-      if (parsed.cards) {
+      if (parsed && parsed.cards && Array.isArray(parsed.cards)) {
         setDivisions(parsed.cards);
         setDivisionsTitle(parsed.divisionsTitle || "OUR DIVISIONS");
         setPillarsTitle(parsed.pillarsTitle || "OUR PILLARS");
-      } else {
+      } else if (Array.isArray(parsed)) {
         setDivisions(parsed);
         setDivisionsTitle("OUR DIVISIONS");
         setPillarsTitle("OUR PILLARS");
