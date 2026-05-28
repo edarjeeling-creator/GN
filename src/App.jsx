@@ -38,6 +38,7 @@ function App() {
           <Route path="/gallery" element={<PublicLayout><Gallery /></PublicLayout>} />
           <Route path="/contact" element={<PublicLayout><Contact /></PublicLayout>} />
           <Route path="/mandatory-disclosures" element={<PublicLayout><MandatoryDisclosures /></PublicLayout>} />
+          <Route path="/notices" element={<PublicLayout><MandatoryDisclosures /></PublicLayout>} />
           
           {/* Standalone Public Pages */}
           <Route path="/login" element={<Login />} />
