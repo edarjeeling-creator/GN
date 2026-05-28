@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Trash2, Image as ImageIcon, Users, UploadCloud, Loader2, Monitor, Palette, Layout, List, ArrowUp, ArrowDown, Edit2, CheckCircle2, FileText } from 'lucide-react';
+import { Plus, Trash2, Image as ImageIcon, Users, UploadCloud, Loader2, Monitor, Palette, Layout, List, ArrowUp, ArrowDown, Edit2, CheckCircle2, FileText, Megaphone } from 'lucide-react';
 import { useSubscription } from '../context/SubscriptionContext';
 
 export default function WebsiteCMS() {
@@ -116,6 +116,18 @@ export default function WebsiteCMS() {
   const disclosureFileRef = useRef(null);
   const disclosureCategories = ['Legal', 'Safety', 'Academic', 'Administrative', 'PTA/SMC', 'Others'];
 
+  // Campaign Pop-Up Notice State
+  const [popupConfig, setPopupConfig] = useState({
+    enabled: false,
+    category: 'admission', // 'emergency', 'admission', 'event'
+    title: 'Admissions Open 2026-27',
+    description: 'Join the premier ICSE Institution in Darjeeling. Watch our campus virtual tour and apply today!',
+    videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+    buttonLabel: 'Apply Online',
+    buttonUrl: '/admissions'
+  });
+  const [savingPopupConfig, setSavingPopupConfig] = useState(false);
+
   useEffect(() => {
     fetchFaculty();
     fetchGallery();
@@ -127,7 +139,29 @@ export default function WebsiteCMS() {
     fetchMainMenu();
     fetchAcademicExcellence();
     fetchMandatoryDisclosures();
+    fetchPopupConfig();
   }, []);
+
+  const fetchPopupConfig = async () => {
+    const { data } = await supabase.from('site_settings').select('value').eq('key', 'active_homepage_popup').single();
+    if (data && data.value) {
+      setPopupConfig(JSON.parse(data.value));
+    }
+  };
+
+  const savePopupConfig = async (e) => {
+    e.preventDefault();
+    setSavingPopupConfig(true);
+    try {
+      const { error } = await supabase.from('site_settings').upsert({ key: 'active_homepage_popup', value: JSON.stringify(popupConfig) });
+      if (error) throw error;
+      alert("Homepage Pop-up campaign notice saved successfully!");
+    } catch (err) {
+      alert("Failed to save pop-up config: " + err.message);
+    } finally {
+      setSavingPopupConfig(false);
+    }
+  };
 
   const fetchHeroStyling = async () => {
     const { data } = await supabase.from('site_settings').select('value').eq('key', 'hero_styling').single();
@@ -577,6 +611,112 @@ export default function WebsiteCMS() {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginTop: '2rem' }}>
       
+      {/* Homepage Campaign Pop-Up Controller */}
+      <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+              <Megaphone size={20} color="#3b82f6" /> 🎓 Notice Campaign Pop-Up Manager
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0.25rem 0 0' }}>Configure high-impact modal updates for emergency alerts, admissions campaigns, or live streams on the home screen.</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <label style={{ fontSize: '0.9rem', fontWeight: '600', color: '#475569', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+              <span>Show Campaign Popup:</span>
+              <input 
+                type="checkbox" 
+                checked={popupConfig.enabled} 
+                onChange={e => setPopupConfig({ ...popupConfig, enabled: e.target.checked })}
+                style={{ width: '1.2rem', height: '1.2rem', accentColor: '#3b82f6', cursor: 'pointer' }}
+              />
+            </label>
+            <span className={`badge ${popupConfig.enabled ? 'badge-success' : 'badge-danger'}`} style={{ textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 'bold' }}>
+              {popupConfig.enabled ? 'Active' : 'Disabled'}
+            </span>
+          </div>
+        </div>
+
+        <form onSubmit={savePopupConfig} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+          <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Notice Category</label>
+            <select 
+              className="input-field w-full"
+              value={popupConfig.category}
+              onChange={e => setPopupConfig({ ...popupConfig, category: e.target.value })}
+              style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+            >
+              <option value="admission">🎓 Admissions / Enrollment Notice</option>
+              <option value="emergency">🚨 High-Priority Emergency Notice (Bypasses Session Suppression!)</option>
+              <option value="event">📹 Event livestream / Video Feature</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Headline Title</label>
+            <input 
+              type="text" 
+              className="input-field w-full" 
+              value={popupConfig.title} 
+              onChange={e => setPopupConfig({ ...popupConfig, title: e.target.value })}
+              placeholder="e.g. Admissions Open 2026-27"
+              required
+            />
+          </div>
+
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Notice Description Body</label>
+            <textarea 
+              className="input-field w-full" 
+              rows="3"
+              value={popupConfig.description} 
+              onChange={e => setPopupConfig({ ...popupConfig, description: e.target.value })}
+              placeholder="Provide clean, descriptive context to display inside the popup..."
+              required
+              style={{ padding: '0.75rem' }}
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Campaign YouTube URL (Optional, hides on Emergency alerts)</label>
+            <input 
+              type="text" 
+              className="input-field w-full" 
+              value={popupConfig.videoUrl} 
+              onChange={e => setPopupConfig({ ...popupConfig, videoUrl: e.target.value })}
+              placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Primary CTA Button Label</label>
+            <input 
+              type="text" 
+              className="input-field w-full" 
+              value={popupConfig.buttonLabel} 
+              onChange={e => setPopupConfig({ ...popupConfig, buttonLabel: e.target.value })}
+              placeholder="e.g. Apply Online"
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Primary CTA Target Destination URL</label>
+            <input 
+              type="text" 
+              className="input-field w-full" 
+              value={popupConfig.buttonUrl} 
+              onChange={e => setPopupConfig({ ...popupConfig, buttonUrl: e.target.value })}
+              placeholder="e.g. /admissions or https://external.com"
+            />
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem' }}>
+            <button type="submit" className="btn-hero-primary" style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.75rem', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }} disabled={savingPopupConfig}>
+              {savingPopupConfig ? <><Loader2 size={16} className="animate-spin inline mr-2" /> Saving Notice...</> : 'Save Campaign Settings'}
+            </button>
+          </div>
+        </form>
+      </div>
+
       {/* Academic Excellence Manager */}
       <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
