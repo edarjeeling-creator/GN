@@ -94,15 +94,17 @@ export const AuthProvider = ({ children }) => {
 
       // Zero-Auth student login: Bypasses supabase.auth entirely to prevent rate limits & teacher logouts!
       if (resolvedRole === 'student') {
-        const { data: student, error: studentError } = await supabase
-          .from('students')
-          .select('*, classes(name, section)')
-          .eq('uid', uid)
-          .single();
+        const { data, error: studentError } = await supabase.rpc('get_student_report', {
+          p_uid: uid,
+          p_academic_year: '2026'
+        });
           
-        if (studentError || !student) {
+        if (studentError || !data || !data.student) {
           return { error: { message: 'Student record could not be loaded.' } };
         }
+
+        const student = data.student;
+        const cls = data.class;
 
         const studentProfile = {
           id: student.id,
@@ -111,7 +113,7 @@ export const AuthProvider = ({ children }) => {
           student_id: student.id,
           class_id: student.class_id,
           school_id: student.school_id,
-          className: student.classes ? `${student.classes.name} ${student.classes.section}` : ''
+          className: cls ? `${cls.name} ${cls.section}` : ''
         };
 
         localStorage.setItem('studentProfile', JSON.stringify(studentProfile));
