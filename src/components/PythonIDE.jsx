@@ -148,6 +148,31 @@ const PythonIDE = ({ initialCode = '', onSave, onSubmit, height = '500px' }) => 
     };
 
     const tryLoadPyodide = async (index = 0) => {
+      if (window.pyodideInstance) {
+        setPyodide(window.pyodideInstance);
+        setPyodideLoading(false);
+        setPyodideStatus('Ready');
+        window.pyodideStdoutCallback = (msg) => setOutput(prev => prev + msg + '\n');
+        window.pyodideStderrCallback = (msg) => setOutput(prev => prev + '<span style="color: #f87171">' + msg + '</span>\n');
+        return;
+      }
+
+      if (window.pyodidePromise) {
+        setPyodideStatus("Waiting for engine to initialize...");
+        try {
+          const py = await window.pyodidePromise;
+          setPyodide(py);
+          setPyodideLoading(false);
+          setPyodideStatus('Ready');
+          window.pyodideStdoutCallback = (msg) => setOutput(prev => prev + msg + '\n');
+          window.pyodideStderrCallback = (msg) => setOutput(prev => prev + '<span style="color: #f87171">' + msg + '</span>\n');
+        } catch (err) {
+          setPyodideError('Failed to load engine.');
+          setPyodideLoading(false);
+        }
+        return;
+      }
+
       if (index >= cdns.length) {
         setPyodideError('Failed to download the compiler from all standard mirrors. Please check your internet connection or ask your computer lab teacher.');
         setPyodideLoading(false);
@@ -165,28 +190,38 @@ const PythonIDE = ({ initialCode = '', onSave, onSubmit, height = '500px' }) => 
         }
 
         setPyodideStatus("Parsing WebAssembly modules...");
-        const py = await window.loadPyodide({
+        
+        window.pyodidePromise = window.loadPyodide({
           indexURL: activeCdn.index,
         });
+        
+        const py = await window.pyodidePromise;
 
-        // Setup custom standard outputs
+        // Setup custom standard outputs using global wrappers
         py.setStdout({
           batched: (msg) => {
-            setOutput(prev => prev + msg + '\n');
+            if (window.pyodideStdoutCallback) window.pyodideStdoutCallback(msg);
           }
         });
 
         py.setStderr({
           batched: (msg) => {
-            setOutput(prev => prev + '<span style="color: #f87171">' + msg + '</span>\n');
+            if (window.pyodideStderrCallback) window.pyodideStderrCallback(msg);
           }
         });
 
+        window.pyodideInstance = py;
         setPyodide(py);
         setPyodideLoading(false);
         setPyodideStatus('Ready');
+        
+        // Set the callback for the currently mounting instance
+        window.pyodideStdoutCallback = (msg) => setOutput(prev => prev + msg + '\n');
+        window.pyodideStderrCallback = (msg) => setOutput(prev => prev + '<span style="color: #f87171">' + msg + '</span>\n');
+        
       } catch (err) {
         console.warn(`Pyodide load failed on Mirror ${index + 1}:`, err);
+        window.pyodidePromise = null; // Reset promise so next mirror can try
         tryLoadPyodide(index + 1);
       }
     };
@@ -262,6 +297,16 @@ ${code}
     setCode(initialCode || 'print("Hello Python!")');
     setOutput('');
   };
+
+  // Keep code in sync with initialCode when the assignment changes
+  useEffect(() => {
+    setCode(initialCode || 'print("Hello Python!")');
+    setOutput('');
+    
+    // When assignment changes, ensure callbacks point to this instance
+    window.pyodideStdoutCallback = (msg) => setOutput(prev => prev + msg + '\n');
+    window.pyodideStderrCallback = (msg) => setOutput(prev => prev + '<span style="color: #f87171">' + msg + '</span>\n');
+  }, [initialCode]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Tab') {
