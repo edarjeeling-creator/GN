@@ -94,6 +94,7 @@ const PythonStudent = () => {
   // Interaction State
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
   // Student info 
   // Normally profile has student details, but we'll fetch from 'students' table based on UID if possible
@@ -101,11 +102,16 @@ const PythonStudent = () => {
   const [studentRecord, setStudentRecord] = useState(null);
 
   useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener('resize', handleResize);
+    
     fetchLessons();
     fetchAssignments();
     if (profile?.id) {
       fetchStudentRecordAndSubmissions();
     }
+    
+    return () => window.removeEventListener('resize', handleResize);
   }, [profile]);
 
   const fetchLessons = async () => {
@@ -177,7 +183,7 @@ const PythonStudent = () => {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)' }}>
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', overflowX: 'auto', whiteSpace: 'nowrap' }} className="hide-scrollbar">
         <button 
           onClick={() => setActiveTab('lessons')} 
           style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'lessons' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'lessons' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: 'bold', cursor: 'pointer' }}
@@ -200,27 +206,46 @@ const PythonStudent = () => {
 
       {activeTab === 'lessons' && (
         <div className="grid md:grid-cols-3 gap-6">
-          <div className="col-span-1 border-r border-slate-200 pr-4">
-            <h3 className="font-bold text-lg mb-4 text-slate-700">Modules</h3>
-            <div className="flex flex-col gap-2">
-              {lessons.map((l, index) => (
-                <button 
-                  key={l.id}
-                  onClick={() => setSelectedLesson(l)}
-                  className={`text-left p-3 rounded-lg transition-colors ${selectedLesson?.id === l.id ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'hover:bg-slate-50'}`}
-                >
-                  <div className="font-bold text-sm">Lesson {index + 1}:</div>
-                  <div className="text-md">{l.title}</div>
-                  <div className="text-xs text-slate-500 mt-1">{l.module}</div>
-                </button>
-              ))}
-              {lessons.length === 0 && <p className="text-slate-500 italic">No lessons available yet.</p>}
+          {!isMobile ? (
+            <div className="col-span-1 border-r border-slate-200 pr-4 mb-4 md:mb-0">
+              <h3 className="font-bold text-lg mb-4 text-slate-700">Modules</h3>
+              <div className="flex flex-col gap-2">
+                {lessons.map((l, index) => (
+                  <button 
+                    key={l.id}
+                    onClick={() => setSelectedLesson(l)}
+                    className={`text-left p-3 rounded-lg transition-colors ${selectedLesson?.id === l.id ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'hover:bg-slate-50'}`}
+                  >
+                    <div className="font-bold text-sm">Lesson {index + 1}:</div>
+                    <div className="text-md">{l.title}</div>
+                    <div className="text-xs text-slate-500 mt-1">{l.module}</div>
+                  </button>
+                ))}
+                {lessons.length === 0 && <p className="text-slate-500 italic">No lessons available yet.</p>}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="col-span-1 mb-2">
+              <h3 className="font-bold text-lg mb-2 text-slate-700">Select Module</h3>
+              <select 
+                className="input-field bg-white"
+                value={selectedLesson?.id || ''}
+                onChange={(e) => {
+                  const lesson = lessons.find(l => l.id === e.target.value);
+                  setSelectedLesson(lesson);
+                }}
+              >
+                <option value="" disabled>Select a lesson to start...</option>
+                {lessons.map((l, index) => (
+                  <option key={l.id} value={l.id}>Lesson {index + 1}: {l.title}</option>
+                ))}
+              </select>
+            </div>
+          )}
           
-          <div className="col-span-2">
+          <div className="col-span-2 min-w-0">
             {selectedLesson ? (
-              <div className="card p-8 bg-white border border-slate-200 shadow-sm rounded-xl">
+              <div className="card p-4 md:p-8 bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
                 <h2 className="text-3xl font-bold text-slate-800 mb-2">{selectedLesson.title}</h2>
                 <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-bold mb-6">{selectedLesson.module}</span>
                 
@@ -251,7 +276,8 @@ const PythonStudent = () => {
                         fontSize: '14px',
                         lineHeight: '1.6',
                         whiteSpace: 'pre',
-                        wordBreak: 'normal'
+                        wordBreak: 'normal',
+                        maxWidth: '100%'
                       }}
                       dangerouslySetInnerHTML={{ __html: highlightPython(selectedLesson.content) }}
                     />
@@ -270,41 +296,67 @@ const PythonStudent = () => {
 
       {activeTab === 'assignments' && (
         <div className="grid md:grid-cols-4 gap-6">
-          <div className="col-span-1 border-r border-slate-200 pr-4">
-            <h3 className="font-bold text-lg mb-4 text-slate-700">Assignments</h3>
-            <div className="flex flex-col gap-2">
-              {assignments.map(a => {
-                const sub = mySubmissions.find(s => s.assignment_id === a.id);
-                return (
-                  <button 
-                    key={a.id}
-                    onClick={() => setSelectedAssignment(a)}
-                    className={`text-left p-3 rounded-lg transition-colors border ${selectedAssignment?.id === a.id ? 'bg-indigo-50 border-indigo-200' : 'border-transparent hover:bg-slate-50'}`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="font-bold text-slate-800">{a.title}</div>
-                      {sub && <CheckCircle size={16} className="text-green-500 flex-shrink-0" />}
-                    </div>
-                    <div className="text-xs text-slate-500 mt-1 truncate">{a.module}</div>
-                  </button>
-                );
-              })}
-              {assignments.length === 0 && <p className="text-slate-500 italic">No assignments available yet.</p>}
+          {!isMobile ? (
+            <div className="col-span-1 border-r border-slate-200 pr-4 mb-6 md:mb-0">
+              <h3 className="font-bold text-lg mb-4 text-slate-700">Assignments</h3>
+              <div className="flex flex-col gap-2">
+                {assignments.map(a => {
+                  const sub = mySubmissions.find(s => s.assignment_id === a.id);
+                  return (
+                    <button 
+                      key={a.id}
+                      onClick={() => setSelectedAssignment(a)}
+                      className={`text-left p-3 rounded-lg transition-colors border ${selectedAssignment?.id === a.id ? 'bg-indigo-50 border-indigo-200' : 'border-transparent hover:bg-slate-50'}`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="font-bold text-slate-800">{a.title}</div>
+                        {sub && <CheckCircle size={16} className="text-green-500 flex-shrink-0" />}
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1 truncate">{a.module}</div>
+                    </button>
+                  );
+                })}
+                {assignments.length === 0 && <p className="text-slate-500 italic">No assignments available yet.</p>}
+              </div>
+              
+              <div className="mt-8">
+                <h3 className="font-bold text-lg mb-4 text-slate-700">Free Practice IDE</h3>
+                <p className="text-sm text-slate-600 mb-4">Want to just test some code? Click below for a blank editor.</p>
+                <button 
+                  onClick={() => setSelectedAssignment({ title: "Free Practice Playground", instructions: "Write and test whatever Python code you like! (This will not be submitted)", starter_code: 'print("Hello Python!")', isPlayground: true })}
+                  className="w-full btn-hero-outline"
+                >
+                  Open Playground
+                </button>
+              </div>
             </div>
-            
-            <div className="mt-8">
-              <h3 className="font-bold text-lg mb-4 text-slate-700">Free Practice IDE</h3>
-              <p className="text-sm text-slate-600 mb-4">Want to just test some code? Click below for a blank editor.</p>
-              <button 
-                onClick={() => setSelectedAssignment({ title: "Free Practice Playground", instructions: "Write and test whatever Python code you like! (This will not be submitted)", starter_code: 'print("Hello Python!")', isPlayground: true })}
-                className="w-full btn-hero-outline"
+          ) : (
+            <div className="col-span-1 mb-2">
+              <h3 className="font-bold text-lg mb-2 text-slate-700">Select Assignment</h3>
+              <select 
+                className="input-field bg-white"
+                value={selectedAssignment?.id || (selectedAssignment?.isPlayground ? 'playground' : '')}
+                onChange={(e) => {
+                  if (e.target.value === 'playground') {
+                    setSelectedAssignment({ title: "Free Practice Playground", instructions: "Write and test whatever Python code you like! (This will not be submitted)", starter_code: 'print("Hello Python!")', isPlayground: true });
+                  } else {
+                    const assignment = assignments.find(a => a.id === e.target.value);
+                    setSelectedAssignment(assignment);
+                  }
+                }}
               >
-                Open Playground
-              </button>
+                <option value="" disabled>Select an assignment...</option>
+                {assignments.map(a => {
+                  const sub = mySubmissions.find(s => s.assignment_id === a.id);
+                  const statusLabel = sub ? (sub.status === 'reviewed' ? ' - Reviewed' : ' - Submitted') : '';
+                  return <option key={a.id} value={a.id}>{a.title}{statusLabel}</option>;
+                })}
+                <option value="playground">Free Practice Playground</option>
+              </select>
             </div>
-          </div>
+          )}
           
-          <div className="col-span-3">
+          <div className="col-span-3 min-w-0">
             {selectedAssignment ? (
               <div className="flex flex-col gap-4">
                 <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
