@@ -1,13 +1,13 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import Layout from '../components/Layout';
+
 import { Link } from 'react-router-dom';
 
 const StudentPortal = () => {
   const { profile } = useAuth();
 
   return (
-    <Layout>
+    <>
       <div className="portal-container" style={{ padding: '2rem' }}>
         <header style={{ marginBottom: '2rem' }}>
           <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>Student Portal</h1>
@@ -43,7 +43,7 @@ const StudentPortal = () => {
           </Link>
         </div>
       </div>
-    </Layout>
+    </>
   );
 };
 

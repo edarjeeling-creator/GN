@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import Layout from '../components/Layout';
+
 import { BookOpen, FileCode2, Inbox, Plus, Edit, Trash2, Users, Key, Printer, Copy, ExternalLink, Search, CheckCircle } from 'lucide-react';
 import PythonIDE from '../components/PythonIDE';
 import { useData } from '../context/DataContext';
@@ -188,7 +188,7 @@ const PythonTeacher = () => {
   };
 
   return (
-    <Layout>
+    <>
       <div className="page-header">
         <div>
           <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Python Teacher Portal</h1>
@@ -542,7 +542,7 @@ const PythonTeacher = () => {
         </div>
       )}
 
-    </Layout>
+    </>
   );
 };
 

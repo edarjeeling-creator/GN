@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import Layout from '../components/Layout';
+
 import { BookOpen, Code, Trophy, Star, CheckCircle, Video, FileText } from 'lucide-react';
 import PythonIDE from '../components/PythonIDE';
 
@@ -175,7 +175,7 @@ const PythonStudent = () => {
   };
 
   return (
-    <Layout>
+    <>
       <div className="page-header bg-gradient-to-r from-blue-900 to-indigo-800 text-white p-8 rounded-xl mb-8">
         <div>
           <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>Python Pathshala</h1>
@@ -437,7 +437,7 @@ const PythonStudent = () => {
           </div>
         </div>
       )}
-    </Layout>
+    </>
   );
 };
 
