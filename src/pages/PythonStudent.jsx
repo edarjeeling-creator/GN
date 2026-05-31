@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
-import { BookOpen, Code, Trophy, Star, CheckCircle, Video, FileText } from 'lucide-react';
+import { BookOpen, Code, Trophy, Star, CheckCircle, Video, FileText, Copy } from 'lucide-react';
 import PythonIDE from '../components/PythonIDE';
 
 const highlightPython = (source) => {
@@ -263,24 +263,53 @@ const PythonStudent = () => {
                   <p className="text-slate-700 mb-6">{selectedLesson.description}</p>
                   
                   {selectedLesson.content && (
-                    <pre 
-                      style={{
-                        backgroundColor: '#0b0f19',
-                        color: '#cbd5e1',
-                        padding: '1.5rem',
-                        borderRadius: '8px',
-                        border: '1px solid #1e293b',
-                        marginTop: '1.5rem',
-                        overflowX: 'auto',
-                        fontFamily: 'monospace',
-                        fontSize: '14px',
-                        lineHeight: '1.6',
-                        whiteSpace: 'pre',
-                        wordBreak: 'normal',
-                        maxWidth: '100%'
-                      }}
-                      dangerouslySetInnerHTML={{ __html: highlightPython(selectedLesson.content) }}
-                    />
+                    <div style={{ position: 'relative', marginTop: '1.5rem' }}>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(selectedLesson.content);
+                          alert('Code copied to clipboard!');
+                        }}
+                        style={{
+                          position: 'absolute',
+                          top: '10px',
+                          right: '10px',
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '6px 10px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          fontSize: '0.8rem',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+                        onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                        title="Copy Code"
+                      >
+                        <Copy size={14} /> Copy
+                      </button>
+                      <pre 
+                        style={{
+                          backgroundColor: '#0b0f19',
+                          color: '#cbd5e1',
+                          padding: '1.5rem',
+                          borderRadius: '8px',
+                          border: '1px solid #1e293b',
+                          overflowX: 'auto',
+                          fontFamily: 'monospace',
+                          fontSize: '14px',
+                          lineHeight: '1.6',
+                          whiteSpace: 'pre',
+                          wordBreak: 'normal',
+                          maxWidth: '100%',
+                          margin: 0
+                        }}
+                        dangerouslySetInnerHTML={{ __html: highlightPython(selectedLesson.content) }}
+                      />
+                    </div>
                   )}
                 </div>
               </div>
