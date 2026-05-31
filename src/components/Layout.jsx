@@ -1,5 +1,6 @@
+import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText, AlertTriangle, Lock } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText, AlertTriangle, Lock, Menu, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeProvider';
@@ -11,6 +12,22 @@ const Layout = ({ children }) => {
   const { siteBranding } = useTheme();
   const { school, isReadOnly, isSuspended, hasWarning } = useSubscription();
   const navigate = useNavigate();
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Close sidebar on path changes
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [window.location.pathname]);
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({length: 6}, (_, i) => `${currentYear - 1 + i}`);
@@ -132,16 +149,83 @@ const Layout = ({ children }) => {
   }
 
   return (
-    <div className="app-layout" style={{ background: 'var(--bg-color)', minHeight: '100vh' }}>
-      <aside className="sidebar" style={{ 
+    <div className="app-layout" style={{ background: 'var(--bg-color)', minHeight: '100vh', display: 'flex', flexDirection: isMobile ? 'column' : 'row' }}>
+      {isMobile && (
+        <header style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0.5rem 1rem',
+          background: 'var(--surface-color)',
+          borderBottom: '1px solid var(--border-color)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 49,
+          width: '100%',
+          height: '60px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <img src={siteBranding?.logoUrl || "/logo.png"} alt="School Logo" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
+            <span style={{ fontSize: '0.95rem', fontWeight: '800', color: 'var(--primary-color)', letterSpacing: '-0.02em' }}>
+              {siteBranding?.siteName || 'Gyanoday Niketan'}
+            </span>
+          </div>
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            style={{
+              background: 'rgba(37, 99, 235, 0.08)',
+              border: 'none',
+              borderRadius: '0.375rem',
+              color: 'var(--primary-color)',
+              cursor: 'pointer',
+              padding: '0.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s'
+            }}
+          >
+            {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </header>
+      )}
+
+      {isMobile && isSidebarOpen && (
+        <div 
+          onClick={() => setIsSidebarOpen(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.3)',
+            zIndex: 39,
+            backdropFilter: 'blur(4px)'
+          }}
+        />
+      )}
+
+      <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`} style={{ 
         boxShadow: '4px 0 24px rgba(0,0,0,0.02)', 
         background: 'var(--surface-color)',
         borderRight: '1px solid rgba(0,0,0,0.05)',
         zIndex: 40
       }}>
-        <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1.5rem', background: 'linear-gradient(to right, rgba(37, 99, 235, 0.05), transparent)' }}>
-          <img src={siteBranding?.logoUrl || "/logo.png"} alt="School Logo" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
-          <span style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.025em', color: 'var(--primary-color)' }}>{siteBranding?.siteName || 'Gyanoday Niketan'}</span>
+        <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '1.5rem', background: 'linear-gradient(to right, rgba(37, 99, 235, 0.05), transparent)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <img src={siteBranding?.logoUrl || "/logo.png"} alt="School Logo" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+            <span style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.025em', color: 'var(--primary-color)' }}>{siteBranding?.siteName || 'Gyanoday Niketan'}</span>
+          </div>
+          {isMobile && (
+            <button 
+              onClick={() => setIsSidebarOpen(false)}
+              style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
         
         <div style={{ padding: '1.5rem', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>

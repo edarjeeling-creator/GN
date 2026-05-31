@@ -93,6 +93,15 @@ const PythonIDE = ({ initialCode = '', onSave, onSubmit, height = '500px' }) => 
   // Custom states
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [useMonaco, setUseMonaco] = useState(false); // Default to our highly responsive native editor to prevent loading hangs!
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const consoleEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -310,7 +319,7 @@ ${code}
     border: '1px solid #334155',
     backgroundColor: '#0f172a',
     boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)',
-    minHeight: '500px',
+    minHeight: isMobile ? 'auto' : '500px',
     width: '100%',
     fontFamily: 'system-ui, -apple-system, sans-serif'
   };
@@ -322,32 +331,36 @@ ${code}
       <div 
         style={{
           display: 'flex',
-          alignItems: 'center',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'stretch' : 'center',
           justifyContent: 'space-between',
           padding: '0.75rem 1.25rem',
           backgroundColor: '#1e293b',
           borderBottom: '1px solid #334155',
-          userSelect: 'none'
+          userSelect: 'none',
+          gap: isMobile ? '0.75rem' : '0.5rem'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Terminal size={20} style={{ color: '#38bdf8' }} />
-          <span style={{ fontWeight: 'bold', color: '#e2e8f0', fontSize: '0.875rem', letterSpacing: '0.025em' }}>Python Workspace</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Terminal size={20} style={{ color: '#38bdf8' }} />
+            <span style={{ fontWeight: 'bold', color: '#e2e8f0', fontSize: '0.875rem', letterSpacing: '0.025em' }}>Python Workspace</span>
+          </div>
           
           {pyodideLoading ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginLeft: '0.75rem', backgroundColor: '#334155', padding: '0.25rem 0.625rem', borderRadius: '9999px', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginLeft: '0.5rem', backgroundColor: '#334155', padding: '0.25rem 0.625rem', borderRadius: '9999px', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
               <Loader2 className="animate-spin" size={12} style={{ color: '#eab308' }} />
               <span style={{ fontSize: '10px', color: '#eab308', fontWeight: '600' }}>{pyodideStatus}</span>
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginLeft: '0.75rem', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '0.25rem 0.625rem', borderRadius: '9999px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginLeft: '0.5rem', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '0.25rem 0.625rem', borderRadius: '9999px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
               <span style={{ height: '6px', width: '6px', borderRadius: '50%', backgroundColor: '#34d399' }}></span>
               <span style={{ fontSize: '10px', color: '#34d399', fontWeight: 'bold', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Active Engine</span>
             </div>
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap', justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
           {/* Toggle Monaco vs Native Text Editor */}
           <button
             onClick={() => setUseMonaco(!useMonaco)}
@@ -488,9 +501,9 @@ ${code}
       <div 
         style={{
           display: 'flex',
-          flexDirection: 'row',
+          flexDirection: isMobile ? 'column' : 'row',
           flex: 1,
-          height: isFullScreen ? 'calc(100vh - 50px)' : height,
+          height: isFullScreen ? (isMobile ? 'calc(100vh - 120px)' : 'calc(100vh - 50px)') : (isMobile ? 'auto' : height),
           position: 'relative',
           borderTop: '1px solid #1e293b'
         }}
@@ -499,9 +512,10 @@ ${code}
         {/* Editor Area */}
         <div 
           style={{
-            width: '60%',
-            height: '100%',
-            borderRight: '1px solid #334155',
+            width: isMobile ? '100%' : '60%',
+            height: isMobile ? '320px' : '100%',
+            borderRight: isMobile ? 'none' : '1px solid #334155',
+            borderBottom: isMobile ? '1px solid #334155' : 'none',
             backgroundColor: '#1e1e1e',
             display: 'flex',
             flexDirection: 'column',
@@ -625,11 +639,11 @@ ${code}
         {/* Console Panel */}
         <div 
           style={{
-            width: '40%',
+            width: isMobile ? '100%' : '40%',
             backgroundColor: '#090d16',
             display: 'flex',
             flexDirection: 'column',
-            height: '100%'
+            height: isMobile ? '250px' : '100%'
           }}
         >
           <div 
