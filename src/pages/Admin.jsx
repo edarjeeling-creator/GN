@@ -1,14 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { motion } from 'framer-motion';
-import { Users, BookOpen, Shield, Layers } from 'lucide-react';
+import { Users, BookOpen, Shield, Layers, LogOut } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { getConversionConstants } from './SubjectMarks';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import * as XLSX from 'xlsx';
 import WebsiteCMS from '../components/WebsiteCMS';
 
 const Admin = () => {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
   const { academicYear, classes, subjects, students, updateStudentLanguages, loadingData } = useData();
   const [stats, setStats] = useState({ classes: 0, students: 0, subjects: 0, teachers: 0 });
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -339,11 +343,44 @@ const Admin = () => {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-      <div className="page-header" style={{ borderBottom: 'none', marginBottom: '1rem' }}>
+      <div className="page-header" style={{ borderBottom: 'none', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>Admin Dashboard</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>System Management and Analytics</p>
         </div>
+        <button
+          onClick={async () => {
+            await logout();
+            navigate('/login');
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.625rem 1.25rem',
+            borderRadius: '0.5rem',
+            border: '1.5px solid #ef4444',
+            background: 'transparent',
+            color: '#ef4444',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease-in-out',
+            boxShadow: '0 2px 4px rgba(239, 68, 68, 0.05)'
+          }}
+          onMouseOver={e => {
+            e.currentTarget.style.background = '#ef4444';
+            e.currentTarget.style.color = 'white';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.2)';
+          }}
+          onMouseOut={e => {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.color = '#ef4444';
+            e.currentTarget.style.boxShadow = '0 2px 4px rgba(239, 68, 68, 0.05)';
+          }}
+        >
+          <LogOut size={16} />
+          Logout
+        </button>
       </div>
 
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)' }}>
