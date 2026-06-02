@@ -135,6 +135,8 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     localStorage.removeItem('studentProfile');
+    setProfile(null);
+    setSession(null);
     await supabase.auth.signOut();
   };
 
