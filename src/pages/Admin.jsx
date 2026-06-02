@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { motion } from 'framer-motion';
 import { Users, BookOpen, Shield, Layers, LogOut } from 'lucide-react';
@@ -18,6 +19,7 @@ const Admin = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   
   const [teachers, setTeachers] = useState([]);
+  const [newTeacher, setNewTeacher] = useState({ name: '', email: '', password: '' });
   
   // State for Language Edit Modal
   const [editingLangStudent, setEditingLangStudent] = useState(null);
@@ -165,6 +167,37 @@ const Admin = () => {
       alert("Teacher successfully assigned!");
     } else {
       alert("Error assigning teacher: " + error.message);
+    }
+  };
+
+  const handleAddTeacher = async (e) => {
+    e.preventDefault();
+    if (!newTeacher.name || !newTeacher.email || !newTeacher.password) return;
+    
+    // Create secondary supabase client to avoid logging out admin
+    const secondarySupabase = createClient(
+      import.meta.env.VITE_SUPABASE_URL,
+      import.meta.env.VITE_SUPABASE_ANON_KEY,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
+
+    const { data, error } = await secondarySupabase.auth.signUp({
+      email: newTeacher.email,
+      password: newTeacher.password,
+      options: {
+        data: {
+          name: newTeacher.name,
+          role: 'teacher'
+        }
+      }
+    });
+
+    if (!error) {
+      setNewTeacher({ name: '', email: '', password: '' });
+      fetchStats();
+      alert("Teacher successfully added!");
+    } else {
+      alert("Error adding teacher: " + error.message);
     }
   };
 
@@ -749,6 +782,60 @@ const Admin = () => {
 
               <button type="submit" className="btn-hero-primary" style={{ background: '#8b5cf6', color: 'white', border: 'none', padding: '0.75rem', marginTop: '0.5rem' }}>Assign Teacher</button>
             </form>
+          </div>
+
+          <div className="bento-card" style={{ padding: '2rem' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Add New Teacher</h3>
+            <form onSubmit={handleAddTeacher} className="flex flex-col gap-3">
+              <input 
+                type="text" 
+                placeholder="Full Name" 
+                className="input-field" 
+                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+                value={newTeacher.name}
+                onChange={e => setNewTeacher({...newTeacher, name: e.target.value})}
+                required
+              />
+              <input 
+                type="email" 
+                placeholder="Email Address (Login ID)" 
+                className="input-field" 
+                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+                value={newTeacher.email}
+                onChange={e => setNewTeacher({...newTeacher, email: e.target.value})}
+                required
+              />
+              <input 
+                type="password" 
+                placeholder="Secure Password" 
+                className="input-field" 
+                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+                value={newTeacher.password}
+                onChange={e => setNewTeacher({...newTeacher, password: e.target.value})}
+                required
+              />
+              <button type="submit" className="btn-hero-primary" style={{ background: '#059669', color: 'white', border: 'none', padding: '0.75rem', marginTop: '0.5rem' }}>Create Teacher Account</button>
+            </form>
+
+            <div style={{ maxHeight: '200px', overflowY: 'auto', borderRadius: '0.5rem', border: '1px solid #e2e8f0', marginTop: '2rem' }}>
+              <table className="data-table" style={{ width: '100%' }}>
+                <thead style={{ background: '#f8fafc' }}>
+                  <tr>
+                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Name</th>
+                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Email</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teachers.map(t => (
+                    <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '1rem', fontWeight: 500 }}>{t.name}</td>
+                      <td style={{ padding: '1rem', color: '#64748b' }}>{t.email}</td>
+                    </tr>
+                  ))}
+                  {teachers.length === 0 && <tr><td colSpan="2" style={{ padding: '1rem' }}>No teachers found.</td></tr>}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div className="bento-card" style={{ padding: '2rem' }}>
