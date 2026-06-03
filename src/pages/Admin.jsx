@@ -140,10 +140,7 @@ const Admin = () => {
 
   const handleAddTeacher = async (e) => {
     e.preventDefault();
-    if (!newTeacher.name || !newTeacher.password) return;
-    
-    // Auto-generate a consistent email for the teacher based on their name
-    const generatedEmail = `${newTeacher.name.trim().toLowerCase().replace(/\s+/g, '.')}@teacher.school.com`;
+    if (!newTeacher.name || !newTeacher.email || !newTeacher.password) return;
     
     // Create secondary supabase client to avoid logging out admin
     const secondarySupabase = createClient(
@@ -153,7 +150,7 @@ const Admin = () => {
     );
 
     const { data, error } = await secondarySupabase.auth.signUp({
-      email: generatedEmail,
+      email: newTeacher.email,
       password: newTeacher.password,
       options: {
         data: {
@@ -795,6 +792,15 @@ const Admin = () => {
                 required
               />
               <input 
+                type="email" 
+                placeholder="Email Address (Login ID)" 
+                className="input-field" 
+                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+                value={newTeacher.email}
+                onChange={e => setNewTeacher({...newTeacher, email: e.target.value})}
+                required
+              />
+              <input 
                 type="password" 
                 placeholder="Secure Password" 
                 className="input-field" 
@@ -811,19 +817,16 @@ const Admin = () => {
                 <thead style={{ background: '#f8fafc' }}>
                   <tr>
                     <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Name</th>
-                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>System Email</th>
+                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Email</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {teachers.map(t => {
-                    const generatedSysEmail = `${t.name.trim().toLowerCase().replace(/\s+/g, '.')}@teacher.school.com`;
-                    return (
-                      <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '1rem', fontWeight: 500 }}>{t.name}</td>
-                        <td style={{ padding: '1rem', color: '#64748b' }}>{generatedSysEmail}</td>
-                      </tr>
-                    )
-                  })}
+                  {teachers.map(t => (
+                    <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '1rem', fontWeight: 500 }}>{t.name}</td>
+                      <td style={{ padding: '1rem', color: '#64748b' }}>{t.email}</td>
+                    </tr>
+                  ))}
                   {teachers.length === 0 && <tr><td colSpan="2" style={{ padding: '1rem' }}>No teachers found.</td></tr>}
                 </tbody>
               </table>

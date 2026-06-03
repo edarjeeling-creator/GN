@@ -71,14 +71,7 @@ export const AuthProvider = ({ children }) => {
         return await supabase.auth.signInWithPassword({ email: trimmedName, password: uid });
       }
 
-      // Try auto-generated teacher email
-      const generatedTeacherEmail = `${trimmedName.toLowerCase().replace(/\s+/g, '.')}@teacher.school.com`;
-      const teacherAttempt = await supabase.auth.signInWithPassword({ email: generatedTeacherEmail, password: uid });
-      
-      if (teacherAttempt.data?.session) {
-        localStorage.removeItem('studentProfile');
-        return teacherAttempt;
-      }
+
 
       const rolesToTry = ['student', 'teacher', 'admin'];
       let email = null;
