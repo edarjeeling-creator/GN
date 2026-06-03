@@ -1390,6 +1390,7 @@ export default function WebsiteCMS() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Hero Content & Style Manager */}
       {cmsSection === 'homepage' && (
