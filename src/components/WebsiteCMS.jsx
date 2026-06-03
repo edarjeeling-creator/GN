@@ -1735,7 +1735,7 @@ export default function WebsiteCMS() {
           </div>
         </form>
       </div>
-
+      )}
       {/* Menu Builder */}
       {cmsSection === 'general' && (
       <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
