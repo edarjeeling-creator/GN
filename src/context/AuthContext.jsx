@@ -92,7 +92,19 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
-      if (!email) return { error: { message: 'Invalid Name or UID' } };
+      if (!email) {
+        // Fallback: Check if they are a teacher trying to login with Name + Password
+        const { data: teacherEmail, error: teacherError } = await supabase.rpc('lookup_teacher_email_by_name', {
+          p_name: name
+        });
+        
+        if (teacherEmail) {
+          email = teacherEmail;
+          resolvedRole = 'teacher';
+        } else {
+          return { error: { message: 'Invalid Name or UID' } };
+        }
+      }
 
       // Zero-Auth student login: Bypasses supabase.auth entirely to prevent rate limits & teacher logouts!
       if (resolvedRole === 'student') {
