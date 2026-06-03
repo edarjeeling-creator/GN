@@ -20,6 +20,7 @@ const Admin = () => {
   
   const [teachers, setTeachers] = useState([]);
   const [newTeacher, setNewTeacher] = useState({ name: '', email: '', password: '' });
+  const [teacherMessage, setTeacherMessage] = useState({ type: '', text: '' });
   
   // State for Language Edit Modal
   const [editingLangStudent, setEditingLangStudent] = useState(null);
@@ -140,9 +141,10 @@ const Admin = () => {
 
   const handleAddTeacher = async (e) => {
     e.preventDefault();
+    setTeacherMessage({ type: '', text: '' });
     try {
       if (!newTeacher.name || !newTeacher.email || !newTeacher.password) {
-        alert("Please fill in all fields (Name, Email, Password).");
+        setTeacherMessage({ type: 'error', text: 'Please fill in all fields (Name, Email, Password).' });
         return;
       }
       
@@ -150,7 +152,7 @@ const Admin = () => {
       const supabaseKey = import.meta.env.VITE_SUPABASE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
       
       if (!supabaseKey) {
-        alert("Configuration Error: Supabase Key is missing!");
+        setTeacherMessage({ type: 'error', text: 'Configuration Error: Supabase Key is missing!' });
         return;
       }
 
@@ -175,12 +177,12 @@ const Admin = () => {
       if (!error) {
         setNewTeacher({ name: '', email: '', password: '' });
         fetchStats();
-        alert("Teacher successfully added!");
+        setTeacherMessage({ type: 'success', text: 'Teacher successfully added!' });
       } else {
-        alert("Error adding teacher: " + error.message);
+        setTeacherMessage({ type: 'error', text: 'Error adding teacher: ' + error.message });
       }
     } catch (err) {
-      alert("Unexpected error: " + err.message);
+      setTeacherMessage({ type: 'error', text: 'Unexpected error: ' + err.message });
     }
   };
 
@@ -821,6 +823,11 @@ const Admin = () => {
                 value={newTeacher.password}
                 onChange={e => setNewTeacher({...newTeacher, password: e.target.value})}
               />
+              {teacherMessage.text && (
+                <div style={{ padding: '0.75rem', borderRadius: '0.375rem', background: teacherMessage.type === 'error' ? '#fee2e2' : '#dcfce7', color: teacherMessage.type === 'error' ? '#991b1b' : '#166534', fontSize: '0.875rem' }}>
+                  {teacherMessage.text}
+                </div>
+              )}
               <button type="button" onClick={handleAddTeacher} className="btn-hero-primary" style={{ background: '#059669', color: 'white', border: 'none', padding: '0.75rem', marginTop: '0.5rem' }}>Create Teacher Account</button>
             </div>
 
