@@ -743,6 +743,7 @@ const Admin = () => {
                         </button>
                       </td>
                     </tr>
+                  ))}
                   {subjects.length === 0 && <tr><td colSpan="2" style={{ padding: '1rem' }}>No subjects found.</td></tr>}
                 </tbody>
               </table>
@@ -849,8 +850,6 @@ const Admin = () => {
             </div>
           </div>
 
-            </div>
-          </div>
             </div>
           )}
         </div>
