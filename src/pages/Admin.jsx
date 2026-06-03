@@ -796,7 +796,7 @@ const Admin = () => {
 
           <div className="bento-card" style={{ padding: '2rem' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Add New Teacher</h3>
-            <form onSubmit={handleAddTeacher} className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3">
               <input 
                 type="text" 
                 placeholder="Full Name" 
@@ -804,7 +804,6 @@ const Admin = () => {
                 style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
                 value={newTeacher.name}
                 onChange={e => setNewTeacher({...newTeacher, name: e.target.value})}
-                required
               />
               <input 
                 type="email" 
@@ -813,7 +812,6 @@ const Admin = () => {
                 style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
                 value={newTeacher.email}
                 onChange={e => setNewTeacher({...newTeacher, email: e.target.value})}
-                required
               />
               <input 
                 type="password" 
@@ -822,10 +820,9 @@ const Admin = () => {
                 style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
                 value={newTeacher.password}
                 onChange={e => setNewTeacher({...newTeacher, password: e.target.value})}
-                required
               />
-              <button type="submit" className="btn-hero-primary" style={{ background: '#059669', color: 'white', border: 'none', padding: '0.75rem', marginTop: '0.5rem' }}>Create Teacher Account</button>
-            </form>
+              <button type="button" onClick={handleAddTeacher} className="btn-hero-primary" style={{ background: '#059669', color: 'white', border: 'none', padding: '0.75rem', marginTop: '0.5rem' }}>Create Teacher Account</button>
+            </div>
 
             <div style={{ maxHeight: '200px', overflowY: 'auto', borderRadius: '0.5rem', border: '1px solid #e2e8f0', marginTop: '2rem' }}>
               <table className="data-table" style={{ width: '100%' }}>
