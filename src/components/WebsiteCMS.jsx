@@ -1114,7 +1114,7 @@ export default function WebsiteCMS() {
           </div>
         </form>
       </div>
-      )}
+      </>)}
 
       {/* Campus Facilities Manager */}
       {cmsSection === 'school_data' && (
@@ -1986,6 +1986,7 @@ export default function WebsiteCMS() {
       </div>
       )}
 
+    </div>
     </div>
   );
 }
