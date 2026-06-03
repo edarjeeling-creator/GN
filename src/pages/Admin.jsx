@@ -140,32 +140,47 @@ const Admin = () => {
 
   const handleAddTeacher = async (e) => {
     e.preventDefault();
-    if (!newTeacher.name || !newTeacher.email || !newTeacher.password) return;
-    
-    // Create secondary supabase client to avoid logging out admin
-    const secondarySupabase = createClient(
-      'https://supabase.gyanodayniketan.cloud',
-      import.meta.env.VITE_SUPABASE_KEY,
-      { auth: { persistSession: false, autoRefreshToken: false } }
-    );
-
-    const { data, error } = await secondarySupabase.auth.signUp({
-      email: newTeacher.email,
-      password: newTeacher.password,
-      options: {
-        data: {
-          name: newTeacher.name,
-          role: 'teacher'
-        }
+    try {
+      if (!newTeacher.name || !newTeacher.email || !newTeacher.password) {
+        alert("Please fill in all fields (Name, Email, Password).");
+        return;
       }
-    });
+      
+      const supabaseUrl = 'https://supabase.gyanodayniketan.cloud';
+      const supabaseKey = import.meta.env.VITE_SUPABASE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (!supabaseKey) {
+        alert("Configuration Error: Supabase Key is missing!");
+        return;
+      }
 
-    if (!error) {
-      setNewTeacher({ name: '', email: '', password: '' });
-      fetchStats();
-      alert("Teacher successfully added!");
-    } else {
-      alert("Error adding teacher: " + error.message);
+      // Create secondary supabase client to avoid logging out admin
+      const secondarySupabase = createClient(
+        supabaseUrl,
+        supabaseKey,
+        { auth: { persistSession: false, autoRefreshToken: false } }
+      );
+
+      const { data, error } = await secondarySupabase.auth.signUp({
+        email: newTeacher.email,
+        password: newTeacher.password,
+        options: {
+          data: {
+            name: newTeacher.name,
+            role: 'teacher'
+          }
+        }
+      });
+
+      if (!error) {
+        setNewTeacher({ name: '', email: '', password: '' });
+        fetchStats();
+        alert("Teacher successfully added!");
+      } else {
+        alert("Error adding teacher: " + error.message);
+      }
+    } catch (err) {
+      alert("Unexpected error: " + err.message);
     }
   };
 
