@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase, getClientSchoolId } from '../lib/supabase';
 import { motion } from 'framer-motion';
 import { Users, BookOpen, Shield, Layers, LogOut } from 'lucide-react';
 import { useData } from '../context/DataContext';
@@ -169,7 +169,9 @@ const Admin = () => {
         options: {
           data: {
             name: newTeacher.name,
-            role: 'teacher'
+            full_name: newTeacher.name,
+            role: 'teacher',
+            school_id: getClientSchoolId()
           }
         }
       });
