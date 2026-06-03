@@ -144,8 +144,8 @@ const Admin = () => {
     
     // Create secondary supabase client to avoid logging out admin
     const secondarySupabase = createClient(
-      import.meta.env.VITE_SUPABASE_URL,
-      import.meta.env.VITE_SUPABASE_ANON_KEY,
+      'https://supabase.gyanodayniketan.cloud',
+      import.meta.env.VITE_SUPABASE_KEY,
       { auth: { persistSession: false, autoRefreshToken: false } }
     );
 
