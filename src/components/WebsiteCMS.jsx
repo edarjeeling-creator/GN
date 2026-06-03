@@ -5,6 +5,12 @@ import { useSubscription } from '../context/SubscriptionContext';
 
 export default function WebsiteCMS() {
   const { isReadOnly, allowedTeachers } = useSubscription();
+  const [cmsSection, setCmsSection] = useState('general');
+  
+  // News State
+  const [news, setNews] = useState([]);
+  const [newNewsContent, setNewNewsContent] = useState('');
+  
   const [faculty, setFaculty] = useState([]);
   const [gallery, setGallery] = useState([]);
   
@@ -141,6 +147,7 @@ export default function WebsiteCMS() {
   const [facilityFiles, setFacilityFiles] = useState({});
 
   useEffect(() => {
+    fetchNews();
     fetchFaculty();
     fetchGallery();
     fetchHeroSlides();
@@ -155,6 +162,38 @@ export default function WebsiteCMS() {
     fetchDivisions();
     fetchFacilities();
   }, []);
+
+  const fetchNews = async () => {
+    const { data, error } = await supabase.from('news').select('*').order('created_at', { ascending: false });
+    if (!error && data) {
+      setNews(data);
+    }
+  };
+
+  const handleAddNews = async (e) => {
+    e.preventDefault();
+    if (!newNewsContent) return;
+    const { error } = await supabase.from('news').insert([{ content: newNewsContent, is_active: true }]);
+    if (!error) {
+      setNewNewsContent('');
+      fetchNews();
+    } else {
+      alert("Error adding news: " + error.message);
+    }
+  };
+
+  const handleDeleteNews = async (id) => {
+    if (!window.confirm("Delete this announcement?")) return;
+    const { error } = await supabase.from('news').delete().match({ id });
+    if (!error) fetchNews();
+    else alert("Error deleting news: " + error.message);
+  };
+
+  const handleToggleNews = async (id, currentStatus) => {
+    const { error } = await supabase.from('news').update({ is_active: !currentStatus }).match({ id });
+    if (!error) fetchNews();
+    else alert("Error updating news: " + error.message);
+  };
 
   const fetchFacilities = async () => {
     const { data } = await supabase.from('site_settings').select('value').eq('key', 'campus_facilities').single();
@@ -724,8 +763,27 @@ export default function WebsiteCMS() {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginTop: '2rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', marginTop: '2rem' }}>
       
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+        <label style={{ fontWeight: 'bold', color: '#475569' }}>Select CMS Section:</label>
+        <select 
+          className="input-field" 
+          value={cmsSection} 
+          onChange={e => setCmsSection(e.target.value)}
+          style={{ minWidth: '250px', background: 'white', flex: 1, maxWidth: '400px' }}
+        >
+          <option value="general">General (Branding, Theme, Footer, Menu)</option>
+          <option value="homepage">Home Page (Hero, Popup, Academic Excellence, Divisions)</option>
+          <option value="school_data">School Data (Faculty, Gallery, Disclosures, Facilities)</option>
+          <option value="news">News & Announcements</option>
+        </select>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+
+      {cmsSection === 'homepage' && (
+        <>
       {/* Homepage Campaign Pop-Up Controller */}
       <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem' }}>
@@ -1056,8 +1114,10 @@ export default function WebsiteCMS() {
           </div>
         </form>
       </div>
+      )}
 
       {/* Campus Facilities Manager */}
+      {cmsSection === 'school_data' && (
       <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem' }}>
           <div>
@@ -1146,8 +1206,10 @@ export default function WebsiteCMS() {
           </div>
         </form>
       </div>
+      )}
 
       {/* Academic Excellence Manager */}
+      {cmsSection === 'homepage' && (
       <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Layout size={20} color="#166534" /> Academic Excellence Manager
@@ -1195,8 +1257,10 @@ export default function WebsiteCMS() {
           </div>
         </form>
       </div>
+      )}
 
       {/* Mandatory Disclosures Manager */}
+      {cmsSection === 'school_data' && (
       <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <FileText size={20} color="#0284c7" /> Mandatory Disclosures Manager
@@ -1272,8 +1336,10 @@ export default function WebsiteCMS() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Homepage Hero Manager */}
+      {cmsSection === 'homepage' && (
       <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Monitor size={20} color="#f59e0b" /> Homepage Hero Slider Manager
@@ -1326,6 +1392,7 @@ export default function WebsiteCMS() {
       </div>
 
       {/* Hero Content & Style Manager */}
+      {cmsSection === 'homepage' && (
       <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Monitor size={20} color="#3b82f6" /> Hero Content & Style Manager
@@ -1412,8 +1479,10 @@ export default function WebsiteCMS() {
           </div>
         </form>
       </div>
+      )}
 
       {/* Site Branding Manager */}
+      {cmsSection === 'general' && (
       <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <ImageIcon size={20} color="#16a34a" /> Site Branding Manager
@@ -1493,8 +1562,10 @@ export default function WebsiteCMS() {
           </div>
         </form>
       </div>
+      )}
 
       {/* Theme Colors Manager */}
+      {cmsSection === 'general' && (
       <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Palette size={20} color="#eab308" /> Theme Colors
@@ -1577,8 +1648,10 @@ export default function WebsiteCMS() {
           </div>
         </form>
       </div>
+      )}
 
       {/* Footer Settings Manager */}
+      {cmsSection === 'general' && (
       <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Layout size={20} color="#3b82f6" /> Footer Settings Manager
@@ -1661,7 +1734,9 @@ export default function WebsiteCMS() {
           </div>
         </form>
       </div>
+
       {/* Menu Builder */}
+      {cmsSection === 'general' && (
       <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
@@ -1752,7 +1827,10 @@ export default function WebsiteCMS() {
           {savingMenu ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : 'Save Menu Structure'}
         </button>
       </div>
+      )}
 
+      {/* Faculty Manager */}
+      {cmsSection === 'school_data' && (
       <div className="bento-card" style={{ padding: '2rem' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Users size={20} color="#8b5cf6" /> Faculty Manager
@@ -1797,8 +1875,10 @@ export default function WebsiteCMS() {
           ))}
         </div>
       </div>
+      )}
 
       {/* Gallery Manager */}
+      {cmsSection === 'school_data' && (
       <div className="bento-card" style={{ padding: '2rem' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <ImageIcon size={20} color="#10b981" /> Bulk Photo Gallery Manager
@@ -1844,6 +1924,67 @@ export default function WebsiteCMS() {
           ))}
         </div>
       </div>
+      )}
+
+      {/* Manage News & Announcements */}
+      {cmsSection === 'news' && (
+      <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Megaphone size={20} color="#3b82f6" /> Manage News & Announcements
+        </h3>
+        <form onSubmit={handleAddNews} className="flex gap-2 mb-6">
+          <input 
+            type="text" 
+            placeholder="Announcement text (e.g., ADMISSIONS OPEN...)" 
+            className="input-field w-full" 
+            style={{ background: '#f8fafc', border: '1px solid #e2e8f0', flex: 1 }}
+            value={newNewsContent}
+            onChange={e => setNewNewsContent(e.target.value)}
+            required
+          />
+          <button type="submit" className="btn-hero-primary" style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.5rem 1.5rem' }}>Post</button>
+        </form>
+
+        <div style={{ maxHeight: '350px', overflowY: 'auto', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+          <table className="data-table" style={{ width: '100%' }}>
+            <thead style={{ background: '#f8fafc', position: 'sticky', top: 0, zIndex: 1 }}>
+              <tr>
+                <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Announcement</th>
+                <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Status</th>
+                <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {news.map(n => (
+                <tr key={n.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ padding: '1rem', fontWeight: 500 }}>{n.content}</td>
+                  <td style={{ padding: '1rem' }}>
+                    <button 
+                      onClick={() => handleToggleNews(n.id, n.is_active)}
+                      className="btn-hero-outline"
+                      style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', borderRadius: '1rem', border: n.is_active ? '1px solid #10b981' : '1px solid #94a3b8', color: n.is_active ? '#10b981' : '#94a3b8' }}
+                    >
+                      {n.is_active ? 'Active' : 'Inactive'}
+                    </button>
+                  </td>
+                  <td style={{ padding: '1rem' }}>
+                    <button 
+                      onClick={() => handleDeleteNews(n.id)} 
+                      className="btn-hero-outline" 
+                      style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#ef4444', border: '1px solid #fecaca' }}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {news.length === 0 && <tr><td colSpan="3" style={{ padding: '1rem', textAlign: 'center', color: '#64748b' }}>No announcements found.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      )}
+
     </div>
   );
 }

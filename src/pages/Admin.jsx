@@ -32,8 +32,7 @@ const Admin = () => {
   const [newSubject, setNewSubject] = useState('');
   const [assignment, setAssignment] = useState({ teacher_id: '', class_id: '', subject_id: '' });
   
-  const [news, setNews] = useState([]);
-  const [newNewsContent, setNewNewsContent] = useState('');
+  const [managementSection, setManagementSection] = useState('overview');
 
   const [importClassId, setImportClassId] = useState('');
   const fileInputRef = useRef(null);
@@ -50,7 +49,6 @@ const Admin = () => {
 
   useEffect(() => {
     fetchStats();
-    fetchNews();
   }, [academicYear]);
 
   const fetchStats = async () => {
@@ -77,37 +75,7 @@ const Admin = () => {
     if (tData) setTeachers(tData);
   };
 
-  const fetchNews = async () => {
-    const { data, error } = await supabase.from('news').select('*').order('created_at', { ascending: false });
-    if (!error && data) {
-      setNews(data);
-    }
-  };
 
-  const handleAddNews = async (e) => {
-    e.preventDefault();
-    if (!newNewsContent) return;
-    const { error } = await supabase.from('news').insert([{ content: newNewsContent, is_active: true }]);
-    if (!error) {
-      setNewNewsContent('');
-      fetchNews();
-    } else {
-      alert("Error adding news: " + error.message);
-    }
-  };
-
-  const handleDeleteNews = async (id) => {
-    if (!window.confirm("Delete this announcement?")) return;
-    const { error } = await supabase.from('news').delete().match({ id });
-    if (!error) fetchNews();
-    else alert("Error deleting news: " + error.message);
-  };
-
-  const handleToggleNews = async (id, currentStatus) => {
-    const { error } = await supabase.from('news').update({ is_active: !currentStatus }).match({ id });
-    if (!error) fetchNews();
-    else alert("Error updating news: " + error.message);
-  };
 
   const handleAddClass = async (e) => {
     e.preventDefault();
@@ -172,7 +140,10 @@ const Admin = () => {
 
   const handleAddTeacher = async (e) => {
     e.preventDefault();
-    if (!newTeacher.name || !newTeacher.email || !newTeacher.password) return;
+    if (!newTeacher.name || !newTeacher.password) return;
+    
+    // Auto-generate a consistent email for the teacher based on their name
+    const generatedEmail = `${newTeacher.name.trim().toLowerCase().replace(/\s+/g, '.')}@teacher.school.com`;
     
     // Create secondary supabase client to avoid logging out admin
     const secondarySupabase = createClient(
@@ -182,7 +153,7 @@ const Admin = () => {
     );
 
     const { data, error } = await secondarySupabase.auth.signUp({
-      email: newTeacher.email,
+      email: generatedEmail,
       password: newTeacher.password,
       options: {
         data: {
@@ -432,8 +403,25 @@ const Admin = () => {
       </div>
 
       {activeTab === 'dashboard' && (
-        <>
-          <div className="bento-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', marginBottom: '2rem' }}>
+            <label style={{ fontWeight: 'bold', color: '#475569' }}>Select School Management Section:</label>
+            <select 
+              className="input-field" 
+              value={managementSection} 
+              onChange={e => setManagementSection(e.target.value)}
+              style={{ minWidth: '250px', background: 'white', flex: 1, maxWidth: '400px' }}
+            >
+              <option value="overview">Overview & Analytics</option>
+              <option value="users">Manage Users & Teachers</option>
+              <option value="academics">Manage Classes & Subjects</option>
+              <option value="data">Data Import & Export</option>
+            </select>
+          </div>
+
+          {managementSection === 'overview' && (
+            <>
+              <div className="bento-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', marginBottom: '2rem' }}>
         <motion.div whileHover={{ y: -5 }} className="bento-card" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: '4px solid #3b82f6' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Total Classes</h3>
@@ -475,9 +463,8 @@ const Admin = () => {
         </motion.div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        
-        <div className="flex" style={{ flexDirection: 'column', gap: '1.5rem' }}>
+      </div>
+
           <div className="bento-card" style={{ padding: '2rem' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Class Performance Analytics</h3>
             <div style={{ height: '300px' }}>
@@ -494,7 +481,11 @@ const Admin = () => {
               </ResponsiveContainer>
             </div>
           </div>
+            </>
+          )}
 
+          {managementSection === 'data' && (
+            <div className="flex" style={{ flexDirection: 'column', gap: '2rem' }}>
           <div className="bento-card" style={{ padding: '2rem' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--text-primary)' }}>Bulk Import Students</h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
@@ -581,10 +572,11 @@ const Admin = () => {
               </div>
             </div>
           </div>
-        </div>
+            </div>
+          )}
 
-        <div className="flex" style={{ flexDirection: 'column', gap: '2rem' }}>
-          
+          {managementSection === 'users' && (
+            <div className="flex" style={{ flexDirection: 'column', gap: '2rem' }}>
           <div className="bento-card" style={{ padding: '2rem' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Manage Students</h3>
             <div style={{ maxHeight: '400px', overflowY: 'auto', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
@@ -628,9 +620,12 @@ const Admin = () => {
                   })}
                 </tbody>
               </table>
-            </div>
           </div>
+            </div>
+          )}
 
+          {managementSection === 'academics' && (
+            <div className="flex" style={{ flexDirection: 'column', gap: '2rem' }}>
           <div className="bento-card" style={{ padding: '2rem' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Manage Classes</h3>
             <form onSubmit={handleAddClass} className="flex gap-2 mb-6">
@@ -737,13 +732,16 @@ const Admin = () => {
                         </button>
                       </td>
                     </tr>
-                  ))}
                   {subjects.length === 0 && <tr><td colSpan="2" style={{ padding: '1rem' }}>No subjects found.</td></tr>}
                 </tbody>
               </table>
             </div>
           </div>
+            </div>
+          )}
 
+          {managementSection === 'users' && (
+            <div className="flex" style={{ flexDirection: 'column', gap: '2rem' }}>
           <div className="bento-card" style={{ padding: '2rem' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Assign Teacher</h3>
             <form onSubmit={handleAssignTeacher} className="flex flex-col gap-3">
@@ -797,15 +795,6 @@ const Admin = () => {
                 required
               />
               <input 
-                type="email" 
-                placeholder="Email Address (Login ID)" 
-                className="input-field" 
-                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
-                value={newTeacher.email}
-                onChange={e => setNewTeacher({...newTeacher, email: e.target.value})}
-                required
-              />
-              <input 
                 type="password" 
                 placeholder="Secure Password" 
                 className="input-field" 
@@ -822,79 +811,30 @@ const Admin = () => {
                 <thead style={{ background: '#f8fafc' }}>
                   <tr>
                     <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Name</th>
-                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Email</th>
+                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>System Email</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {teachers.map(t => (
-                    <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '1rem', fontWeight: 500 }}>{t.name}</td>
-                      <td style={{ padding: '1rem', color: '#64748b' }}>{t.email}</td>
-                    </tr>
-                  ))}
+                  {teachers.map(t => {
+                    const generatedSysEmail = `${t.name.trim().toLowerCase().replace(/\s+/g, '.')}@teacher.school.com`;
+                    return (
+                      <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '1rem', fontWeight: 500 }}>{t.name}</td>
+                        <td style={{ padding: '1rem', color: '#64748b' }}>{generatedSysEmail}</td>
+                      </tr>
+                    )
+                  })}
                   {teachers.length === 0 && <tr><td colSpan="2" style={{ padding: '1rem' }}>No teachers found.</td></tr>}
                 </tbody>
               </table>
             </div>
           </div>
 
-          <div className="bento-card" style={{ padding: '2rem' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Manage News & Announcements</h3>
-            <form onSubmit={handleAddNews} className="flex gap-2 mb-6">
-              <input 
-                type="text" 
-                placeholder="Announcement text (e.g., ADMISSIONS OPEN...)" 
-                className="input-field w-full" 
-                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
-                value={newNewsContent}
-                onChange={e => setNewNewsContent(e.target.value)}
-                required
-              />
-              <button type="submit" className="btn-hero-primary" style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.5rem 1.5rem' }}>Post</button>
-            </form>
-
-            <div style={{ maxHeight: '250px', overflowY: 'auto', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
-              <table className="data-table" style={{ width: '100%' }}>
-                <thead style={{ background: '#f8fafc' }}>
-                  <tr>
-                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Announcement</th>
-                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Status</th>
-                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {news.map(n => (
-                    <tr key={n.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '1rem', fontWeight: 500 }}>{n.content}</td>
-                      <td style={{ padding: '1rem' }}>
-                        <button 
-                          onClick={() => handleToggleNews(n.id, n.is_active)}
-                          className={`btn-hero-outline`}
-                          style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', borderRadius: '1rem', border: n.is_active ? '1px solid #10b981' : '1px solid #94a3b8', color: n.is_active ? '#10b981' : '#94a3b8' }}
-                        >
-                          {n.is_active ? 'Active' : 'Inactive'}
-                        </button>
-                      </td>
-                      <td style={{ padding: '1rem' }}>
-                        <button 
-                          onClick={() => handleDeleteNews(n.id)} 
-                          className="btn-hero-outline" 
-                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#ef4444', border: '1px solid #fecaca' }}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {news.length === 0 && <tr><td colSpan="3" style={{ padding: '1rem' }}>No announcements found.</td></tr>}
-                </tbody>
-              </table>
             </div>
           </div>
-
+            </div>
+          )}
         </div>
-      </div>
-      </>
       )}
 
       {editingLangStudent && (
