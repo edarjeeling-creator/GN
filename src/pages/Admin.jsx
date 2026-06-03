@@ -633,6 +633,7 @@ const Admin = () => {
               </table>
           </div>
             </div>
+            </div>
           )}
 
           {managementSection === 'academics' && (
