@@ -476,9 +476,6 @@ const Admin = () => {
           <p style={{ fontSize: '2.5rem', fontWeight: 900, color: '#ef4444', lineHeight: 1 }}>{stats.teachers}</p>
         </motion.div>
       </div>
-
-      </div>
-
           <div className="bento-card" style={{ padding: '2rem' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Class Performance Analytics</h3>
             <div style={{ height: '300px' }}>
