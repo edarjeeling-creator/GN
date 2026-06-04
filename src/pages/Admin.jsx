@@ -11,6 +11,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import * as XLSX from 'xlsx';
 import WebsiteCMS from '../components/WebsiteCMS';
 import BatchPhotoImport from './Admin/BatchPhotoImport';
+import RoutineGenerator from './Admin/RoutineGenerator';
+import SubstitutionDashboard from './Admin/SubstitutionDashboard';
 
 const Admin = () => {
   const { logout } = useAuth();
@@ -559,6 +561,7 @@ const Admin = () => {
               <option value="overview">Overview & Analytics</option>
               <option value="users">Manage Users & Teachers</option>
               <option value="academics">Manage Classes & Subjects</option>
+              <option value="routine">Routine & Substitution Engine</option>
               <option value="data">Data Import & Export</option>
             </select>
           </div>
@@ -1069,6 +1072,13 @@ const Admin = () => {
             </div>
           </div>
 
+            </div>
+          )}
+
+          {managementSection === 'routine' && (
+            <div className="flex flex-col gap-6 w-full">
+              <RoutineGenerator classes={classes} subjects={subjects} profiles={teachers} />
+              <SubstitutionDashboard classes={classes} subjects={subjects} profiles={teachers} />
             </div>
           )}
         </div>
