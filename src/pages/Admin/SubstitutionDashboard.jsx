@@ -112,6 +112,12 @@ const SubstitutionDashboard = ({ classes, subjects, profiles }) => {
     }
   };
 
+  const removeTeacherAbsence = async (id) => {
+    const { error } = await supabase.from('teacher_attendance').delete().eq('id', id);
+    if (error) alert("Error removing absence: " + error.message);
+    else fetchData();
+  };
+
   return (
     <div className="flex flex-col gap-6">
       
@@ -166,6 +172,22 @@ const SubstitutionDashboard = ({ classes, subjects, profiles }) => {
             <p className="text-2xl font-bold mt-1 text-slate-800">{deltas.length}</p>
           </div>
         </div>
+
+        {absences.length > 0 && (
+          <div className="mt-6 border-t border-slate-200 pt-4">
+            <h4 className="font-bold text-sm text-slate-500 mb-3 uppercase">Absent Teachers ({targetDate})</h4>
+            <div className="flex flex-wrap gap-2">
+              {absences.map(a => (
+                <div key={a.id} className="flex items-center gap-2 bg-red-50 text-red-700 px-3 py-1.5 rounded-full text-sm border border-red-100 font-medium">
+                  <span>{getProfileName(a.teacher_id)}</span>
+                  <button onClick={() => removeTeacherAbsence(a.id)} className="hover:text-red-900 bg-red-200/50 rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                    &times;
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Blueprint View (Mobile Friendly Cards) */}
