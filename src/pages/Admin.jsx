@@ -14,7 +14,7 @@ import WebsiteCMS from '../components/WebsiteCMS';
 const Admin = () => {
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const { academicYear, classes, subjects, students, updateStudentLanguages, loadingData } = useData();
+  const { academicYear, classes, subjects, students, updateStudentLanguages, updateStudentPictureUrl, loadingData } = useData();
   const [stats, setStats] = useState({ classes: 0, students: 0, subjects: 0, teachers: 0 });
   const [activeTab, setActiveTab] = useState('dashboard');
   
@@ -35,6 +35,9 @@ const Admin = () => {
   const [teacherAssignments, setTeacherAssignments] = useState([]);
   const [modalAssignmentClass, setModalAssignmentClass] = useState('');
   const [modalAssignmentSubject, setModalAssignmentSubject] = useState('');
+
+  const [uploadingStudentId, setUploadingStudentId] = useState(null);
+  const studentPhotoInputRef = useRef(null);
 
   const [newClass, setNewClass] = useState({ name: '', section: '' });
   const [newSubject, setNewSubject] = useState('');
@@ -81,6 +84,54 @@ const Admin = () => {
 
     const { data: tData } = await supabase.from('profiles').select('*').eq('role', 'teacher').order('name');
     if (tData) setTeachers(tData);
+  };
+
+  const handleStudentPhotoClick = (studentId) => {
+    setUploadingStudentId(studentId);
+    studentPhotoInputRef.current.click();
+  };
+
+  const handleStudentPhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadingStudentId) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Image must be less than 2MB.");
+      return;
+    }
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${uploadingStudentId}-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('student-profiles')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('student-profiles')
+        .getPublicUrl(fileName);
+
+      const pictureUrl = publicUrlData.publicUrl;
+
+      const { error: dbError } = await supabase
+        .from('students')
+        .update({ picture_url: pictureUrl })
+        .eq('id', uploadingStudentId);
+
+      if (dbError) throw dbError;
+
+      updateStudentPictureUrl(uploadingStudentId, pictureUrl);
+      alert("Photo uploaded successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Error uploading photo: " + err.message);
+    } finally {
+      if (studentPhotoInputRef.current) studentPhotoInputRef.current.value = '';
+      setUploadingStudentId(null);
+    }
   };
 
   const fetchTeacherAssignments = async (teacherId) => {
@@ -670,9 +721,26 @@ const Admin = () => {
                     return (
                       <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '1rem' }}>{s.roll_no}</td>
-                        <td style={{ padding: '1rem', fontWeight: 500 }}>{s.name}</td>
-                        <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>{sCls ? `${sCls.name} ${sCls.section}` : 'Unknown'}</td>
                         <td style={{ padding: '1rem' }}>
+                          <div className="flex items-center gap-3">
+                            <img 
+                              src={s.picture_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=random`} 
+                              alt={s.name} 
+                              style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
+                            />
+                            <span style={{ fontWeight: 500 }}>{s.name}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>{sCls ? `${sCls.name} ${sCls.section}` : 'Unknown'}</td>
+                        <td style={{ padding: '1rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <button 
+                            className="btn-hero-outline"
+                            style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', border: '1px solid #e2e8f0', color: '#475569' }}
+                            onClick={() => handleStudentPhotoClick(s.id)}
+                            disabled={uploadingStudentId === s.id}
+                          >
+                            {uploadingStudentId === s.id ? 'Uploading...' : 'Upload Photo'}
+                          </button>
                           <button 
                             className="btn-hero-outline"
                             style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', border: '1px solid #e2e8f0', color: '#475569' }}
@@ -1023,6 +1091,14 @@ const Admin = () => {
 
       {/* Website CMS */}
       {activeTab === 'cms' && <WebsiteCMS />}
+
+      <input 
+        type="file" 
+        accept="image/jpeg, image/png, image/webp" 
+        ref={studentPhotoInputRef} 
+        style={{ display: 'none' }} 
+        onChange={handleStudentPhotoUpload} 
+      />
 
     </motion.div>
   );

@@ -67,6 +67,7 @@ const SubjectMarks = () => {
 
   const [search, setSearch] = useState('');
   const [languageFilter, setLanguageFilter] = useState('');
+  const [selectedTerm, setSelectedTerm] = useState('Midterm'); // Added Term Selector
   const fileInputRef = useRef(null);
 
   const isSecondLanguage = subject?.name.toLowerCase().includes('2nd language') || subject?.name.toLowerCase().includes('second language');
@@ -269,27 +270,44 @@ const SubjectMarks = () => {
               ))}
             </select>
           )}
+
+          <select 
+            className="input-field" 
+            style={{ maxWidth: '200px', fontWeight: 'bold' }}
+            value={selectedTerm}
+            onChange={(e) => setSelectedTerm(e.target.value)}
+          >
+            <option value="Midterm">Mid-Term</option>
+            <option value="Finalterm">Final-Term</option>
+          </select>
         </div>
 
         <div className="table-container">
-          <table className="data-table" style={{ minWidth: '1000px' }}>
+          <table className="data-table" style={{ minWidth: '800px' }}>
             <thead>
               <tr>
-                <th rowSpan="2" style={{ verticalAlign: 'middle' }}>Roll No</th>
-                <th rowSpan="2" style={{ verticalAlign: 'middle', minWidth: '200px' }}>Student Name</th>
-                <th colSpan="4" className="text-center" style={{ borderLeft: '2px solid var(--border-color)', backgroundColor: 'rgba(37, 99, 235, 0.05)' }}>Mid-Term</th>
-                <th colSpan="4" className="text-center" style={{ borderLeft: '2px solid var(--border-color)', backgroundColor: 'rgba(16, 185, 129, 0.05)' }}>Final-Term</th>
+                <th rowSpan="2" style={{ verticalAlign: 'middle', width: '80px' }}>Roll No</th>
+                <th rowSpan="2" style={{ verticalAlign: 'middle', minWidth: '250px' }}>Student Name</th>
+                {selectedTerm === 'Midterm' && <th colSpan="4" className="text-center" style={{ borderLeft: '2px solid var(--border-color)', backgroundColor: 'rgba(37, 99, 235, 0.05)' }}>Mid-Term</th>}
+                {selectedTerm === 'Finalterm' && <th colSpan="4" className="text-center" style={{ borderLeft: '2px solid var(--border-color)', backgroundColor: 'rgba(16, 185, 129, 0.05)' }}>Final-Term</th>}
               </tr>
               <tr>
-                <th className="text-center" style={{ borderLeft: '2px solid var(--border-color)' }}>Exam (100)</th>
-                <th className="text-center text-text-secondary">Conv ({examConv})</th>
-                <th className="text-center">Test ({testMax})</th>
-                <th className="text-center text-primary font-bold">Total (100)</th>
-                
-                <th className="text-center" style={{ borderLeft: '2px solid var(--border-color)' }}>Exam (100)</th>
-                <th className="text-center text-text-secondary">Conv ({examConv})</th>
-                <th className="text-center">Test ({testMax})</th>
-                <th className="text-center text-success font-bold">Total (100)</th>
+                {selectedTerm === 'Midterm' && (
+                  <>
+                    <th className="text-center" style={{ borderLeft: '2px solid var(--border-color)' }}>Exam (100)</th>
+                    <th className="text-center text-text-secondary">Conv ({examConv})</th>
+                    <th className="text-center">Test ({testMax})</th>
+                    <th className="text-center text-primary font-bold">Total (100)</th>
+                  </>
+                )}
+                {selectedTerm === 'Finalterm' && (
+                  <>
+                    <th className="text-center" style={{ borderLeft: '2px solid var(--border-color)' }}>Exam (100)</th>
+                    <th className="text-center text-text-secondary">Conv ({examConv})</th>
+                    <th className="text-center">Test ({testMax})</th>
+                    <th className="text-center text-success font-bold">Total (100)</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -315,35 +333,52 @@ const SubjectMarks = () => {
                 return (
                   <tr key={student.id}>
                     <td>{student.roll_no}</td>
-                    <td style={{ fontWeight: 500 }}>{student.name}</td>
+                    <td style={{ fontWeight: 500 }}>
+                      <div className="flex items-center gap-3">
+                        <img 
+                          src={student.picture_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name)}&background=random`} 
+                          alt={student.name} 
+                          style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
+                        />
+                        {student.name}
+                      </div>
+                    </td>
                     
                     {/* Midterm */}
-                    <td className="text-center" style={{ borderLeft: '2px solid var(--border-color)' }}>
-                      <input type="number" className="marks-input" value={mtExam} min="0" max="100"
-                        onChange={(e) => handleMarkChange(student.id, 'Midterm_Exam', e.target.value)}
-                        onBlur={() => handleBlur(student.id, 'Midterm_Exam')} />
-                    </td>
-                    <td className="text-center text-text-secondary">{mtConv > 0 ? mtConv.toFixed(2) : '0'}</td>
-                    <td className="text-center">
-                      <input type="number" className="marks-input" value={mtTest} min="0" max={testMax}
-                        onChange={(e) => handleMarkChange(student.id, 'Midterm_Test', e.target.value)}
-                        onBlur={() => handleBlur(student.id, 'Midterm_Test')} />
-                    </td>
-                    <td className="text-center text-primary font-bold">{mtTotal > 0 ? mtTotal : '0'}</td>
+                    {selectedTerm === 'Midterm' && (
+                      <>
+                        <td className="text-center" style={{ borderLeft: '2px solid var(--border-color)' }}>
+                          <input type="number" className="marks-input" value={mtExam} min="0" max="100"
+                            onChange={(e) => handleMarkChange(student.id, 'Midterm_Exam', e.target.value)}
+                            onBlur={() => handleBlur(student.id, 'Midterm_Exam')} />
+                        </td>
+                        <td className="text-center text-text-secondary">{mtConv > 0 ? mtConv.toFixed(2) : '0'}</td>
+                        <td className="text-center">
+                          <input type="number" className="marks-input" value={mtTest} min="0" max={testMax}
+                            onChange={(e) => handleMarkChange(student.id, 'Midterm_Test', e.target.value)}
+                            onBlur={() => handleBlur(student.id, 'Midterm_Test')} />
+                        </td>
+                        <td className="text-center text-primary font-bold">{mtTotal > 0 ? mtTotal : '0'}</td>
+                      </>
+                    )}
 
                     {/* Finalterm */}
-                    <td className="text-center" style={{ borderLeft: '2px solid var(--border-color)' }}>
-                      <input type="number" className="marks-input" value={ftExam} min="0" max="100"
-                        onChange={(e) => handleMarkChange(student.id, 'Finalterm_Exam', e.target.value)}
-                        onBlur={() => handleBlur(student.id, 'Finalterm_Exam')} />
-                    </td>
-                    <td className="text-center text-text-secondary">{ftConv > 0 ? ftConv.toFixed(2) : '0'}</td>
-                    <td className="text-center">
-                      <input type="number" className="marks-input" value={ftTest} min="0" max={testMax}
-                        onChange={(e) => handleMarkChange(student.id, 'Finalterm_Test', e.target.value)}
-                        onBlur={() => handleBlur(student.id, 'Finalterm_Test')} />
-                    </td>
-                    <td className="text-center text-success font-bold">{ftTotal > 0 ? ftTotal : '0'}</td>
+                    {selectedTerm === 'Finalterm' && (
+                      <>
+                        <td className="text-center" style={{ borderLeft: '2px solid var(--border-color)' }}>
+                          <input type="number" className="marks-input" value={ftExam} min="0" max="100"
+                            onChange={(e) => handleMarkChange(student.id, 'Finalterm_Exam', e.target.value)}
+                            onBlur={() => handleBlur(student.id, 'Finalterm_Exam')} />
+                        </td>
+                        <td className="text-center text-text-secondary">{ftConv > 0 ? ftConv.toFixed(2) : '0'}</td>
+                        <td className="text-center">
+                          <input type="number" className="marks-input" value={ftTest} min="0" max={testMax}
+                            onChange={(e) => handleMarkChange(student.id, 'Finalterm_Test', e.target.value)}
+                            onBlur={() => handleBlur(student.id, 'Finalterm_Test')} />
+                        </td>
+                        <td className="text-center text-success font-bold">{ftTotal > 0 ? ftTotal : '0'}</td>
+                      </>
+                    )}
                   </tr>
                 );
               })}

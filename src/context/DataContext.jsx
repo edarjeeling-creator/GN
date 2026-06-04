@@ -192,6 +192,10 @@ export const DataProvider = ({ children }) => {
     return { success: false, error };
   };
 
+  const updateStudentPictureUrl = (studentId, newUrl) => {
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, picture_url: newUrl } : s));
+  };
+
   // Filter classes by academic year
   const activeClasses = classes.filter(c => c.academic_year === academicYear || (!c.academic_year && academicYear === '2026'));
 
@@ -199,9 +203,10 @@ export const DataProvider = ({ children }) => {
     <DataContext.Provider value={{
       academicYear, setAcademicYear,
       classes: activeClasses, subjects, students, teacherSubjects, marks, attendance,
-      updateMark, toggleTeacherSubject, addStudent, updateStudentLanguages, updateStudentUid, loadingData
+      updateMark, toggleTeacherSubject, addStudent, updateStudentLanguages, updateStudentUid, updateStudentPictureUrl, loadingData
     }}>
       {children}
     </DataContext.Provider>
   );
 };
+
