@@ -145,7 +145,7 @@ const SubstitutionDashboard = ({ classes, subjects, profiles }) => {
                 <option value="">Select Teacher to Mark Absent...</option>
                 {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
-              <button className="btn-hero-outline text-red-600 border-red-200 hover:bg-red-50" onClick={markTeacherAbsent}>
+              <button className="btn btn-outline text-red-600 border-red-200 hover:bg-red-50" onClick={markTeacherAbsent}>
                 Mark Absent
               </button>
             </div>

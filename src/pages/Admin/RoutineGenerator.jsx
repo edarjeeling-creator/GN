@@ -161,8 +161,8 @@ const RoutineGenerator = ({ classes, subjects, profiles }) => {
       </div>
 
       <div className="mt-6 flex justify-end gap-3">
-        <button className="btn-hero-outline" onClick={checkConflicts}>Check Conflicts</button>
-        <button className="btn-hero-primary flex items-center gap-2" onClick={handleSave}><Save size={18}/> Save Routine</button>
+        <button className="btn btn-outline" onClick={checkConflicts}>Check Conflicts</button>
+        <button className="btn btn-primary flex items-center gap-2" onClick={handleSave}><Save size={18}/> Save Routine</button>
       </div>
     </div>
   );
