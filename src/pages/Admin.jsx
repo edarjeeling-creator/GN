@@ -14,7 +14,7 @@ import WebsiteCMS from '../components/WebsiteCMS';
 const Admin = () => {
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const { academicYear, classes, subjects, students, updateStudentLanguages, updateStudentPictureUrl, loadingData } = useData();
+  const { academicYear, classes, subjects, students, updateStudentLanguages, updateStudentPictureUrl, updateSubjectName, loadingData } = useData();
   const [stats, setStats] = useState({ classes: 0, students: 0, subjects: 0, teachers: 0 });
   const [activeTab, setActiveTab] = useState('dashboard');
   
@@ -42,6 +42,10 @@ const Admin = () => {
 
   const [newClass, setNewClass] = useState({ name: '', section: '' });
   const [newSubject, setNewSubject] = useState('');
+  
+  const [editingSubjectId, setEditingSubjectId] = useState(null);
+  const [editSubjectName, setEditSubjectName] = useState('');
+  
   const [assignment, setAssignment] = useState({ teacher_id: '', class_id: '', subject_id: '' });
   
   const [managementSection, setManagementSection] = useState('overview');
@@ -208,8 +212,20 @@ const Admin = () => {
     const { error } = await supabase.from('classes').delete().match({ id });
     if (!error) {
       fetchStats();
+    } else if (error) alert("Error deleting class: " + error.message);
+  };
+
+  const handleEditSubjectSave = async (subjectId) => {
+    if (!editSubjectName.trim()) {
+      alert("Subject name cannot be empty.");
+      return;
+    }
+    const { error } = await supabase.from('subjects').update({ name: editSubjectName }).eq('id', subjectId);
+    if (error) {
+      alert("Error updating subject: " + error.message);
     } else {
-      alert("Error deleting class: " + error.message);
+      updateSubjectName(subjectId, editSubjectName);
+      setEditingSubjectId(null);
     }
   };
 
@@ -874,15 +890,58 @@ const Admin = () => {
                 <tbody>
                   {subjects.map(s => (
                     <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '1rem', fontWeight: 500 }}>{s.name}</td>
-                      <td style={{ padding: '1rem' }}>
-                        <button 
-                          onClick={() => handleDeleteSubject(s.id)} 
-                          className="btn-hero-outline" 
-                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#ef4444', border: '1px solid #fecaca' }}
-                        >
-                          Delete
-                        </button>
+                      <td style={{ padding: '1rem', fontWeight: 500 }}>
+                        {editingSubjectId === s.id ? (
+                          <input 
+                            type="text" 
+                            className="input-field w-full"
+                            style={{ padding: '0.4rem', border: '1px solid var(--primary-color)' }}
+                            value={editSubjectName}
+                            onChange={(e) => setEditSubjectName(e.target.value)}
+                          />
+                        ) : (
+                          s.name
+                        )}
+                      </td>
+                      <td style={{ padding: '1rem', display: 'flex', gap: '0.5rem' }}>
+                        {editingSubjectId === s.id ? (
+                          <>
+                            <button 
+                              onClick={() => handleEditSubjectSave(s.id)}
+                              className="btn-hero-outline" 
+                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#10b981', border: '1px solid #a7f3d0' }}
+                            >
+                              Save
+                            </button>
+                            <button 
+                              onClick={() => setEditingSubjectId(null)}
+                              className="btn-hero-outline" 
+                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#64748b', border: '1px solid #cbd5e1' }}
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button 
+                              onClick={() => {
+                                setEditingSubjectId(s.id);
+                                setEditSubjectName(s.name);
+                              }}
+                              className="btn-hero-outline" 
+                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#3b82f6', border: '1px solid #bfdbfe' }}
+                            >
+                              Edit
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteSubject(s.id)} 
+                              className="btn-hero-outline" 
+                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#ef4444', border: '1px solid #fecaca' }}
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
                       </td>
                     </tr>
                   ))}
