@@ -17,7 +17,7 @@ import SubstitutionDashboard from './Admin/SubstitutionDashboard';
 const Admin = () => {
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const { academicYear, classes, subjects, students, updateStudentLanguages, updateStudentPictureUrl, updateSubjectName, loadingData } = useData();
+  const { academicYear, classes, subjects, students, updateStudentLanguages, updateStudentPictureUrl, updateSubjectName, removeStudent, loadingData } = useData();
   const [stats, setStats] = useState({ classes: 0, students: 0, subjects: 0, teachers: 0 });
   const [activeTab, setActiveTab] = useState('dashboard');
   
@@ -231,7 +231,7 @@ const Admin = () => {
 
     const { error } = await supabase.from('students').delete().match({ id });
     if (!error) {
-      setStudents(prev => prev.filter(s => s.id !== id));
+      removeStudent(id);
       alert("Student deleted successfully!");
     } else {
       alert("Error deleting student: " + error.message);

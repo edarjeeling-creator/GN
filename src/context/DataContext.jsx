@@ -203,11 +203,15 @@ export const DataProvider = ({ children }) => {
   // Filter classes by academic year
   const activeClasses = classes.filter(c => c.academic_year === academicYear || (!c.academic_year && academicYear === '2026'));
 
+  const removeStudent = (studentId) => {
+    setStudents(prev => prev.filter(s => s.id !== studentId));
+  };
+
   return (
     <DataContext.Provider value={{
       academicYear, setAcademicYear,
       classes: activeClasses, subjects, students, teacherSubjects, marks, attendance,
-      updateMark, toggleTeacherSubject, addStudent, updateStudentLanguages, updateStudentUid, updateStudentPictureUrl, updateSubjectName, loadingData
+      updateMark, toggleTeacherSubject, addStudent, updateStudentLanguages, updateStudentUid, updateStudentPictureUrl, updateSubjectName, removeStudent, loadingData
     }}>
       {children}
     </DataContext.Provider>
