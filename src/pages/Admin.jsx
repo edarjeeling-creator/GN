@@ -218,6 +218,26 @@ const Admin = () => {
     } else if (error) alert("Error deleting class: " + error.message);
   };
 
+  const handleDeleteSubject = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this subject? This will also delete all marks and teacher assignments associated with it!")) return;
+    
+    const { error } = await supabase.from('subjects').delete().match({ id });
+    if (!error) fetchStats();
+    else alert("Error deleting subject: " + error.message);
+  };
+
+  const handleDeleteStudent = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this student? All their marks and attendance records will be removed forever!")) return;
+
+    const { error } = await supabase.from('students').delete().match({ id });
+    if (!error) {
+      setStudents(prev => prev.filter(s => s.id !== id));
+      alert("Student deleted successfully!");
+    } else {
+      alert("Error deleting student: " + error.message);
+    }
+  };
+
   const handleEditSubjectSave = async (subjectId) => {
     if (!editSubjectName.trim()) {
       alert("Subject name cannot be empty.");
@@ -774,7 +794,7 @@ const Admin = () => {
                             {uploadingStudentId === s.id ? 'Uploading...' : 'Upload Photo'}
                           </button>
                           <button 
-                            className="btn-hero-outline"
+                            className="btn btn-outline"
                             style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', border: '1px solid #e2e8f0', color: '#475569' }}
                             onClick={() => {
                               setEditingLangStudent(s);
@@ -785,6 +805,13 @@ const Admin = () => {
                             }}
                           >
                             Edit Languages
+                          </button>
+                          <button 
+                            className="btn btn-outline"
+                            style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', border: '1px solid #ef4444', color: '#ef4444' }}
+                            onClick={() => handleDeleteStudent(s.id)}
+                          >
+                            Delete
                           </button>
                         </td>
                       </tr>
