@@ -38,6 +38,7 @@ const Admin = () => {
 
   const [uploadingStudentId, setUploadingStudentId] = useState(null);
   const studentPhotoInputRef = useRef(null);
+  const [manageStudentsClassFilter, setManageStudentsClassFilter] = useState('all');
 
   const [newClass, setNewClass] = useState({ name: '', section: '' });
   const [newSubject, setNewSubject] = useState('');
@@ -701,7 +702,18 @@ const Admin = () => {
           {managementSection === 'users' && (
             <div className="flex" style={{ flexDirection: 'column', gap: '2rem' }}>
           <div className="bento-card" style={{ padding: '2rem' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Manage Students</h3>
+            <div className="flex justify-between items-center mb-6" style={{ flexWrap: 'wrap', gap: '1rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Manage Students</h3>
+              <select 
+                className="input-field" 
+                style={{ maxWidth: '250px', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}
+                value={manageStudentsClassFilter}
+                onChange={(e) => setManageStudentsClassFilter(e.target.value)}
+              >
+                <option value="all">All Classes</option>
+                {classes.map(c => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
+              </select>
+            </div>
             <div style={{ maxHeight: '400px', overflowY: 'auto', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
               <table className="data-table" style={{ width: '100%' }}>
                 <thead style={{ background: '#f8fafc' }}>
@@ -713,7 +725,7 @@ const Admin = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {students.sort((a,b) => {
+                  {students.filter(s => manageStudentsClassFilter === 'all' || s.class_id === manageStudentsClassFilter).sort((a,b) => {
                     if (a.class_id !== b.class_id) return a.class_id.localeCompare(b.class_id);
                     return a.roll_no - b.roll_no;
                   }).map(s => {
