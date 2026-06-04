@@ -947,6 +947,9 @@ const Admin = () => {
               <label className="block mb-1">6th Subject (e.g. Computer App, Home Science)</label>
               <input type="text" className="input-field w-full" value={editSixthSubject} onChange={e => setEditSixthSubject(e.target.value)} />
             </div>
+            <div className="flex gap-2 justify-end">
+              <button className="btn btn-outline" onClick={() => setEditingLangStudent(null)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSaveLanguages}>Save</button>
             </div>
           </div>
         </div>
