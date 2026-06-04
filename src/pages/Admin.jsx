@@ -10,6 +10,7 @@ import { getConversionConstants } from './SubjectMarks';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import * as XLSX from 'xlsx';
 import WebsiteCMS from '../components/WebsiteCMS';
+import BatchPhotoImport from './Admin/BatchPhotoImport';
 
 const Admin = () => {
   const { logout } = useAuth();
@@ -790,6 +791,13 @@ const Admin = () => {
               </table>
           </div>
             </div>
+
+            <BatchPhotoImport 
+              students={students} 
+              classes={classes} 
+              onUploadSuccess={(id, url) => updateStudentPictureUrl(id, url)} 
+            />
+
             </div>
           )}
 
