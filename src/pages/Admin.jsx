@@ -29,6 +29,13 @@ const Admin = () => {
   const [editElectiveSubject, setEditElectiveSubject] = useState('');
   const [editSixthSubject, setEditSixthSubject] = useState('');
 
+  // State for Edit Teacher Modal
+  const [editingTeacher, setEditingTeacher] = useState(null);
+  const [editTeacherName, setEditTeacherName] = useState('');
+  const [teacherAssignments, setTeacherAssignments] = useState([]);
+  const [modalAssignmentClass, setModalAssignmentClass] = useState('');
+  const [modalAssignmentSubject, setModalAssignmentSubject] = useState('');
+
   const [newClass, setNewClass] = useState({ name: '', section: '' });
   const [newSubject, setNewSubject] = useState('');
   const [assignment, setAssignment] = useState({ teacher_id: '', class_id: '', subject_id: '' });
@@ -76,7 +83,59 @@ const Admin = () => {
     if (tData) setTeachers(tData);
   };
 
+  const fetchTeacherAssignments = async (teacherId) => {
+    const { data, error } = await supabase.from('teacher_subjects').select('*').eq('teacher_id', teacherId);
+    if (data) setTeacherAssignments(data);
+    else console.error("Error fetching assignments:", error);
+  };
 
+  const handleEditTeacherClick = (teacher) => {
+    setEditingTeacher(teacher);
+    setEditTeacherName(teacher.name);
+    fetchTeacherAssignments(teacher.id);
+  };
+
+  const handleUpdateTeacherName = async () => {
+    if (!editingTeacher || !editTeacherName.trim()) return;
+    const { error } = await supabase.from('profiles').update({ name: editTeacherName.trim(), full_name: editTeacherName.trim() }).eq('id', editingTeacher.id);
+    if (!error) {
+      setTeachers(prev => prev.map(t => t.id === editingTeacher.id ? { ...t, name: editTeacherName.trim() } : t));
+      alert("Teacher name updated successfully!");
+    } else {
+      alert("Error updating teacher name: " + error.message);
+    }
+  };
+
+  const handleRemoveAssignment = async (assignmentId) => {
+    if (!window.confirm("Are you sure you want to remove this assignment?")) return;
+    const { error } = await supabase.from('teacher_subjects').delete().eq('id', assignmentId);
+    if (!error) {
+      setTeacherAssignments(prev => prev.filter(a => a.id !== assignmentId));
+    } else {
+      alert("Error removing assignment: " + error.message);
+    }
+  };
+
+  const handleModalAssignTeacher = async () => {
+    if (!editingTeacher || !modalAssignmentClass || !modalAssignmentSubject) return;
+    
+    // Check for duplicates
+    const isDuplicate = teacherAssignments.some(a => a.class_id === modalAssignmentClass && a.subject_id === modalAssignmentSubject);
+    if (isDuplicate) {
+      alert("This subject is already assigned to this class for this teacher.");
+      return;
+    }
+
+    const newAssignment = { teacher_id: editingTeacher.id, class_id: modalAssignmentClass, subject_id: modalAssignmentSubject };
+    const { data, error } = await supabase.from('teacher_subjects').insert([newAssignment]).select();
+    if (!error && data) {
+      setTeacherAssignments(prev => [...prev, data[0]]);
+      setModalAssignmentClass('');
+      setModalAssignmentSubject('');
+    } else {
+      alert("Error assigning subject: " + error.message);
+    }
+  };
 
   const handleAddClass = async (e) => {
     e.preventDefault();
@@ -838,6 +897,7 @@ const Admin = () => {
                   <tr>
                     <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Name</th>
                     <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Email</th>
+                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -845,9 +905,18 @@ const Admin = () => {
                     <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                       <td style={{ padding: '1rem', fontWeight: 500 }}>{t.name}</td>
                       <td style={{ padding: '1rem', color: '#64748b' }}>{t.email}</td>
+                      <td style={{ padding: '1rem' }}>
+                        <button 
+                          className="btn-hero-outline"
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', border: '1px solid #e2e8f0', color: '#475569' }}
+                          onClick={() => handleEditTeacherClick(t)}
+                        >
+                          Edit
+                        </button>
+                      </td>
                     </tr>
                   ))}
-                  {teachers.length === 0 && <tr><td colSpan="2" style={{ padding: '1rem' }}>No teachers found.</td></tr>}
+                  {teachers.length === 0 && <tr><td colSpan="3" style={{ padding: '1rem' }}>No teachers found.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -878,9 +947,72 @@ const Admin = () => {
               <label className="block mb-1">6th Subject (e.g. Computer App, Home Science)</label>
               <input type="text" className="input-field w-full" value={editSixthSubject} onChange={e => setEditSixthSubject(e.target.value)} />
             </div>
-            <div className="flex gap-2 justify-end">
-              <button className="btn btn-outline" onClick={() => setEditingLangStudent(null)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleSaveLanguages}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingTeacher && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="card" style={{ width: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h3 className="mb-4 text-xl font-bold">Edit Teacher: {editingTeacher.name}</h3>
+            
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <label className="block mb-2 font-semibold">Teacher Name</label>
+              <div className="flex gap-2">
+                <input type="text" className="input-field flex-1" style={{ background: 'white', border: '1px solid #e2e8f0' }} value={editTeacherName} onChange={e => setEditTeacherName(e.target.value)} />
+                <button className="btn btn-primary" style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.375rem' }} onClick={handleUpdateTeacherName}>Save Name</button>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <h4 className="font-semibold mb-2">Current Assignments</h4>
+              <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }}>
+                <table className="data-table" style={{ width: '100%' }}>
+                  <thead style={{ background: '#f8fafc', position: 'sticky', top: 0 }}>
+                    <tr>
+                      <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontSize: '0.875rem' }}>Class</th>
+                      <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontSize: '0.875rem' }}>Subject</th>
+                      <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontSize: '0.875rem' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {teacherAssignments.map(a => {
+                      const cls = classes.find(c => c.id === a.class_id);
+                      const sub = subjects.find(s => s.id === a.subject_id);
+                      return (
+                        <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '0.5rem', fontSize: '0.875rem' }}>{cls ? `${cls.name} ${cls.section}` : 'Unknown'}</td>
+                          <td style={{ padding: '0.5rem', fontSize: '0.875rem' }}>{sub ? sub.name : 'Unknown'}</td>
+                          <td style={{ padding: '0.5rem' }}>
+                            <button className="text-red-500 hover:text-red-700 text-sm font-semibold" onClick={() => handleRemoveAssignment(a.id)}>Remove</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {teacherAssignments.length === 0 && <tr><td colSpan="3" style={{ padding: '1rem', textAlign: 'center', color: '#64748b' }}>No assignments yet.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <h4 className="font-semibold mb-2">Assign New Class & Subject</h4>
+              <div className="flex gap-2">
+                <select className="input-field flex-1" style={{ background: 'white', border: '1px solid #e2e8f0' }} value={modalAssignmentClass} onChange={e => setModalAssignmentClass(e.target.value)}>
+                  <option value="">Select Class</option>
+                  {classes.map(c => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
+                </select>
+                <select className="input-field flex-1" style={{ background: 'white', border: '1px solid #e2e8f0' }} value={modalAssignmentSubject} onChange={e => setModalAssignmentSubject(e.target.value)}>
+                  <option value="">Select Subject</option>
+                  {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+                <button className="btn btn-primary" style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.375rem' }} onClick={handleModalAssignTeacher}>Assign</button>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button className="btn btn-outline" style={{ border: '1px solid #e2e8f0', padding: '0.5rem 1.5rem', borderRadius: '0.375rem' }} onClick={() => setEditingTeacher(null)}>Close</button>
             </div>
           </div>
         </div>
