@@ -10,6 +10,8 @@ const SubstitutionDashboard = ({ classes, subjects, profiles }) => {
   const [masterRoutine, setMasterRoutine] = useState([]);
   const [teacherMeta, setTeacherMeta] = useState([]);
   const [teacherSubjects, setTeacherSubjects] = useState([]);
+  const [selectedAbsentTeacher, setSelectedAbsentTeacher] = useState('');
+  const teachers = profiles.filter(p => p.role === 'teacher');
 
   useEffect(() => {
     fetchData();
@@ -88,6 +90,28 @@ const SubstitutionDashboard = ({ classes, subjects, profiles }) => {
 
   const getProfileName = (id) => profiles.find(p => p.id === id)?.name || 'Unknown';
 
+  const markTeacherAbsent = async () => {
+    if (!selectedAbsentTeacher) return alert("Select a teacher first");
+    
+    // Check if already absent
+    if (absences.some(a => a.teacher_id === selectedAbsentTeacher)) {
+      return alert("Teacher is already marked absent for this date.");
+    }
+
+    const { error } = await supabase.from('teacher_attendance').insert([{
+      teacher_id: selectedAbsentTeacher,
+      date: targetDate,
+      status: 'Absent'
+    }]);
+
+    if (error) {
+      alert("Error marking absent: " + error.message);
+    } else {
+      setSelectedAbsentTeacher('');
+      fetchData();
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       
@@ -97,14 +121,30 @@ const SubstitutionDashboard = ({ classes, subjects, profiles }) => {
           <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
             Daily Substitution Engine
           </h3>
-          <div className="flex gap-4 items-center">
+          <div className="flex flex-wrap gap-4 items-center">
             <input 
               type="date" 
               className="input-field" 
               value={targetDate} 
               onChange={e => setTargetDate(e.target.value)} 
             />
-            <button className="btn-hero-primary" onClick={handleGenerate}>
+            
+            {/* Mark Absence UI */}
+            <div className="flex items-center gap-2 border-l border-slate-200 pl-4">
+              <select 
+                className="input-field py-2" 
+                value={selectedAbsentTeacher} 
+                onChange={e => setSelectedAbsentTeacher(e.target.value)}
+              >
+                <option value="">Select Teacher to Mark Absent...</option>
+                {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+              <button className="btn-hero-outline text-red-600 border-red-200 hover:bg-red-50" onClick={markTeacherAbsent}>
+                Mark Absent
+              </button>
+            </div>
+
+            <button className="btn-hero-primary ml-2" onClick={handleGenerate}>
               Run Auto-Substitution
             </button>
           </div>

@@ -11,6 +11,39 @@ const RoutineGenerator = ({ classes, subjects, profiles }) => {
   const teachers = profiles.filter(p => p.role === 'teacher');
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
+  useEffect(() => {
+    if (!selectedClass) {
+      setRoutine(Array(9).fill({ teacher_id: '', subject_id: '', modifier: '', is_practical: false }));
+      return;
+    }
+    
+    const fetchExistingRoutine = async () => {
+      const { data, error } = await supabase
+        .from('master_routine')
+        .select('*')
+        .eq('class_id', selectedClass)
+        .eq('day_of_week', selectedDay)
+        .order('period_num', { ascending: true });
+        
+      if (data && !error) {
+        const newRoutine = Array(9).fill({ teacher_id: '', subject_id: '', modifier: '', is_practical: false });
+        data.forEach(block => {
+          if (block.period_num >= 1 && block.period_num <= 9) {
+            newRoutine[block.period_num - 1] = {
+              teacher_id: block.teacher_id || '',
+              subject_id: block.subject_id || '',
+              modifier: block.modifier_tags || '',
+              is_practical: block.is_practical || false
+            };
+          }
+        });
+        setRoutine(newRoutine);
+      }
+    };
+    
+    fetchExistingRoutine();
+  }, [selectedClass, selectedDay]);
+
   const handleCellChange = (periodIndex, field, value) => {
     const newRoutine = [...routine];
     newRoutine[periodIndex] = { ...newRoutine[periodIndex], [field]: value };
