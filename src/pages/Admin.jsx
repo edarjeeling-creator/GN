@@ -13,6 +13,7 @@ import WebsiteCMS from '../components/WebsiteCMS';
 import BatchPhotoImport from './Admin/BatchPhotoImport';
 import RoutineGenerator from './Admin/RoutineGenerator';
 import SubstitutionDashboard from './Admin/SubstitutionDashboard';
+import FeatureSettings from './Admin/FeatureSettings';
 
 const Admin = () => {
   const { logout } = useAuth();
@@ -568,7 +569,17 @@ const Admin = () => {
         >
           Website CMS
         </button>
+        <button 
+          onClick={() => setActiveTab('portal_settings')} 
+          style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'portal_settings' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'portal_settings' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: activeTab === 'portal_settings' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '1rem' }}
+        >
+          Portal Settings
+        </button>
       </div>
+
+      {activeTab === 'portal_settings' && (
+        <FeatureSettings teachers={teachers} />
+      )}
 
       {activeTab === 'dashboard' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>

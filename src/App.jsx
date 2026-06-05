@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeProvider';
 import ProtectedRoute from './components/ProtectedRoute';
-import { AdminRoute, TeacherRoute, StudentRoute, PrincipalRoute } from './components/RouteGuards';
+import { AdminRoute, TeacherRoute, StudentRoute, PrincipalRoute, FeatureRoute } from './components/RouteGuards';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Classes from './pages/Classes';
@@ -53,11 +53,11 @@ function App() {
             
             {/* Student Only Routes */}
             <Route path="/student-portal" element={<StudentRoute><StudentPortal /></StudentRoute>} />
-            <Route path="/python-student" element={<StudentRoute><PythonStudent /></StudentRoute>} />
+            <Route path="/python-student" element={<FeatureRoute featureName="python_portal" userType="class"><PythonStudent /></FeatureRoute>} />
 
             {/* Teacher & Admin Routes */}
             <Route path="/classes" element={<TeacherRoute><Classes /></TeacherRoute>} />
-            <Route path="/python-teacher" element={<TeacherRoute><PythonTeacher /></TeacherRoute>} />
+            <Route path="/python-teacher" element={<FeatureRoute featureName="python_portal" userType="teacher"><PythonTeacher /></FeatureRoute>} />
             <Route path="/classes/:classId/subjects/:subjectId" element={<TeacherRoute><SubjectMarks /></TeacherRoute>} />
             <Route path="/classes/:classId/flowsheet" element={<TeacherRoute><Flowsheet /></TeacherRoute>} />
             <Route path="/classes/:classId/reports" element={<TeacherRoute><ReportCards /></TeacherRoute>} />

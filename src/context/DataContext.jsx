@@ -23,6 +23,7 @@ export const DataProvider = ({ children }) => {
   const [teacherSubjects, setTeacherSubjects] = useState({}); // { classId: [subjectIds] }
   const [marks, setMarks] = useState({}); // { 'studentId_subjectId_term': score }
   const [attendance, setAttendance] = useState([]);
+  const [featureAccess, setFeatureAccess] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
@@ -31,13 +32,14 @@ export const DataProvider = ({ children }) => {
     const fetchData = async () => {
       setLoadingData(true);
       
-      const [clsRes, subRes, stuRes, tsRes, marksRes, attRes] = await Promise.all([
+      const [clsRes, subRes, stuRes, tsRes, marksRes, attRes, featRes] = await Promise.all([
         supabase.from('classes').select('*'),
         supabase.from('subjects').select('*'),
         supabase.from('students').select('*'),
         supabase.from('teacher_subjects').select('*').eq('teacher_id', session.user.id),
         supabase.from('marks').select('*'),
-        supabase.from('attendance').select('*')
+        supabase.from('attendance').select('*'),
+        supabase.from('feature_access').select('*')
       ]);
 
       if (clsRes.data) setClasses(clsRes.data);
@@ -65,6 +67,9 @@ export const DataProvider = ({ children }) => {
         setAttendance(attRes.data);
       }
       
+      if (featRes && featRes.data) {
+        setFeatureAccess(featRes.data);
+      }
       setLoadingData(false);
     };
 
@@ -214,14 +219,51 @@ export const DataProvider = ({ children }) => {
     // We don't need a state here if it's managed locally in Admin.jsx.
   };
 
+  const toggleFeatureAccess = async (featureName, userType, id, currentState) => {
+    if (isReadOnly) return;
+    const isEnabled = !currentState;
+    
+    // Optimistic UI update
+    setFeatureAccess(prev => {
+      const existingIdx = prev.findIndex(f => f.feature_name === featureName && f.user_type === userType && (userType === 'teacher' ? f.user_id === id : f.class_id === id));
+      if (existingIdx > -1) {
+        const next = [...prev];
+        next[existingIdx] = { ...next[existingIdx], is_enabled: isEnabled };
+        return next;
+      } else {
+        return [...prev, {
+          feature_name: featureName,
+          user_type: userType,
+          user_id: userType === 'teacher' ? id : null,
+          class_id: userType === 'class' ? id : null,
+          is_enabled: isEnabled
+        }];
+      }
+    });
+
+    const payload = {
+      feature_name: featureName,
+      user_type: userType,
+      is_enabled: isEnabled
+    };
+    if (userType === 'teacher') payload.user_id = id;
+    if (userType === 'class') payload.class_id = id;
+
+    const { error } = await supabase
+      .from('feature_access')
+      .upsert(payload, { onConflict: userType === 'teacher' ? 'feature_name,user_id' : 'feature_name,class_id' });
+    
+    if (error) console.error("Error toggling feature:", error);
+  };
+
   return (
     <DataContext.Provider value={{
       academicYear, setAcademicYear,
-      classes: activeClasses, subjects, students, teacherSubjects, marks, attendance,
-      updateMark, toggleTeacherSubject, addStudent, updateStudentLanguages, updateStudentUid, updateStudentPictureUrl, updateSubjectName, removeStudent, loadingData
+      classes: activeClasses, subjects, students, teacherSubjects, marks, attendance, featureAccess,
+      loadingData,
+      updateMark, toggleTeacherSubject, addStudent, updateStudentLanguages, updateStudentUid, updateStudentPictureUrl, updateSubjectName, removeStudent, toggleFeatureAccess
     }}>
       {children}
     </DataContext.Provider>
   );
 };
-

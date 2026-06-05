@@ -6,8 +6,14 @@ import { Navigate } from 'react-router-dom';
 
 const Dashboard = () => {
   const { profile } = useAuth();
+  const { classes, teacherSubjects, marks, students, academicYear, featureAccess } = useData();
 
-  // Student Redirect Guard
+  // Check if Python Portal is enabled for this teacher
+  const isPythonEnabled = profile?.role === 'admin' || (
+    featureAccess && 
+    Array.isArray(featureAccess) && 
+    featureAccess.some(f => f.feature_name === 'python_portal' && f.user_type === 'teacher' && f.user_id === profile?.id && f.is_enabled)
+  );
   if (profile?.role === 'student') {
     return <Navigate to="/student-portal" replace />;
   }
@@ -107,13 +113,15 @@ const Dashboard = () => {
                </div>
             </div>
             
-            <div className="bento-card" onClick={() => window.location.href='/python-teacher'} style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', padding: '1.5rem', cursor: 'pointer', border: '1px solid #bfdbfe', background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', transition: 'border 0.2s' }} onMouseOver={e=>e.currentTarget.style.borderColor='#3b82f6'} onMouseOut={e=>e.currentTarget.style.borderColor='#bfdbfe'}>
-               <div style={{ background: '#ffffff', padding: '1rem', borderRadius: '1rem', color: '#3b82f6', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🐍</div>
-               <div>
-                 <strong style={{ display: 'block', fontSize: '1.1rem', color: '#1e40af' }}>Python Portal</strong>
-                 <span style={{ color: '#3b82f6', fontSize: '0.9rem', fontWeight: 500 }}>Manage lessons & review code</span>
-               </div>
-            </div>
+            {isPythonEnabled && (
+              <div className="bento-card" onClick={() => window.location.href='/python-teacher'} style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', padding: '1.5rem', cursor: 'pointer', border: '1px solid #bfdbfe', background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', transition: 'border 0.2s' }} onMouseOver={e=>e.currentTarget.style.borderColor='#3b82f6'} onMouseOut={e=>e.currentTarget.style.borderColor='#bfdbfe'}>
+                 <div style={{ background: '#ffffff', padding: '1rem', borderRadius: '1rem', color: '#3b82f6', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🐍</div>
+                 <div>
+                   <strong style={{ display: 'block', fontSize: '1.1rem', color: '#1e40af' }}>Python Portal</strong>
+                   <span style={{ color: '#3b82f6', fontSize: '0.9rem', fontWeight: 500 }}>Manage lessons & review code</span>
+                 </div>
+              </div>
+            )}
          </div>
       </div>
     </motion.div>
