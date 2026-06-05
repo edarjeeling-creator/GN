@@ -215,7 +215,15 @@ const BatchPhotoImport = ({ students, classes, onUploadSuccess }) => {
                   {item.match.student ? (
                     <>
                       <div className="flex justify-between items-center mb-2">
-                        <p style={{ fontWeight: 700 }}>Match: {item.match.student.name}</p>
+                        <p style={{ fontWeight: 700 }}>
+                          Match: {item.match.student.name}
+                          <button 
+                            className="text-primary hover:underline ml-3 text-xs"
+                            onClick={() => setResults(prev => prev.map((r, i) => i === idx ? { ...r, match: { score: 0, type: 'Manual Override', student: null }, status: 'pending' } : r))}
+                          >
+                            (Change Match)
+                          </button>
+                        </p>
                         <span style={{ 
                           padding: '0.2rem 0.5rem', 
                           borderRadius: '1rem', 
