@@ -149,7 +149,12 @@ const PythonStudent = () => {
   };
 
   const handleSubmitAssignment = async (code, output) => {
-    if (!studentRecord || !selectedAssignment) return;
+    if (!selectedAssignment) return;
+    
+    if (!studentRecord) {
+      alert("Test Mode: You are viewing the lab as an Administrator/Teacher. Code submissions are only saved to the database for logged-in Students.");
+      return;
+    }
     
     const { error } = await supabase.rpc('submit_student_code', {
       p_student_id: studentRecord.id,
