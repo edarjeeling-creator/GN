@@ -3,33 +3,13 @@ import { supabase } from '../../lib/supabase';
 import { findBestMatch } from '../../utils/matchingEngine';
 import { CheckCircle, AlertTriangle, Upload, X, RefreshCw } from 'lucide-react';
 
+import { processPdfFile } from '../../utils/pdfProcessor';
+
 const BatchPhotoImport = ({ students, classes, onUploadSuccess }) => {
   const [file, setFile] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState([]); // Array of { extracted, match, status: 'pending'|'uploaded'|'skipped'|'error', photoUrl }
-  const workerRef = useRef(null);
-
-  useEffect(() => {
-    // Initialize Web Worker
-    workerRef.current = new Worker(new URL('../../workers/pdfWorker.js', import.meta.url), { type: 'module' });
-    
-    workerRef.current.onmessage = (e) => {
-      const { type, progress: p, results: res, error } = e.data;
-      if (type === 'progress') {
-        setProgress(p);
-      } else if (type === 'done') {
-        processResults(res);
-      } else if (type === 'error') {
-        alert("Error processing PDF: " + error);
-        setProcessing(false);
-      }
-    };
-
-    return () => {
-      workerRef.current?.terminate();
-    };
-  }, [students]);
 
   const processResults = async (extractedDataList) => {
     // Match each extracted data to a student
@@ -78,8 +58,16 @@ const BatchPhotoImport = ({ students, classes, onUploadSuccess }) => {
     setProgress(0);
     setResults([]);
     
-    const buffer = await file.arrayBuffer();
-    workerRef.current.postMessage({ fileBuffer: buffer });
+    try {
+      const buffer = await file.arrayBuffer();
+      const extractedResults = await processPdfFile(buffer, (p) => {
+        setProgress(p);
+      });
+      processResults(extractedResults);
+    } catch (error) {
+      alert("Error processing PDF: " + error.message);
+      setProcessing(false);
+    }
   };
 
   const handleUpload = async (item, isManual) => {
