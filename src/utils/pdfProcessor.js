@@ -73,12 +73,18 @@ const processPage = async (page) => {
     await page.render({ canvasContext: ctx, viewport: viewport }).promise;
     
     const photoCanvas = document.createElement('canvas');
-    photoCanvas.width = viewport.width * 0.35;
-    photoCanvas.height = viewport.height * 0.6;
+    // Adjusted tighter crop coordinates to remove the left vertical band and bottom horizontal band
+    const cropX = viewport.width * 0.12;
+    const cropY = viewport.height * 0.30;
+    const cropW = viewport.width * 0.28;
+    const cropH = viewport.height * 0.45;
+    
+    photoCanvas.width = cropW;
+    photoCanvas.height = cropH;
     const photoCtx = photoCanvas.getContext('2d');
     photoCtx.drawImage(canvas, 
-      viewport.width * 0.05, viewport.height * 0.25, viewport.width * 0.35, viewport.height * 0.6,
-      0, 0, photoCanvas.width, photoCanvas.height
+      cropX, cropY, cropW, cropH,
+      0, 0, cropW, cropH
     );
     photoBlob = await new Promise(resolve => photoCanvas.toBlob(resolve, 'image/jpeg', 0.9));
 
