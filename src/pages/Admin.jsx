@@ -277,16 +277,6 @@ const Admin = () => {
     }
   };
 
-  const handleDeleteSubject = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this subject? This will also delete all marks and teacher assignments associated with it!")) return;
-    
-    const { error } = await supabase.from('subjects').delete().match({ id });
-    if (!error) {
-      fetchStats();
-    } else {
-      alert("Error deleting subject: " + error.message);
-    }
-  };
 
   const handleAssignTeacher = async (e) => {
     e.preventDefault();
