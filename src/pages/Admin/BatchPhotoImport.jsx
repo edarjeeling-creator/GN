@@ -265,7 +265,7 @@ const BatchPhotoImport = ({ students, classes, onUploadSuccess }) => {
                         className="input-field" 
                         style={{ padding: '0.4rem', fontSize: '0.8rem', width: '100%', marginBottom: '0.5rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '4px' }}
                         onChange={(e) => {
-                          const student = students.find(s => s.id === e.target.value);
+                          const student = students.find(s => s.id.toString() === e.target.value.toString());
                           if (student) {
                             setResults(prev => prev.map((r, i) => i === idx ? { ...r, match: { score: 100, type: 'Manual Selection', student }, status: student.picture_url ? 'duplicate' : 'pending' } : r));
                           }
