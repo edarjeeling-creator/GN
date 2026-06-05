@@ -63,6 +63,13 @@ const BatchPhotoImport = ({ students, classes, onUploadSuccess }) => {
       const extractedResults = await processPdfFile(buffer, (p) => {
         setProgress(p);
       });
+      
+      if (extractedResults.length === 0) {
+        alert("No photos could be extracted from this PDF. The text or image formatting might not match the expected structure.");
+        setProcessing(false);
+        return;
+      }
+      
       processResults(extractedResults);
     } catch (error) {
       alert("Error processing PDF: " + error.message);

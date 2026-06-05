@@ -63,7 +63,7 @@ const processPage = async (page) => {
     }
   }
 
-  if (!extractedData.uid && !extractedData.name) {
+  if (!photoBlob) {
     const viewport = page.getViewport({ scale: 2.0 });
     const canvas = document.createElement('canvas');
     canvas.width = viewport.width;
@@ -72,21 +72,20 @@ const processPage = async (page) => {
     
     await page.render({ canvasContext: ctx, viewport: viewport }).promise;
     
-    const pageBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-    
-    const { data: { text: ocrText } } = await Tesseract.recognize(pageBlob, 'eng');
-    extractedData = extractTextData(ocrText);
-    
-    if (!photoBlob) {
-      const photoCanvas = document.createElement('canvas');
-      photoCanvas.width = viewport.width * 0.35;
-      photoCanvas.height = viewport.height * 0.6;
-      const photoCtx = photoCanvas.getContext('2d');
-      photoCtx.drawImage(canvas, 
-        viewport.width * 0.05, viewport.height * 0.25, viewport.width * 0.35, viewport.height * 0.6,
-        0, 0, photoCanvas.width, photoCanvas.height
-      );
-      photoBlob = await new Promise(resolve => photoCanvas.toBlob(resolve, 'image/jpeg', 0.9));
+    const photoCanvas = document.createElement('canvas');
+    photoCanvas.width = viewport.width * 0.35;
+    photoCanvas.height = viewport.height * 0.6;
+    const photoCtx = photoCanvas.getContext('2d');
+    photoCtx.drawImage(canvas, 
+      viewport.width * 0.05, viewport.height * 0.25, viewport.width * 0.35, viewport.height * 0.6,
+      0, 0, photoCanvas.width, photoCanvas.height
+    );
+    photoBlob = await new Promise(resolve => photoCanvas.toBlob(resolve, 'image/jpeg', 0.9));
+
+    if (!extractedData.uid && !extractedData.name) {
+      const pageBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      const { data: { text: ocrText } } = await Tesseract.recognize(pageBlob, 'eng');
+      extractedData = extractTextData(ocrText);
     }
   }
 
