@@ -1,8 +1,10 @@
 import * as pdfjsLib from 'pdfjs-dist/build/pdf.mjs';
 import Tesseract from 'tesseract.js';
 
-// Setup worker - since we are already in a worker thread, we can disable the pdf.js internal worker
-pdfjsLib.GlobalWorkerOptions.disableWorker = true;
+import workerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
+
+// Setup worker - use the bundled worker URL provided by Vite
+pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
 const extractTextData = (text) => {
   const result = {
