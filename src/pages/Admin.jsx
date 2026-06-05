@@ -778,7 +778,7 @@ const Admin = () => {
                         <td style={{ padding: '1rem' }}>
                           <div className="flex items-center gap-3">
                             <img 
-                              src={s.picture_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=random`} 
+                              src={s.picture_url ? `${s.picture_url}?t=${Date.now()}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=random`} 
                               alt={s.name} 
                               style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
                             />
