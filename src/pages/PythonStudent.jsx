@@ -443,21 +443,31 @@ const PythonStudent = () => {
             <h3 className="text-xl font-bold text-slate-800 mb-6">Submission History</h3>
             <div className="flex flex-col gap-3">
               {mySubmissions.map(s => (
-                <div key={s.id} className="flex justify-between items-center p-3 border-b border-slate-100 last:border-0">
-                  <div>
-                    <div className="font-bold text-slate-700">{s.python_assignments?.title}</div>
-                    <div className="text-xs text-slate-500">{new Date(s.updated_at).toLocaleDateString()}</div>
+                <div key={s.id} className="p-3 border-b border-slate-100 last:border-0">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="font-bold text-slate-700">{s.python_assignments?.title}</div>
+                      <div className="text-xs text-slate-500">{new Date(s.updated_at).toLocaleDateString()}</div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="flex items-center gap-4">
+                        <span className={`text-xs px-2 py-1 rounded-full ${s.status === 'reviewed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {s.status === 'reviewed' ? 'Reviewed' : 'Submitted'}
+                        </span>
+                        {s.marks !== null && (
+                          <span className="font-bold text-lg text-indigo-600 bg-indigo-50 px-2 py-1 rounded">
+                            {s.marks}/10
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className={`text-xs px-2 py-1 rounded-full ${s.status === 'reviewed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                      {s.status === 'reviewed' ? 'Reviewed' : 'Submitted'}
-                    </span>
-                    {s.marks !== null && (
-                      <span className="font-bold text-lg text-indigo-600 bg-indigo-50 px-2 py-1 rounded">
-                        {s.marks}/10
-                      </span>
-                    )}
-                  </div>
+                  {s.teacher_feedback && (
+                    <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm">
+                      <strong className="text-yellow-800 flex items-center gap-1 mb-1"><FileText size={14}/> Teacher Message:</strong>
+                      <span className="text-yellow-700">{s.teacher_feedback}</span>
+                    </div>
+                  )}
                 </div>
               ))}
               {mySubmissions.length === 0 && (
