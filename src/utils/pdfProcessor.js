@@ -48,12 +48,25 @@ const processPage = async (page) => {
       try {
         const img = await page.objs.get(imgName);
         if (img && img.width > 50 && img.height > 50) {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
+          const originalCanvas = document.createElement('canvas');
+          originalCanvas.width = img.width;
+          originalCanvas.height = img.height;
+          const ctx = originalCanvas.getContext('2d');
           const imageData = new ImageData(new Uint8ClampedArray(img.data), img.width, img.height);
           ctx.putImageData(imageData, 0, 0);
+
+          // Crop the image to remove the ID card template borders (left band, bottom band, top text)
+          const cropX = img.width * 0.20; 
+          const cropY = img.height * 0.18;
+          const cropW = img.width * 0.65;
+          const cropH = img.height * 0.60;
+
+          const canvas = document.createElement('canvas');
+          canvas.width = cropW;
+          canvas.height = cropH;
+          const cropCtx = canvas.getContext('2d');
+          cropCtx.drawImage(originalCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
           photoBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
           break; 
         }
@@ -73,11 +86,11 @@ const processPage = async (page) => {
     await page.render({ canvasContext: ctx, viewport: viewport }).promise;
     
     const photoCanvas = document.createElement('canvas');
-    // Adjusted tighter crop coordinates to remove the left vertical band and bottom horizontal band
-    const cropX = viewport.width * 0.12;
-    const cropY = viewport.height * 0.30;
-    const cropW = viewport.width * 0.28;
-    const cropH = viewport.height * 0.45;
+    // Adjusted tighter crop coordinates to perfectly match the raw image crop
+    const cropX = viewport.width * 0.20;
+    const cropY = viewport.height * 0.18;
+    const cropW = viewport.width * 0.65;
+    const cropH = viewport.height * 0.60;
     
     photoCanvas.width = cropW;
     photoCanvas.height = cropH;
