@@ -219,16 +219,20 @@ export const DataProvider = ({ children }) => {
     // We don't need a state here if it's managed locally in Admin.jsx.
   };
 
-  const toggleFeatureAccess = async (featureName, userType, id, currentState) => {
+  const toggleFeatureAccess = async (featureName, userType, id, currentState, expiresAt = null, accessReason = '') => {
     if (isReadOnly) return;
     const isEnabled = !currentState;
     
+    // Get current user id
+    const { data: { session } } = await supabase.auth.getSession();
+    const currentUserId = session?.user?.id;
+
     // Optimistic UI update
     setFeatureAccess(prev => {
-      const existingIdx = prev.findIndex(f => f.feature_name === featureName && f.user_type === userType && (userType === 'teacher' ? f.user_id === id : f.class_id === id));
+      const existingIdx = prev.findIndex(f => f.feature_name === featureName && f.user_type === userType && (userType === 'teacher' ? f.user_id === id : userType === 'student' ? f.student_id === id : f.class_id === id));
       if (existingIdx > -1) {
         const next = [...prev];
-        next[existingIdx] = { ...next[existingIdx], is_enabled: isEnabled };
+        next[existingIdx] = { ...next[existingIdx], is_enabled: isEnabled, expires_at: expiresAt, access_reason: accessReason, created_by: currentUserId };
         return next;
       } else {
         return [...prev, {
@@ -236,7 +240,11 @@ export const DataProvider = ({ children }) => {
           user_type: userType,
           user_id: userType === 'teacher' ? id : null,
           class_id: userType === 'class' ? id : null,
-          is_enabled: isEnabled
+          student_id: userType === 'student' ? id : null,
+          is_enabled: isEnabled,
+          expires_at: expiresAt,
+          access_reason: accessReason,
+          created_by: currentUserId
         }];
       }
     });
@@ -244,14 +252,20 @@ export const DataProvider = ({ children }) => {
     const payload = {
       feature_name: featureName,
       user_type: userType,
-      is_enabled: isEnabled
+      is_enabled: isEnabled,
+      expires_at: expiresAt,
+      access_reason: accessReason,
+      created_by: currentUserId
     };
     if (userType === 'teacher') payload.user_id = id;
     if (userType === 'class') payload.class_id = id;
+    if (userType === 'student') payload.student_id = id;
+
+    const onConflictKeys = userType === 'teacher' ? 'feature_name,user_id' : userType === 'student' ? 'feature_name,student_id' : 'feature_name,class_id';
 
     const { error } = await supabase
       .from('feature_access')
-      .upsert(payload, { onConflict: userType === 'teacher' ? 'feature_name,user_id' : 'feature_name,class_id' });
+      .upsert(payload, { onConflict: onConflictKeys });
     
     if (error) console.error("Error toggling feature:", error);
   };

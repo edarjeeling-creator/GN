@@ -11,9 +11,22 @@ const StudentPortal = () => {
   const studentData = students.find(s => s.uid === profile?.id);
   const classId = studentData?.class_id;
 
-  const isPythonEnabled = featureAccess && 
-    Array.isArray(featureAccess) && 
-    featureAccess.some(f => f.feature_name === 'python_portal' && f.user_type === 'class' && f.class_id === classId && f.is_enabled);
+  const isNotExpired = (expiresAt) => {
+    if (!expiresAt) return true;
+    return new Date() < new Date(expiresAt);
+  };
+
+  let isPythonEnabled = false;
+  if (featureAccess && Array.isArray(featureAccess) && studentData) {
+    const studentRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'student' && f.student_id === studentData.id);
+    const classRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'class' && f.class_id === classId);
+
+    if (studentRule) {
+      isPythonEnabled = studentRule.is_enabled && isNotExpired(studentRule.expires_at);
+    } else if (classRule) {
+      isPythonEnabled = classRule.is_enabled && isNotExpired(classRule.expires_at);
+    }
+  }
 
   return (
     <>

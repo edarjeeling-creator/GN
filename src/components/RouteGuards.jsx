@@ -40,26 +40,46 @@ export const FeatureRoute = ({ featureName, userType, children }) => {
   // Admins always have access
   if (profile.role === 'admin') return children;
 
-  // Check based on userType
+  // Check based on profile role and permission hierarchy
   let hasAccess = false;
 
+  const isNotExpired = (expiresAt) => {
+    if (!expiresAt) return true;
+    return new Date() < new Date(expiresAt);
+  };
+
   if (featureAccess && Array.isArray(featureAccess)) {
-    if (userType === 'teacher' && profile.role === 'teacher') {
-      hasAccess = featureAccess.some(f => 
+    if (profile.role === 'teacher') {
+      const teacherRule = featureAccess.find(f => 
         f.feature_name === featureName && 
         f.user_type === 'teacher' && 
-        f.user_id === profile.id && 
-        f.is_enabled
+        f.user_id === profile.id
       );
-    } else if (userType === 'class' && profile.role === 'student') {
+      if (teacherRule && teacherRule.is_enabled && isNotExpired(teacherRule.expires_at)) {
+        hasAccess = true;
+      }
+    } else if (profile.role === 'student') {
       const studentData = students.find(s => s.uid === profile.id);
       if (studentData) {
-        hasAccess = featureAccess.some(f => 
+        // Priority 1: Student-level rule
+        const studentRule = featureAccess.find(f => 
+          f.feature_name === featureName && 
+          f.user_type === 'student' && 
+          f.student_id === studentData.id
+        );
+
+        // Priority 2: Class-level rule
+        const classRule = featureAccess.find(f => 
           f.feature_name === featureName && 
           f.user_type === 'class' && 
-          f.class_id === studentData.class_id && 
-          f.is_enabled
+          f.class_id === studentData.class_id
         );
+
+        if (studentRule) {
+          hasAccess = studentRule.is_enabled && isNotExpired(studentRule.expires_at);
+        } else if (classRule) {
+          hasAccess = classRule.is_enabled && isNotExpired(classRule.expires_at);
+        }
       }
     }
   }

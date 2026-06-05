@@ -9,11 +9,18 @@ const Dashboard = () => {
   const { classes, teacherSubjects, marks, students, academicYear, featureAccess } = useData();
 
   // Check if Python Portal is enabled for this teacher
-  const isPythonEnabled = profile?.role === 'admin' || (
-    featureAccess && 
-    Array.isArray(featureAccess) && 
-    featureAccess.some(f => f.feature_name === 'python_portal' && f.user_type === 'teacher' && f.user_id === profile?.id && f.is_enabled)
-  );
+  const isNotExpired = (expiresAt) => {
+    if (!expiresAt) return true;
+    return new Date() < new Date(expiresAt);
+  };
+
+  let isPythonEnabled = profile?.role === 'admin';
+  if (!isPythonEnabled && featureAccess && Array.isArray(featureAccess)) {
+    const teacherRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'teacher' && f.user_id === profile?.id);
+    if (teacherRule) {
+      isPythonEnabled = teacherRule.is_enabled && isNotExpired(teacherRule.expires_at);
+    }
+  }
   if (profile?.role === 'student') {
     return <Navigate to="/student-portal" replace />;
   }
