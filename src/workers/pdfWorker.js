@@ -1,8 +1,8 @@
 import * as pdfjsLib from 'pdfjs-dist/build/pdf.mjs';
 import Tesseract from 'tesseract.js';
 
-// Setup worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.mjs`;
+// Setup worker - since we are already in a worker thread, we can disable the pdf.js internal worker
+pdfjsLib.GlobalWorkerOptions.disableWorker = true;
 
 const extractTextData = (text) => {
   const result = {
