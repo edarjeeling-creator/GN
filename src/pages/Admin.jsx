@@ -238,6 +238,18 @@ const Admin = () => {
     }
   };
 
+  const handleDeleteTeacher = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this teacher? This will also remove their assignments forever!")) return;
+
+    const { error } = await supabase.from('profiles').delete().match({ id });
+    if (!error) {
+      setTeachers(prev => prev.filter(t => t.id !== id));
+      alert("Teacher deleted successfully!");
+    } else {
+      alert("Error deleting teacher: " + error.message);
+    }
+  };
+
   const handleEditSubjectSave = async (subjectId) => {
     if (!editSubjectName.trim()) {
       alert("Subject name cannot be empty.");
@@ -1089,6 +1101,13 @@ const Admin = () => {
                           onClick={() => handleEditTeacherClick(t)}
                         >
                           Edit
+                        </button>
+                        <button 
+                          className="btn-hero-outline"
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', border: '1px solid #ef4444', color: '#ef4444' }}
+                          onClick={() => handleDeleteTeacher(t.id)}
+                        >
+                          Delete
                         </button>
                       </td>
                     </tr>

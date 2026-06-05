@@ -207,6 +207,13 @@ export const DataProvider = ({ children }) => {
     setStudents(prev => prev.filter(s => s.id !== studentId));
   };
 
+  const removeTeacher = (teacherId) => {
+    // Note: since teachers are part of profiles, you don't keep a global teachers state in context, 
+    // it's fetched locally in Admin.jsx. So this just triggers a global refresh if needed, 
+    // or just does nothing and Admin.jsx updates its own state.
+    // We don't need a state here if it's managed locally in Admin.jsx.
+  };
+
   return (
     <DataContext.Provider value={{
       academicYear, setAcademicYear,
