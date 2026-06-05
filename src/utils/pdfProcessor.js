@@ -1,9 +1,8 @@
 import * as pdfjsLib from 'pdfjs-dist/build/pdf.mjs';
 import Tesseract from 'tesseract.js';
-import 'pdfjs-dist/build/pdf.worker.mjs';
-
-// Setup pdf.js worker - by importing the worker file directly, it registers itself
-// and we don't need to specify workerSrc or fetch external .mjs files!
+// Setup pdf.js worker - load from unpkg CDN to avoid heavy bundling (which crashes small servers)
+// and to avoid local .mjs module fetch issues
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 const extractTextData = (text) => {
   const result = {
