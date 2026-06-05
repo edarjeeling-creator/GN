@@ -36,9 +36,16 @@ const BatchPhotoImport = ({ students, classes, onUploadSuccess }) => {
     setProcessing(false);
     
     // Auto-upload the auto_ready ones
-    const autoReady = matchedResults.filter(r => r.status === 'auto_ready');
-    for (const item of autoReady) {
-      await handleUpload(item, false);
+    const perfectMatches = matchedResults.filter(r => r.status === 'auto_ready');
+    
+    // Auto-process perfect matches immediately (sequentially, once)
+    if (perfectMatches.length > 0) {
+      setTimeout(async () => {
+        for (const item of perfectMatches) {
+          // Re-fetch the item to get the latest status if needed, or just upload
+          await handleUpload(item, false);
+        }
+      }, 500);
     }
   };
 
