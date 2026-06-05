@@ -258,7 +258,38 @@ const BatchPhotoImport = ({ students, classes, onUploadSuccess }) => {
                       )}
                     </>
                   ) : (
-                    <p className="text-danger font-bold">No Match Found</p>
+                    <div className="mt-2">
+                      <p className="text-danger font-bold text-sm mb-2">No Match Found</p>
+                      <select 
+                        className="input-field" 
+                        style={{ padding: '0.4rem', fontSize: '0.8rem', width: '100%', marginBottom: '0.5rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '4px' }}
+                        onChange={(e) => {
+                          const student = students.find(s => s.id === e.target.value);
+                          if (student) {
+                            setResults(prev => prev.map(r => r === item ? { ...r, match: { score: 100, type: 'Manual Selection', student }, status: student.picture_url ? 'duplicate' : 'pending' } : r));
+                          }
+                        }}
+                        defaultValue=""
+                      >
+                        <option value="" disabled>Manually assign to student...</option>
+                        {students.filter(s => {
+                          // Try to filter by the class found in the PDF if possible
+                          if (!item.extracted.className) return true;
+                          const sCls = classes.find(c => c.id === s.class_id);
+                          return sCls && sCls.name.includes(item.extracted.className);
+                        }).sort((a,b) => a.name.localeCompare(b.name)).map(s => (
+                          <option key={s.id} value={s.id}>{s.name} (Roll: {s.roll_no})</option>
+                        ))}
+                      </select>
+                      
+                      <button 
+                        className="btn-hero-outline w-full" 
+                        style={{ padding: '0.4rem', fontSize: '0.85rem' }}
+                        onClick={() => setResults(prev => prev.map(r => r === item ? { ...r, status: 'skipped' } : r))}
+                      >
+                        Skip
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
