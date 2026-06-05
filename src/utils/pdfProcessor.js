@@ -56,7 +56,7 @@ const processPage = async (page) => {
           ctx.putImageData(imageData, 0, 0);
 
           // Crop the image perfectly around the photo area based on the actual ID card layout
-          const cropX = img.width * 0.16; 
+          const cropX = img.width * 0.11; 
           const cropY = img.height * 0.36;
           const cropW = img.width * 0.26;
           const cropH = img.height * 0.41;
@@ -87,7 +87,7 @@ const processPage = async (page) => {
     
     const photoCanvas = document.createElement('canvas');
     // Perfect crop coordinates to isolate the face on the left side of the ID card
-    const cropX = viewport.width * 0.16;
+    const cropX = viewport.width * 0.11;
     const cropY = viewport.height * 0.36;
     const cropW = viewport.width * 0.26;
     const cropH = viewport.height * 0.41;
