@@ -126,13 +126,9 @@ const PythonStudent = () => {
 
   const fetchStudentRecordAndSubmissions = async () => {
     if (profile && profile.role === 'student') {
-      const studentId = profile.id;
-      const { data: student } = await supabase.from('students').select('*').eq('id', studentId).single();
-      if (student) {
-        setStudentRecord(student);
-        const { data: subs } = await supabase.from('python_submissions').select('*, python_assignments(title, module)').eq('student_id', student.id);
-        if (subs) setMySubmissions(subs);
-      }
+      setStudentRecord(profile);
+      const { data: subs } = await supabase.from('python_submissions').select('*, python_assignments(title, module)').eq('student_id', profile.id);
+      if (subs) setMySubmissions(subs);
     } else {
       // Fallback/Legacy session checking for standard Supabase Auth
       const { data: { user } } = await supabase.auth.getUser();
