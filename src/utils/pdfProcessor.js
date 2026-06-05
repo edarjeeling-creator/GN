@@ -55,11 +55,11 @@ const processPage = async (page) => {
           const imageData = new ImageData(new Uint8ClampedArray(img.data), img.width, img.height);
           ctx.putImageData(imageData, 0, 0);
 
-          // Crop the image to remove the ID card template borders (left band, bottom band, top text)
-          const cropX = img.width * 0.20; 
-          const cropY = img.height * 0.18;
-          const cropW = img.width * 0.65;
-          const cropH = img.height * 0.60;
+          // Crop the image perfectly around the photo area based on the actual ID card layout
+          const cropX = img.width * 0.16; 
+          const cropY = img.height * 0.36;
+          const cropW = img.width * 0.26;
+          const cropH = img.height * 0.41;
 
           const canvas = document.createElement('canvas');
           canvas.width = cropW;
@@ -86,11 +86,11 @@ const processPage = async (page) => {
     await page.render({ canvasContext: ctx, viewport: viewport }).promise;
     
     const photoCanvas = document.createElement('canvas');
-    // Adjusted tighter crop coordinates to perfectly match the raw image crop
-    const cropX = viewport.width * 0.20;
-    const cropY = viewport.height * 0.18;
-    const cropW = viewport.width * 0.65;
-    const cropH = viewport.height * 0.60;
+    // Perfect crop coordinates to isolate the face on the left side of the ID card
+    const cropX = viewport.width * 0.16;
+    const cropY = viewport.height * 0.36;
+    const cropW = viewport.width * 0.26;
+    const cropH = viewport.height * 0.41;
     
     photoCanvas.width = cropW;
     photoCanvas.height = cropH;
