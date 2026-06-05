@@ -41,9 +41,10 @@ const BatchPhotoImport = ({ students, classes, onUploadSuccess }) => {
     // Auto-process perfect matches immediately (sequentially, once)
     if (perfectMatches.length > 0) {
       setTimeout(async () => {
-        for (const item of perfectMatches) {
-          // Re-fetch the item to get the latest status if needed, or just upload
-          await handleUpload(item, false);
+        for (let i = 0; i < matchedResults.length; i++) {
+          if (matchedResults[i].status === 'auto_ready') {
+            await handleUpload(matchedResults[i], i, false);
+          }
         }
       }, 500);
     }
@@ -84,7 +85,7 @@ const BatchPhotoImport = ({ students, classes, onUploadSuccess }) => {
     }
   };
 
-  const handleUpload = async (item, isManual) => {
+  const handleUpload = async (item, index, isManual) => {
     try {
       const { extracted, match } = item;
       const student = match.student;
@@ -123,7 +124,7 @@ const BatchPhotoImport = ({ students, classes, onUploadSuccess }) => {
         action_taken: isManual ? 'Manual-Approved' : 'Auto-Uploaded'
       }]);
 
-      setResults(prev => prev.map(r => r === item ? { ...r, status: 'uploaded' } : r));
+      setResults(prev => prev.map((r, i) => i === index ? { ...r, status: 'uploaded' } : r));
       
       if (onUploadSuccess) {
         onUploadSuccess(student.id, pictureUrl);
@@ -131,7 +132,7 @@ const BatchPhotoImport = ({ students, classes, onUploadSuccess }) => {
 
     } catch (err) {
       console.error(err);
-      setResults(prev => prev.map(r => r === item ? { ...r, status: 'error' } : r));
+      setResults(prev => prev.map((r, i) => i === index ? { ...r, status: 'error' } : r));
     }
   };
 
@@ -243,14 +244,14 @@ const BatchPhotoImport = ({ students, classes, onUploadSuccess }) => {
                           <button 
                             className="btn-hero-primary" 
                             style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem' }}
-                            onClick={() => handleUpload(item, true)}
+                            onClick={() => handleUpload(item, idx, true)}
                           >
                             {item.status === 'duplicate' ? 'Overwrite' : 'Approve'}
                           </button>
                           <button 
                             className="btn-hero-outline" 
                             style={{ padding: '0.4rem', fontSize: '0.85rem' }}
-                            onClick={() => setResults(prev => prev.map(r => r === item ? { ...r, status: 'skipped' } : r))}
+                            onClick={() => setResults(prev => prev.map((r, i) => i === idx ? { ...r, status: 'skipped' } : r))}
                           >
                             Skip
                           </button>
@@ -266,7 +267,7 @@ const BatchPhotoImport = ({ students, classes, onUploadSuccess }) => {
                         onChange={(e) => {
                           const student = students.find(s => s.id === e.target.value);
                           if (student) {
-                            setResults(prev => prev.map(r => r === item ? { ...r, match: { score: 100, type: 'Manual Selection', student }, status: student.picture_url ? 'duplicate' : 'pending' } : r));
+                            setResults(prev => prev.map((r, i) => i === idx ? { ...r, match: { score: 100, type: 'Manual Selection', student }, status: student.picture_url ? 'duplicate' : 'pending' } : r));
                           }
                         }}
                         defaultValue=""
@@ -285,7 +286,7 @@ const BatchPhotoImport = ({ students, classes, onUploadSuccess }) => {
                       <button 
                         className="btn-hero-outline w-full" 
                         style={{ padding: '0.4rem', fontSize: '0.85rem' }}
-                        onClick={() => setResults(prev => prev.map(r => r === item ? { ...r, status: 'skipped' } : r))}
+                        onClick={() => setResults(prev => prev.map((r, i) => i === idx ? { ...r, status: 'skipped' } : r))}
                       >
                         Skip
                       </button>
