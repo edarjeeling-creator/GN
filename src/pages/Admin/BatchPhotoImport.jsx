@@ -273,12 +273,7 @@ const BatchPhotoImport = ({ students, classes, onUploadSuccess }) => {
                         defaultValue=""
                       >
                         <option value="" disabled>Manually assign to student...</option>
-                        {students.filter(s => {
-                          // Try to filter by the class found in the PDF if possible
-                          if (!item.extracted.className) return true;
-                          const sCls = classes.find(c => c.id === s.class_id);
-                          return sCls && sCls.name.includes(item.extracted.className);
-                        }).sort((a,b) => a.name.localeCompare(b.name)).map(s => (
+                        {students.sort((a,b) => a.name.localeCompare(b.name)).map(s => (
                           <option key={s.id} value={s.id}>{s.name} (Roll: {s.roll_no})</option>
                         ))}
                       </select>
