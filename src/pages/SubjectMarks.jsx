@@ -334,13 +334,13 @@ const SubjectMarks = () => {
                   <tr key={student.id}>
                     <td>{student.roll_no}</td>
                     <td style={{ fontWeight: 500 }}>
-                      <div className="flex items-center gap-3">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <img 
                           src={student.picture_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name)}&background=random`} 
                           alt={student.name} 
-                          style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
+                          style={{ width: '64px', height: '64px', minWidth: '64px', minHeight: '64px', flexShrink: 0, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--surface-color)', outline: '2px solid var(--border-color)', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
                         />
-                        {student.name}
+                        <span style={{ fontSize: '1.1rem', fontWeight: '600' }}>{student.name}</span>
                       </div>
                     </td>
                     

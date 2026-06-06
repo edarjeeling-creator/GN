@@ -273,15 +273,18 @@ p {
 
 /* Specific to marks entry */
 .marks-input {
-  width: 80px;
-  padding: 0.5rem;
+  width: 90px;
+  padding: 0.75rem;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   text-align: center;
+  font-size: 1.1rem;
+  font-weight: 600;
 }
 .marks-input:focus {
   border-color: var(--primary-color);
   outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .badge {
