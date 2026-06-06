@@ -327,10 +327,10 @@ const Attendance = () => {
                         <td className="font-medium">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                             {student.picture_url ? (
-                              <img src={student.picture_url} alt={student.name} loading="lazy" style={{ width: '64px', height: '64px', minWidth: '64px', minHeight: '64px', flexShrink: 0, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--surface-color)', outline: '2px solid var(--border-color)', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
+                              <img src={student.picture_url} alt={student.name} loading="lazy" style={{ width: '80px', height: '80px', minWidth: '80px', minHeight: '80px', flexShrink: 0, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--surface-color)', outline: '2px solid var(--border-color)', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
                             ) : (
-                              <div style={{ width: '64px', height: '64px', minWidth: '64px', minHeight: '64px', flexShrink: 0, borderRadius: '50%', backgroundColor: 'var(--bg-color)', border: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
-                                <User size={28} />
+                              <div style={{ width: '80px', height: '80px', minWidth: '80px', minHeight: '80px', flexShrink: 0, borderRadius: '50%', backgroundColor: 'var(--bg-color)', border: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
+                                <User size={32} />
                               </div>
                             )}
                             <span style={{ fontSize: '1.1rem', fontWeight: '600' }}>{student.name}</span>
