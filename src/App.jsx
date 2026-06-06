@@ -11,6 +11,7 @@ import ReportCards from './pages/ReportCards';
 import ResultPortal from './pages/ResultPortal';
 import PrincipalPortal from './pages/PrincipalPortal';
 import StudentPortal from './pages/StudentPortal';
+import ParentPortal from './pages/ParentPortal';
 import StudyMaterials from './pages/StudyMaterials';
 import Assignments from './pages/Assignments';
 import Admin from './pages/Admin';
@@ -54,6 +55,9 @@ function App() {
             {/* Student Only Routes */}
             <Route path="/student-portal" element={<StudentRoute><StudentPortal /></StudentRoute>} />
             <Route path="/python-student" element={<FeatureRoute featureName="python_portal" userType="class"><PythonStudent /></FeatureRoute>} />
+
+            {/* Parent Only Routes */}
+            <Route path="/parent-portal" element={<ParentRoute><ParentPortal /></ParentRoute>} />
 
             {/* Teacher & Admin Routes */}
             <Route path="/classes" element={<TeacherRoute><Classes /></TeacherRoute>} />

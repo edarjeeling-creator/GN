@@ -1,20 +1,22 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText, AlertTriangle, Lock, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText, AlertTriangle, Lock, Menu, X, Bell } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeProvider';
 import { useSubscription } from '../context/SubscriptionContext';
+import { supabase } from '../lib/supabase';
 
 const Layout = ({ children }) => {
   const { profile, logout, loading } = useAuth();
-  const { academicYear, setAcademicYear } = useData();
+  const { academicYear, setAcademicYear, students } = useData();
   const { siteBranding } = useTheme();
   const { school, isReadOnly, isSuspended, hasWarning } = useSubscription();
   const navigate = useNavigate();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   useEffect(() => {
     const handleResize = () => {
@@ -23,6 +25,36 @@ const Layout = ({ children }) => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    if (profile?.role === 'student') {
+      fetchUnreadCount();
+      
+      const channel = supabase.channel('student_notifications_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'student_notifications' }, () => {
+           fetchUnreadCount();
+        })
+        .subscribe();
+        
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [profile, students]);
+
+  const fetchUnreadCount = async () => {
+    if (!profile || !students) return;
+    const student = students?.find(s => s.uid === profile.id);
+    if (!student) return;
+    
+    const { count } = await supabase
+      .from('student_notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('student_id', student.id)
+      .eq('is_read', false);
+      
+    setUnreadNotifications(count || 0);
+  };
 
   // Close sidebar on path changes
   useEffect(() => {
@@ -263,8 +295,15 @@ const Layout = ({ children }) => {
           <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', fontWeight: 600, padding: '0 0.5rem 0.5rem' }}>Menu</p>
           
           {profile?.role === 'student' && (
-            <NavLink to="/student-portal" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
-              <LayoutDashboard size={18} /> Student Portal
+            <NavLink to="/student-portal" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <LayoutDashboard size={18} /> Student Portal
+              </div>
+              {unreadNotifications > 0 && (
+                <span style={{ background: '#ef4444', color: 'white', fontSize: '0.65rem', fontWeight: 'bold', padding: '0.1rem 0.4rem', borderRadius: '9999px' }}>
+                  {unreadNotifications}
+                </span>
+              )}
             </NavLink>
           )}
 

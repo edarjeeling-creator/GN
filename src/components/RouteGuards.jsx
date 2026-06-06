@@ -30,6 +30,13 @@ export const PrincipalRoute = ({ children }) => {
   return children;
 };
 
+export const ParentRoute = ({ children }) => {
+  const { profile, loading } = useAuth();
+  if (loading) return <div>Loading...</div>;
+  if (!profile || profile.role !== 'parent') return <Navigate to="/dashboard" />;
+  return children;
+};
+
 export const FeatureRoute = ({ featureName, userType, children }) => {
   const { profile, loading } = useAuth();
   const { featureAccess, students, loadingData } = useData();
