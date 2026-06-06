@@ -27,7 +27,7 @@ const Dashboard = () => {
     return <Navigate to="/student-portal" replace />;
   }
 
-  const { classes, teacherSubjects, marks, students, academicYear } = useData();
+
 
   // Calculate real stats based on filtered classes
   const assignedActiveClasses = Object.keys(teacherSubjects).filter(classId => classes.some(c => c.id === classId));
