@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeProvider';
 import ProtectedRoute from './components/ProtectedRoute';
-import { AdminRoute, TeacherRoute, StudentRoute, PrincipalRoute, FeatureRoute } from './components/RouteGuards';
+import { AdminRoute, TeacherRoute, StudentRoute, PrincipalRoute, FeatureRoute, ParentRoute } from './components/RouteGuards';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Classes from './pages/Classes';
