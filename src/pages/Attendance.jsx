@@ -325,17 +325,11 @@ const Attendance = () => {
                       <tr key={student.id}>
                         <td className="text-center font-bold">{student.roll_no}</td>
                         <td className="font-medium">
-                          <div className="flex items-center gap-3 relative group">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             {student.picture_url ? (
-                              <>
-                                <img src={student.picture_url} alt={student.name} loading="lazy" className="w-8 h-8 rounded-full object-cover border border-gray-200 cursor-pointer" />
-                                {/* Hover Enlarge */}
-                                <div className="absolute left-10 z-50 hidden group-hover:block bg-white p-1 rounded-lg shadow-xl border">
-                                  <img src={student.picture_url} alt={student.name} loading="lazy" className="w-32 h-32 rounded-md object-cover" />
-                                </div>
-                              </>
+                              <img src={student.picture_url} alt={student.name} loading="lazy" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border-color)' }} />
                             ) : (
-                              <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400">
+                              <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
                                 <User size={16} />
                               </div>
                             )}

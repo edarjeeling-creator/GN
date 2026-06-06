@@ -170,9 +170,9 @@ const ParentPortal = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="card p-4 border-l-4 border-l-blue-500 shadow-sm flex items-center gap-4">
               {selectedStudent.picture_url ? (
-                <img src={selectedStudent.picture_url} className="w-16 h-16 rounded-full object-cover" alt="student" />
+                <img src={selectedStudent.picture_url} style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover' }} alt="student" />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
+                <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'var(--bg-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <User size={24} className="text-slate-400" />
                 </div>
               )}
