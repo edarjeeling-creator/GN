@@ -325,15 +325,15 @@ const Attendance = () => {
                       <tr key={student.id}>
                         <td className="text-center font-bold">{student.roll_no}</td>
                         <td className="font-medium">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             {student.picture_url ? (
-                              <img src={student.picture_url} alt={student.name} loading="lazy" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border-color)' }} />
+                              <img src={student.picture_url} alt={student.name} loading="lazy" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border-color)', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }} />
                             ) : (
-                              <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
-                                <User size={16} />
+                              <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'var(--bg-color)', border: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
+                                <User size={24} />
                               </div>
                             )}
-                            <span>{student.name}</span>
+                            <span style={{ fontSize: '1.05rem', fontWeight: '600' }}>{student.name}</span>
                           </div>
                         </td>
                         <td>
