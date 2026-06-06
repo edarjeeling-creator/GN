@@ -262,14 +262,32 @@ const Layout = ({ children }) => {
         
         <div style={{ padding: '1.5rem', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
            <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.5rem' }}>Account</p>
-           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', position: 'relative' }}>
              {profile?.picture_url ? (
-               <img src={profile.picture_url} alt={profile.name} style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} />
+               <img src={profile.picture_url} alt={profile.name} style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid transparent', transition: 'border-color 0.2s' }} onMouseOver={e=>e.currentTarget.style.borderColor='var(--primary-color)'} onMouseOut={e=>e.currentTarget.style.borderColor='transparent'} />
              ) : (
-               <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary-color), #8b5cf6)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+               <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary-color), #8b5cf6)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', border: '2px solid transparent', transition: 'border-color 0.2s' }} onMouseOver={e=>e.currentTarget.style.borderColor='var(--primary-color)'} onMouseOut={e=>e.currentTarget.style.borderColor='transparent'}>
                  {(profile?.name || 'T')[0].toUpperCase()}
                </div>
              )}
+             <input 
+               type="file" 
+               accept="image/*" 
+               title="Upload Profile Picture"
+               onChange={async (e) => {
+                 const file = e.target.files?.[0];
+                 if (!file) return;
+                 if (file.size > 2 * 1024 * 1024) return alert("File too large. Please select an image under 2MB.");
+                 const reader = new FileReader();
+                 reader.onload = async (evt) => {
+                   const { error } = await supabase.from('profiles').update({ picture_url: evt.target.result }).eq('id', profile.id);
+                   if (error) alert("Failed to upload photo.");
+                   else window.location.reload();
+                 };
+                 reader.readAsDataURL(file);
+               }}
+               style={{ opacity: 0, position: 'absolute', inset: 0, cursor: 'pointer', width: '36px', height: '36px' }}
+             />
              <div>
                <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.9rem' }}>{profile?.name || 'Teacher'}</strong>
                {profile?.role === 'admin' ? (
