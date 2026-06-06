@@ -162,8 +162,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      </div>
-      
       {/* Interactive Quick Actions (Placeholder) */}
       <div style={{ marginTop: '3rem' }}>
          <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Quick Actions</h3>
