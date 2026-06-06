@@ -14,9 +14,9 @@ const puppeteer = require('puppeteer');
     console.log('BROWSER_PAGE_ERROR:', error.message);
   });
 
-  console.log("Navigating to http://localhost:4173/attendance ...");
+  console.log("Navigating to http://localhost:5173/principal ...");
   try {
-    await page.goto('http://localhost:4173/attendance', { waitUntil: 'networkidle0' });
+    await page.goto('http://localhost:5173/principal', { waitUntil: 'networkidle0' });
     console.log('Page loaded successfully. Checking body...');
     const bodyText = await page.evaluate(() => document.body.innerText);
     console.log("Body text preview:", bodyText.substring(0, 100));
