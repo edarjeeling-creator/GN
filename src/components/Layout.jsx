@@ -263,9 +263,13 @@ const Layout = ({ children }) => {
         <div style={{ padding: '1.5rem', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
            <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.5rem' }}>Account</p>
            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-             <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary-color), #8b5cf6)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-               {(profile?.name || 'T')[0].toUpperCase()}
-             </div>
+             {profile?.picture_url ? (
+               <img src={profile.picture_url} alt={profile.name} style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} />
+             ) : (
+               <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary-color), #8b5cf6)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                 {(profile?.name || 'T')[0].toUpperCase()}
+               </div>
+             )}
              <div>
                <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.9rem' }}>{profile?.name || 'Teacher'}</strong>
                {profile?.role === 'admin' ? (

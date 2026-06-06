@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { motion } from 'framer-motion';
-import { BookOpen, AlertCircle, CheckCircle, Clock, Users } from 'lucide-react';
+import { BookOpen, AlertCircle, CheckCircle, Clock, Users, Camera } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
 
@@ -89,6 +89,33 @@ const Dashboard = () => {
   };
 
   // Calculate Attendance Stats
+  const handleProfileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > 2 * 1024 * 1024) {
+      alert("File too large. Please select an image under 2MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const base64Data = evt.target.result;
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({ picture_url: base64Data })
+        .eq('id', profile.id);
+
+      if (error) {
+        alert("Failed to upload photo: " + error.message);
+      } else {
+        alert("Profile picture updated successfully!");
+        window.location.reload();
+      }
+    };
+    reader.readAsDataURL(file);
+  };
   const presentToday = attendanceData.filter(a => ['Present', 'Late', 'Half Day'].includes(a.status)).length;
   const absentToday = attendanceData.filter(a => a.status === 'Absent').length;
   const leaveToday = attendanceData.filter(a => ['Leave', 'Medical Leave'].includes(a.status)).length;
@@ -179,6 +206,20 @@ const Dashboard = () => {
                  <strong style={{ display: 'block', fontSize: '1.1rem' }}>Generate Reports</strong>
                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Review flowsheet and print cards</span>
                </div>
+            </div>
+
+            <div className="bento-card relative" style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', padding: '1.5rem', cursor: 'pointer', border: '1px solid var(--border-color)', transition: 'border 0.2s' }} onMouseOver={e=>e.currentTarget.style.borderColor='var(--primary-color)'} onMouseOut={e=>e.currentTarget.style.borderColor='var(--border-color)'}>
+               <div style={{ background: '#f5f3ff', padding: '1rem', borderRadius: '1rem', color: '#8b5cf6' }}><Camera size={28} /></div>
+               <div>
+                 <strong style={{ display: 'block', fontSize: '1.1rem' }}>Profile Picture</strong>
+                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Upload your faculty photo</span>
+               </div>
+               <input 
+                 type="file" 
+                 accept="image/*" 
+                 onChange={handleProfileUpload}
+                 style={{ opacity: 0, position: 'absolute', inset: 0, cursor: 'pointer', width: '100%', height: '100%' }}
+               />
             </div>
             
             {isPythonEnabled && (
