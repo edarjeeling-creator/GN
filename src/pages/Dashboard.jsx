@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { motion } from 'framer-motion';
-import { BookOpen, AlertCircle, CheckCircle, Clock, Users, Camera } from 'lucide-react';
+import { BookOpen, AlertCircle, CheckCircle, Clock, Users, Camera, ChevronDown, User, Send, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
 
@@ -58,6 +58,7 @@ const Dashboard = () => {
 
   const [attendanceData, setAttendanceData] = useState([]);
   const [alerts, setAlerts] = useState([]);
+  const [showAbsentees, setShowAbsentees] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -72,7 +73,7 @@ const Dashboard = () => {
       
       const { data: attData } = await supabase
         .from('attendance')
-        .select('status, class_id')
+        .select('id, student_id, status, class_id, date')
         .eq('date', today)
         .or(`${classIdFilter}marked_by.eq.${profile.id}`);
         
@@ -91,6 +92,23 @@ const Dashboard = () => {
       }
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
+    }
+  };
+
+  const handleNotifyAbsentee = async (studentId, date) => {
+    const { error } = await supabase.from('student_notifications').insert([{
+      student_id: studentId,
+      title: 'Absence Notice',
+      message: `You have been marked absent for ${date}. Please ensure you catch up on missed coursework.`,
+      type: 'absence_alert',
+      is_read: false,
+      is_acknowledged: false
+    }]);
+
+    if (!error) {
+      alert("Private notice sent to student's portal successfully!");
+    } else {
+      alert("Failed to send notice: " + error.message);
     }
   };
 
@@ -194,6 +212,67 @@ const Dashboard = () => {
           </motion.div>
         </div>
       </div>
+
+      {/* Absentees Collapsible Section */}
+      {(() => {
+        const absentees = attendanceData.filter(a => a.status === 'Absent' || a.status === 'Leave');
+        if (absentees.length === 0) return null;
+
+        return (
+          <div className="card p-0 overflow-hidden shadow-sm border border-slate-200 mb-8">
+            <button 
+              className="w-full bg-white p-4 flex justify-between items-center text-left hover:bg-slate-50 transition-colors"
+              onClick={() => setShowAbsentees(!showAbsentees)}
+            >
+              <div className="flex items-center gap-3">
+                <div className="bg-red-100 p-2 rounded-full"><AlertTriangle className="text-red-600" size={20} /></div>
+                <div>
+                  <h3 className="font-bold text-lg text-slate-800">Absent Students List</h3>
+                  <p className="text-sm text-slate-500">View details and privately notify students ({absentees.length} records)</p>
+                </div>
+              </div>
+              <ChevronDown size={24} className={`text-slate-400 transition-transform ${showAbsentees ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showAbsentees && (
+              <div className="p-6 bg-slate-50 border-t border-slate-100">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {absentees.map(a => {
+                    const student = students.find(s => s.id === a.student_id);
+                    const cls = classes.find(c => c.id === a.class_id);
+                    if (!student) return null;
+                    
+                    return (
+                      <div key={a.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between hover:shadow-md transition-shadow">
+                        <div className="flex items-start gap-4 mb-4">
+                          <div className="w-12 h-12 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex-shrink-0 flex items-center justify-center">
+                            {student.picture_url ? (
+                              <img src={student.picture_url} alt={student.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <User size={24} className="text-slate-400" />
+                            )}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-800 leading-tight">{student.name}</h4>
+                            <p className="text-xs text-slate-500 mb-1">{cls ? `${cls.name} ${cls.section}` : 'Unknown Class'} • Roll {student.roll_no}</p>
+                            <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-100 text-red-800">{a.status}</span>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => handleNotifyAbsentee(student.id, a.date)}
+                          className="w-full py-2 flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-lg transition-colors"
+                        >
+                          <Send size={14} /> Send Private Notice
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Interactive Quick Actions (Placeholder) */}
       <div style={{ marginTop: '3rem' }}>
