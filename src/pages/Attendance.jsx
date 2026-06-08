@@ -37,10 +37,11 @@ const Attendance = () => {
       // Fetch Lock Settings
       const { data: settingsData } = await supabase.from('school_settings').select('*').eq('setting_key', 'attendance_lock_time_default').single();
       if (settingsData) {
-        const lockTimeParts = settingsData.setting_value.split(':');
+        const lockHour = 23;
+        const lockMinute = 59;
         const now = new Date();
         const lockDate = new Date();
-        lockDate.setHours(parseInt(lockTimeParts[0], 10), parseInt(lockTimeParts[1], 10), 0);
+        lockDate.setHours(lockHour, lockMinute, 0);
         
         // If today is the selected date and it's past lock time, or if selected date is in the past
         const selectedDateObj = new Date(selectedDate);
