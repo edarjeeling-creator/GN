@@ -561,7 +561,6 @@ const ReportCards = () => {
                 ) : (
                   <User size={40} className="rc-photo-placeholder" />
                 )}
-                <div className="rc-rank-badge">Rank {student.rank}</div>
               </div>
             </div>
 
@@ -619,7 +618,7 @@ const ReportCards = () => {
             <div className="rc-summary-section">
               <div className="rc-summary-box">
                 <h4 className="rc-box-title">Overall Performance</h4>
-                <div className="rc-summary-grid">
+                <div className="rc-summary-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
                   <div className="rc-stat">
                     <span className="rc-stat-label">Max Marks</span>
                     <span className="rc-stat-val">{student.maxPossibleTotal}</span>
@@ -632,9 +631,13 @@ const ReportCards = () => {
                     <span className="rc-stat-label">Percentage</span>
                     <span className="rc-stat-val">{student.percentage}%</span>
                   </div>
-                  <div className="rc-stat">
+                  <div className="rc-stat mt-2">
                     <span className="rc-stat-label">Overall Grade</span>
                     <span className="rc-stat-val" style={{ color: getGradeColor(student.grade), fontSize: '18px' }}>{student.grade}</span>
+                  </div>
+                  <div className="rc-stat mt-2">
+                    <span className="rc-stat-label">Rank</span>
+                    <span className="rc-stat-val">{student.rank}</span>
                   </div>
                 </div>
               </div>
