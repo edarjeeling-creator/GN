@@ -8,6 +8,7 @@ import Editor, {
   BtnStyles
 } from 'react-simple-wysiwyg';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import StaffAttendance from '../components/StaffAttendance';
 
 const PrincipalPortal = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -266,10 +267,18 @@ const PrincipalPortal = () => {
       {/* Tabs */}
       <div className="flex gap-4 mb-6 border-b pb-2 overflow-x-auto">
         <button onClick={() => setActiveTab('overview')} className={`font-bold pb-2 whitespace-nowrap ${activeTab === 'overview' ? 'text-primary border-b-2 border-primary' : 'text-gray-500'}`}>Overview</button>
+        <button onClick={() => setActiveTab('staff_attendance')} className={`font-bold pb-2 whitespace-nowrap ${activeTab === 'staff_attendance' ? 'text-primary border-b-2 border-primary' : 'text-gray-500'}`}>Staff Attendance</button>
         <button onClick={() => setActiveTab('attendance')} className={`font-bold pb-2 whitespace-nowrap ${activeTab === 'attendance' ? 'text-primary border-b-2 border-primary' : 'text-gray-500'}`}>Attendance Reports</button>
         <button onClick={() => setActiveTab('search')} className={`font-bold pb-2 whitespace-nowrap ${activeTab === 'search' ? 'text-primary border-b-2 border-primary' : 'text-gray-500'}`}>User Search</button>
         <button onClick={() => setActiveTab('notices')} className={`font-bold pb-2 whitespace-nowrap ${activeTab === 'notices' ? 'text-primary border-b-2 border-primary' : 'text-gray-500'}`}>Notices & Announcements</button>
       </div>
+
+      {/* Staff Attendance Tab */}
+      {activeTab === 'staff_attendance' && (
+        <div className="mb-6">
+          <StaffAttendance />
+        </div>
+      )}
 
       {/* Overview Tab */}
       {activeTab === 'overview' && (

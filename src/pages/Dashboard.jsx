@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { motion } from 'framer-motion';
-import { BookOpen, AlertCircle, CheckCircle, Clock, Users, Camera, ChevronDown, User, Send, AlertTriangle } from 'lucide-react';
+import { BookOpen, AlertCircle, CheckCircle, Clock, Users, Camera, ChevronDown, User, Send, AlertTriangle, Fingerprint, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
+import TeacherAttendanceHistory from '../components/TeacherAttendanceHistory';
 
 const Dashboard = () => {
   const { profile } = useAuth();
@@ -59,6 +60,9 @@ const Dashboard = () => {
   const [attendanceData, setAttendanceData] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [showAbsentees, setShowAbsentees] = useState(false);
+  const [myAttendanceToday, setMyAttendanceToday] = useState(null);
+  const [reportingTimeConfig, setReportingTimeConfig] = useState({ time: '08:45', grace: 10 });
+  const [attendanceActionLoading, setAttendanceActionLoading] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -66,9 +70,24 @@ const Dashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch today's attendance for assigned classes OR classes marked by this teacher today
       const today = new Date().toISOString().split('T')[0];
       
+      // Fetch Staff Attendance Rules
+      const { data: settingsData } = await supabase.from('school_settings').select('*').in('setting_key', ['staff_reporting_time', 'staff_grace_period_mins']);
+      let rTime = '08:45';
+      let gMins = 10;
+      if (settingsData) {
+        settingsData.forEach(s => {
+          if (s.setting_key === 'staff_reporting_time') rTime = s.setting_value;
+          if (s.setting_key === 'staff_grace_period_mins') gMins = parseInt(s.setting_value) || 10;
+        });
+      }
+      setReportingTimeConfig({ time: rTime, grace: gMins });
+
+      // Fetch my attendance today
+      const { data: myAtt } = await supabase.from('teacher_attendance').select('*').eq('teacher_id', profile.id).eq('attendance_date', today).maybeSingle();
+      if (myAtt) setMyAttendanceToday(myAtt);
+
       const classIdFilter = assignedActiveClasses.length > 0 ? `class_id.in.(${assignedActiveClasses.join(',')}),` : '';
       
       const { data: attData } = await supabase
@@ -93,6 +112,69 @@ const Dashboard = () => {
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
     }
+  };
+
+  const handleCheckIn = async () => {
+    setAttendanceActionLoading(true);
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    
+    // Calculate status based on rules
+    const [reqHour, reqMin] = reportingTimeConfig.time.split(':').map(Number);
+    const expectedTime = new Date();
+    expectedTime.setHours(reqHour, reqMin, 0, 0);
+    
+    const lateGraceTime = new Date(expectedTime);
+    lateGraceTime.setMinutes(lateGraceTime.getMinutes() + reportingTimeConfig.grace);
+    
+    let status = 'Present';
+    if (now > expectedTime && now <= lateGraceTime) {
+      status = 'Present (Grace)';
+    } else if (now > lateGraceTime) {
+      status = 'Late';
+    }
+
+    const newRecord = {
+      teacher_id: profile.id,
+      attendance_date: today,
+      check_in_time: now.toISOString(),
+      status: status,
+      device_info: navigator.userAgent.substring(0, 200)
+    };
+
+    const { data, error } = await supabase.from('teacher_attendance').insert([newRecord]).select().single();
+    if (error) {
+      alert("Failed to check in: " + error.message);
+    } else {
+      setMyAttendanceToday(data);
+    }
+    setAttendanceActionLoading(false);
+  };
+
+  const handleCheckOut = async () => {
+    if (!myAttendanceToday || !myAttendanceToday.check_in_time) return;
+    setAttendanceActionLoading(true);
+    const now = new Date();
+    const checkInTime = new Date(myAttendanceToday.check_in_time);
+    
+    // Calculate working hours difference
+    const diffMs = now - checkInTime;
+    const diffHrs = Math.floor(diffMs / 3600000);
+    const diffMins = Math.floor((diffMs % 3600000) / 60000);
+    const intervalStr = `${diffHrs} hours ${diffMins} mins`;
+
+    const { data, error } = await supabase.from('teacher_attendance')
+      .update({ check_out_time: now.toISOString(), working_hours: intervalStr })
+      .eq('id', myAttendanceToday.id)
+      .select()
+      .single();
+
+    if (error) {
+      alert("Failed to check out: " + error.message);
+    } else {
+      setMyAttendanceToday(data);
+    }
+    setAttendanceActionLoading(false);
   };
 
   const handleNotifyAbsentee = async (studentId, date) => {
@@ -154,6 +236,63 @@ const Dashboard = () => {
         </div>
       </div>
       
+      {/* Teacher Attendance Check-In Widget */}
+      <div className="card bg-slate-900 text-white p-6 rounded-xl shadow-lg mb-8 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-4">
+            <div className="bg-slate-800 p-4 rounded-full border border-slate-700 shadow-inner">
+              <Fingerprint size={32} className={myAttendanceToday ? 'text-green-400' : 'text-slate-400'} />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold mb-1">My Daily Attendance</h2>
+              <p className="text-slate-400 text-sm">
+                Reporting Time: <strong className="text-slate-300">{reportingTimeConfig.time} AM</strong> (Grace: {reportingTimeConfig.grace} mins)
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex flex-col items-end gap-2 w-full md:w-auto">
+            {!myAttendanceToday ? (
+              <button 
+                onClick={handleCheckIn} 
+                disabled={attendanceActionLoading}
+                className="w-full md:w-auto bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg hover:shadow-green-500/20 transition-all flex items-center justify-center gap-2 text-lg disabled:opacity-50"
+              >
+                <Fingerprint size={20} /> Check In Now
+              </button>
+            ) : !myAttendanceToday.check_out_time ? (
+              <div className="flex flex-col md:flex-row items-center gap-4 w-full">
+                <div className="bg-slate-800 border border-slate-700 px-4 py-2 rounded-lg text-center w-full md:w-auto">
+                  <span className="block text-xs text-slate-400 uppercase font-bold mb-1">Status</span>
+                  <span className={`font-bold ${myAttendanceToday.status.includes('Late') ? 'text-amber-400' : 'text-green-400'}`}>
+                    Checked In: {new Date(myAttendanceToday.check_in_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                  </span>
+                </div>
+                <button 
+                  onClick={handleCheckOut} 
+                  disabled={attendanceActionLoading}
+                  className="w-full md:w-auto bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg hover:shadow-red-500/20 transition-all flex items-center justify-center gap-2 text-lg disabled:opacity-50"
+                >
+                  <LogOut size={20} /> Check Out
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-4 w-full bg-slate-800 border border-slate-700 p-4 rounded-xl">
+                <div className="bg-green-500/20 p-2 rounded-full"><CheckCircle className="text-green-400" size={24} /></div>
+                <div>
+                  <h4 className="font-bold text-slate-200">Shift Completed</h4>
+                  <p className="text-sm text-slate-400">Total Hours: <strong className="text-white">{myAttendanceToday.working_hours}</strong></p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Attendance History */}
+      <TeacherAttendanceHistory teacherId={profile?.id} />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         
         {/* Core KPIs */}
