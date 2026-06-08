@@ -206,11 +206,11 @@ const Dashboard = () => {
                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Navigate to classes to input marks</span>
                </div>
             </div>
-            <div className="bento-card" onClick={() => window.location.href='/reports'} style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', padding: '1.5rem', cursor: 'pointer', border: '1px solid var(--border-color)', transition: 'border 0.2s' }} onMouseOver={e=>e.currentTarget.style.borderColor='var(--primary-color)'} onMouseOut={e=>e.currentTarget.style.borderColor='var(--border-color)'}>
+            <div className="bento-card" onClick={() => window.location.href='/classes'} style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', padding: '1.5rem', cursor: 'pointer', border: '1px solid var(--border-color)', transition: 'border 0.2s' }} onMouseOver={e=>e.currentTarget.style.borderColor='var(--primary-color)'} onMouseOut={e=>e.currentTarget.style.borderColor='var(--border-color)'}>
                <div style={{ background: '#f0fdf4', padding: '1rem', borderRadius: '1rem', color: '#10b981' }}><CheckCircle size={28} /></div>
                <div>
                  <strong style={{ display: 'block', fontSize: '1.1rem' }}>Generate Reports</strong>
-                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Review flowsheet and print cards</span>
+                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Select a class first to view reports</span>
                </div>
             </div>
 
