@@ -123,6 +123,8 @@ const Dashboard = () => {
 
     if (error) {
       alert("Failed to check in: " + error.message);
+    } else if (data && data.error) {
+      alert("Check-in Notice: " + data.error);
     } else {
       setMyAttendanceToday(data);
     }
@@ -137,6 +139,8 @@ const Dashboard = () => {
 
     if (error) {
       alert("Failed to check out: " + error.message);
+    } else if (data && data.error) {
+      alert("Check-out Notice: " + data.error);
     } else {
       setMyAttendanceToday(data);
     }
