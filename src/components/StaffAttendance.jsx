@@ -3,7 +3,8 @@ import { supabase } from '../lib/supabase';
 import { Users, CheckCircle, Clock, AlertTriangle, User, Settings, Save, Edit, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const StaffAttendance = () => दल  const { profile } = useAuth();
+const StaffAttendance = () => {
+  const { profile } = useAuth();
   const [staffAttData, setStaffAttData] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [settings, setSettings] = useState({ reporting_time: '08:45', grace_mins: 10 });
