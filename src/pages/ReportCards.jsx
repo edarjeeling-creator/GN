@@ -556,8 +556,8 @@ const ReportCards = () => {
                 </div>
               </div>
               <div className="rc-photo-container">
-                {student.photo_url ? (
-                  <img src={student.photo_url} alt={student.name} className="rc-photo" />
+                {student.picture_url ? (
+                  <img src={student.picture_url} alt={student.name} className="rc-photo" />
                 ) : (
                   <User size={40} className="rc-photo-placeholder" />
                 )}
