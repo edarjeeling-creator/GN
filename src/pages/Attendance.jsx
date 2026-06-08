@@ -124,17 +124,22 @@ const Attendance = () => {
     setSaving(true);
     setMessage({ text: '', type: '' });
 
-    const recordsToUpsert = classStudents.map(student => ({
-      id: attendanceData[student.id]?.id || undefined, // Send ID if exists to update
-      student_id: student.id,
-      class_id: selectedClassId,
-      date: selectedDate,
-      academic_year: academicYear,
-      status: attendanceData[student.id]?.status || 'Present', // Default to present if left blank and saving
-      remarks: attendanceData[student.id]?.remarks || null,
-      marked_by: profile?.id,
-      marked_at: new Date().toISOString()
-    })).filter(record => record.status !== ''); // Only save those that have a status
+    const recordsToUpsert = classStudents.map(student => {
+      const record = {
+        student_id: student.id,
+        class_id: selectedClassId,
+        date: selectedDate,
+        academic_year: academicYear,
+        status: attendanceData[student.id]?.status || 'Present',
+        remarks: attendanceData[student.id]?.remarks || null,
+        marked_by: profile?.id,
+        marked_at: new Date().toISOString()
+      };
+      if (attendanceData[student.id]?.id) {
+        record.id = attendanceData[student.id].id;
+      }
+      return record;
+    }).filter(record => record.status !== '');
 
     if (recordsToUpsert.length === 0) {
       setMessage({ text: 'Please mark attendance before saving.', type: 'danger' });
