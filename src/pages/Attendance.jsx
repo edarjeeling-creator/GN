@@ -125,7 +125,7 @@ const Attendance = () => {
     setMessage({ text: '', type: '' });
 
     const recordsToUpsert = classStudents.map(student => {
-      const record = {
+      return {
         student_id: student.id,
         class_id: selectedClassId,
         date: selectedDate,
@@ -135,10 +135,6 @@ const Attendance = () => {
         marked_by: profile?.id,
         marked_at: new Date().toISOString()
       };
-      if (attendanceData[student.id]?.id) {
-        record.id = attendanceData[student.id].id;
-      }
-      return record;
     }).filter(record => record.status !== '');
 
     if (recordsToUpsert.length === 0) {
