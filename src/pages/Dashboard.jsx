@@ -60,29 +60,35 @@ const Dashboard = () => {
   const [alerts, setAlerts] = useState([]);
 
   useEffect(() => {
-    if (assignedActiveClasses.length > 0) {
-      fetchDashboardData();
-    }
+    fetchDashboardData();
   }, [teacherSubjects]);
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch today's attendance for assigned classes
+      // Fetch today's attendance for assigned classes OR classes marked by this teacher today
       const today = new Date().toISOString().split('T')[0];
+      
+      const classIdFilter = assignedActiveClasses.length > 0 ? `class_id.in.(${assignedActiveClasses.join(',')}),` : '';
+      
       const { data: attData } = await supabase
         .from('attendance')
         .select('status, class_id')
         .eq('date', today)
-        .in('class_id', assignedActiveClasses);
+        .or(`${classIdFilter}marked_by.eq.${profile.id}`);
+        
       setAttendanceData(attData || []);
 
       // Fetch open alerts for assigned classes
-      const { data: alertData } = await supabase
-        .from('system_alerts')
-        .select('alert_type, status, class_id')
-        .eq('status', 'open')
-        .in('class_id', assignedActiveClasses);
-      setAlerts(alertData || []);
+      if (assignedActiveClasses.length > 0) {
+        const { data: alertData } = await supabase
+          .from('system_alerts')
+          .select('alert_type, status, class_id')
+          .eq('status', 'open')
+          .in('class_id', assignedActiveClasses);
+        setAlerts(alertData || []);
+      } else {
+        setAlerts([]);
+      }
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
     }
