@@ -116,33 +116,11 @@ const Dashboard = () => {
 
   const handleCheckIn = async () => {
     setAttendanceActionLoading(true);
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
     
-    // Calculate status based on rules
-    const [reqHour, reqMin] = reportingTimeConfig.time.split(':').map(Number);
-    const expectedTime = new Date();
-    expectedTime.setHours(reqHour, reqMin, 0, 0);
-    
-    const lateGraceTime = new Date(expectedTime);
-    lateGraceTime.setMinutes(lateGraceTime.getMinutes() + reportingTimeConfig.grace);
-    
-    let status = 'Present';
-    if (now > expectedTime && now <= lateGraceTime) {
-      status = 'Present (Grace)';
-    } else if (now > lateGraceTime) {
-      status = 'Late';
-    }
+    const { data, error } = await supabase.rpc('check_in_teacher', {
+      p_device_info: navigator.userAgent.substring(0, 200)
+    });
 
-    const newRecord = {
-      teacher_id: profile.id,
-      attendance_date: today,
-      check_in_time: now.toISOString(),
-      status: status,
-      device_info: navigator.userAgent.substring(0, 200)
-    };
-
-    const { data, error } = await supabase.from('teacher_attendance').insert([newRecord]).select().single();
     if (error) {
       alert("Failed to check in: " + error.message);
     } else {
@@ -154,20 +132,8 @@ const Dashboard = () => {
   const handleCheckOut = async () => {
     if (!myAttendanceToday || !myAttendanceToday.check_in_time) return;
     setAttendanceActionLoading(true);
-    const now = new Date();
-    const checkInTime = new Date(myAttendanceToday.check_in_time);
     
-    // Calculate working hours difference
-    const diffMs = now - checkInTime;
-    const diffHrs = Math.floor(diffMs / 3600000);
-    const diffMins = Math.floor((diffMs % 3600000) / 60000);
-    const intervalStr = `${diffHrs} hours ${diffMins} mins`;
-
-    const { data, error } = await supabase.from('teacher_attendance')
-      .update({ check_out_time: now.toISOString(), working_hours: intervalStr })
-      .eq('id', myAttendanceToday.id)
-      .select()
-      .single();
+    const { data, error } = await supabase.rpc('check_out_teacher');
 
     if (error) {
       alert("Failed to check out: " + error.message);
