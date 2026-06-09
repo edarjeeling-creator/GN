@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Search, Users, BookOpen, Bell, Send, Shield, User, Calendar, CheckCircle, XCircle, AlertTriangle, Printer, Clock, AlertCircle, FileText, ChevronDown } from 'lucide-react';
+import { Search, Users, BookOpen, Bell, Send, Shield, User, Calendar, CheckCircle, XCircle, AlertTriangle, Printer, Clock, AlertCircle, FileText, ChevronDown, Settings, Upload } from 'lucide-react';
 import Editor, { 
   Toolbar,
   BtnUndo, BtnRedo, BtnBold, BtnItalic, BtnUnderline, BtnStrikeThrough,
@@ -12,6 +12,31 @@ import StaffAttendance from '../components/StaffAttendance';
 
 const PrincipalPortal = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [uploadingSig, setUploadingSig] = useState(false);
+  
+  const handleSignatureUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingSig(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = reader.result;
+        const { error } = await supabase.from('school_settings').upsert({
+          setting_key: 'principal_signature_url',
+          setting_value: base64String,
+          description: 'Digital Signature for Principal'
+        }, { onConflict: 'setting_key' });
+        if (error) throw error;
+        alert('Signature uploaded successfully! It will now appear on all Report Cards.');
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      alert('Error uploading signature: ' + err.message);
+    } finally {
+      setUploadingSig(false);
+    }
+  };
   
   // System Alerts State
   const [systemAlerts, setSystemAlerts] = useState([]);
@@ -271,6 +296,7 @@ const PrincipalPortal = () => {
         <button onClick={() => setActiveTab('attendance')} className={`font-bold pb-2 whitespace-nowrap ${activeTab === 'attendance' ? 'text-primary border-b-2 border-primary' : 'text-gray-500'}`}>Attendance Reports</button>
         <button onClick={() => setActiveTab('search')} className={`font-bold pb-2 whitespace-nowrap ${activeTab === 'search' ? 'text-primary border-b-2 border-primary' : 'text-gray-500'}`}>User Search</button>
         <button onClick={() => setActiveTab('notices')} className={`font-bold pb-2 whitespace-nowrap ${activeTab === 'notices' ? 'text-primary border-b-2 border-primary' : 'text-gray-500'}`}>Notices & Announcements</button>
+        <button onClick={() => setActiveTab('settings')} className={`font-bold pb-2 whitespace-nowrap ${activeTab === 'settings' ? 'text-primary border-b-2 border-primary' : 'text-gray-500'}`}>Settings</button>
       </div>
 
       {/* Staff Attendance Tab */}
@@ -874,6 +900,34 @@ const PrincipalPortal = () => {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Settings Tab */}
+      {activeTab === 'settings' && (
+        <div className="card p-6 bg-white shadow-sm rounded-lg max-w-3xl">
+          <h2 className="text-xl font-bold mb-6 flex items-center gap-2"><Settings size={20} /> School Settings & Branding</h2>
+          
+          <div className="border border-slate-200 rounded-lg p-6 bg-slate-50 mb-6">
+            <h3 className="text-lg font-bold mb-2 flex items-center gap-2">Principal Digital Signature</h3>
+            <p className="text-slate-600 text-sm mb-4">
+              Upload the official digital signature of the Principal. This signature will automatically be printed on all student Report Cards.
+              For best results, upload a PNG image with a transparent background.
+            </p>
+            
+            <div className="flex items-center gap-4">
+              <label className="btn btn-primary cursor-pointer flex items-center gap-2">
+                <Upload size={18} /> {uploadingSig ? 'Uploading...' : 'Upload Signature File'}
+                <input 
+                  type="file" 
+                  accept="image/png, image/jpeg, image/jpg" 
+                  className="hidden" 
+                  onChange={handleSignatureUpload}
+                  disabled={uploadingSig}
+                />
+              </label>
+            </div>
           </div>
         </div>
       )}

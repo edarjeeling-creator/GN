@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
+import { supabase } from '../lib/supabase';
 import { ArrowLeft, Printer, User } from 'lucide-react';
 import { getConversionConstants } from './SubjectMarks';
 
@@ -10,6 +12,17 @@ const ReportCards = () => {
 
   const cls = classes.find(c => c.id === classId);
   const classStudents = students.filter(s => s.class_id === classId);
+  const [signatureUrl, setSignatureUrl] = useState(null);
+  
+  useEffect(() => {
+    const fetchSig = async () => {
+      const { data } = await supabase.from('school_settings').select('setting_value').eq('setting_key', 'principal_signature_url').single();
+      if (data && data.setting_value) {
+        setSignatureUrl(data.setting_value);
+      }
+    };
+    fetchSig();
+  }, []);
   
   const classSubjectIds = teacherSubjects[classId] || [];
   
@@ -692,6 +705,11 @@ const ReportCards = () => {
                 <div className="rc-sig-label">Class Teacher</div>
               </div>
               <div className="rc-sig-block">
+                {signatureUrl ? (
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2px', height: '40px' }}>
+                    <img src={signatureUrl} alt="Principal Signature" style={{ maxHeight: '100%', objectFit: 'contain' }} />
+                  </div>
+                ) : <div style={{ height: '40px' }}></div>}
                 <div className="rc-sig-line"></div>
                 <div className="rc-sig-label">Principal</div>
               </div>
