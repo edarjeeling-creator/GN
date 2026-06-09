@@ -13,10 +13,14 @@ import StaffAttendance from '../components/StaffAttendance';
 const PrincipalPortal = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [uploadingSig, setUploadingSig] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
   
-  const handleSignatureUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleFileSelect = (e) => {
+    setSelectedFile(e.target.files[0]);
+  };
+
+  const handleSignatureUpload = async () => {
+    if (!selectedFile) return;
     setUploadingSig(true);
     try {
       const reader = new FileReader();
@@ -29,8 +33,9 @@ const PrincipalPortal = () => {
         }, { onConflict: 'setting_key' });
         if (error) throw error;
         alert('Signature uploaded successfully! It will now appear on all Report Cards.');
+        setSelectedFile(null);
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(selectedFile);
     } catch (err) {
       alert('Error uploading signature: ' + err.message);
     } finally {
@@ -916,17 +921,23 @@ const PrincipalPortal = () => {
               For best results, upload a PNG image with a transparent background.
             </p>
             
-            <div className="flex items-center gap-4">
-              <label className="btn btn-primary cursor-pointer flex items-center gap-2">
-                <Upload size={18} /> {uploadingSig ? 'Uploading...' : 'Upload Signature File'}
-                <input 
-                  type="file" 
-                  accept="image/png, image/jpeg, image/jpg" 
-                  className="hidden" 
-                  onChange={handleSignatureUpload}
+            <div className="flex flex-col gap-4 items-start">
+              <input 
+                type="file" 
+                accept="image/png, image/jpeg, image/jpg" 
+                className="input-field p-2 bg-white border border-slate-300 rounded" 
+                onChange={handleFileSelect}
+                disabled={uploadingSig}
+              />
+              {selectedFile && (
+                <button 
+                  onClick={handleSignatureUpload}
                   disabled={uploadingSig}
-                />
-              </label>
+                  className="btn btn-primary flex items-center gap-2"
+                >
+                  <Upload size={18} /> {uploadingSig ? 'Uploading...' : 'Save & Publish Signature'}
+                </button>
+              )}
             </div>
           </div>
         </div>
