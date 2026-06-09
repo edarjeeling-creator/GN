@@ -23,20 +23,25 @@ const PrincipalPortal = () => {
     if (!selectedFile) return;
     setUploadingSig(true);
     try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64String = reader.result;
-        const { error } = await supabase.from('school_settings').upsert({
-          setting_key: 'principal_signature_url',
-          setting_value: base64String,
-          description: 'Digital Signature for Principal'
-        }, { onConflict: 'setting_key' });
-        if (error) throw error;
-        alert('Signature uploaded successfully! It will now appear on all Report Cards.');
-        setSelectedFile(null);
-      };
-      reader.readAsDataURL(selectedFile);
+      const base64String = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(selectedFile);
+      });
+
+      const { error } = await supabase.from('school_settings').upsert({
+        setting_key: 'principal_signature_url',
+        setting_value: base64String,
+        description: 'Digital Signature for Principal'
+      }, { onConflict: 'setting_key' });
+      
+      if (error) throw error;
+      
+      alert('Signature uploaded successfully! It will now appear on all Report Cards.');
+      setSelectedFile(null);
     } catch (err) {
+      console.error("Signature upload error:", err);
       alert('Error uploading signature: ' + err.message);
     } finally {
       setUploadingSig(false);
