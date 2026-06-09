@@ -30,11 +30,11 @@ const PrincipalPortal = () => {
         reader.readAsDataURL(selectedFile);
       });
 
-      const { error } = await supabase.from('school_settings').upsert({
-        setting_key: 'principal_signature_url',
-        setting_value: base64String,
-        description: 'Digital Signature for Principal'
-      }, { onConflict: 'setting_key' });
+      const { error } = await supabase.rpc('upsert_school_setting', {
+        p_key: 'principal_signature_url',
+        p_value: base64String,
+        p_desc: 'Digital Signature for Principal'
+      });
       
       if (error) throw error;
       
