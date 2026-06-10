@@ -219,35 +219,11 @@ export const DataProvider = ({ children }) => {
     // We don't need a state here if it's managed locally in Admin.jsx.
   };
 
-  const toggleFeatureAccess = async (featureName, userType, id, currentState, expiresAt = null, accessReason = '') => {
+  const grantFeatureAccess = async (featureName, userType, id, isEnabled = true, expiresAt = null, accessReason = '') => {
     if (isReadOnly) return;
-    const isEnabled = !currentState;
     
-    // Get current user id
     const { data: { session } } = await supabase.auth.getSession();
     const currentUserId = session?.user?.id;
-
-    // Optimistic UI update
-    setFeatureAccess(prev => {
-      const existingIdx = prev.findIndex(f => f.feature_name === featureName && f.user_type === userType && (userType === 'teacher' ? f.user_id === id : userType === 'student' ? f.student_id === id : f.class_id === id));
-      if (existingIdx > -1) {
-        const next = [...prev];
-        next[existingIdx] = { ...next[existingIdx], is_enabled: isEnabled, expires_at: expiresAt, access_reason: accessReason, created_by: currentUserId };
-        return next;
-      } else {
-        return [...prev, {
-          feature_name: featureName,
-          user_type: userType,
-          user_id: userType === 'teacher' ? id : null,
-          class_id: userType === 'class' ? id : null,
-          student_id: userType === 'student' ? id : null,
-          is_enabled: isEnabled,
-          expires_at: expiresAt,
-          access_reason: accessReason,
-          created_by: currentUserId
-        }];
-      }
-    });
 
     const payload = {
       feature_name: featureName,
@@ -263,11 +239,38 @@ export const DataProvider = ({ children }) => {
 
     const onConflictKeys = userType === 'teacher' ? 'feature_name,user_id' : userType === 'student' ? 'feature_name,student_id' : 'feature_name,class_id';
 
+    // Optimistic UI update
+    setFeatureAccess(prev => {
+      const existingIdx = prev.findIndex(f => f.feature_name === featureName && f.user_type === userType && (userType === 'teacher' ? f.user_id === id : userType === 'student' ? f.student_id === id : f.class_id === id));
+      if (existingIdx > -1) {
+        const next = [...prev];
+        next[existingIdx] = { ...next[existingIdx], ...payload };
+        return next;
+      } else {
+        return [...prev, payload];
+      }
+    });
+
     const { error } = await supabase
       .from('feature_access')
       .upsert(payload, { onConflict: onConflictKeys });
     
-    if (error) console.error("Error toggling feature:", error);
+    if (error) console.error("Error granting feature:", error);
+  };
+
+  const revokeFeatureAccess = async (featureName, userType, id) => {
+    if (isReadOnly) return;
+    
+    // Optimistic UI update
+    setFeatureAccess(prev => prev.filter(f => !(f.feature_name === featureName && f.user_type === userType && (userType === 'teacher' ? f.user_id === id : userType === 'student' ? f.student_id === id : f.class_id === id))));
+
+    let query = supabase.from('feature_access').delete().eq('feature_name', featureName).eq('user_type', userType);
+    if (userType === 'teacher') query = query.eq('user_id', id);
+    if (userType === 'class') query = query.eq('class_id', id);
+    if (userType === 'student') query = query.eq('student_id', id);
+
+    const { error } = await query;
+    if (error) console.error("Error revoking feature:", error);
   };
 
   return (
@@ -275,7 +278,7 @@ export const DataProvider = ({ children }) => {
       academicYear, setAcademicYear,
       classes: activeClasses, subjects, students, teacherSubjects, marks, attendance, featureAccess,
       loadingData,
-      updateMark, toggleTeacherSubject, addStudent, updateStudentLanguages, updateStudentUid, updateStudentPictureUrl, updateSubjectName, removeStudent, toggleFeatureAccess
+      updateMark, toggleTeacherSubject, addStudent, updateStudentLanguages, updateStudentUid, updateStudentPictureUrl, updateSubjectName, removeStudent, grantFeatureAccess, revokeFeatureAccess
     }}>
       {children}
     </DataContext.Provider>
