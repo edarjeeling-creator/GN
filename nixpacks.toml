@@ -1,6 +1,4 @@
-[providers]
-node = true
-deno = false
+providers = ["node"]
 
 [phases.setup]
 nixPkgs = ['nodejs_22', 'npm']
