@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase';
 
 const Layout = ({ children }) => {
   const { profile, logout, loading } = useAuth();
-  const { academicYear, setAcademicYear, students } = useData();
+  const { academicYear, setAcademicYear, students, featureAccess } = useData();
   const { siteBranding } = useTheme();
   const { school, isReadOnly, isSuspended, hasWarning } = useSubscription();
   const navigate = useNavigate();
@@ -51,10 +51,37 @@ const Layout = ({ children }) => {
       .from('student_notifications')
       .select('*', { count: 'exact', head: true })
       .eq('student_id', student.id)
-      .eq('is_read', false);
+      .eq('is_read', false)
+      .neq('is_invalid', true);
       
-    setUnreadNotifications(count || 0);
+    if (count !== null) setUnreadNotifications(count);
   };
+
+  const isNotExpired = (expiresAt) => {
+    if (!expiresAt) return true;
+    return new Date() < new Date(expiresAt);
+  };
+
+  let isPythonEnabled = false;
+  if (featureAccess && Array.isArray(featureAccess) && profile) {
+    if (profile.role === 'teacher') {
+      const teacherRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'teacher' && f.user_id === profile.id);
+      if (teacherRule) isPythonEnabled = teacherRule.is_enabled && isNotExpired(teacherRule.expires_at);
+    } else if (profile.role === 'student' && students) {
+      const studentData = students.find(s => s.uid === profile.id);
+      if (studentData) {
+        const studentRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'student' && f.student_id === studentData.id);
+        const classRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'class' && f.class_id === studentData.class_id);
+        if (studentRule) {
+          isPythonEnabled = studentRule.is_enabled && isNotExpired(studentRule.expires_at);
+        } else if (classRule) {
+          isPythonEnabled = classRule.is_enabled && isNotExpired(classRule.expires_at);
+        }
+      }
+    } else if (profile.role === 'admin') {
+      isPythonEnabled = true;
+    }
+  }
 
   // Close sidebar on path changes
   useEffect(() => {
@@ -343,6 +370,11 @@ const Layout = ({ children }) => {
               <NavLink to="/assignments" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
                 <FileText size={18} /> Assignments
               </NavLink>
+              {isPythonEnabled && (
+                <NavLink to={profile?.role === 'teacher' || profile?.role === 'admin' ? "/python-teacher" : "/python-student"} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem', background: 'rgba(234, 179, 8, 0.1)', color: '#ca8a04', border: '1px solid rgba(234, 179, 8, 0.2)' }}>
+                  <span style={{ fontSize: '1.2rem', marginRight: '0.5rem' }}>🐍</span> Python Patshala
+                </NavLink>
+              )}
             </>
           )}
 
