@@ -8,7 +8,7 @@ import html2pdf from 'html2pdf.js';
 
 const StudentPortal = () => {
   const { profile } = useAuth();
-  const { students, featureAccess } = useData();
+  const { students, featureAccess, classes } = useData();
   const [activeTab, setActiveTab] = useState('overview');
   const [notifications, setNotifications] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
@@ -218,12 +218,21 @@ const StudentPortal = () => {
       });
   };
 
+  const studentClass = classes?.find(c => c.id === classId);
+
   return (
     <>
       <div className="portal-container" style={{ padding: '2rem' }}>
         <header style={{ marginBottom: '2rem' }}>
           <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>Student Portal</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Welcome back, {profile?.name}</p>
+          <p style={{ color: 'var(--text-secondary)' }}>
+            Welcome back, <span className="font-bold">{studentData?.name || profile?.name}</span>
+            {studentClass ? (
+              <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                Class {studentClass.name} {studentClass.section || ''}
+              </span>
+            ) : null}
+          </p>
         </header>
 
         <div className="flex gap-4 mb-6 border-b pb-2 flex-wrap">
