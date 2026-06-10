@@ -17,7 +17,7 @@ const StudentPortal = () => {
   // Notification Management State
   const [notifSearch, setNotifSearch] = useState('');
 
-  const studentData = students.find(s => s.uid === profile?.id);
+  const studentData = students?.find(s => s.id === profile?.id || (profile?.uid && s.uid === profile?.uid));
   const classId = studentData?.class_id;
 
   const fetchNotifications = async () => {

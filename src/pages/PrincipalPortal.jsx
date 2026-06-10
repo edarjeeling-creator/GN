@@ -9,6 +9,7 @@ import Editor, {
 } from 'react-simple-wysiwyg';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import StaffAttendance from '../components/StaffAttendance';
+import WeeklyTestTracker from '../components/WeeklyTestTracker';
 
 const PrincipalPortal = () => {
   const [activeTab, setActiveTab] = useState('overview');

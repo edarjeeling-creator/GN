@@ -18,6 +18,8 @@ const Layout = ({ children }) => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
 
+  const studentData = students?.find(s => s.id === profile?.id || (profile?.uid && s.uid === profile?.uid));
+
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 1024);
@@ -44,7 +46,7 @@ const Layout = ({ children }) => {
 
   const fetchUnreadCount = async () => {
     if (!profile || !students) return;
-    const student = students?.find(s => s.uid === profile.id);
+    const student = students?.find(s => s.id === profile.id || (profile.uid && s.uid === profile.uid));
     if (!student) return;
     
     const { count } = await supabase
@@ -63,23 +65,22 @@ const Layout = ({ children }) => {
   };
 
   let isPythonEnabled = false;
-  if (featureAccess && Array.isArray(featureAccess) && profile) {
+  if (profile?.role === 'admin') {
+    isPythonEnabled = true;
+  } else if (featureAccess && Array.isArray(featureAccess) && profile) {
     if (profile.role === 'teacher') {
       const teacherRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'teacher' && f.user_id === profile.id);
       if (teacherRule) isPythonEnabled = teacherRule.is_enabled && isNotExpired(teacherRule.expires_at);
-    } else if (profile.role === 'student' && students) {
-      const studentData = students.find(s => s.uid === profile.id);
-      if (studentData) {
-        const studentRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'student' && f.student_id === studentData.id);
-        const classRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'class' && f.class_id === studentData.class_id);
-        if (studentRule) {
-          isPythonEnabled = studentRule.is_enabled && isNotExpired(studentRule.expires_at);
-        } else if (classRule) {
-          isPythonEnabled = classRule.is_enabled && isNotExpired(classRule.expires_at);
-        }
+    }
+    
+    if (!isPythonEnabled && studentData) {
+      const studentRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'student' && f.student_id === studentData.id);
+      const classRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'class' && f.class_id === studentData.class_id);
+      if (studentRule) {
+        isPythonEnabled = studentRule.is_enabled && isNotExpired(studentRule.expires_at);
+      } else if (classRule) {
+        isPythonEnabled = classRule.is_enabled && isNotExpired(classRule.expires_at);
       }
-    } else if (profile.role === 'admin') {
-      isPythonEnabled = true;
     }
   }
 
