@@ -328,6 +328,8 @@ const Layout = ({ children }) => {
                <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.9rem' }}>{profile?.name || 'Teacher'}</strong>
                {profile?.role === 'admin' ? (
                  <span style={{ fontSize: '0.7rem', color: '#8b5cf6', fontWeight: 600 }}>Administrator</span>
+               ) : profile?.role === 'student' ? (
+                 <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Student</span>
                ) : (
                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Faculty Member</span>
                )}
