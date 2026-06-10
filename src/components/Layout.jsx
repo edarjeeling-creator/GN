@@ -18,7 +18,11 @@ const Layout = ({ children }) => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
 
-  const studentData = students?.find(s => s.id === profile?.id || (profile?.uid && s.uid === profile?.uid) || (profile?.name && s.name === profile?.name));
+  const studentData = students?.find(s => 
+    s.id === profile?.id || 
+    (profile?.uid && s.uid === profile?.uid) || 
+    (profile?.name && s.name && s.name.trim().toLowerCase() === profile.name.trim().toLowerCase())
+  );
 
   useEffect(() => {
     const handleResize = () => {
@@ -46,7 +50,11 @@ const Layout = ({ children }) => {
 
   const fetchUnreadCount = async () => {
     if (!profile || !students) return;
-    const student = students?.find(s => s.id === profile.id || (profile.uid && s.uid === profile.uid) || (profile.name && s.name === profile.name));
+    const student = students?.find(s => 
+      s.id === profile.id || 
+      (profile.uid && s.uid === profile.uid) || 
+      (profile.name && s.name && s.name.trim().toLowerCase() === profile.name.trim().toLowerCase())
+    );
     if (!student) return;
     
     const { count } = await supabase
