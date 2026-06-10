@@ -18,6 +18,7 @@ import Admin from './pages/Admin';
 import StudentSearch from './pages/StudentSearch';
 import Attendance from './pages/Attendance';
 import AttendanceReports from './pages/AttendanceReports';
+import WeeklyTests from './pages/WeeklyTests';
 import PythonTeacher from './pages/PythonTeacher';
 import PythonStudent from './pages/PythonStudent';
 import PublicLayout from './components/PublicLayout';
@@ -66,6 +67,7 @@ function App() {
             <Route path="/classes/:classId/flowsheet" element={<TeacherRoute><Flowsheet /></TeacherRoute>} />
             <Route path="/classes/:classId/reports" element={<TeacherRoute><ReportCards /></TeacherRoute>} />
             <Route path="/attendance" element={<TeacherRoute><Attendance /></TeacherRoute>} />
+            <Route path="/weekly-tests" element={<TeacherRoute><WeeklyTests /></TeacherRoute>} />
 
             {/* Principal & Admin Routes */}
             <Route path="/principal" element={<PrincipalRoute><PrincipalPortal /></PrincipalRoute>} />

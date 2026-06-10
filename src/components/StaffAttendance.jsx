@@ -21,8 +21,8 @@ const StaffAttendance = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    // Fetch teachers
-    const { data: tData } = await supabase.from('profiles').select('*').eq('role', 'teacher');
+    // Fetch active teachers
+    const { data: tData } = await supabase.from('profiles').select('*').eq('role', 'teacher').eq('status', 'Active');
     if (tData) setTeachers(tData);
 
     // Fetch settings

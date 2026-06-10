@@ -62,6 +62,15 @@ const FeatureSettings = ({ teachers }) => {
     toggleFeatureAccess('python_portal', userType, id, currentRule?.is_enabled || false, expiresAt, accessReason);
   };
 
+  const [searchStudent, setSearchStudent] = useState('');
+  const [filterClass, setFilterClass] = useState('all');
+
+  const filteredStudents = students.filter(s => {
+    if (filterClass !== 'all' && s.class_id !== filterClass) return false;
+    if (searchStudent && !s.name.toLowerCase().includes(searchStudent.toLowerCase())) return false;
+    return true;
+  });
+
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -108,11 +117,11 @@ const FeatureSettings = ({ teachers }) => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Teacher Access */}
-          <div className="card p-6 bg-white border border-slate-200 rounded-xl">
-            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <div className="card p-6 bg-white border border-slate-200 rounded-xl flex flex-col h-[500px]">
+            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2 flex-shrink-0">
               <span className="text-2xl">👨‍🏫</span> Teacher Access
             </h3>
-            <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto pr-2">
+            <div className="flex flex-col gap-2 overflow-y-auto pr-2 flex-1">
               {teachers.map(teacher => {
                 const rule = getFeatureRule('python_portal', 'teacher', teacher.id);
                 const isEnabled = isRuleActive(rule);
@@ -140,11 +149,11 @@ const FeatureSettings = ({ teachers }) => {
           </div>
 
           {/* Class Access */}
-          <div className="card p-6 bg-white border border-slate-200 rounded-xl">
-            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <div className="card p-6 bg-white border border-slate-200 rounded-xl flex flex-col h-[500px]">
+            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2 flex-shrink-0">
               <span className="text-2xl">🎓</span> Class Access
             </h3>
-            <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto pr-2">
+            <div className="flex flex-col gap-2 overflow-y-auto pr-2 flex-1">
               {classes.map(cls => {
                 const rule = getFeatureRule('python_portal', 'class', cls.id);
                 const isEnabled = isRuleActive(rule);
@@ -171,13 +180,35 @@ const FeatureSettings = ({ teachers }) => {
           </div>
 
           {/* Student Specific Access */}
-          <div className="card p-6 bg-white border border-slate-200 rounded-xl">
-            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <span className="text-2xl">🎒</span> Student Exceptions
-            </h3>
-            <p className="text-xs text-slate-500 mb-4">Override class rules for specific students.</p>
-            <div className="flex flex-col gap-2 max-h-[350px] overflow-y-auto pr-2">
-              {students.slice(0, 50).map(student => {
+          <div className="card p-6 bg-white border border-slate-200 rounded-xl flex flex-col h-[500px]">
+            <div className="flex justify-between items-start mb-2 flex-shrink-0">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <span className="text-2xl">🎒</span> Student Exceptions
+              </h3>
+            </div>
+            
+            <div className="flex gap-2 mb-4 flex-shrink-0">
+               <input 
+                 type="text" 
+                 placeholder="Search student..." 
+                 className="input-field py-1.5 px-3 text-sm flex-1"
+                 value={searchStudent}
+                 onChange={(e) => setSearchStudent(e.target.value)}
+               />
+               <select 
+                 className="input-field py-1.5 px-2 text-sm w-24"
+                 value={filterClass}
+                 onChange={(e) => setFilterClass(e.target.value)}
+               >
+                 <option value="all">All</option>
+                 {classes.map(c => (
+                   <option key={c.id} value={c.id}>{c.name} {c.section}</option>
+                 ))}
+               </select>
+            </div>
+            
+            <div className="flex flex-col gap-2 overflow-y-auto pr-2 flex-1">
+              {filteredStudents.slice(0, 100).map(student => {
                 const rule = getFeatureRule('python_portal', 'student', student.id);
                 const classRule = getFeatureRule('python_portal', 'class', student.class_id);
                 
@@ -185,7 +216,6 @@ const FeatureSettings = ({ teachers }) => {
                 const isClassRuleActive = isRuleActive(classRule);
                 const isStudentExpired = rule?.is_enabled && !isStudentRuleActive;
                 
-                // Effective state
                 const isEffectivelyEnabled = rule ? isStudentRuleActive : isClassRuleActive;
 
                 return (
@@ -207,9 +237,9 @@ const FeatureSettings = ({ teachers }) => {
                   </div>
                 );
               })}
-              {students.length === 0 && <p className="text-sm text-slate-400">No students found.</p>}
+              {filteredStudents.length === 0 && <p className="text-sm text-slate-400">No students found matching filters.</p>}
             </div>
-            {students.length > 50 && <p className="text-xs text-center text-slate-400 mt-2">Showing first 50 students. Use search to find others (coming soon).</p>}
+            {filteredStudents.length > 100 && <p className="text-xs text-center text-slate-400 mt-2 flex-shrink-0">Showing first 100 results. Please refine your search.</p>}
           </div>
 
         </div>

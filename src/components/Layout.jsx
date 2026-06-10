@@ -354,6 +354,9 @@ const Layout = ({ children }) => {
               <NavLink to="/attendance" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
                 <CalendarCheck size={18} /> Attendance
               </NavLink>
+              <NavLink to="/weekly-tests" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                <FileText size={18} /> Weekly Tests
+              </NavLink>
             </>
           )}
 
