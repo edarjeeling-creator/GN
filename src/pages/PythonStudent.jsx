@@ -86,6 +86,7 @@ const highlightPython = (source) => {
 
 const PythonStudent = () => {
   const { profile } = useAuth();
+  const { students, classes } = useData();
   const [activeTab, setActiveTab] = useState('lessons'); // 'lessons', 'assignments', 'progress'
   const [lessons, setLessons] = useState([]);
   const [assignments, setAssignments] = useState([]);
@@ -97,9 +98,14 @@ const PythonStudent = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
   // Student info 
-  // Normally profile has student details, but we'll fetch from 'students' table based on UID if possible
-  // For now, we assume profile corresponds to the logged-in user
   const [studentRecord, setStudentRecord] = useState(null);
+
+  const studentData = students?.find(s => 
+    s.id === profile?.id || 
+    (profile?.uid && s.uid === profile?.uid) || 
+    (profile?.name && s.name && s.name.trim().toLowerCase() === profile?.name.trim().toLowerCase())
+  );
+  const studentClass = classes?.find(c => c.id === studentData?.class_id);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -180,7 +186,14 @@ const PythonStudent = () => {
       <div className="page-header bg-gradient-to-r from-blue-900 to-indigo-800 text-white p-8 rounded-xl mb-8">
         <div>
           <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>Python Pathshala</h1>
-          <p className="text-blue-200">Welcome to your coding journey, {profile?.name || 'Student'}!</p>
+          <p className="text-blue-200">
+            Welcome to your coding journey, <span className="font-bold">{studentData?.name || profile?.name || 'Student'}!</span>
+            {studentClass ? (
+              <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                Class {studentClass.name} {studentClass.section || ''}
+              </span>
+            ) : null}
+          </p>
         </div>
       </div>
 
