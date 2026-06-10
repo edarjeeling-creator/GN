@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-
+import { useData } from '../context/DataContext';
 import { BookOpen, Code, Trophy, Star, CheckCircle, Video, FileText, Copy } from 'lucide-react';
 import PythonIDE from '../components/PythonIDE';
 
