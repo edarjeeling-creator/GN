@@ -260,7 +260,7 @@ const PythonStudent = () => {
             </div>
           )}
           
-          <div className="col-span-2 min-w-0">
+          <div className="md:col-span-2 col-span-1 min-w-0">
             {selectedLesson ? (
               <div className="card p-4 md:p-8 bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
                 <h2 className="text-3xl font-bold text-slate-800 mb-2">{selectedLesson.title}</h2>
@@ -276,11 +276,11 @@ const PythonStudent = () => {
                   </div>
                 )}
                 
-                <div className="prose max-w-none">
+                <div className="prose max-w-full overflow-hidden">
                   <p className="text-slate-700 mb-6">{selectedLesson.description}</p>
                   
                   {selectedLesson.content && (
-                    <div style={{ position: 'relative', marginTop: '1.5rem' }}>
+                    <div style={{ position: 'relative', marginTop: '1.5rem', maxWidth: '100%' }}>
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(selectedLesson.content);
@@ -402,7 +402,7 @@ const PythonStudent = () => {
             </div>
           )}
           
-          <div className="col-span-3 min-w-0">
+          <div className="md:col-span-3 col-span-1 min-w-0">
             {selectedAssignment ? (
               <div className="flex flex-col gap-4">
                 <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
