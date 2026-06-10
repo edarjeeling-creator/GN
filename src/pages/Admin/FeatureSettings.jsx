@@ -29,7 +29,9 @@ const AddAccessModal = ({ isOpen, onClose, type, items, onGrant }) => {
       finalExpiresAt = new Date(expiresAt).toISOString();
     }
     const isEnabled = actionType === 'grant';
-    onGrant(type, selectedId, isEnabled, finalExpiresAt, reason);
+    const selectedItem = items.find(i => i.id === selectedId);
+    const targetName = selectedItem ? selectedItem.name : 'Unknown';
+    onGrant(type, selectedId, targetName, isEnabled, finalExpiresAt, reason);
     setSearch('');
     setSelectedId('');
     setActionType('grant');
@@ -160,24 +162,29 @@ const FeatureSettings = ({ teachers }) => {
     return new Date() < new Date(rule.expires_at);
   };
 
-  const isRuleExpiringSoon = (rule) => {
+  const isRuleExpiringSoon = (rule, days) => {
     if (!rule || !rule.is_enabled || !rule.expires_at) return false;
     const expDate = new Date(rule.expires_at);
     const now = new Date();
     const daysLeft = (expDate - now) / (1000 * 60 * 60 * 24);
-    return daysLeft > 0 && daysLeft <= 7;
+    return daysLeft > 0 && daysLeft <= days;
   };
 
   let totalActive = 0;
   let totalExpired = 0;
-  let totalExpiringSoon = 0;
+  let totalExpiring7Days = 0;
+  let totalExpiring30Days = 0;
 
   if (featureAccess && Array.isArray(featureAccess)) {
     featureAccess.forEach(rule => {
       if (rule.feature_name === 'python_portal' && rule.is_enabled) {
         if (isRuleActive(rule)) {
           totalActive++;
-          if (isRuleExpiringSoon(rule)) totalExpiringSoon++;
+          if (isRuleExpiringSoon(rule, 7)) {
+            totalExpiring7Days++;
+          } else if (isRuleExpiringSoon(rule, 30)) {
+            totalExpiring30Days++;
+          }
         } else {
           totalExpired++;
         }
@@ -185,13 +192,13 @@ const FeatureSettings = ({ teachers }) => {
     });
   }
 
-  const handleGrant = (type, id, isEnabled, expiresAt, reason) => {
-    grantFeatureAccess('python_portal', type, id, isEnabled, expiresAt, reason);
+  const handleGrant = (type, id, targetName, isEnabled, expiresAt, reason) => {
+    grantFeatureAccess('python_portal', type, id, targetName, isEnabled, expiresAt, reason);
   };
 
-  const handleRevoke = (type, id) => {
-    if (window.confirm(`Are you sure you want to revoke this ${type}'s access?`)) {
-      revokeFeatureAccess('python_portal', type, id);
+  const handleRevoke = (type, id, targetName) => {
+    if (window.confirm(`Are you sure you want to revoke access for ${targetName}?`)) {
+      revokeFeatureAccess('python_portal', type, id, targetName);
     }
   };
 
@@ -264,7 +271,7 @@ const FeatureSettings = ({ teachers }) => {
                   {rule.access_reason && <span className="block text-[10px] text-slate-400 italic">"{rule.access_reason}"</span>}
                 </div>
                 <button 
-                  onClick={() => handleRevoke(type, entityId)}
+                  onClick={() => handleRevoke(type, entityId, entityName)}
                   className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                   title="Revoke Access"
                 >
@@ -289,25 +296,32 @@ const FeatureSettings = ({ teachers }) => {
         <p className="text-slate-500 mb-6">Exception-Based Management: Manage which teachers, classes, and individual students have explicitly been granted access. Priority: Student Exception &gt; Teacher &gt; Class.</p>
 
         {/* Metrics Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-4">
-             <div className="p-3 bg-green-100 text-green-600 rounded-lg"><CheckCircle /></div>
+             <div className="p-3 bg-green-100 text-green-600 rounded-lg"><CheckCircle size={20} /></div>
              <div>
-               <p className="text-sm text-green-700 font-semibold">Active Assignments</p>
+               <p className="text-xs text-green-700 font-semibold uppercase tracking-wider">Active</p>
                <h4 className="text-2xl font-bold text-green-800">{totalActive}</h4>
              </div>
           </div>
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-4">
-             <div className="p-3 bg-amber-100 text-amber-600 rounded-lg"><Clock /></div>
+             <div className="p-3 bg-amber-100 text-amber-600 rounded-lg"><Clock size={20} /></div>
              <div>
-               <p className="text-sm text-amber-700 font-semibold">Expiring in &lt; 7 Days</p>
-               <h4 className="text-2xl font-bold text-amber-800">{totalExpiringSoon}</h4>
+               <p className="text-xs text-amber-700 font-semibold uppercase tracking-wider">&lt; 7 Days</p>
+               <h4 className="text-2xl font-bold text-amber-800">{totalExpiring7Days}</h4>
+             </div>
+          </div>
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-4">
+             <div className="p-3 bg-blue-100 text-blue-600 rounded-lg"><Clock size={20} /></div>
+             <div>
+               <p className="text-xs text-blue-700 font-semibold uppercase tracking-wider">&lt; 30 Days</p>
+               <h4 className="text-2xl font-bold text-blue-800">{totalExpiring30Days}</h4>
              </div>
           </div>
           <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-4">
-             <div className="p-3 bg-red-100 text-red-600 rounded-lg"><AlertTriangle /></div>
+             <div className="p-3 bg-red-100 text-red-600 rounded-lg"><AlertTriangle size={20} /></div>
              <div>
-               <p className="text-sm text-red-700 font-semibold">Expired Assignments</p>
+               <p className="text-xs text-red-700 font-semibold uppercase tracking-wider">Expired</p>
                <h4 className="text-2xl font-bold text-red-800">{totalExpired}</h4>
              </div>
           </div>
