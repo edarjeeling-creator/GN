@@ -219,7 +219,7 @@ export const DataProvider = ({ children }) => {
     // We don't need a state here if it's managed locally in Admin.jsx.
   };
 
-  const grantFeatureAccess = async (featureName, userType, id, isEnabled = true, expiresAt = null, accessReason = '') => {
+  const grantFeatureAccess = async (featureName, userType, id, targetName, isEnabled = true, expiresAt = null, accessReason = '') => {
     if (isReadOnly) return;
     
     const { data: { session } } = await supabase.auth.getSession();
@@ -255,12 +255,38 @@ export const DataProvider = ({ children }) => {
       .from('feature_access')
       .upsert(payload, { onConflict: onConflictKeys });
     
-    if (error) console.error("Error granting feature:", error);
+    if (error) {
+      console.error("Error granting feature:", error);
+    } else {
+      const actionDetails = {
+        new_state: isEnabled ? 'granted' : 'blocked',
+        expiry: expiresAt || 'permanent'
+      };
+      const { error: auditError } = await supabase.from('feature_access_audit_logs').insert([{
+        admin_id: currentUserId,
+        feature_name: featureName,
+        user_type: userType,
+        target_id: id,
+        target_name: targetName,
+        action: isEnabled ? 'Granted' : 'Explicit Block',
+        expires_at: expiresAt,
+        reason: accessReason,
+        action_details: actionDetails,
+        source: 'Admin Dashboard'
+      }]);
+      if (auditError) {
+        console.error("Audit log failed:", auditError);
+        alert("Warning: Access was granted but the audit log failed to save. Please notify support.");
+      }
+    }
   };
 
-  const revokeFeatureAccess = async (featureName, userType, id) => {
+  const revokeFeatureAccess = async (featureName, userType, id, targetName) => {
     if (isReadOnly) return;
     
+    const { data: { session } } = await supabase.auth.getSession();
+    const currentUserId = session?.user?.id;
+
     // Optimistic UI update
     setFeatureAccess(prev => prev.filter(f => !(f.feature_name === featureName && f.user_type === userType && (userType === 'teacher' ? f.user_id === id : userType === 'student' ? f.student_id === id : f.class_id === id))));
 
@@ -270,7 +296,24 @@ export const DataProvider = ({ children }) => {
     if (userType === 'student') query = query.eq('student_id', id);
 
     const { error } = await query;
-    if (error) console.error("Error revoking feature:", error);
+    if (error) {
+      console.error("Error revoking feature:", error);
+    } else {
+      const { error: auditError } = await supabase.from('feature_access_audit_logs').insert([{
+        admin_id: currentUserId,
+        feature_name: featureName,
+        user_type: userType,
+        target_id: id,
+        target_name: targetName,
+        action: 'Revoked',
+        action_details: { new_state: 'revoked' },
+        source: 'Admin Dashboard'
+      }]);
+      if (auditError) {
+        console.error("Audit log failed:", auditError);
+        alert("Warning: Access was revoked but the audit log failed to save. Please notify support.");
+      }
+    }
   };
 
   return (
