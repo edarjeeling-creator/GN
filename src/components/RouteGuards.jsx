@@ -66,8 +66,13 @@ export const FeatureRoute = ({ featureName, userType, children }) => {
         hasAccess = true;
       }
     } else if (profile.role === 'student') {
-      const studentData = students.find(s => s.uid === profile.id);
-      if (studentData) {
+      const matchingStudents = students.filter(s => 
+        s.id === profile?.id || 
+        (profile?.uid && s.uid === profile?.uid) || 
+        (profile?.name && s.name && s.name.trim().toLowerCase() === profile?.name.trim().toLowerCase())
+      );
+      
+      for (const studentData of matchingStudents) {
         // Priority 1: Student-level rule
         const studentRule = featureAccess.find(f => 
           f.feature_name === featureName && 
@@ -83,9 +88,15 @@ export const FeatureRoute = ({ featureName, userType, children }) => {
         );
 
         if (studentRule) {
-          hasAccess = studentRule.is_enabled && isNotExpired(studentRule.expires_at);
-        } else if (classRule) {
-          hasAccess = classRule.is_enabled && isNotExpired(classRule.expires_at);
+          if (studentRule.is_enabled && isNotExpired(studentRule.expires_at)) {
+            hasAccess = true;
+            break;
+          } else if (!studentRule.is_enabled) {
+            continue; // Explicitly blocked for this record, but another record might be granted
+          }
+        } else if (classRule && classRule.is_enabled && isNotExpired(classRule.expires_at)) {
+          hasAccess = true;
+          break;
         }
       }
     }

@@ -81,13 +81,32 @@ const Layout = ({ children }) => {
       if (teacherRule) isPythonEnabled = teacherRule.is_enabled && isNotExpired(teacherRule.expires_at);
     }
     
-    if (!isPythonEnabled && studentData) {
-      const studentRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'student' && f.student_id === studentData.id);
-      const classRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'class' && f.class_id === studentData.class_id);
-      if (studentRule) {
-        isPythonEnabled = studentRule.is_enabled && isNotExpired(studentRule.expires_at);
-      } else if (classRule) {
-        isPythonEnabled = classRule.is_enabled && isNotExpired(classRule.expires_at);
+    if (!isPythonEnabled && students) {
+      // Find ALL students matching this profile
+      const matchingStudents = students.filter(s => 
+        s.id === profile?.id || 
+        (profile?.uid && s.uid === profile?.uid) || 
+        (profile?.name && s.name && s.name.trim().toLowerCase() === profile?.name.trim().toLowerCase())
+      );
+
+      for (const s of matchingStudents) {
+        const studentRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'student' && f.student_id === s.id);
+        const classRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'class' && f.class_id === s.class_id);
+        
+        if (studentRule) {
+          if (studentRule.is_enabled && isNotExpired(studentRule.expires_at)) {
+            isPythonEnabled = true;
+            break;
+          } else if (!studentRule.is_enabled) {
+            // Explicitly blocked
+            continue;
+          }
+        }
+        
+        if (classRule && classRule.is_enabled && isNotExpired(classRule.expires_at)) {
+          isPythonEnabled = true;
+          break;
+        }
       }
     }
   }
