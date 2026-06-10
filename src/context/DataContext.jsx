@@ -27,49 +27,63 @@ export const DataProvider = ({ children }) => {
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session && !profile) return;
 
     const fetchData = async () => {
       setLoadingData(true);
       
-      const [clsRes, subRes, stuRes, tsRes, marksRes, attRes, featRes] = await Promise.all([
+      const queries = [
         supabase.from('classes').select('*'),
         supabase.from('subjects').select('*'),
         supabase.from('students').select('*'),
-        supabase.from('teacher_subjects').select('*').eq('teacher_id', session.user.id),
-        supabase.from('marks').select('*'),
-        supabase.from('attendance').select('*'),
         supabase.from('feature_access').select('*')
-      ]);
+      ];
+
+      if (session) {
+        queries.push(supabase.from('teacher_subjects').select('*').eq('teacher_id', session.user.id));
+        queries.push(supabase.from('marks').select('*'));
+        queries.push(supabase.from('attendance').select('*'));
+      }
+
+      const results = await Promise.all(queries);
+      
+      const clsRes = results[0];
+      const subRes = results[1];
+      const stuRes = results[2];
+      const featRes = results[3];
 
       if (clsRes.data) setClasses(clsRes.data);
       if (subRes.data) setSubjects(subRes.data);
       if (stuRes.data) setStudents(stuRes.data);
+      if (featRes && featRes.data) setFeatureAccess(featRes.data);
 
-      if (tsRes.data) {
-        const tsMap = {};
-        tsRes.data.forEach(ts => {
-          if (!tsMap[ts.class_id]) tsMap[ts.class_id] = [];
-          tsMap[ts.class_id].push(ts.subject_id);
-        });
-        setTeacherSubjects(tsMap);
-      }
+      if (session) {
+        const tsRes = results[4];
+        const marksRes = results[5];
+        const attRes = results[6];
 
-      if (marksRes.data) {
-        const marksMap = {};
-        marksRes.data.forEach(m => {
-          marksMap[`${m.student_id}_${m.subject_id}_${m.term}`] = m.score;
-        });
-        setMarks(marksMap);
+        if (tsRes && tsRes.data) {
+          const tsMap = {};
+          tsRes.data.forEach(ts => {
+            if (!tsMap[ts.class_id]) tsMap[ts.class_id] = [];
+            tsMap[ts.class_id].push(ts.subject_id);
+          });
+          setTeacherSubjects(tsMap);
+        }
+
+        if (marksRes && marksRes.data) {
+          const marksMap = {};
+          marksRes.data.forEach(m => {
+            marksMap[`${m.student_id}_${m.subject_id}_${m.term}`] = m.score;
+          });
+          setMarks(marksMap);
+        }
+        
+        if (attRes && attRes.data) {
+          setAttendance(attRes.data);
+        }
       }
       
-      if (attRes.data) {
-        setAttendance(attRes.data);
-      }
-      
-      if (featRes && featRes.data) {
-        setFeatureAccess(featRes.data);
-      }
       setLoadingData(false);
     };
 
