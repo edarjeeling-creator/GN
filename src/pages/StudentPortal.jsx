@@ -228,9 +228,12 @@ const StudentPortal = () => {
           <p style={{ color: 'var(--text-secondary)' }}>
             Welcome back, <span className="font-bold">{studentData?.name || profile?.name}</span>
             {studentClass ? (
-              <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                Class {studentClass.name} {studentClass.section || ''}
-              </span>
+              <>
+                {' | '}
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  Class {studentClass.name} {studentClass.section || ''}
+                </span>
+              </>
             ) : null}
           </p>
         </header>

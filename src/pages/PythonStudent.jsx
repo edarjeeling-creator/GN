@@ -189,9 +189,12 @@ const PythonStudent = () => {
           <p className="text-blue-200">
             Welcome to your coding journey, <span className="font-bold">{studentData?.name || profile?.name || 'Student'}!</span>
             {studentClass ? (
-              <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                Class {studentClass.name} {studentClass.section || ''}
-              </span>
+              <>
+                {' | '}
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  Class {studentClass.name} {studentClass.section || ''}
+                </span>
+              </>
             ) : null}
           </p>
         </div>
