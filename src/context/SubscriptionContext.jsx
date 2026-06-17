@@ -19,37 +19,39 @@ export const SubscriptionProvider = ({ children }) => {
         const params = new URLSearchParams(window.location.search);
         let domain = params.get('school_domain') || window.location.hostname;
         
-        // If local development, default to the known school domain for testing
-        if (domain === '127.0.0.1' || domain === 'localhost') {
-          domain = 'gyanodayniketan.cloud';
-        }
+        // If local development, skip domain resolution and just load the first school
+        const isLocalDev = domain === '127.0.0.1' || domain === 'localhost';
 
-        // 2. Fetch the school details from Supabase using direct select (not proxied since 'schools' is global)
-        const { data, error: fetchError } = await supabase
-          .from('schools')
-          .select('*')
-          .eq('custom_domain', domain)
-          .single();
+        let schoolData = null;
 
-        if (fetchError || !data) {
-          // If not found, try to fallback to the main tenant domain so the app doesn't break
-          console.warn(`Domain ${domain} not found, falling back to gyanodayniketan.cloud`);
-          const { data: fallbackData, error: fallbackError } = await supabase
+        if (isLocalDev) {
+          // In local dev, just grab the first available school
+          const { data, error: fetchError } = await supabase
             .from('schools')
             .select('*')
-            .eq('custom_domain', 'gyanodayniketan.cloud')
+            .limit(1)
+            .single();
+          
+          if (fetchError || !data) {
+            throw new Error("No schools found in database.");
+          }
+          schoolData = data;
+        } else {
+          // Production: resolve by custom_domain
+          const { data, error: fetchError } = await supabase
+            .from('schools')
+            .select('*')
+            .eq('custom_domain', domain)
             .single();
 
-          if (fallbackError || !fallbackData) {
-            throw new Error(fetchError?.message || "School tenant could not be resolved.");
+          if (fetchError || !data) {
+            throw new Error("School tenant could not be resolved for domain: " + domain);
           }
-          
-          setSchool(fallbackData);
-          setClientSchoolId(fallbackData.id);
-        } else {
-          setSchool(data);
-          setClientSchoolId(data.id);
+          schoolData = data;
         }
+
+        setSchool(schoolData);
+        setClientSchoolId(schoolData.id);
       } catch (err) {
         console.error("Subscription resolution error:", err);
         setError(err.message);
