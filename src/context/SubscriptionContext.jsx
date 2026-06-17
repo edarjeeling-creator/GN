@@ -19,9 +19,9 @@ export const SubscriptionProvider = ({ children }) => {
         const params = new URLSearchParams(window.location.search);
         let domain = params.get('school_domain') || window.location.hostname;
         
-        // If local development, default to localhost
-        if (domain === '127.0.0.1') {
-          domain = 'localhost';
+        // If local development, default to the known school domain for testing
+        if (domain === '127.0.0.1' || domain === 'localhost') {
+          domain = 'gyanodayniketan.cloud';
         }
 
         // 2. Fetch the school details from Supabase using direct select (not proxied since 'schools' is global)
@@ -32,12 +32,12 @@ export const SubscriptionProvider = ({ children }) => {
           .single();
 
         if (fetchError || !data) {
-          // If not found, try to fallback to 'localhost' default mock school so the app doesn't break
-          console.warn(`Domain ${domain} not found, falling back to localhost`);
+          // If not found, try to fallback to the main tenant domain so the app doesn't break
+          console.warn(`Domain ${domain} not found, falling back to gyanodayniketan.cloud`);
           const { data: fallbackData, error: fallbackError } = await supabase
             .from('schools')
             .select('*')
-            .eq('custom_domain', 'localhost')
+            .eq('custom_domain', 'gyanodayniketan.cloud')
             .single();
 
           if (fallbackError || !fallbackData) {
