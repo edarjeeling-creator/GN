@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = 'https://supabase.gyanodayniketan.cloud'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://grades.gyanodayniketan.cloud'
 const supabaseKey = import.meta.env.VITE_SUPABASE_KEY
 
 if (!supabaseKey) {
