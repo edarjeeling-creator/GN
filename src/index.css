@@ -378,15 +378,19 @@ p {
 /* Mobile responsive login and layout overrides */
 @media (max-width: 480px) {
   .bento-card {
-    padding: 2rem 1.5rem !important;
-    border-radius: 1rem !important;
-    margin: 1rem !important;
-    width: calc(100% - 2rem) !important;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3) !important;
+    padding: 2.5rem 1.5rem !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    min-height: 100vh !important;
+    box-shadow: none !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
   
   .hero-section {
-    padding: 1rem !important;
+    padding: 0 !important;
     align-items: center !important;
   }
 }
