@@ -301,7 +301,7 @@ const Admin = () => {
         return;
       }
       
-      const supabaseUrl = 'https://supabase.gyanodayniketan.cloud';
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://grades.gyanodayniketan.cloud';
       const supabaseKey = import.meta.env.VITE_SUPABASE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
       
       if (!supabaseKey) {
