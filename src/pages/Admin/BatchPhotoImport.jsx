@@ -132,6 +132,7 @@ const BatchPhotoImport = ({ students, classes, onUploadSuccess }) => {
 
     } catch (err) {
       console.error(err);
+      alert("Upload failed for " + (item.match.student?.name || "student") + ": " + (err.message || JSON.stringify(err)));
       setResults(prev => prev.map((r, i) => i === index ? { ...r, status: 'error' } : r));
     }
   };
