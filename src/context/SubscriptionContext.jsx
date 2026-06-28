@@ -45,9 +45,22 @@ export const SubscriptionProvider = ({ children }) => {
             .single();
 
           if (fetchError || !data) {
-            throw new Error("School tenant could not be resolved for domain: " + domain);
+            // Fallback: If no school matches the domain, load the first school in the database.
+            // This prevents the portal from bricking if the custom_domain isn't configured perfectly.
+            const { data: fallbackData, error: fallbackError } = await supabase
+              .from('schools')
+              .select('*')
+              .limit(1)
+              .single();
+              
+            if (fallbackError || !fallbackData) {
+              throw new Error("School tenant could not be resolved for domain: " + domain);
+            }
+            console.warn("Domain mismatch: Falling back to default school tenant.");
+            schoolData = fallbackData;
+          } else {
+            schoolData = data;
           }
-          schoolData = data;
         }
 
         setSchool(schoolData);
