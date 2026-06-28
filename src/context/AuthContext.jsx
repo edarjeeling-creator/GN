@@ -73,69 +73,44 @@ export const AuthProvider = ({ children }) => {
 
 
 
-      const rolesToTry = ['student', 'teacher', 'admin'];
-      let email = null;
-      let resolvedRole = null;
+      // First, check if this is a student by calling the SECURITY DEFINER RPC
+      // This bypasses RLS which is required since students are not authenticated yet
+      const { data: studentReport, error: studentError } = await supabase.rpc('get_student_report', {
+        p_uid: uid,
+        p_academic_year: '2026' // Default academic year
+      });
 
-      // Try finding the user in each role
-      for (const role of rolesToTry) {
-        const { data, error } = await supabase.rpc('lookup_user_email', {
-          p_role: role,
-          p_name: name,
-          p_uid: uid
-        });
+      if (!studentError && studentReport && studentReport.student) {
+        // Verify the name matches (case-insensitive)
+        const dbName = studentReport.student.name.toLowerCase().trim();
+        const inputName = trimmedName.toLowerCase();
         
-        if (data) {
-          email = data;
-          resolvedRole = role;
-          break; // Found the user
+        if (dbName === inputName) {
+          const student = studentReport.student;
+          const cls = studentReport.class;
+
+          const studentProfile = {
+            id: student.id,
+            name: student.name,
+            role: 'student',
+            student_id: student.id,
+            class_id: student.class_id,
+            school_id: student.school_id,
+            className: cls ? `${cls.name} ${cls.section}` : ''
+          };
+
+          localStorage.setItem('studentProfile', JSON.stringify(studentProfile));
+          setProfile(studentProfile);
+          setSession(null);
+          setLoading(false);
+          return { success: true };
         }
       }
 
-      if (!email) {
-        // Fallback: Check if they are a teacher trying to login with Name + Password
-        const { data: teacherEmail, error: teacherError } = await supabase.rpc('lookup_teacher_email_by_name', {
-          p_name: name
-        });
-        
-        if (teacherEmail) {
-          email = teacherEmail;
-          resolvedRole = 'teacher';
-        } else {
-          return { error: { message: 'Invalid Name or UID' } };
-        }
-      }
-
-      // Zero-Auth student login: Bypasses supabase.auth entirely to prevent rate limits & teacher logouts!
-      if (resolvedRole === 'student') {
-        const { data, error: studentError } = await supabase.rpc('get_student_report', {
-          p_uid: uid,
-          p_academic_year: '2026'
-        });
-          
-        if (studentError || !data || !data.student) {
-          return { error: { message: 'Student record could not be loaded.' } };
-        }
-
-        const student = data.student;
-        const cls = data.class;
-
-        const studentProfile = {
-          id: student.id,
-          name: student.name,
-          role: 'student',
-          student_id: student.id,
-          class_id: student.class_id,
-          school_id: student.school_id,
-          className: cls ? `${cls.name} ${cls.section}` : ''
-        };
-
-        localStorage.setItem('studentProfile', JSON.stringify(studentProfile));
-        setProfile(studentProfile);
-        setSession(null); // Keep supabase auth session empty for this student tab
-        setLoading(false);
-        return { success: true };
-      }
+      // If not a student, check if they are a teacher trying to login with Name + Password
+      // This requires a custom RPC if teachers log in by name, but usually they log in by email.
+      // Since they didn't provide an email (no '@'), and they aren't a student, we fail.
+      return { error: { message: 'Invalid Name or UID' } };
 
       // Teachers & Admins use standard Supabase Auth
       localStorage.removeItem('studentProfile');
