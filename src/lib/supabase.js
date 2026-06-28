@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://grades.gyanodayniketan.cloud'
+// Hardcoded to prevent Dokploy/env misconfigurations from pointing to the React frontend
+const supabaseUrl = 'https://supabase.gyanodayniketan.cloud'
 const supabaseKey = import.meta.env.VITE_SUPABASE_KEY
 
 if (!supabaseKey) {
