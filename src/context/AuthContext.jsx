@@ -111,11 +111,6 @@ export const AuthProvider = ({ children }) => {
       // This requires a custom RPC if teachers log in by name, but usually they log in by email.
       // Since they didn't provide an email (no '@'), and they aren't a student, we fail.
       return { error: { message: 'Invalid Name or UID' } };
-
-      // Teachers & Admins use standard Supabase Auth
-      localStorage.removeItem('studentProfile');
-      const result = await supabase.auth.signInWithPassword({ email, password: uid });
-      return result;
     } catch (err) {
       console.error("Unified login error:", err);
       return { error: err };
