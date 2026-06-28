@@ -137,8 +137,8 @@ export const SubscriptionProvider = ({ children }) => {
           fontFamily: 'system-ui, -apple-system, sans-serif'
         }}>
           <h2 style={{ fontSize: '2rem', marginBottom: '1rem' }}>Configuration Error</h2>
-          <p style={{ color: '#94a3b8', maxWidth: '500px', marginBottom: '1.5rem' }}>
-            We could not resolve this domain to a registered school tenant.
+          <p style={{ color: '#94a3b8', maxWidth: '500px', marginBottom: '1.5rem', wordBreak: 'break-all' }}>
+            {error || "We could not resolve this domain to a registered school tenant."}
           </p>
           <code style={{ background: '#1e293b', padding: '0.5rem 1rem', borderRadius: '0.25rem', color: '#f8fafc' }}>
             Domain: {window.location.hostname}
