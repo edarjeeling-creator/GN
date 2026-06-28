@@ -54,7 +54,8 @@ export const SubscriptionProvider = ({ children }) => {
               .single();
               
             if (fallbackError || !fallbackData) {
-              throw new Error("School tenant could not be resolved for domain: " + domain);
+              const dbErrorMsg = fallbackError ? fallbackError.message || JSON.stringify(fallbackError) : 'No schools exist in the database.';
+              throw new Error("School tenant could not be resolved. DB Error: " + dbErrorMsg);
             }
             console.warn("Domain mismatch: Falling back to default school tenant.");
             schoolData = fallbackData;
