@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Hardcoded URL and Key to ensure perfect matching and bypass broken Dokploy variables
+// Hardcoded URL to bypass broken Dokploy variable, but use the correct environment variable for the key
 const supabaseUrl = 'https://supabase.gyanodayniketan.cloud'
-const supabaseKey = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc2NzE0MDY0MCwiZXhwIjo0OTIyODE0MjQwLCJyb2xlIjoiYW5vbiJ9.Vl3qQP1iC2oZ7622xUFZen6IM25QdSLzL0-NbwEQd-o'
+const supabaseKey = import.meta.env.VITE_SUPABASE_KEY
 
 if (!supabaseKey) {
   console.warn("VITE_SUPABASE_KEY is missing. Please add it to your .env.local file.");
