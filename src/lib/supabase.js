@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Hardcoded URL to bypass broken Dokploy variable, but use the correct environment variable for the key
-const supabaseUrl = 'https://supabase.gyanodayniketan.cloud'
+// Use strict environment variables so the user can configure the exact database to connect to via Dokploy
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_KEY
 
 if (!supabaseKey) {
