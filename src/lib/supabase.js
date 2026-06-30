@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Hardcoded to prevent Dokploy/env misconfigurations from pointing to the React frontend
-const supabaseUrl = 'https://grades.gyanodayniketan.cloud'
+// Hardcoded to the verified API server. A SaaS architecture uses one database for all domains.
+const supabaseUrl = 'https://supabase.gyanodayniketan.cloud'
 const supabaseKey = import.meta.env.VITE_SUPABASE_KEY
 
 if (!supabaseKey) {
