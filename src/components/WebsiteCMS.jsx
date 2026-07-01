@@ -219,7 +219,7 @@ export default function WebsiteCMS() {
           updated[i].imageUrl = await uploadFileToSupabase(file, 'facilities');
         }
       }
-      const { error } = await supabase.from('site_settings').upsert({ key: 'campus_facilities', value: JSON.stringify(updated) });
+      const { error } = await supabase.from('site_settings').upsert({ key: 'campus_facilities', value: JSON.stringify(updated) }, { onConflict: 'key,school_id' });
       if (error) throw error;
       setFacilities(updated);
       setFacilityFiles({});
@@ -291,7 +291,7 @@ export default function WebsiteCMS() {
         pillarsTitle,
         cards: divisions
       };
-      const { error } = await supabase.from('site_settings').upsert({ key: 'our_divisions', value: JSON.stringify(payload) });
+      const { error } = await supabase.from('site_settings').upsert({ key: 'our_divisions', value: JSON.stringify(payload) }, { onConflict: 'key,school_id' });
       if (error) throw error;
       alert("Our Divisions and Message Desks saved successfully!");
     } catch (err) {
@@ -307,7 +307,7 @@ export default function WebsiteCMS() {
     e.preventDefault();
     setSavingPopupConfig(true);
     try {
-      const { error } = await supabase.from('site_settings').upsert({ key: 'active_homepage_popup', value: JSON.stringify(popupConfig) });
+      const { error } = await supabase.from('site_settings').upsert({ key: 'active_homepage_popup', value: JSON.stringify(popupConfig) }, { onConflict: 'key,school_id' });
       if (error) throw error;
       alert("Homepage Pop-up campaign notice saved successfully!");
     } catch (err) {
@@ -328,7 +328,7 @@ export default function WebsiteCMS() {
     e.preventDefault();
     setSavingHeroStyle(true);
     try {
-      const { error } = await supabase.from('site_settings').upsert({ key: 'hero_styling', value: JSON.stringify(heroStyle) });
+      const { error } = await supabase.from('site_settings').upsert({ key: 'hero_styling', value: JSON.stringify(heroStyle) }, { onConflict: 'key,school_id' });
       if (error) throw error;
       alert("Hero styling saved successfully!");
     } catch (err) {
@@ -361,7 +361,7 @@ export default function WebsiteCMS() {
       
       const newBranding = { ...siteBranding, logoUrl: currentLogoUrl, faviconUrl: currentFaviconUrl };
       
-      const { error } = await supabase.from('site_settings').upsert({ key: 'site_branding_v2', value: JSON.stringify(newBranding) });
+      const { error } = await supabase.from('site_settings').upsert({ key: 'site_branding_v2', value: JSON.stringify(newBranding) }, { onConflict: 'key,school_id' });
       if (error) throw error;
       
       setSiteBranding(newBranding);
@@ -390,7 +390,7 @@ export default function WebsiteCMS() {
     e.preventDefault();
     setSavingThemeColors(true);
     try {
-      const { error } = await supabase.from('site_settings').upsert({ key: 'theme_colors', value: JSON.stringify(themeColors) });
+      const { error } = await supabase.from('site_settings').upsert({ key: 'theme_colors', value: JSON.stringify(themeColors) }, { onConflict: 'key,school_id' });
       if (error) throw error;
       alert("Theme colors saved successfully!");
     } catch (err) {
@@ -428,7 +428,7 @@ export default function WebsiteCMS() {
     if(e) e.preventDefault();
     setSavingFooterSettings(true);
     try {
-      const { error } = await supabase.from('site_settings').upsert({ key: 'footer_settings', value: JSON.stringify(footerSettings) });
+      const { error } = await supabase.from('site_settings').upsert({ key: 'footer_settings', value: JSON.stringify(footerSettings) }, { onConflict: 'key,school_id' });
       if (error) throw error;
       alert("Footer settings saved successfully!");
     } catch (err) {
@@ -441,7 +441,7 @@ export default function WebsiteCMS() {
   const saveMainMenu = async () => {
     setSavingMenu(true);
     try {
-      const { error } = await supabase.from('site_settings').upsert({ key: 'main_navigation', value: JSON.stringify(mainMenu) });
+      const { error } = await supabase.from('site_settings').upsert({ key: 'main_navigation', value: JSON.stringify(mainMenu) }, { onConflict: 'key,school_id' });
       if (error) throw error;
       alert("Main menu saved successfully!");
     } catch (err) {
@@ -470,7 +470,7 @@ export default function WebsiteCMS() {
         }
       }
       
-      const { error } = await supabase.from('site_settings').upsert({ key: 'academic_excellence', value: JSON.stringify(updatedAE) });
+      const { error } = await supabase.from('site_settings').upsert({ key: 'academic_excellence', value: JSON.stringify(updatedAE) }, { onConflict: 'key,school_id' });
       if (error) throw error;
       
       setAcademicExcellence(updatedAE);
@@ -516,7 +516,7 @@ export default function WebsiteCMS() {
       
       const updatedList = [...mandatoryDisclosures, newDoc];
       
-      const { error } = await supabase.from('site_settings').upsert({ key: 'mandatory_disclosures', value: JSON.stringify(updatedList) });
+      const { error } = await supabase.from('site_settings').upsert({ key: 'mandatory_disclosures', value: JSON.stringify(updatedList) }, { onConflict: 'key,school_id' });
       if (error) throw error;
       
       setMandatoryDisclosures(updatedList);
@@ -533,14 +533,14 @@ export default function WebsiteCMS() {
   const toggleDisclosureActive = async (id) => {
     const updatedList = mandatoryDisclosures.map(d => d.id === id ? { ...d, isActive: !d.isActive } : d);
     setMandatoryDisclosures(updatedList);
-    await supabase.from('site_settings').upsert({ key: 'mandatory_disclosures', value: JSON.stringify(updatedList) });
+    await supabase.from('site_settings').upsert({ key: 'mandatory_disclosures', value: JSON.stringify(updatedList) }, { onConflict: 'key,school_id' });
   };
 
   const deleteDisclosure = async (id) => {
     if(!window.confirm("Delete this document?")) return;
     const updatedList = mandatoryDisclosures.filter(d => d.id !== id);
     setMandatoryDisclosures(updatedList);
-    await supabase.from('site_settings').upsert({ key: 'mandatory_disclosures', value: JSON.stringify(updatedList) });
+    await supabase.from('site_settings').upsert({ key: 'mandatory_disclosures', value: JSON.stringify(updatedList) }, { onConflict: 'key,school_id' });
   };
 
   const updateMenu = (newMenu) => setMainMenu([...newMenu]);
