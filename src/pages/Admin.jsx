@@ -187,7 +187,7 @@ const Admin = () => {
     }
 
     const newAssignment = { teacher_id: editingTeacher.id, class_id: modalAssignmentClass, subject_id: modalAssignmentSubject };
-    const { data, error } = await supabase.from('teacher_subjects').insert([newAssignment]).select();
+    const { data, error } = await supabase.from('teacher_subjects').upsert([newAssignment], { onConflict: 'teacher_id,class_id,subject_id' }).select();
     if (!error && data) {
       setTeacherAssignments(prev => [...prev, data[0]]);
       setModalAssignmentClass('');
@@ -283,7 +283,7 @@ const Admin = () => {
     e.preventDefault();
     if (!assignment.teacher_id || !assignment.class_id || !assignment.subject_id) return;
     
-    const { error } = await supabase.from('teacher_subjects').insert([assignment]);
+    const { error } = await supabase.from('teacher_subjects').upsert([assignment], { onConflict: 'teacher_id,class_id,subject_id' });
     if (!error) {
       setAssignment({ teacher_id: '', class_id: '', subject_id: '' });
       alert("Teacher successfully assigned!");
