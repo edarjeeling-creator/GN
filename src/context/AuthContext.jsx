@@ -96,7 +96,9 @@ export const AuthProvider = ({ children }) => {
             student_id: student.id,
             class_id: student.class_id,
             school_id: student.school_id,
-            className: cls ? `${cls.name} ${cls.section}` : ''
+            className: cls ? `${cls.name} ${cls.section}` : '',
+            class: cls ? cls.name : '',
+            section: cls ? cls.section : ''
           };
 
           localStorage.setItem('studentProfile', JSON.stringify(studentProfile));
