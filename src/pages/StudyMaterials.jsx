@@ -33,7 +33,11 @@ const StudyMaterials = () => {
     if (profile.role === 'teacher') {
       query = query.eq('teacher_uid', profile.id);
     } else if (profile.role === 'student') {
-      query = query.eq('class', profile.class || '').eq('section', profile.section || '');
+      const studentClass = profile.class || (profile.className ? profile.className.split(' ')[0] : '');
+      let studentSection = profile.section || (profile.className ? profile.className.split(' ').pop() : '');
+      
+      // Make matching case-insensitive and trim spaces to avoid mismatch if teacher typed "6 " or "a"
+      query = query.ilike('class', `%${studentClass.trim()}%`).ilike('section', `%${studentSection.trim()}%`);
     }
 
     const { data } = await query;
