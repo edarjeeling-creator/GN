@@ -8,6 +8,7 @@ import Editor, {
 } from 'react-simple-wysiwyg';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import StaffAttendance from '../components/StaffAttendance';
+import AcademicReports from '../components/AcademicReports';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -195,6 +196,7 @@ const PrincipalPortal = () => {
             { id: 'overview', label: 'Overview' },
             { id: 'staff_attendance', label: 'Staff Attendance' },
             { id: 'attendance', label: 'Attendance Reports' },
+            { id: 'academic_reports', label: 'Academic Reports' },
             { id: 'search', label: 'User Search' },
             { id: 'notices', label: 'Notices & Announcements' },
             { id: 'settings', label: 'Settings' }
@@ -525,6 +527,12 @@ const PrincipalPortal = () => {
                 </Card>
               </>
             )}
+          </motion.div>
+        )}
+
+        {activeTab === 'academic_reports' && (
+          <motion.div key="academic_reports" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <AcademicReports />
           </motion.div>
         )}
 
