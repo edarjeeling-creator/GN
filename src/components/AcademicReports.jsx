@@ -48,7 +48,23 @@ const AcademicReports = () => {
     studentScores.sort((a, b) => b.total - a.total);
 
     const failures = studentScores.filter(s => s.total < 10);
-    const topScorers = studentScores.slice(0, 3); // Top 3
+    
+    // Calculate unique scores to determine rank
+    const uniqueScores = [...new Set(studentScores.map(s => s.total))].sort((a, b) => b - a);
+    
+    const topScorers = [];
+    // We only want 1st, 2nd, 3rd places
+    for (let i = 0; i < 3; i++) {
+        if (i < uniqueScores.length) {
+            const score = uniqueScores[i];
+            const studentsWithScore = studentScores.filter(s => s.total === score);
+            topScorers.push({
+                rank: i + 1,
+                score: score,
+                students: studentsWithScore.map(s => s.student.name)
+            });
+        }
+    }
 
     return {
       topScorers,
@@ -103,15 +119,15 @@ const AcademicReports = () => {
                 <div className="p-6 text-center text-slate-500">No marks entered yet.</div>
               ) : (
                 <ul className="divide-y divide-slate-100">
-                  {reportData.topScorers.map((scoreObj, idx) => (
-                    <li key={scoreObj.student.id} className="flex justify-between items-center p-4 hover:bg-slate-50">
+                  {reportData.topScorers.map((rankObj) => (
+                    <li key={rankObj.rank} className="flex justify-between items-center p-4 hover:bg-slate-50">
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white shadow-sm ${idx === 0 ? 'bg-yellow-400' : idx === 1 ? 'bg-slate-300' : 'bg-amber-600'}`}>
-                          {idx + 1}
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white shadow-sm ${rankObj.rank === 1 ? 'bg-yellow-400' : rankObj.rank === 2 ? 'bg-slate-300' : 'bg-amber-600'}`}>
+                          {rankObj.rank}
                         </div>
-                        <span className="font-semibold text-slate-800">{scoreObj.student.name}</span>
+                        <span className="font-semibold text-slate-800">{rankObj.students.join(', ')}</span>
                       </div>
-                      <div className="font-black text-emerald-600 text-lg">{scoreObj.total}</div>
+                      <div className="font-black text-emerald-600 text-lg">{rankObj.score}</div>
                     </li>
                   ))}
                 </ul>
