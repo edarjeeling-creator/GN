@@ -63,6 +63,7 @@ const Dashboard = () => {
   const [myAttendanceToday, setMyAttendanceToday] = useState(null);
   const [reportingTimeConfig, setReportingTimeConfig] = useState({ time: '08:45', grace: 10 });
   const [attendanceActionLoading, setAttendanceActionLoading] = useState(false);
+  const [recentNotices, setRecentNotices] = useState([]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -109,6 +110,16 @@ const Dashboard = () => {
       } else {
         setAlerts([]);
       }
+
+      // Fetch notices for teachers
+      const { data: noticesData } = await supabase
+        .from('notices')
+        .select('*')
+        .in('target_audience', ['all', 'teachers'])
+        .order('publish_date', { ascending: false })
+        .limit(3);
+      setRecentNotices(noticesData || []);
+
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
     }
@@ -382,6 +393,27 @@ const Dashboard = () => {
           </div>
         );
       })()}
+
+      {/* Recent Notices */}
+      {recentNotices.length > 0 && (
+        <div style={{ marginTop: '3rem' }}>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AlertCircle size={20} className="text-blue-500" /> Recent Notices
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+            {recentNotices.map(notice => (
+              <div key={notice.id} style={{ padding: '1.5rem', background: '#fff', border: '1px solid var(--border-color)', borderRadius: '1rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                  <h4 style={{ fontWeight: 'bold', fontSize: '1.1rem', margin: 0 }}>{notice.title}</h4>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', background: '#f1f5f9', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', color: '#64748b' }}>{notice.target_audience}</span>
+                </div>
+                <div style={{ color: '#475569', fontSize: '0.95rem', marginBottom: '1rem' }} dangerouslySetInnerHTML={{ __html: notice.content }} />
+                <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>{new Date(notice.publish_date).toLocaleDateString()}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Interactive Quick Actions (Placeholder) */}
       <div style={{ marginTop: '3rem' }}>
