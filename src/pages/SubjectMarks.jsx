@@ -252,8 +252,11 @@ const SubjectMarks = () => {
           <Button onClick={() => {
             Object.entries(localMarks).forEach(([key, val]) => {
               if (val !== marks[key]) {
-                const [studentId, _, term] = key.split('_');
-                updateMark(studentId, subjectId, term, val === '' ? '' : Number(val));
+                const parts = key.split('_');
+                const studentId = parts[0];
+                const subjId = parts[1];
+                const term = parts.slice(3).join('_');
+                updateMark(studentId, subjId, term, val === '' ? '' : Number(val));
               }
             });
             setSaveStatus('saved'); setTimeout(() => setSaveStatus('idle'), 2000);
