@@ -5,14 +5,14 @@ import { useData } from '../context/DataContext';
 export const AdminRoute = ({ children }) => {
   const { profile, loading } = useAuth();
   if (loading) return <div>Loading...</div>;
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'principal')) return <Navigate to="/dashboard" />;
+  if (!profile || profile.role !== 'admin') return <Navigate to="/dashboard" />;
   return children;
 };
 
 export const TeacherRoute = ({ children }) => {
   const { profile, loading } = useAuth();
   if (loading) return <div>Loading...</div>;
-  if (!profile || (profile.role !== 'teacher' && profile.role !== 'admin' && profile.role !== 'principal')) return <Navigate to="/dashboard" />;
+  if (!profile || (profile.role !== 'teacher' && profile.role !== 'admin')) return <Navigate to="/dashboard" />;
   return children;
 };
 

@@ -31,6 +31,10 @@ const Dashboard = () => {
     return <Navigate to="/student-portal" replace />;
   }
 
+  if (profile?.role === 'principal') {
+    return <Navigate to="/principal" replace />;
+  }
+
   const assignedActiveClasses = Object.keys(teacherSubjects).filter(classId => classes.some(c => c.id === classId));
   const totalAssignedClasses = assignedActiveClasses.length;
   

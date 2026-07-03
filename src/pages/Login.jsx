@@ -53,7 +53,10 @@ const Login = () => {
     const auto = params.get('auto');
 
     if (auto !== 'true' || autoLoginSuccess) {
-      return <Navigate to={profile?.role === 'student' ? "/student-portal" : "/dashboard"} replace />;
+      if (profile?.role === 'student') return <Navigate to="/student-portal" replace />;
+      if (profile?.role === 'principal') return <Navigate to="/principal" replace />;
+      if (profile?.role === 'admin') return <Navigate to="/admin" replace />;
+      return <Navigate to="/dashboard" replace />;
     }
   }
 
