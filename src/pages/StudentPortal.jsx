@@ -26,13 +26,34 @@ const StudentPortal = () => {
 
   const fetchNotifications = async () => {
     if (!studentData) return;
-    const { data } = await supabase
+    
+    // Fetch personal notifications
+    const { data: personalData } = await supabase
       .from('student_notifications')
       .select('*')
       .eq('student_id', studentData.id)
-      .neq('is_invalid', true)
-      .order('created_at', { ascending: false });
-    if (data) setNotifications(data);
+      .neq('is_invalid', true);
+      
+    // Fetch general school notices (targeted to all or students)
+    const { data: generalData } = await supabase
+      .from('notices')
+      .select('*')
+      .in('target_audience', ['all', 'students']);
+      
+    // Format general notices to match the structure of personal notifications
+    const formattedGeneral = (generalData || []).map(n => ({
+      id: n.id,
+      title: n.title,
+      message: n.content,
+      type: 'general_notice',
+      is_read: true, // General notices don't have read receipts per student yet
+      created_at: n.publish_date
+    }));
+
+    const combined = [...(personalData || []), ...formattedGeneral]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    setNotifications(combined);
     setLoading(false);
   };
 
