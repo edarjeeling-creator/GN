@@ -140,7 +140,9 @@ const AcademicReports = () => {
             </CardHeader>
             <CardContent className="p-0">
               {reportData.failures.length === 0 ? (
-                <div className="p-6 text-center text-slate-500">No students scored below 10.</div>
+                <div className="p-6 text-center font-semibold text-emerald-600 bg-emerald-50 rounded-b-xl border border-emerald-100 m-4 flex items-center justify-center gap-2">
+                   No Failure
+                </div>
               ) : (
                 <ul className="divide-y divide-slate-100 max-h-[300px] overflow-auto custom-scrollbar">
                   {reportData.failures.map((scoreObj) => (
