@@ -247,8 +247,8 @@ const PrincipalPortal = () => {
     const { error } = await supabase.from('notices').insert([{
       sender_uid: user.id,
       title: noticeTitle,
-      message: noticeMessage,
-      audience: noticeAudience
+      content: noticeMessage,
+      target_audience: noticeAudience
     }]);
 
     if (!error) {
@@ -257,7 +257,8 @@ const PrincipalPortal = () => {
       fetchNotices();
       alert('Notice sent successfully!');
     } else {
-      alert('Failed to send notice: ' + error.message);
+      alert('Failed to send notice: ' + (error?.message || JSON.stringify(error) || "Unknown Error"));
+      console.error("Notice Insert Error:", error);
     }
   };
 
@@ -274,7 +275,8 @@ const PrincipalPortal = () => {
     if (!error) {
       alert("Private notice sent to student's portal successfully!");
     } else {
-      alert("Failed to send notice: " + error.message);
+      alert("Failed to send notice: " + (error?.message || JSON.stringify(error) || "Unknown Error"));
+      console.error("Student Notice Insert Error:", error);
     }
   };
 
@@ -903,9 +905,9 @@ const PrincipalPortal = () => {
                   <div key={notice.id} className="p-4 border rounded-lg bg-gray-50">
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="font-bold text-lg">{notice.title}</h3>
-                      <span className="text-xs font-bold uppercase bg-gray-200 px-2 py-1 rounded text-gray-600">{notice.audience}</span>
+                      <span className="text-xs font-bold uppercase bg-gray-200 px-2 py-1 rounded text-gray-600">{notice.target_audience}</span>
                     </div>
-                    <div className="text-gray-600 text-sm" dangerouslySetInnerHTML={{ __html: notice.message }}></div>
+                    <div className="text-gray-600 text-sm" dangerouslySetInnerHTML={{ __html: notice.content }}></div>
                     <p className="text-xs text-gray-400 mt-2">{new Date(notice.publish_date).toLocaleDateString()}</p>
                   </div>
                 ))}
