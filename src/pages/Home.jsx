@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import { BookOpen, MapPin, Users, Phone, ArrowRight, FileText, CheckCircle, ChevronRight, Award, ImageIcon, Trophy, ChevronLeft, Shield, Megaphone, Bell } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import SchoolPopup from '../components/SchoolPopup';
-import '../public.css';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Home = () => {
   const [news, setNews] = useState([]);
@@ -21,19 +23,22 @@ const Home = () => {
     btnSecondaryText: 'EXPLORE ACADEMICS',
     btnSecondaryLink: '/academics',
     btnSecondaryColor: '#166534',
-    btnShape: '2rem'
+    btnShape: '1rem'
   });
+  
   const [academicExcellence, setAcademicExcellence] = useState([
     { id: '1', title: 'ICSE Results 2025', imageUrl: '', bgColor: '#fef3c7' },
     { id: '2', title: 'State Toppers', imageUrl: '', bgColor: '#dcfce7' },
-    { id: '3', title: 'Top Student Achievements', imageUrl: '', bgColor: '#f1f5f9' }
+    { id: '3', title: 'Top Achievements', imageUrl: '', bgColor: '#f1f5f9' }
   ]);
+  
   const [divisions, setDivisions] = useState([
     { id: '1', title: 'Kindergarten', description: 'Sensory and foundational learning.', icon: 'Users', color: '#d97706', bgColor: '#fef3c7' },
     { id: '2', title: 'Primary', description: 'Building strong core academic skills.', icon: 'BookOpen', color: '#ea580c', bgColor: '#ffedd5' },
     { id: '3', title: 'Middle', description: 'Exploration and critical thinking.', icon: 'Users', color: '#16a34a', bgColor: '#dcfce7' },
     { id: '4', title: 'Senior School', description: 'Career readiness and leadership.', icon: 'Award', color: '#2563eb', bgColor: '#dbeafe' }
   ]);
+  
   const [selectedDeskMessage, setSelectedDeskMessage] = useState(null);
   const [divisionsTitle, setDivisionsTitle] = useState("OUR DIVISIONS");
   const [pillarsTitle, setPillarsTitle] = useState("OUR PILLARS");
@@ -51,31 +56,16 @@ const Home = () => {
   const fetchFacilities = async () => {
     try {
       const { data, error } = await supabase.from('site_settings').select('value').eq('key', 'campus_facilities').single();
-      if (!error && data && data.value) {
-        setFacilities(JSON.parse(data.value));
-      } else {
-        setFacilities([
-          { id: '1', title: 'Library', imageUrl: '/facility_library.png' },
-          { id: '2', title: 'Science Labs', imageUrl: '/facility_science.png' },
-          { id: '3', title: 'Sports Field', imageUrl: '/facility_sports.png' }
-        ]);
-      }
+      if (!error && data && data.value) setFacilities(JSON.parse(data.value));
     } catch (e) {
       console.log('Facilities fetch error:', e);
-      setFacilities([
-        { id: '1', title: 'Library', imageUrl: '/facility_library.png' },
-        { id: '2', title: 'Science Labs', imageUrl: '/facility_science.png' },
-        { id: '3', title: 'Sports Field', imageUrl: '/facility_sports.png' }
-      ]);
     }
   };
 
   const fetchHeroStyling = async () => {
     try {
       const { data, error } = await supabase.from('site_settings').select('value').eq('key', 'hero_styling').single();
-      if (!error && data && data.value) {
-        setHeroStyle({ ...heroStyle, ...JSON.parse(data.value) });
-      }
+      if (!error && data && data.value) setHeroStyle({ ...heroStyle, ...JSON.parse(data.value) });
     } catch (e) {
       console.log('Hero styling fetch error:', e);
     }
@@ -92,8 +82,6 @@ const Home = () => {
           setPillarsTitle(parsed.pillarsTitle || "OUR PILLARS");
         } else if (Array.isArray(parsed)) {
           setDivisions(parsed);
-          setDivisionsTitle("OUR DIVISIONS");
-          setPillarsTitle("OUR PILLARS");
         }
       }
     } catch (e) {
@@ -104,9 +92,7 @@ const Home = () => {
   const fetchAcademicExcellence = async () => {
     try {
       const { data, error } = await supabase.from('site_settings').select('value').eq('key', 'academic_excellence').single();
-      if (!error && data && data.value) {
-        setAcademicExcellence(JSON.parse(data.value));
-      }
+      if (!error && data && data.value) setAcademicExcellence(JSON.parse(data.value));
     } catch (e) {
       console.log('Academic Excellence fetch error:', e);
     }
@@ -125,443 +111,256 @@ const Home = () => {
     if (heroSlides.length <= 1) return;
     const interval = setInterval(() => {
       setCurrentSlideIndex((prev) => (prev + 1) % heroSlides.length);
-    }, 5000);
+    }, 6000);
     return () => clearInterval(interval);
   }, [heroSlides.length]);
 
   const fetchNews = async () => {
     try {
-      const { data, error } = await supabase
-        .from('news')
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-      
+      const { data, error } = await supabase.from('news').select('*').eq('is_active', true).order('created_at', { ascending: false });
       if (!error && data && data.length > 0) {
         setNews(data);
       } else {
-        // Fallback default news if table doesn't exist or is empty
         setNews([
-          { id: 1, content: "🔔 ADMISSIONS OPEN FOR 2026-2027 ACADEMIC YEAR" },
-          { id: 2, content: "📅 MID-TERM EXAMS COMMENCE ON 15TH JUNE" },
-          { id: 3, content: "👥 PARENT-TEACHER MEETING SCHEDULED FOR FRIDAY" }
+          { id: 1, content: "🔔 ADMISSIONS OPEN FOR 2026-2027 ACADEMIC YEAR", created_at: new Date().toISOString() },
+          { id: 2, content: "📅 MID-TERM EXAMS COMMENCE ON 15TH JUNE", created_at: new Date().toISOString() },
         ]);
       }
     } catch (err) {
-      setNews([
-        { id: 1, content: "🔔 ADMISSIONS OPEN FOR 2026-2027 ACADEMIC YEAR" },
-        { id: 2, content: "📅 MID-TERM EXAMS COMMENCE ON 15TH JUNE" },
-        { id: 3, content: "👥 PARENT-TEACHER MEETING SCHEDULED FOR FRIDAY" }
-      ]);
+      console.log("News fetch error", err);
     }
   };
 
+  const iconMap = {
+    Users: <Users size={28} />,
+    BookOpen: <BookOpen size={28} />,
+    Award: <Award size={28} />,
+    FileText: <FileText size={28} />,
+    Phone: <Phone size={28} />,
+    CheckCircle: <CheckCircle size={28} />,
+    Trophy: <Trophy size={28} />,
+    ImageIcon: <ImageIcon size={28} />,
+    Shield: <Shield size={28} />,
+    Megaphone: <Megaphone size={28} />,
+    Bell: <Bell size={28} />
+  };
+
   return (
-    <div style={{ width: '100%', background: '#f8fafc' }}>
-      <div className="portal-main-wrapper">
-        
-        {/* LEFT COLUMN */}
-        <div className="portal-sidebar-left">
+    <div className="bg-slate-50 min-h-screen">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* LATEST NEWS & EVENTS Widget */}
-          <div style={{ background: 'white', borderRadius: '1rem', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: '800', borderBottom: '2px solid #166534', paddingBottom: '0.5rem', marginBottom: '1rem', color: '#1f2937' }}>
-              LATEST NEWS & EVENTS
-            </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '400px', overflowY: 'auto' }}>
-              {news.map((item, index) => (
-                <div key={item.id} className="news-card" style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-                  <div style={{ width: '60px', height: '60px', borderRadius: '0.5rem', background: '#e2e8f0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                     <ImageIcon size={24} color="#94a3b8" />
-                  </div>
-                  <div>
-                    <h4 style={{ fontWeight: '700', fontSize: '0.9rem', color: '#1f2937', marginBottom: '0.25rem' }}>{item.content}</h4>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{new Date(item.created_at || Date.now() - index * 86400000).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-              <button style={{ background: 'transparent', border: '1px solid #cbd5e1', padding: '0.25rem 1rem', borderRadius: '1rem', fontSize: '0.8rem', color: '#475569' }}>Scroll ↓</button>
-            </div>
-          </div>
-
-        </div>
-
-        {/* CENTER COLUMN */}
-        <div className="portal-center-content">
-          
-          {/* Hero Banner */}
-          <div className="portal-hero" style={{ position: 'relative', overflow: 'hidden', backgroundColor: 'black' }}>
-            {heroSlides.length > 0 ? (
-              heroSlides.map((slide, index) => (
-                <div 
-                  key={slide.id} 
-                  style={{ 
-                    position: 'absolute', 
-                    top: 0, 
-                    left: 0, 
-                    width: '100%', 
-                    height: '100%', 
-                    opacity: index === currentSlideIndex ? 1 : 0, 
-                    transition: 'opacity 1s ease-in-out',
-                    zIndex: 0 
-                  }}
-                >
-                  {slide.media_url.match(/\.(mp4|webm|ogg)$/i) ? (
-                    <video autoPlay muted loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} src={slide.media_url} />
-                  ) : (
-                    <div style={{ width: '100%', height: '100%', backgroundImage: `url(${slide.media_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
-                  )}
-                </div>
-              ))
-            ) : (
-              <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundImage: 'url(/hero_bg.png)', backgroundSize: 'cover', backgroundPosition: 'center', zIndex: 0 }} />
-            )}
-            
-            {/* Nav Arrows if multiple slides */}
-            {heroSlides.length > 1 && (
-              <>
-                <button 
-                  onClick={() => setCurrentSlideIndex(prev => prev === 0 ? heroSlides.length - 1 : prev - 1)}
-                  style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', zIndex: 2, background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer', backdropFilter: 'blur(4px)' }}
-                >
-                  <ChevronLeft size={24} />
-                </button>
-                <button 
-                  onClick={() => setCurrentSlideIndex(prev => (prev + 1) % heroSlides.length)}
-                  style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', zIndex: 2, background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer', backdropFilter: 'blur(4px)' }}
-                >
-                  <ChevronRight size={24} />
-                </button>
-
-                {/* Dots */}
-                <div style={{ position: 'absolute', bottom: '1rem', left: '50%', transform: 'translateX(-50%)', zIndex: 2, display: 'flex', gap: '0.5rem' }}>
-                  {heroSlides.map((_, i) => (
-                    <button 
-                      key={i}
-                      onClick={() => setCurrentSlideIndex(i)}
-                      style={{ width: '10px', height: '10px', borderRadius: '50%', background: i === currentSlideIndex ? 'white' : 'rgba(255,255,255,0.4)', border: 'none', padding: 0, cursor: 'pointer', transition: 'background 0.3s' }}
-                    />
+          {/* LEFT COLUMN: News */}
+          <div className="lg:col-span-3 order-2 lg:order-1 space-y-6">
+            <Card className="border-t-4 border-t-brand-600 shadow-sm sticky top-24">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <Megaphone className="text-brand-600" size={20} />
+                  LATEST NEWS
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                  {news.map((item, index) => (
+                    <motion.div 
+                      initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.1 }}
+                      key={item.id} 
+                      className="flex gap-4 group cursor-pointer"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-slate-100 flex-shrink-0 flex items-center justify-center group-hover:bg-brand-50 group-hover:text-brand-600 transition-colors">
+                        <ImageIcon size={20} className="text-slate-400 group-hover:text-brand-500 transition-colors" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-sm text-slate-800 group-hover:text-brand-700 transition-colors leading-tight mb-1">{item.content}</h4>
+                        <span className="text-xs text-slate-500">{new Date(item.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </motion.div>
                   ))}
                 </div>
-              </>
-            )}
-
-            <div className="portal-hero-overlay" style={{ position: 'relative', zIndex: 1, padding: '2rem 1rem 4rem 1rem' }}>
-              <h2 className="hero-subtitle" style={{ marginBottom: '0.5rem', color: heroStyle.subtitleColor, fontWeight: '600' }}>{heroStyle.subtitle}</h2>
-              <h1 className="hero-title" style={{ marginBottom: '1rem', color: heroStyle.titleColor }}>{heroStyle.title}</h1>
-              <p style={{ fontSize: 'clamp(1rem, 3vw, 1.2rem)', marginBottom: '2rem', opacity: 0.9, color: heroStyle.titleColor, maxWidth: '600px', margin: '0 auto 2rem' }}>{heroStyle.description}</p>
-              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-                <Link to={heroStyle.btnPrimaryLink} className="btn-hero-primary" style={{ background: heroStyle.btnPrimaryColor, color: 'white', border: 'none', borderRadius: heroStyle.btnShape }}>{heroStyle.btnPrimaryText}</Link>
-                <Link to={heroStyle.btnSecondaryLink} className="btn-hero-outline" style={{ border: '2px solid white', background: heroStyle.btnSecondaryColor, color: 'white', borderRadius: heroStyle.btnShape }}>{heroStyle.btnSecondaryText}</Link>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Our Divisions Section */}
-          <div style={{ padding: '0 1rem' }}>
-            <h2 className="portal-section-title">{divisionsTitle}</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-              {divisions.filter(c => !c.isPillar).map((card) => {
-                const iconMap = {
-                  Users: <Users size={32} />,
-                  BookOpen: <BookOpen size={32} />,
-                  Award: <Award size={32} />,
-                  FileText: <FileText size={32} />,
-                  Phone: <Phone size={32} />,
-                  CheckCircle: <CheckCircle size={32} />,
-                  Trophy: <Trophy size={32} />,
-                  ImageIcon: <ImageIcon size={32} />,
-                  Shield: <Shield size={32} />,
-                  Megaphone: <Megaphone size={32} />,
-                  Bell: <Bell size={32} />
-                };
-                
-                const iconElement = iconMap[card.icon] || <Users size={32} />;
-                const coloredIcon = React.cloneElement(iconElement, { color: card.color });
-                
-                return (
-                  <div key={card.id} style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', height: '100%', minHeight: '220px' }}>
-                    <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: card.bgColor || '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
-                      {coloredIcon}
-                    </div>
-                    <h3 style={{ fontWeight: '800', marginBottom: '0.5rem', fontSize: '1.05rem', color: 'var(--text-primary)' }}>{card.title}</h3>
-                    <p style={{ fontSize: '0.8rem', color: '#64748b', flexGrow: 1, margin: 0 }}>{card.description}</p>
-                    
-                    {card.message && (
-                      <button 
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setSelectedDeskMessage(card);
-                        }}
-                        style={{ 
-                          marginTop: '1rem', 
-                          padding: '0.5rem 1rem', 
-                          fontSize: '0.75rem', 
-                          fontWeight: 'bold', 
-                          background: card.color || '#3b82f6', 
-                          color: 'white', 
-                          border: 'none', 
-                          borderRadius: '0.5rem', 
-                          cursor: 'pointer',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                        }}
-                      >
-                        Read Desk Message
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Our Pillars Section (Only rendered if leadership cards exist) */}
-          {divisions.some(c => c.isPillar) && (
-            <div style={{ padding: '2rem 1rem 0' }}>
-              <h2 className="portal-section-title">{pillarsTitle}</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                {divisions.filter(c => c.isPillar).map((card) => {
-                  const iconMap = {
-                    Users: <Users size={32} />,
-                    BookOpen: <BookOpen size={32} />,
-                    Award: <Award size={32} />,
-                    FileText: <FileText size={32} />,
-                    Phone: <Phone size={32} />,
-                    CheckCircle: <CheckCircle size={32} />,
-                    Trophy: <Trophy size={32} />,
-                    ImageIcon: <ImageIcon size={32} />,
-                    Shield: <Shield size={32} />,
-                    Megaphone: <Megaphone size={32} />,
-                    Bell: <Bell size={32} />
-                  };
-                  
-                  const iconElement = iconMap[card.icon] || <Users size={32} />;
-                  const coloredIcon = React.cloneElement(iconElement, { color: card.color });
-                  
-                  return (
-                    <div key={card.id} style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', height: '100%', minHeight: '220px' }}>
-                      <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: card.bgColor || '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
-                        {coloredIcon}
-                      </div>
-                      <h3 style={{ fontWeight: '800', marginBottom: '0.5rem', fontSize: '1.05rem', color: 'var(--text-primary)' }}>{card.title}</h3>
-                      <p style={{ fontSize: '0.8rem', color: '#64748b', flexGrow: 1, margin: 0 }}>{card.description}</p>
-                      
-                      {card.message && (
-                        <button 
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setSelectedDeskMessage(card);
-                          }}
-                          style={{ 
-                            marginTop: '1rem', 
-                            padding: '0.5rem 1rem', 
-                            fontSize: '0.75rem', 
-                            fontWeight: 'bold', 
-                            background: card.color || '#3b82f6', 
-                            color: 'white', 
-                            border: 'none', 
-                            borderRadius: '0.5rem', 
-                            cursor: 'pointer',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                          }}
-                        >
-                          Read Desk Message
-                        </button>
+          {/* CENTER COLUMN: Main Content */}
+          <div className="lg:col-span-6 order-1 lg:order-2 space-y-8">
+            
+            {/* Hero Slider */}
+            <div className="relative rounded-3xl overflow-hidden bg-slate-900 shadow-xl group min-h-[500px] sm:min-h-[600px] flex items-end">
+              <AnimatePresence mode="sync">
+                {heroSlides.length > 0 ? heroSlides.map((slide, index) => (
+                  index === currentSlideIndex && (
+                    <motion.div 
+                      key={slide.id}
+                      initial={{ opacity: 0, scale: 1.05 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 1 }}
+                      className="absolute inset-0"
+                    >
+                      {slide.media_url.match(/\.(mp4|webm|ogg)$/i) ? (
+                        <video autoPlay muted loop playsInline className="w-full h-full object-cover" src={slide.media_url} />
+                      ) : (
+                        <div className="w-full h-full bg-cover bg-center" style={{ backgroundImage: `url(${slide.media_url})` }} />
                       )}
-                    </div>
-                  );
-                })}
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent"></div>
+                    </motion.div>
+                  )
+                )) : (
+                  <div className="absolute inset-0">
+                    <div className="w-full h-full bg-slate-800" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent"></div>
+                  </div>
+                )}
+              </AnimatePresence>
+
+              {heroSlides.length > 1 && (
+                <>
+                  <button onClick={() => setCurrentSlideIndex(prev => prev === 0 ? heroSlides.length - 1 : prev - 1)} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/30 border border-white/30 z-20">
+                    <ChevronLeft size={24} />
+                  </button>
+                  <button onClick={() => setCurrentSlideIndex(prev => (prev + 1) % heroSlides.length)} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/30 border border-white/30 z-20">
+                    <ChevronRight size={24} />
+                  </button>
+                </>
+              )}
+
+              <div className="relative z-10 p-6 sm:p-10 w-full">
+                <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
+                  <h2 className="text-xl sm:text-2xl font-semibold mb-2" style={{ color: heroStyle.subtitleColor }}>{heroStyle.subtitle}</h2>
+                  <h1 className="text-4xl sm:text-5xl md:text-6xl font-black mb-4 tracking-tight leading-tight" style={{ color: heroStyle.titleColor }}>{heroStyle.title}</h1>
+                  <p className="text-lg sm:text-xl max-w-2xl mb-8" style={{ color: heroStyle.titleColor, opacity: 0.9 }}>{heroStyle.description}</p>
+                  <div className="flex flex-wrap gap-4">
+                    <Link to={heroStyle.btnPrimaryLink}>
+                      <Button className="h-12 px-8 text-base shadow-xl" style={{ backgroundColor: heroStyle.btnPrimaryColor, borderRadius: heroStyle.btnShape }}>
+                        {heroStyle.btnPrimaryText} <ArrowRight className="w-5 h-5 ml-2" />
+                      </Button>
+                    </Link>
+                    <Link to={heroStyle.btnSecondaryLink}>
+                      <Button variant="outline" className="h-12 px-8 text-base bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20" style={{ borderRadius: heroStyle.btnShape }}>
+                        {heroStyle.btnSecondaryText}
+                      </Button>
+                    </Link>
+                  </div>
+                </motion.div>
               </div>
             </div>
-          )}
 
-          {/* Campus Facilities */}
-          {facilities.length > 0 && (
-            <div>
-              <h2 className="portal-section-title">CAMPUS FACILITIES</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                {facilities.map((fac) => (
-                  <div key={fac.id} className="facility-card">
-                    <img src={fac.imageUrl} alt={fac.title} />
-                    <div className="facility-card-title">{fac.title}</div>
-                  </div>
+            {/* Divisions */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <h2 className="text-2xl font-bold text-slate-800">{divisionsTitle}</h2>
+                <div className="flex-1 h-px bg-slate-200"></div>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {divisions.filter(c => !c.isPillar).map((card, idx) => (
+                  <motion.div key={card.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.1 }}>
+                    <Card hoverable className="h-full flex flex-col group border-slate-200">
+                      <CardContent className="pt-6 flex flex-col flex-1 items-center text-center">
+                        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 group-hover:-rotate-3" style={{ backgroundColor: card.bgColor }}>
+                          {React.cloneElement(iconMap[card.icon] || <Users size={28} />, { color: card.color })}
+                        </div>
+                        <h3 className="font-bold text-lg mb-2 text-slate-800">{card.title}</h3>
+                        <p className="text-sm text-slate-500 flex-1">{card.description}</p>
+                        
+                        {card.message && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="mt-4 w-full"
+                            style={{ color: card.color }}
+                            onClick={(e) => { e.preventDefault(); setSelectedDeskMessage(card); }}
+                          >
+                            Read Message <ChevronRight size={16} className="ml-1" />
+                          </Button>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
                 ))}
               </div>
             </div>
-          )}
 
-          {/* Admissions Process */}
-          <div style={{ background: '#fdfbf7', padding: '2rem', borderRadius: '1rem', border: '1px solid #e5e7eb' }}>
-            <h2 className="portal-section-title">ADMISSIONS PROCESS & GUIDELINES</h2>
-            
-            <div className="process-flowchart">
-              <div className="process-step">
-                <div className="process-circle" style={{ borderColor: '#3b82f6', color: '#3b82f6' }}>1</div>
-                <h4 style={{ fontWeight: '800', fontSize: '0.9rem' }}>STEP 1</h4>
-                <p style={{ fontSize: '0.75rem', color: '#64748b' }}>Registration & Inquiry</p>
+            {/* Admissions Process */}
+            <Card className="bg-gradient-to-br from-slate-800 to-slate-900 text-white border-0 overflow-hidden relative">
+              <div className="absolute top-0 right-0 p-12 opacity-10 pointer-events-none">
+                <Award size={200} />
               </div>
-              <ArrowRight className="process-arrow" />
-              <div className="process-step">
-                <div className="process-circle" style={{ borderColor: '#f59e0b', background: '#f59e0b', color: 'white' }}>2</div>
-                <h4 style={{ fontWeight: '800', fontSize: '0.9rem' }}>STEP 2</h4>
-                <p style={{ fontSize: '0.75rem', color: '#64748b' }}>Interaction / Entrance Test</p>
-              </div>
-              <ArrowRight className="process-arrow" />
-              <div className="process-step">
-                <div className="process-circle" style={{ borderColor: '#10b981', color: '#10b981' }}>3</div>
-                <h4 style={{ fontWeight: '800', fontSize: '0.9rem' }}>STEP 3</h4>
-                <p style={{ fontSize: '0.75rem', color: '#64748b' }}>Document Verification</p>
-              </div>
-              <ArrowRight className="process-arrow" />
-              <div className="process-step">
-                <div className="process-circle" style={{ borderColor: '#166534', background: '#166534', color: 'white' }}>✓</div>
-                <h4 style={{ fontWeight: '800', fontSize: '0.9rem' }}>ADMISSION</h4>
-                <p style={{ fontSize: '0.75rem', color: '#64748b' }}>Fee Payment & Enrollment</p>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '2rem' }}>
-              <div>
-                <h4 style={{ fontWeight: '800', marginBottom: '1rem' }}>FORMS</h4>
-                <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
-                  <li style={{ color: '#d97706', textDecoration: 'underline' }}>Admission Form (PDF)</li>
-                  <li style={{ color: '#d97706', textDecoration: 'underline' }}>Medical History Form</li>
-                  <li style={{ color: '#d97706', textDecoration: 'underline' }}>Transport Form</li>
-                </ul>
+              <CardContent className="p-8 sm:p-10 relative z-10">
+                <h2 className="text-2xl font-bold mb-8">ADMISSIONS PROCESS</h2>
                 
-                <h4 style={{ fontWeight: '800', marginTop: '1.5rem', marginBottom: '1rem' }}>AGE CRITERIA</h4>
-                <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem', color: '#475569' }}>
-                  <li>Nursery: 3 - 4 years</li>
-                  <li>LKG: 4 - 5 years</li>
-                  <li>UKG: 5 - 6 years</li>
-                  <li>Class 1: 6+ years</li>
-                </ul>
-              </div>
-              
-              <div>
-                <h4 style={{ fontWeight: '800', marginBottom: '1rem' }}>DOCUMENT CHECKLIST</h4>
-                <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem', color: '#475569' }}>
-                  <li style={{ display: 'flex', gap: '0.5rem' }}><CheckCircle size={16} color="#10b981"/> Birth Certificate</li>
-                  <li style={{ display: 'flex', gap: '0.5rem' }}><CheckCircle size={16} color="#10b981"/> Passport size photos</li>
-                  <li style={{ display: 'flex', gap: '0.5rem' }}><CheckCircle size={16} color="#10b981"/> Previous Report Card</li>
-                  <li style={{ display: 'flex', gap: '0.5rem' }}><CheckCircle size={16} color="#10b981"/> Transfer Certificate (TC)</li>
-                  <li style={{ display: 'flex', gap: '0.5rem' }}><CheckCircle size={16} color="#10b981"/> Aadhar Card Copy</li>
-                </ul>
-              </div>
-            </div>
+                <div className="flex flex-col sm:flex-row justify-between gap-6 relative">
+                  <div className="hidden sm:block absolute top-6 left-12 right-12 h-0.5 bg-slate-700 z-0"></div>
+                  
+                  {[
+                    { step: '1', title: 'Registration', desc: 'Online Inquiry', color: 'bg-brand-500' },
+                    { step: '2', title: 'Interaction', desc: 'Entrance Test', color: 'bg-amber-500' },
+                    { step: '3', title: 'Verification', desc: 'Documents', color: 'bg-emerald-500' },
+                    { step: '✓', title: 'Admission', desc: 'Fee Payment', color: 'bg-green-600' }
+                  ].map((item, i) => (
+                    <div key={i} className="flex flex-row sm:flex-col items-center gap-4 sm:gap-2 z-10 bg-slate-900 sm:bg-transparent p-2 sm:p-0 rounded-xl">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg shadow-lg ${item.color}`}>
+                        {item.step}
+                      </div>
+                      <div className="sm:text-center">
+                        <h4 className="font-bold text-sm sm:text-base">{item.title}</h4>
+                        <p className="text-xs text-slate-400">{item.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+          </div>
+
+          {/* RIGHT COLUMN: Accolades & Disclosures */}
+          <div className="lg:col-span-3 order-3 space-y-6">
+            
+            <Card className="border-t-4 border-t-amber-500 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <Trophy className="text-amber-500" size={20} />
+                  EXCELLENCE
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {academicExcellence.map((item, index) => (
+                  <div key={item.id} className="relative group overflow-hidden rounded-xl bg-slate-100 aspect-video flex items-center justify-center cursor-pointer">
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-2" style={{ backgroundColor: item.bgColor }}>
+                        <Award size={32} className="opacity-50" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-80"></div>
+                    <div className="absolute bottom-0 left-0 right-0 p-3">
+                      <p className="text-white font-semibold text-sm leading-tight shadow-sm">{item.title}</p>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="bg-brand-50 border-brand-100 shadow-sm">
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center mb-4 text-brand-600">
+                  <FileText size={24} />
+                </div>
+                <h3 className="font-bold text-lg text-slate-800 mb-2">Mandatory Disclosures</h3>
+                <p className="text-sm text-slate-600 mb-6">View official compliance documents, affiliation certificates, and safety reports.</p>
+                <Link to="/mandatory-disclosures">
+                  <Button className="w-full">View Documents</Button>
+                </Link>
+              </CardContent>
+            </Card>
+
           </div>
 
         </div>
-
-        {/* RIGHT COLUMN */}
-        <div className="portal-sidebar-right">
-          
-          {/* Academic Excellence */}
-          <div style={{ background: 'white', borderRadius: '1rem', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: '800', borderBottom: '2px solid #166534', paddingBottom: '0.5rem', marginBottom: '1rem', color: '#1f2937' }}>
-              ACADEMIC EXCELLENCE
-            </h2>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div style={{ textAlign: 'center' }}>
-                {academicExcellence[0].imageUrl ? (
-                  <img src={academicExcellence[0].imageUrl} alt={academicExcellence[0].title} style={{ width: '100%', aspectRatio: '1', borderRadius: '0.5rem', objectFit: 'cover', marginBottom: '0.5rem' }} />
-                ) : (
-                  <div style={{ background: academicExcellence[0].bgColor, width: '100%', aspectRatio: '1', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
-                    <Award size={40} color="#d97706" />
-                  </div>
-                )}
-                <p style={{ fontSize: '0.75rem', fontWeight: '700' }}>{academicExcellence[0].title}</p>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                {academicExcellence[1].imageUrl ? (
-                  <img src={academicExcellence[1].imageUrl} alt={academicExcellence[1].title} style={{ width: '100%', aspectRatio: '1', borderRadius: '0.5rem', objectFit: 'cover', marginBottom: '0.5rem' }} />
-                ) : (
-                  <div style={{ background: academicExcellence[1].bgColor, width: '100%', aspectRatio: '1', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
-                    <Trophy size={40} color="#16a34a" />
-                  </div>
-                )}
-                <p style={{ fontSize: '0.75rem', fontWeight: '700' }}>{academicExcellence[1].title}</p>
-              </div>
-              <div style={{ textAlign: 'center', gridColumn: 'span 2' }}>
-                {academicExcellence[2].imageUrl ? (
-                  <img src={academicExcellence[2].imageUrl} alt={academicExcellence[2].title} style={{ width: '100%', height: '100px', borderRadius: '0.5rem', objectFit: 'cover', marginBottom: '0.5rem' }} />
-                ) : (
-                  <div style={{ background: academicExcellence[2].bgColor, width: '100%', height: '100px', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
-                    <Users size={32} color="#64748b" />
-                  </div>
-                )}
-                <p style={{ fontSize: '0.75rem', fontWeight: '700' }}>{academicExcellence[2].title}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Mandatory Disclosures */}
-          <div style={{ background: 'white', borderRadius: '1rem', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: '800', borderBottom: '2px solid #166534', paddingBottom: '0.5rem', marginBottom: '1rem', color: '#1f2937' }}>
-              MANDATORY DISCLOSURES
-            </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.5rem' }}>View our official compliance documents, affiliation certificates, safety reports, and committee details.</p>
-              <Link to="/mandatory-disclosures" className="btn-hero-primary" style={{ background: '#f59e0b', color: 'white', padding: '0.75rem', borderRadius: '0.5rem', fontWeight: 'bold', border: 'none', textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}>
-                <FileText size={18} /> View All Disclosures
-              </Link>
-            </div>
-          </div>
-
-        </div>
-
       </div>
-      {selectedDeskMessage && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999999, padding: '1.5rem' }} onClick={() => setSelectedDeskMessage(null)}>
-          <div style={{ backgroundColor: 'white', border: `2px solid ${selectedDeskMessage.color}`, borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)', width: '100%', maxWidth: '600px', padding: '2rem', boxSizing: 'border-box', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-            <button 
-              onClick={() => setSelectedDeskMessage(null)}
-              style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', background: 'rgba(15,23,42,0.05)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' }}
-            >
-              &times;
-            </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: selectedDeskMessage.bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {(() => {
-                  const iconMap = {
-                    Users: <Users size={28} />,
-                    BookOpen: <BookOpen size={28} />,
-                    Award: <Award size={28} />,
-                    FileText: <FileText size={28} />,
-                    Phone: <Phone size={28} />,
-                    CheckCircle: <CheckCircle size={28} />,
-                    Trophy: <Trophy size={28} />,
-                    ImageIcon: <ImageIcon size={28} />,
-                    Shield: <Shield size={28} />,
-                    Megaphone: <Megaphone size={28} />,
-                    Bell: <Bell size={28} />
-                  };
-                  return React.cloneElement(iconMap[selectedDeskMessage.icon] || <Users size={28} />, { color: selectedDeskMessage.color });
-                })()}
-              </div>
-              <div>
-                <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>{selectedDeskMessage.title}</h2>
-                <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Campus Message Desk</span>
-              </div>
-            </div>
-            <div style={{ color: '#334155', fontSize: '0.95rem', lineHeight: '1.6', overflowY: 'auto', maxHeight: '350px', paddingRight: '0.5rem', whiteSpace: 'pre-wrap' }}>
-              {selectedDeskMessage.message}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
-              <button 
-                onClick={() => setSelectedDeskMessage(null)}
-                style={{ padding: '0.625rem 1.5rem', fontSize: '0.875rem', fontWeight: 'bold', background: selectedDeskMessage.color, color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
-              >
-                Close Message
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      
       <SchoolPopup />
     </div>
   );

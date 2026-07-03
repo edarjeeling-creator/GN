@@ -1,8 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
-import { ArrowLeft, Save, AlertCircle, CheckCircle2, Upload } from 'lucide-react';
+import { ArrowLeft, Save, AlertCircle, CheckCircle2, Upload, Search, ChevronDown, ChevronUp, User } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Badge } from '../components/ui/Badge';
+import { Input } from '../components/ui/Input';
+import { useReactTable, getCoreRowModel, flexRender, getSortedRowModel, getFilteredRowModel } from '@tanstack/react-table';
 
 export const getConversionConstants = (className) => {
   if (!className) return { examConv: 75, testMax: 25 };
@@ -24,50 +30,21 @@ const SubjectMarks = () => {
   const [localMarks, setLocalMarks] = useState({});
   const [saveStatus, setSaveStatus] = useState('idle'); // idle, saving, saved, error
   
-  // Filter students based on 2nd/3rd language if the subject specifies one
-  const filteredStudents = classStudents.filter(student => {
-    const subName = subject?.name?.toLowerCase() || '';
-    
-    // Check if it's a 2nd language subject
-    if (subName.includes('2nd') || subName.includes('second')) {
-      // If student has a second language set, check if the subject name contains it
-      if (student.second_language) {
-        return subName.includes(student.second_language.toLowerCase());
-      }
-      return true; // If student hasn't been assigned a language yet, show them by default
-    }
-    
-    // Check if it's a 3rd language subject
-    if (subName.includes('3rd') || subName.includes('third')) {
-      if (student.third_language) {
-        return subName.includes(student.third_language.toLowerCase());
-      }
+  const filteredStudents = useMemo(() => {
+    return classStudents.filter(student => {
+      const subName = subject?.name?.toLowerCase() || '';
+      if (subName.includes('2nd') || subName.includes('second')) return student.second_language ? subName.includes(student.second_language.toLowerCase()) : true;
+      if (subName.includes('3rd') || subName.includes('third')) return student.third_language ? subName.includes(student.third_language.toLowerCase()) : true;
+      if (subName.includes('elective') || subName.includes('evs/math') || subName.includes('maths/evs') || subName.includes('math/evs')) return student.elective_subject ? subName.includes(student.elective_subject.toLowerCase()) : true;
+      if (subName.includes('6th') || subName.includes('sixth')) return student.sixth_subject ? subName.includes(student.sixth_subject.toLowerCase()) : true;
       return true;
-    }
-    
-    // Check if it's an elective (Maths/EVS)
-    if (subName.includes('elective') || subName.includes('evs/math') || subName.includes('maths/evs') || subName.includes('math/evs')) {
-      if (student.elective_subject) {
-        return subName.includes(student.elective_subject.toLowerCase());
-      }
-      return true;
-    }
+    });
+  }, [classStudents, subject]);
 
-    // Check if it's a 6th subject
-    if (subName.includes('6th') || subName.includes('sixth')) {
-      if (student.sixth_subject) {
-        return subName.includes(student.sixth_subject.toLowerCase());
-      }
-      return true;
-    }
-    
-    // Not a language subject, show everyone
-    return true;
-  });
-
-  const [search, setSearch] = useState('');
+  const [globalFilter, setGlobalFilter] = useState('');
   const [languageFilter, setLanguageFilter] = useState('');
-  const [selectedTerm, setSelectedTerm] = useState('Midterm'); // Added Term Selector
+  const [selectedTerm, setSelectedTerm] = useState('Midterm');
+  const [sorting, setSorting] = useState([]);
   const fileInputRef = useRef(null);
 
   const isSecondLanguage = subject?.name.toLowerCase().includes('2nd language') || subject?.name.toLowerCase().includes('second language');
@@ -76,17 +53,14 @@ const SubjectMarks = () => {
   const isSixthSubject = subject?.name.toLowerCase().includes('6th') || subject?.name.toLowerCase().includes('sixth');
   const hasLanguageOptions = isSecondLanguage || isThirdLanguage || isElective || isSixthSubject;
 
-  const uniqueLanguages = [...new Set(classStudents.map(s => {
+  const uniqueLanguages = useMemo(() => [...new Set(classStudents.map(s => {
     if (isSecondLanguage) return s.second_language;
     if (isThirdLanguage) return s.third_language;
     if (isElective) return s.elective_subject;
     if (isSixthSubject) return s.sixth_subject;
     return null;
-  }).filter(Boolean))];
+  }).filter(Boolean))], [classStudents, isSecondLanguage, isThirdLanguage, isElective, isSixthSubject]);
 
-  // Initialize local marks
-  const studentIdsString = classStudents.map(s => s.id).join(',');
-  
   useEffect(() => {
     const initialMarks = {};
     classStudents.forEach(student => {
@@ -97,16 +71,12 @@ const SubjectMarks = () => {
       });
     });
     setLocalMarks(initialMarks);
-  }, [studentIdsString, marks, subjectId, academicYear]);
+  }, [classStudents.map(s => s.id).join(','), marks, subjectId, academicYear]);
 
   const handleMarkChange = (studentId, term, value) => {
-    // Basic validation
     let maxMark = 100;
     if (term.includes('Test')) maxMark = testMax;
-    
-    if (value !== '' && (isNaN(value) || value < 0 || value > maxMark)) {
-      return; 
-    }
+    if (value !== '' && (isNaN(value) || value < 0 || value > maxMark)) return; 
     const fullTerm = `${academicYear}_${term}`;
     const key = `${studentId}_${subjectId}_${fullTerm}`;
     setLocalMarks(prev => ({ ...prev, [key]: value }));
@@ -119,7 +89,6 @@ const SubjectMarks = () => {
     const value = localMarks[key];
     if (value !== marks[key]) {
       setSaveStatus('saving');
-      // Simulate network request delay for UX
       setTimeout(() => {
         updateMark(studentId, subjectId, term, value === '' ? '' : Number(value));
         setSaveStatus('saved');
@@ -136,262 +105,217 @@ const SubjectMarks = () => {
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
-        const bstr = evt.target.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
+        const wb = XLSX.read(evt.target.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
         const data = XLSX.utils.sheet_to_json(ws);
-        
         let newLocalMarks = { ...localMarks };
         let changesMade = false;
-
         data.forEach(row => {
-          // Look for Roll No or Roll Number
           const rollNo = row['Roll No'] || row['Roll'] || row['roll_no'];
           if (!rollNo) return;
-
           const student = classStudents.find(s => Number(s.roll_no) === Number(rollNo));
           if (!student) return;
-
           const setMarkIfPresent = (colName, term) => {
             const val = row[colName];
             if (val !== undefined && val !== null) {
-              const fullTerm = `${academicYear}_${term}`;
-              const key = `${student.id}_${subjectId}_${fullTerm}`;
+              const key = `${student.id}_${subjectId}_${academicYear}_${term}`;
               newLocalMarks[key] = val === '' ? '' : Number(val);
               changesMade = true;
             }
           };
-
           setMarkIfPresent('Mid Exam', 'Midterm_Exam');
           setMarkIfPresent('Mid Test', 'Midterm_Test');
           setMarkIfPresent('Final Exam', 'Finalterm_Exam');
           setMarkIfPresent('Final Test', 'Finalterm_Test');
         });
-
-        if (changesMade) {
-          setLocalMarks(newLocalMarks);
-          setSaveStatus('pending');
-        }
+        if (changesMade) { setLocalMarks(newLocalMarks); setSaveStatus('pending'); }
         alert('Excel imported successfully! Please review the numbers and click "Save All".');
-      } catch (err) {
-        console.error(err);
-        alert('Error parsing Excel file. Make sure it has columns: Roll No, Mid Exam, Mid Test, Final Exam, Final Test');
-      } finally {
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      }
+      } catch (err) { alert('Error parsing Excel file. Make sure it has columns: Roll No, Mid Exam, Mid Test, Final Exam, Final Test'); }
+      finally { if (fileInputRef.current) fileInputRef.current.value = ''; }
     };
     reader.readAsBinaryString(file);
   };
 
-  const visibleStudents = filteredStudents.filter(s => {
-    if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
-    
-    if (hasLanguageOptions && languageFilter) {
-      let studentLang = null;
-      if (isSecondLanguage) studentLang = s.second_language;
-      else if (isThirdLanguage) studentLang = s.third_language;
-      else if (isElective) studentLang = s.elective_subject;
-      else if (isSixthSubject) studentLang = s.sixth_subject;
-      
-      if (!studentLang || !studentLang.toLowerCase().includes(languageFilter.toLowerCase())) {
-        return false;
+  const visibleStudents = useMemo(() => {
+    return filteredStudents.filter(s => {
+      if (hasLanguageOptions && languageFilter) {
+        let studentLang = isSecondLanguage ? s.second_language : isThirdLanguage ? s.third_language : isElective ? s.elective_subject : isSixthSubject ? s.sixth_subject : null;
+        if (!studentLang || !studentLang.toLowerCase().includes(languageFilter.toLowerCase())) return false;
       }
-    }
-    return true;
+      return true;
+    });
+  }, [filteredStudents, languageFilter, hasLanguageOptions, isSecondLanguage, isThirdLanguage, isElective, isSixthSubject]);
+
+  const columns = useMemo(() => {
+    const isMid = selectedTerm === 'Midterm';
+    return [
+      { accessorKey: 'roll_no', header: 'Roll No', cell: info => <span className="font-bold text-slate-700">{info.getValue()}</span> },
+      {
+        accessorKey: 'name',
+        header: 'Student Name',
+        cell: info => {
+          const student = info.row.original;
+          return (
+            <div className="flex items-center gap-4 py-2">
+              <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-slate-200 shrink-0 bg-slate-50 flex items-center justify-center">
+                {student.picture_url ? <img src={student.picture_url} className="w-full h-full object-cover" /> : <User size={20} className="text-slate-400" />}
+              </div>
+              <span className="font-semibold text-slate-800">{student.name}</span>
+            </div>
+          );
+        },
+      },
+      {
+        id: 'exam',
+        header: 'Exam (100)',
+        cell: ({ row }) => {
+          const termKey = isMid ? 'Midterm_Exam' : 'Finalterm_Exam';
+          const val = localMarks[`${row.original.id}_${subjectId}_${academicYear}_${termKey}`];
+          return <Input type="number" className="w-20 text-center font-semibold" value={val !== undefined ? val : ''} min="0" max="100" onChange={e => handleMarkChange(row.original.id, termKey, e.target.value)} onBlur={() => handleBlur(row.original.id, termKey)} />;
+        }
+      },
+      {
+        id: 'conv',
+        header: `Conv (${examConv})`,
+        cell: ({ row }) => {
+          const termKey = isMid ? 'Midterm_Exam' : 'Finalterm_Exam';
+          const val = localMarks[`${row.original.id}_${subjectId}_${academicYear}_${termKey}`];
+          const conv = calculateConverted(val);
+          return <span className="text-slate-500 font-medium">{conv > 0 ? conv.toFixed(2) : '0'}</span>;
+        }
+      },
+      {
+        id: 'test',
+        header: `Test (${testMax})`,
+        cell: ({ row }) => {
+          const termKey = isMid ? 'Midterm_Test' : 'Finalterm_Test';
+          const val = localMarks[`${row.original.id}_${subjectId}_${academicYear}_${termKey}`];
+          return <Input type="number" className="w-20 text-center font-semibold" value={val !== undefined ? val : ''} min="0" max={testMax} onChange={e => handleMarkChange(row.original.id, termKey, e.target.value)} onBlur={() => handleBlur(row.original.id, termKey)} />;
+        }
+      },
+      {
+        id: 'total',
+        header: 'Total (100)',
+        cell: ({ row }) => {
+          const examKey = isMid ? 'Midterm_Exam' : 'Finalterm_Exam';
+          const testKey = isMid ? 'Midterm_Test' : 'Finalterm_Test';
+          const examVal = localMarks[`${row.original.id}_${subjectId}_${academicYear}_${examKey}`];
+          const testVal = localMarks[`${row.original.id}_${subjectId}_${academicYear}_${testKey}`];
+          const conv = calculateConverted(examVal);
+          const total = Math.round(conv + (testVal === '' || testVal === undefined ? 0 : Number(testVal)));
+          return <span className={`font-bold text-lg ${isMid ? 'text-brand-600' : 'text-emerald-600'}`}>{total > 0 ? total : '0'}</span>;
+        }
+      }
+    ];
+  }, [selectedTerm, localMarks, subjectId, academicYear, examConv, testMax]);
+
+  const table = useReactTable({
+    data: visibleStudents,
+    columns,
+    state: { sorting, globalFilter },
+    onSortingChange: setSorting,
+    onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
   });
 
   return (
-    <div>
-      <div className="page-header mb-4">
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
         <div>
-          <button className="btn btn-outline btn-sm mb-2" onClick={() => navigate('/classes')}>
-            <ArrowLeft size={16} /> Back to Classes
-          </button>
-          <h1>Marks Entry: {subject?.name}</h1>
-          <p>{cls?.name} {cls?.section} (Exam translates to {examConv}, Test is out of {testMax})</p>
+          <Button variant="outline" size="sm" onClick={() => navigate('/classes')} className="mb-4 text-slate-500 hover:text-slate-800">
+            <ArrowLeft size={16} className="mr-2" /> Back to Classes
+          </Button>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Marks Entry: {subject?.name}</h1>
+          <p className="text-slate-500 mt-1">{cls?.name} {cls?.section} <span className="inline-block mx-2 text-slate-300">|</span> Exam translates to {examConv}, Test is out of {testMax}</p>
         </div>
-        <div className="flex items-center gap-4">
-          {saveStatus === 'pending' && <span className="text-warning flex items-center gap-1"><AlertCircle size={16}/> Unsaved changes</span>}
-          {saveStatus === 'saving' && <span className="text-text-secondary">Saving...</span>}
-          {saveStatus === 'saved' && <span className="text-success flex items-center gap-1"><CheckCircle2 size={16}/> Saved</span>}
+        
+        <div className="flex items-center gap-3">
+          <AnimatePresence>
+            {saveStatus === 'pending' && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-amber-500 flex items-center gap-1.5 text-sm font-semibold bg-amber-50 px-3 py-1.5 rounded-full"><AlertCircle size={16}/> Unsaved changes</motion.span>}
+            {saveStatus === 'saving' && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-slate-500 text-sm font-semibold flex items-center gap-2"><div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"/> Saving...</motion.span>}
+            {saveStatus === 'saved' && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-emerald-500 flex items-center gap-1.5 text-sm font-semibold bg-emerald-50 px-3 py-1.5 rounded-full"><CheckCircle2 size={16}/> Saved</motion.span>}
+          </AnimatePresence>
           
-          <input 
-            type="file" 
-            accept=".xlsx, .xls, .csv"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            style={{ display: 'none' }}
-          />
-          <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()}>
-            <Upload size={18} /> Import Excel
-          </button>
-          
-          <button className="btn btn-primary" onClick={() => {
-             Object.entries(localMarks).forEach(([key, val]) => {
-                if(val !== marks[key]) {
-                  const [studentId, _, term] = key.split('_');
-                  updateMark(studentId, subjectId, term, val === '' ? '' : Number(val));
-                }
-             });
-             setSaveStatus('saved');
-             setTimeout(() => setSaveStatus('idle'), 2000);
-          }}>
-            <Save size={18} /> Save All
-          </button>
+          <input type="file" accept=".xlsx, .xls, .csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="shrink-0 bg-white shadow-sm">
+            <Upload size={18} className="mr-2" /> Import Excel
+          </Button>
+          <Button onClick={() => {
+            Object.entries(localMarks).forEach(([key, val]) => {
+              if (val !== marks[key]) {
+                const [studentId, _, term] = key.split('_');
+                updateMark(studentId, subjectId, term, val === '' ? '' : Number(val));
+              }
+            });
+            setSaveStatus('saved'); setTimeout(() => setSaveStatus('idle'), 2000);
+          }} className="shrink-0 shadow-md">
+            <Save size={18} className="mr-2" /> Save All
+          </Button>
         </div>
       </div>
 
-      <div className="card" style={{ overflowX: 'auto' }}>
-        <div className="flex justify-between mb-4 flex-wrap gap-2">
-          <input 
-            type="text" 
-            placeholder="Search student..." 
-            className="input-field" 
-            style={{ maxWidth: '300px' }}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      <Card className="overflow-hidden shadow-sm">
+        <div className="p-4 border-b border-slate-200 bg-white flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="relative w-full md:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Input value={globalFilter ?? ''} onChange={e => setGlobalFilter(e.target.value)} placeholder="Search student..." className="pl-10 h-10 w-full bg-slate-50" />
+          </div>
           
-          {hasLanguageOptions && (
-            <select 
-              className="input-field" 
-              style={{ maxWidth: '200px' }}
-              value={languageFilter}
-              onChange={(e) => setLanguageFilter(e.target.value)}
-            >
-              <option value="">All Languages</option>
-              {uniqueLanguages.map(lang => (
-                <option key={lang} value={lang}>{lang}</option>
-              ))}
+          <div className="flex gap-3 w-full md:w-auto">
+            {hasLanguageOptions && (
+              <select className="h-10 px-3 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 bg-white" value={languageFilter} onChange={e => setLanguageFilter(e.target.value)}>
+                <option value="">All Languages</option>
+                {uniqueLanguages.map(lang => <option key={lang} value={lang}>{lang}</option>)}
+              </select>
+            )}
+            <select className="h-10 px-4 rounded-lg border border-slate-300 text-sm font-bold bg-slate-800 text-white focus:ring-2 focus:ring-slate-500" value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>
+              <option value="Midterm">Mid-Term</option>
+              <option value="Finalterm">Final-Term</option>
             </select>
-          )}
-
-          <select 
-            className="input-field" 
-            style={{ maxWidth: '200px', fontWeight: 'bold' }}
-            value={selectedTerm}
-            onChange={(e) => setSelectedTerm(e.target.value)}
-          >
-            <option value="Midterm">Mid-Term</option>
-            <option value="Finalterm">Final-Term</option>
-          </select>
+          </div>
         </div>
 
-        <div className="table-container">
-          <table className="data-table" style={{ minWidth: '800px' }}>
-            <thead>
-              <tr>
-                <th rowSpan="2" style={{ verticalAlign: 'middle', width: '80px' }}>Roll No</th>
-                <th rowSpan="2" style={{ verticalAlign: 'middle', minWidth: '250px' }}>Student Name</th>
-                {selectedTerm === 'Midterm' && <th colSpan="4" className="text-center" style={{ borderLeft: '2px solid var(--border-color)', backgroundColor: 'rgba(37, 99, 235, 0.05)' }}>Mid-Term</th>}
-                {selectedTerm === 'Finalterm' && <th colSpan="4" className="text-center" style={{ borderLeft: '2px solid var(--border-color)', backgroundColor: 'rgba(16, 185, 129, 0.05)' }}>Final-Term</th>}
-              </tr>
-              <tr>
-                {selectedTerm === 'Midterm' && (
-                  <>
-                    <th className="text-center" style={{ borderLeft: '2px solid var(--border-color)' }}>Exam (100)</th>
-                    <th className="text-center text-text-secondary">Conv ({examConv})</th>
-                    <th className="text-center">Test ({testMax})</th>
-                    <th className="text-center text-primary font-bold">Total (100)</th>
-                  </>
-                )}
-                {selectedTerm === 'Finalterm' && (
-                  <>
-                    <th className="text-center" style={{ borderLeft: '2px solid var(--border-color)' }}>Exam (100)</th>
-                    <th className="text-center text-text-secondary">Conv ({examConv})</th>
-                    <th className="text-center">Test ({testMax})</th>
-                    <th className="text-center text-success font-bold">Total (100)</th>
-                  </>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {visibleStudents.map(student => {
-                const getVal = (term) => {
-                  const fullTerm = `${academicYear}_${term}`;
-                  const val = localMarks[`${student.id}_${subjectId}_${fullTerm}`];
-                  return val !== undefined ? val : '';
-                };
-
-                const mtExam = getVal('Midterm_Exam');
-                const mtTest = getVal('Midterm_Test');
-                const mtConv = calculateConverted(mtExam);
-                const rawMtTotal = mtConv + (mtTest === '' ? 0 : Number(mtTest));
-                const mtTotal = rawMtTotal > 0 ? Math.round(rawMtTotal) : 0;
-
-                const ftExam = getVal('Finalterm_Exam');
-                const ftTest = getVal('Finalterm_Test');
-                const ftConv = calculateConverted(ftExam);
-                const rawFtTotal = ftConv + (ftTest === '' ? 0 : Number(ftTest));
-                const ftTotal = rawFtTotal > 0 ? Math.round(rawFtTotal) : 0;
-
-                return (
-                  <tr key={student.id}>
-                    <td>{student.roll_no}</td>
-                    <td style={{ fontWeight: 500 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <img 
-                          src={student.picture_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name)}&background=random`} 
-                          alt={student.name} 
-                          style={{ width: '64px', height: '64px', minWidth: '64px', minHeight: '64px', flexShrink: 0, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--surface-color)', outline: '2px solid var(--border-color)', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
-                        />
-                        <span style={{ fontSize: '1.1rem', fontWeight: '600' }}>{student.name}</span>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 border-b border-slate-200">
+              {table.getHeaderGroups().map(headerGroup => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map(header => (
+                    <th key={header.id} className={`p-4 font-semibold text-slate-600 text-sm whitespace-nowrap cursor-pointer select-none hover:bg-slate-100 transition-colors ${['exam', 'conv', 'test', 'total'].includes(header.id) ? 'text-center' : ''}`} onClick={header.column.getToggleSortingHandler()}>
+                      <div className={`flex items-center gap-2 ${['exam', 'conv', 'test', 'total'].includes(header.id) ? 'justify-center' : ''}`}>
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {{ asc: <ChevronUp size={14} />, desc: <ChevronDown size={14} /> }[header.column.getIsSorted()] ?? null}
                       </div>
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {table.getRowModel().rows.map(row => (
+                <tr key={row.id} className="hover:bg-slate-50 transition-colors">
+                  {row.getVisibleCells().map(cell => (
+                    <td key={cell.id} className={`p-4 align-middle ${['exam', 'conv', 'test', 'total'].includes(cell.column.id) ? 'text-center' : ''}`}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
-                    
-                    {/* Midterm */}
-                    {selectedTerm === 'Midterm' && (
-                      <>
-                        <td className="text-center" style={{ borderLeft: '2px solid var(--border-color)' }}>
-                          <input type="number" className="marks-input" value={mtExam} min="0" max="100"
-                            onChange={(e) => handleMarkChange(student.id, 'Midterm_Exam', e.target.value)}
-                            onBlur={() => handleBlur(student.id, 'Midterm_Exam')} />
-                        </td>
-                        <td className="text-center text-text-secondary">{mtConv > 0 ? mtConv.toFixed(2) : '0'}</td>
-                        <td className="text-center">
-                          <input type="number" className="marks-input" value={mtTest} min="0" max={testMax}
-                            onChange={(e) => handleMarkChange(student.id, 'Midterm_Test', e.target.value)}
-                            onBlur={() => handleBlur(student.id, 'Midterm_Test')} />
-                        </td>
-                        <td className="text-center text-primary font-bold">{mtTotal > 0 ? mtTotal : '0'}</td>
-                      </>
-                    )}
-
-                    {/* Finalterm */}
-                    {selectedTerm === 'Finalterm' && (
-                      <>
-                        <td className="text-center" style={{ borderLeft: '2px solid var(--border-color)' }}>
-                          <input type="number" className="marks-input" value={ftExam} min="0" max="100"
-                            onChange={(e) => handleMarkChange(student.id, 'Finalterm_Exam', e.target.value)}
-                            onBlur={() => handleBlur(student.id, 'Finalterm_Exam')} />
-                        </td>
-                        <td className="text-center text-text-secondary">{ftConv > 0 ? ftConv.toFixed(2) : '0'}</td>
-                        <td className="text-center">
-                          <input type="number" className="marks-input" value={ftTest} min="0" max={testMax}
-                            onChange={(e) => handleMarkChange(student.id, 'Finalterm_Test', e.target.value)}
-                            onBlur={() => handleBlur(student.id, 'Finalterm_Test')} />
-                        </td>
-                        <td className="text-center text-success font-bold">{ftTotal > 0 ? ftTotal : '0'}</td>
-                      </>
-                    )}
-                  </tr>
-                );
-              })}
-              {filteredStudents.length === 0 && (
+                  ))}
+                </tr>
+              ))}
+              {table.getRowModel().rows.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="text-center">No students found.</td>
+                  <td colSpan={columns.length} className="p-8 text-center text-slate-500">No matching students found.</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-      </div>
-    </div>
+      </Card>
+    </motion.div>
   );
 };
 
