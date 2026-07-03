@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 import { Search, Users, BookOpen, Bell, Send, Shield, User, Calendar, CheckCircle, XCircle, AlertTriangle, Printer, Clock, AlertCircle, FileText, ChevronDown, Settings, Upload } from 'lucide-react';
 import Editor, { 
   Toolbar, BtnUndo, BtnRedo, BtnBold, BtnItalic, BtnUnderline, BtnStrikeThrough,
@@ -14,6 +15,7 @@ import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 
 const PrincipalPortal = () => {
+  const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [uploadingSig, setUploadingSig] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -182,7 +184,7 @@ const PrincipalPortal = () => {
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
-          <Shield className="text-brand-600" size={32} /> Principal Dashboard
+          <Shield className="text-brand-600" size={32} /> {profile?.designation || 'Principal'} Dashboard
         </h1>
         <p className="text-slate-500 mt-1">School administration and oversight.</p>
       </div>
