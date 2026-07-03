@@ -23,7 +23,9 @@ const SubjectMarks = () => {
 
   const cls = classes.find(c => c.id === classId);
   const subject = subjects.find(s => s.id === subjectId);
-  const classStudents = students.filter(s => s.class_id === classId || s.classId === classId).sort((a, b) => a.roll_no - b.roll_no);
+  const classStudents = useMemo(() => 
+    students.filter(s => s.class_id === classId || s.classId === classId).sort((a, b) => a.roll_no - b.roll_no),
+  [students, classId]);
   
   const { examConv, testMax } = getConversionConstants(cls?.name);
 
@@ -221,6 +223,8 @@ const SubjectMarks = () => {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    autoResetSorting: false,
+    autoResetGlobalFilter: false,
   });
 
   return (
