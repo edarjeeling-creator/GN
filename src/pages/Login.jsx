@@ -99,7 +99,7 @@ const Login = () => {
               <img 
                 src={siteBranding.logoUrl} 
                 alt="Logo" 
-                className="h-32 w-auto object-contain drop-shadow-2xl" 
+                className="h-48 sm:h-56 w-auto object-contain drop-shadow-2xl" 
               />
             </Link>
             
