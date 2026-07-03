@@ -173,7 +173,8 @@ const SubjectMarks = () => {
       {
         id: 'exam',
         header: 'Exam (100)',
-        cell: ({ row }) => {
+        cell: ({ row, table }) => {
+          const { localMarks, handleMarkChange, handleBlur, subjectId, academicYear } = table.options.meta;
           const termKey = isMid ? 'Midterm_Exam' : 'Finalterm_Exam';
           const val = localMarks[`${row.original.id}_${subjectId}_${academicYear}_${termKey}`];
           return <Input type="number" className="w-20 text-center font-semibold" value={val !== undefined ? val : ''} min="0" max="100" onChange={e => handleMarkChange(row.original.id, termKey, e.target.value)} onBlur={() => handleBlur(row.original.id, termKey)} />;
@@ -182,7 +183,8 @@ const SubjectMarks = () => {
       {
         id: 'conv',
         header: `Conv (${examConv})`,
-        cell: ({ row }) => {
+        cell: ({ row, table }) => {
+          const { localMarks, subjectId, academicYear, calculateConverted } = table.options.meta;
           const termKey = isMid ? 'Midterm_Exam' : 'Finalterm_Exam';
           const val = localMarks[`${row.original.id}_${subjectId}_${academicYear}_${termKey}`];
           const conv = calculateConverted(val);
@@ -192,7 +194,8 @@ const SubjectMarks = () => {
       {
         id: 'test',
         header: `Test (${testMax})`,
-        cell: ({ row }) => {
+        cell: ({ row, table }) => {
+          const { localMarks, handleMarkChange, handleBlur, subjectId, academicYear } = table.options.meta;
           const termKey = isMid ? 'Midterm_Test' : 'Finalterm_Test';
           const val = localMarks[`${row.original.id}_${subjectId}_${academicYear}_${termKey}`];
           return <Input type="number" className="w-20 text-center font-semibold" value={val !== undefined ? val : ''} min="0" max={testMax} onChange={e => handleMarkChange(row.original.id, termKey, e.target.value)} onBlur={() => handleBlur(row.original.id, termKey)} />;
@@ -201,7 +204,8 @@ const SubjectMarks = () => {
       {
         id: 'total',
         header: 'Total (100)',
-        cell: ({ row }) => {
+        cell: ({ row, table }) => {
+          const { localMarks, subjectId, academicYear, calculateConverted } = table.options.meta;
           const examKey = isMid ? 'Midterm_Exam' : 'Finalterm_Exam';
           const testKey = isMid ? 'Midterm_Test' : 'Finalterm_Test';
           const examVal = localMarks[`${row.original.id}_${subjectId}_${academicYear}_${examKey}`];
@@ -212,7 +216,7 @@ const SubjectMarks = () => {
         }
       }
     ];
-  }, [selectedTerm, localMarks, subjectId, academicYear, examConv, testMax]);
+  }, [selectedTerm, examConv, testMax]);
 
   const table = useReactTable({
     data: visibleStudents,
@@ -225,6 +229,14 @@ const SubjectMarks = () => {
     getFilteredRowModel: getFilteredRowModel(),
     autoResetSorting: false,
     autoResetGlobalFilter: false,
+    meta: {
+      localMarks,
+      handleMarkChange,
+      handleBlur,
+      subjectId,
+      academicYear,
+      calculateConverted
+    }
   });
 
   return (
