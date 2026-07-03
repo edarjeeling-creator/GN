@@ -343,18 +343,26 @@ const Layout = ({ children }) => {
                }}
                style={{ opacity: 0, position: 'absolute', inset: 0, cursor: 'pointer', width: '36px', height: '36px' }}
              />
-             <div>
-               <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.9rem' }}>{profile?.name || 'Teacher'}</strong>
-               {profile?.role === 'admin' ? (
-                 <span style={{ fontSize: '0.7rem', color: '#8b5cf6', fontWeight: 600 }}>Administrator</span>
-               ) : profile?.role === 'student' ? (
-                 <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Student</span>
-               ) : profile?.role === 'principal' ? (
-                 <span style={{ fontSize: '0.7rem', color: '#059669', fontWeight: 600 }}>{profile?.designation || 'Principal'}</span>
-               ) : (
-                 <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Faculty Member</span>
-               )}
-             </div>
+              <div>
+                {profile?.role === 'principal' ? (
+                  <strong style={{ display: 'block', color: '#059669', fontSize: '0.95rem', fontWeight: 700 }}>
+                    {profile?.designation || 'Principal'}
+                  </strong>
+                ) : (
+                  <>
+                    <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                      {profile?.name || 'Teacher'}
+                    </strong>
+                    {profile?.role === 'admin' ? (
+                      <span style={{ fontSize: '0.7rem', color: '#8b5cf6', fontWeight: 600 }}>Administrator</span>
+                    ) : profile?.role === 'student' ? (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Student</span>
+                    ) : (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Faculty Member</span>
+                    )}
+                  </>
+                )}
+              </div>
            </div>
            
            <div style={{ marginTop: '1.5rem' }}>
