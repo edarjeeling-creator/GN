@@ -96,9 +96,11 @@ const Login = () => {
         >
           <Card className="border-white/10 bg-white/10 backdrop-blur-xl shadow-2xl p-8 sm:p-10 !rounded-[2rem]">
             <Link to="/" className="flex justify-center mb-8 hover:scale-105 transition-transform duration-300">
-              <div className="h-20 w-20 rounded-2xl bg-white p-2 shadow-lg flex items-center justify-center">
-                <img src={siteBranding.logoUrl} alt="Logo" className="w-full h-full object-contain" />
-              </div>
+              <img 
+                src={siteBranding.logoUrl} 
+                alt="Logo" 
+                className="h-32 w-auto object-contain drop-shadow-2xl" 
+              />
             </Link>
             
             <div className="text-center mb-8">
