@@ -199,9 +199,9 @@ const Admin = () => {
 
   const handleAddClass = async (e) => {
     e.preventDefault();
-    if (!newClass.name || !newClass.section) return;
+    if (!newClass.name) return;
     
-    const { error } = await supabase.from('classes').insert([{ name: newClass.name, section: newClass.section, academic_year: academicYear }]);
+    const { error } = await supabase.from('classes').insert([{ name: newClass.name, section: newClass.section || '', academic_year: academicYear }]);
     if (!error) {
       setNewClass({ name: '', section: '' });
       fetchStats();
