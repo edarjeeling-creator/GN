@@ -865,7 +865,6 @@ const Admin = () => {
                 style={{ width: '80px', background: '#f8fafc', border: '1px solid #e2e8f0' }}
                 value={newClass.section}
                 onChange={e => setNewClass({...newClass, section: e.target.value})}
-                required
               />
               <button type="submit" className="btn-hero-primary" style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.5rem 1.5rem' }}>Add</button>
             </form>
