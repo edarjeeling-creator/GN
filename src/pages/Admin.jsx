@@ -239,6 +239,25 @@ const Admin = () => {
     }
   };
 
+  const handleBulkDeleteStudents = async () => {
+    if (manageStudentsClassFilter === 'all') {
+      alert("Please select a specific class to delete its students.");
+      return;
+    }
+    const selectedClass = classes.find(c => c.id === manageStudentsClassFilter);
+    const className = selectedClass ? `${selectedClass.name} ${selectedClass.section}` : 'this class';
+    
+    if (!window.confirm(`DANGER: Are you absolutely sure you want to delete ALL students in ${className}? All their marks and attendance records will be permanently removed! This action cannot be undone.`)) return;
+
+    const { error } = await supabase.from('students').delete().match({ class_id: manageStudentsClassFilter });
+    if (!error) {
+      alert(`All students in ${className} have been deleted.`);
+      window.location.reload(); // Force full refresh to clear context state
+    } else {
+      alert("Error deleting students: " + error.message);
+    }
+  };
+
   const handleDeleteTeacher = async (id) => {
     if (!window.confirm("Are you sure you want to delete this teacher? This will also remove their assignments forever!")) return;
 
@@ -757,15 +776,26 @@ const Admin = () => {
           <div className="bento-card" style={{ padding: '2rem' }}>
             <div className="flex justify-between items-center mb-6" style={{ flexWrap: 'wrap', gap: '1rem' }}>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Manage Students</h3>
-              <select 
-                className="input-field" 
-                style={{ maxWidth: '250px', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}
-                value={manageStudentsClassFilter}
-                onChange={(e) => setManageStudentsClassFilter(e.target.value)}
-              >
-                <option value="all">All Classes</option>
-                {classes.map(c => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
-              </select>
+              <div className="flex gap-2 items-center">
+                <select 
+                  className="input-field" 
+                  style={{ maxWidth: '250px', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}
+                  value={manageStudentsClassFilter}
+                  onChange={(e) => setManageStudentsClassFilter(e.target.value)}
+                >
+                  <option value="all">All Classes</option>
+                  {classes.map(c => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
+                </select>
+                {manageStudentsClassFilter !== 'all' && (
+                  <button 
+                    onClick={handleBulkDeleteStudents}
+                    className="btn-danger" 
+                    style={{ padding: '0.5rem 1rem', borderRadius: 'var(--radius-sm)', background: '#ef4444', color: 'white', border: 'none', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Delete Entire Class
+                  </button>
+                )}
+              </div>
             </div>
             <div style={{ maxHeight: '400px', overflowY: 'auto', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
               <table className="data-table" style={{ width: '100%' }}>
