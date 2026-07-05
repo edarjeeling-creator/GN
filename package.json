@@ -29,6 +29,7 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-is": "^19.2.6",
+    "react-qr-code": "^2.2.0",
     "react-router-dom": "^7.15.1",
     "react-simple-wysiwyg": "^3.4.1",
     "recharts": "^3.8.1",

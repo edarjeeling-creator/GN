@@ -14,6 +14,7 @@ import BatchPhotoImport from './Admin/BatchPhotoImport';
 import RoutineGenerator from './Admin/RoutineGenerator';
 import SubstitutionDashboard from './Admin/SubstitutionDashboard';
 import FeatureSettings from './Admin/FeatureSettings';
+import IDCardGenerator from './Admin/IDCardGenerator';
 
 const Admin = () => {
   const { logout } = useAuth();
@@ -610,10 +611,20 @@ const Admin = () => {
         >
           Portal Settings
         </button>
+        <button 
+          onClick={() => setActiveTab('id_cards')} 
+          style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'id_cards' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'id_cards' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: activeTab === 'id_cards' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '1rem' }}
+        >
+          ID Cards
+        </button>
       </div>
 
       {activeTab === 'portal_settings' && (
         <FeatureSettings teachers={teachers} />
+      )}
+
+      {activeTab === 'id_cards' && (
+        <IDCardGenerator classes={classes} students={students} fetchStats={fetchStats} />
       )}
 
       {activeTab === 'dashboard' && (
