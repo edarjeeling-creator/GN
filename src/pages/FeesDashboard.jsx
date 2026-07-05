@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Settings, BarChart, Users, FileText, CheckCircle, Zap } from 'lucide-react';
 import FeeConfigurator from './Fees/FeeConfigurator';
 import FeeGenerationEngine from './Fees/FeeGenerationEngine';
+import FeeLedgers from './Fees/FeeLedgers';
+import FeeReconciliation from './Fees/FeeReconciliation';
 
 const FeesDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -70,19 +72,9 @@ const FeesDashboard = () => {
 
         {activeTab === 'engine' && <FeeGenerationEngine />}
 
-        {activeTab === 'ledgers' && (
-          <div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem' }}>Student Ledgers</h2>
-            <p style={{ color: '#64748b' }}>Search and view individual student financial history.</p>
-          </div>
-        )}
+        {activeTab === 'ledgers' && <FeeLedgers />}
 
-        {activeTab === 'reconciliation' && (
-          <div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem' }}>Bank & Reconciliation</h2>
-            <p style={{ color: '#64748b' }}>Approve offline payments and import bank statements.</p>
-          </div>
-        )}
+        {activeTab === 'reconciliation' && <FeeReconciliation />}
 
         {activeTab === 'reports' && (
           <div>
