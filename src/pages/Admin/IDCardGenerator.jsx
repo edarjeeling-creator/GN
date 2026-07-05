@@ -84,6 +84,7 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
     const file = e.target.files[0];
     if (file) {
       setCustomLogoUrl(URL.createObjectURL(file));
+      alert("Custom logo loaded successfully! Click 'Generate PDF' to see it on the ID cards.");
     }
   };
 
@@ -157,8 +158,8 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
         
         <div className="flex items-center gap-4">
           <label className="btn-hero-secondary flex items-center gap-2 cursor-pointer" style={{ background: '#f8fafc', color: '#334155', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontWeight: 500 }}>
-            <ImageIcon size={18} />
-            Replace Logo
+            {customLogoUrl ? <img src={customLogoUrl} style={{ width: 18, height: 18, objectFit: 'contain' }} alt="Logo" /> : <ImageIcon size={18} />}
+            {customLogoUrl ? 'Logo Selected' : 'Replace Logo'}
             <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleCustomLogoUpload} />
           </label>
           <button 
