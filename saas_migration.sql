@@ -41,7 +41,14 @@ SET school_name = EXCLUDED.school_name, subscription_plan = EXCLUDED.subscriptio
 -- This ensures existing data is preserved and associated with the default tenant automatically.
 
 -- Table: site_settings
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES public.schools(id) DEFAULT 'd3b07384-d113-4956-a5ec-9af2c61146e5';
+CREATE TABLE IF NOT EXISTS public.site_settings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  key TEXT NOT NULL,
+  value TEXT,
+  school_id UUID REFERENCES public.schools(id) DEFAULT 'd3b07384-d113-4956-a5ec-9af2c61146e5',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(key, school_id)
+);
 
 -- Table: profiles
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES public.schools(id) DEFAULT 'd3b07384-d113-4956-a5ec-9af2c61146e5';
@@ -74,13 +81,38 @@ ALTER TABLE public.faculty ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES pu
 ALTER TABLE public.gallery ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES public.schools(id) DEFAULT 'd3b07384-d113-4956-a5ec-9af2c61146e5';
 
 -- Table: python_lessons
-ALTER TABLE public.python_lessons ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES public.schools(id) DEFAULT 'd3b07384-d113-4956-a5ec-9af2c61146e5';
+CREATE TABLE IF NOT EXISTS public.python_lessons (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
+  content TEXT,
+  order_index INTEGER DEFAULT 0,
+  school_id UUID REFERENCES public.schools(id) DEFAULT 'd3b07384-d113-4956-a5ec-9af2c61146e5',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
 -- Table: python_assignments
-ALTER TABLE public.python_assignments ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES public.schools(id) DEFAULT 'd3b07384-d113-4956-a5ec-9af2c61146e5';
+CREATE TABLE IF NOT EXISTS public.python_assignments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  lesson_id UUID REFERENCES public.python_lessons(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  due_date TIMESTAMPTZ,
+  school_id UUID REFERENCES public.schools(id) DEFAULT 'd3b07384-d113-4956-a5ec-9af2c61146e5',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
 -- Table: python_submissions
-ALTER TABLE public.python_submissions ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES public.schools(id) DEFAULT 'd3b07384-d113-4956-a5ec-9af2c61146e5';
+CREATE TABLE IF NOT EXISTS public.python_submissions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  assignment_id UUID REFERENCES public.python_assignments(id) ON DELETE CASCADE,
+  student_id UUID REFERENCES public.students(id) ON DELETE CASCADE,
+  code TEXT,
+  score NUMERIC,
+  feedback TEXT,
+  school_id UUID REFERENCES public.schools(id) DEFAULT 'd3b07384-d113-4956-a5ec-9af2c61146e5',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(assignment_id, student_id)
+);
 
 
 -- 4. Update the handle_new_user trigger function to set the school_id
@@ -190,25 +222,33 @@ CREATE POLICY "Profiles multi-tenant update" ON public.profiles FOR UPDATE TO au
 
 -- Site Settings (Public reads public stuff or reads via active school domain)
 ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Site Settings public select" ON public.site_settings;
 CREATE POLICY "Site Settings public select" ON public.site_settings FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Site Settings multi-tenant manage" ON public.site_settings;
 CREATE POLICY "Site Settings multi-tenant manage" ON public.site_settings FOR ALL TO authenticated
   USING (school_id = COALESCE((auth.jwt() -> 'user_metadata' ->> 'school_id')::uuid, 'd3b07384-d113-4956-a5ec-9af2c61146e5'))
   WITH CHECK (school_id = COALESCE((auth.jwt() -> 'user_metadata' ->> 'school_id')::uuid, 'd3b07384-d113-4956-a5ec-9af2c61146e5'));
 
 -- News
+DROP POLICY IF EXISTS "News public select" ON public.news;
 CREATE POLICY "News public select" ON public.news FOR SELECT USING (true);
+DROP POLICY IF EXISTS "News multi-tenant manage" ON public.news;
 CREATE POLICY "News multi-tenant manage" ON public.news FOR ALL TO authenticated
   USING (school_id = COALESCE((auth.jwt() -> 'user_metadata' ->> 'school_id')::uuid, 'd3b07384-d113-4956-a5ec-9af2c61146e5'))
   WITH CHECK (school_id = COALESCE((auth.jwt() -> 'user_metadata' ->> 'school_id')::uuid, 'd3b07384-d113-4956-a5ec-9af2c61146e5'));
 
 -- Faculty
+DROP POLICY IF EXISTS "Faculty public select" ON public.faculty;
 CREATE POLICY "Faculty public select" ON public.faculty FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Faculty multi-tenant manage" ON public.faculty;
 CREATE POLICY "Faculty multi-tenant manage" ON public.faculty FOR ALL TO authenticated
   USING (school_id = COALESCE((auth.jwt() -> 'user_metadata' ->> 'school_id')::uuid, 'd3b07384-d113-4956-a5ec-9af2c61146e5'))
   WITH CHECK (school_id = COALESCE((auth.jwt() -> 'user_metadata' ->> 'school_id')::uuid, 'd3b07384-d113-4956-a5ec-9af2c61146e5'));
 
 -- Gallery
+DROP POLICY IF EXISTS "Gallery public select" ON public.gallery;
 CREATE POLICY "Gallery public select" ON public.gallery FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Gallery multi-tenant manage" ON public.gallery;
 CREATE POLICY "Gallery multi-tenant manage" ON public.gallery FOR ALL TO authenticated
   USING (school_id = COALESCE((auth.jwt() -> 'user_metadata' ->> 'school_id')::uuid, 'd3b07384-d113-4956-a5ec-9af2c61146e5'))
   WITH CHECK (school_id = COALESCE((auth.jwt() -> 'user_metadata' ->> 'school_id')::uuid, 'd3b07384-d113-4956-a5ec-9af2c61146e5'));
@@ -216,7 +256,9 @@ CREATE POLICY "Gallery multi-tenant manage" ON public.gallery FOR ALL TO authent
 -- Python Lessons
 DROP POLICY IF EXISTS "Allow anyone to read python lessons" ON public.python_lessons;
 DROP POLICY IF EXISTS "Allow teachers to manage python lessons" ON public.python_lessons;
+DROP POLICY IF EXISTS "Python lessons public select" ON public.python_lessons;
 CREATE POLICY "Python lessons public select" ON public.python_lessons FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Python lessons multi-tenant manage" ON public.python_lessons;
 CREATE POLICY "Python lessons multi-tenant manage" ON public.python_lessons FOR ALL TO authenticated
   USING (school_id = COALESCE((auth.jwt() -> 'user_metadata' ->> 'school_id')::uuid, 'd3b07384-d113-4956-a5ec-9af2c61146e5'))
   WITH CHECK (school_id = COALESCE((auth.jwt() -> 'user_metadata' ->> 'school_id')::uuid, 'd3b07384-d113-4956-a5ec-9af2c61146e5'));
@@ -224,7 +266,9 @@ CREATE POLICY "Python lessons multi-tenant manage" ON public.python_lessons FOR 
 -- Python Assignments
 DROP POLICY IF EXISTS "Allow anyone to read python assignments" ON public.python_assignments;
 DROP POLICY IF EXISTS "Allow teachers to manage python assignments" ON public.python_assignments;
+DROP POLICY IF EXISTS "Python assignments public select" ON public.python_assignments;
 CREATE POLICY "Python assignments public select" ON public.python_assignments FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Python assignments multi-tenant manage" ON public.python_assignments;
 CREATE POLICY "Python assignments multi-tenant manage" ON public.python_assignments FOR ALL TO authenticated
   USING (school_id = COALESCE((auth.jwt() -> 'user_metadata' ->> 'school_id')::uuid, 'd3b07384-d113-4956-a5ec-9af2c61146e5'))
   WITH CHECK (school_id = COALESCE((auth.jwt() -> 'user_metadata' ->> 'school_id')::uuid, 'd3b07384-d113-4956-a5ec-9af2c61146e5'));
@@ -233,6 +277,9 @@ CREATE POLICY "Python assignments multi-tenant manage" ON public.python_assignme
 DROP POLICY IF EXISTS "Allow authenticated read python submissions" ON public.python_submissions;
 DROP POLICY IF EXISTS "Allow students to insert python submissions" ON public.python_submissions;
 DROP POLICY IF EXISTS "Allow teachers to update python submissions" ON public.python_submissions;
+DROP POLICY IF EXISTS "Python submissions multi-tenant select" ON public.python_submissions;
 CREATE POLICY "Python submissions multi-tenant select" ON public.python_submissions FOR SELECT USING (school_id = COALESCE((auth.jwt() -> 'user_metadata' ->> 'school_id')::uuid, 'd3b07384-d113-4956-a5ec-9af2c61146e5'));
+DROP POLICY IF EXISTS "Python submissions multi-tenant insert" ON public.python_submissions;
 CREATE POLICY "Python submissions multi-tenant insert" ON public.python_submissions FOR INSERT WITH CHECK (school_id = COALESCE((auth.jwt() -> 'user_metadata' ->> 'school_id')::uuid, 'd3b07384-d113-4956-a5ec-9af2c61146e5'));
+DROP POLICY IF EXISTS "Python submissions multi-tenant update" ON public.python_submissions;
 CREATE POLICY "Python submissions multi-tenant update" ON public.python_submissions FOR UPDATE USING (school_id = COALESCE((auth.jwt() -> 'user_metadata' ->> 'school_id')::uuid, 'd3b07384-d113-4956-a5ec-9af2c61146e5'));

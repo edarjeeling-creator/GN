@@ -9,6 +9,13 @@ export const AdminRoute = ({ children }) => {
   return children;
 };
 
+export const AccountantRoute = ({ children }) => {
+  const { profile, loading } = useAuth();
+  if (loading) return <div>Loading...</div>;
+  if (!profile || (profile.role !== 'accountant' && profile.role !== 'admin')) return <Navigate to="/dashboard" />;
+  return children;
+};
+
 export const TeacherRoute = ({ children }) => {
   const { profile, loading } = useAuth();
   if (loading) return <div>Loading...</div>;

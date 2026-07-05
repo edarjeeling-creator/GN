@@ -1,0 +1,32 @@
+It seems your Supabase database does not have the `notices` table created yet! 
+
+Please run the following combined SQL command in your Supabase Studio SQL Editor to create the `notices` table first, and then create the webhook trigger:
+
+```sql
+-- 1. Create the notices table
+CREATE TABLE IF NOT EXISTS public.notices (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    target_audience TEXT NOT NULL,
+    publish_date TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 2. Drop existing trigger if it exists
+DROP TRIGGER IF EXISTS send_push_notification ON public.notices;
+
+-- 3. Create the webhook trigger to send push notifications
+CREATE TRIGGER send_push_notification
+  AFTER INSERT ON public.notices
+  FOR EACH ROW
+  EXECUTE FUNCTION supabase_functions.http_request(
+    'https://bvthdtrdneopazubwkad.supabase.co/functions/v1/send-notification',
+    'POST',
+    '{"Content-type":"application/json"}',
+    '{}',
+    '5000'
+  );
+```
+
+After running this, the table will be created and the trigger will be attached properly!

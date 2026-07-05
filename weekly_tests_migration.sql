@@ -47,48 +47,59 @@ ALTER TABLE public.weekly_test_marks ENABLE ROW LEVEL SECURITY;
 -- 5. RLS Policies
 
 -- Settings: Anyone authenticated can read, only admin can update
+DROP POLICY IF EXISTS "Allow authenticated read app_settings" ON public.app_settings;
 CREATE POLICY "Allow authenticated read app_settings" ON public.app_settings FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Allow admin update app_settings" ON public.app_settings;
 CREATE POLICY "Allow admin update app_settings" ON public.app_settings FOR UPDATE TO authenticated USING (
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'superadmin'))
 );
+DROP POLICY IF EXISTS "Allow admin insert app_settings" ON public.app_settings;
 CREATE POLICY "Allow admin insert app_settings" ON public.app_settings FOR INSERT TO authenticated WITH CHECK (
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'superadmin'))
 );
 
 -- Weekly Tests:
 -- Teachers can select their own tests, Admins/Principals can select all tests.
+DROP POLICY IF EXISTS "Allow authenticated read weekly_tests" ON public.weekly_tests;
 CREATE POLICY "Allow authenticated read weekly_tests" ON public.weekly_tests FOR SELECT TO authenticated USING (true);
 
 -- Teachers can insert their own tests
+DROP POLICY IF EXISTS "Allow teacher insert weekly_tests" ON public.weekly_tests;
 CREATE POLICY "Allow teacher insert weekly_tests" ON public.weekly_tests FOR INSERT TO authenticated WITH CHECK (
     teacher_id = auth.uid()
 );
 
 -- Teachers can update their own tests if Draft. Admins/Principals can update status.
+DROP POLICY IF EXISTS "Allow teacher update draft weekly_tests" ON public.weekly_tests;
 CREATE POLICY "Allow teacher update draft weekly_tests" ON public.weekly_tests FOR UPDATE TO authenticated USING (
     (teacher_id = auth.uid() AND status = 'Draft') OR 
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'superadmin', 'principal'))
 );
 
 -- Teachers can delete their own tests if Draft
+DROP POLICY IF EXISTS "Allow teacher delete draft weekly_tests" ON public.weekly_tests;
 CREATE POLICY "Allow teacher delete draft weekly_tests" ON public.weekly_tests FOR DELETE TO authenticated USING (
     teacher_id = auth.uid() AND status = 'Draft'
 );
 
 -- Weekly Test Marks:
+DROP POLICY IF EXISTS "Allow authenticated read weekly_test_marks" ON public.weekly_test_marks;
 CREATE POLICY "Allow authenticated read weekly_test_marks" ON public.weekly_test_marks FOR SELECT TO authenticated USING (true);
 
 -- Teachers can insert marks for their tests if Draft
+DROP POLICY IF EXISTS "Allow teacher insert weekly_test_marks" ON public.weekly_test_marks;
 CREATE POLICY "Allow teacher insert weekly_test_marks" ON public.weekly_test_marks FOR INSERT TO authenticated WITH CHECK (
     EXISTS (SELECT 1 FROM public.weekly_tests WHERE id = test_id AND teacher_id = auth.uid() AND status = 'Draft')
 );
 
 -- Teachers can update marks for their tests if Draft
+DROP POLICY IF EXISTS "Allow teacher update weekly_test_marks" ON public.weekly_test_marks;
 CREATE POLICY "Allow teacher update weekly_test_marks" ON public.weekly_test_marks FOR UPDATE TO authenticated USING (
     EXISTS (SELECT 1 FROM public.weekly_tests WHERE id = test_id AND teacher_id = auth.uid() AND status = 'Draft')
 );
 
 -- Teachers can delete marks
+DROP POLICY IF EXISTS "Allow teacher delete weekly_test_marks" ON public.weekly_test_marks;
 CREATE POLICY "Allow teacher delete weekly_test_marks" ON public.weekly_test_marks FOR DELETE TO authenticated USING (
     EXISTS (SELECT 1 FROM public.weekly_tests WHERE id = test_id AND teacher_id = auth.uid() AND status = 'Draft')
 );

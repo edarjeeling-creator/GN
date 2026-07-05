@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText, AlertTriangle, Lock, Menu, X, Bell } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText, AlertTriangle, Lock, Menu, X, Bell, Wallet } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeProvider';
@@ -449,6 +449,12 @@ const Layout = ({ children }) => {
           {profile?.role === 'admin' && (
              <NavLink to="/admin" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
                <Shield size={18} /> Admin Panel
+             </NavLink>
+          )}
+
+          {(profile?.role === 'admin' || profile?.role === 'accountant') && (
+             <NavLink to="/fees" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+               <Wallet size={18} /> Fee Management
              </NavLink>
           )}
 
