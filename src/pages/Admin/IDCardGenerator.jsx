@@ -390,7 +390,7 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
               </div>
               
               {/* 6. Bottom Session Strip */}
-              <div style={{ position: 'absolute', top: '83mm', left: '0', width: '54mm', height: '2.5mm', background: '#1e3a8a', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <div style={{ position: 'absolute', top: '82mm', left: '0', width: '54mm', height: '3.4mm', background: '#1e3a8a', display: 'flex', justifyContent: 'center', alignItems: 'center', paddingBottom: '0.5mm', boxSizing: 'border-box' }}>
                  <span style={{ fontSize: '3pt', color: 'white', fontWeight: 500, letterSpacing: '0.5px' }}>Session: {sessionText}</span>
               </div>
             </div>
