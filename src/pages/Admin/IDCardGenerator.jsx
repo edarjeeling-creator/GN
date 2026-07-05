@@ -125,7 +125,8 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
       filename:     `ID_Cards_${selectedClass === 'all' ? 'All' : 'Class'}.pdf`,
       image:        { type: 'jpeg', quality: 1.0 },
       html2canvas:  { scale: 3, useCORS: true, logging: false },
-      jsPDF:        { unit: 'mm', format: [54, 85.6], orientation: 'portrait' }
+      jsPDF:        { unit: 'mm', format: [54, 85.6], orientation: 'portrait' },
+      pagebreak:    { mode: 'css', before: '.page-break' }
     };
 
     try {
@@ -292,11 +293,11 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
       {/* Hidden Print Container for PDF Generation - Strict Absolute Positioning to guarantee NO blank pages and NO overlaps */}
       <div id="id-card-print-container" style={{ display: 'none', background: 'white' }}>
         {selectedStudents.map((student, index) => (
-          <div key={student.id} className={index !== selectedStudents.length - 1 ? 'html2pdf__page-break' : ''} style={{ 
+          <div key={student.id} className={index > 0 ? 'page-break' : ''} style={{ 
             position: 'relative',
             width: '54mm', 
-            height: '85.6mm',
-            backgroundColor: '#ffffff',
+            height: '85.5mm',
+            maxHeight: '85.5mm',
             overflow: 'hidden'
           }}>
             {/* 1. Top Blue Gradient Background */}
