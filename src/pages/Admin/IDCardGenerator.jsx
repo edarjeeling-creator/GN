@@ -330,7 +330,7 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
                   {student.name}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7mm', fontSize: '4.5pt', lineHeight: '1.1' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9mm', fontSize: '4.5pt', lineHeight: '1.1' }}>
                   <div style={{ display: 'flex', width: '100%' }}>
                     <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Class & Sec :</div>
                     <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{getClassName(student.class_id)}</div>
@@ -369,7 +369,7 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
               </div>
 
               {/* 5. Footer Area (QR Code & Signature) */}
-              <div style={{ position: 'absolute', top: '72mm', left: '0', width: '54mm', height: '11mm', borderTop: '0.5px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '1mm 3mm', boxSizing: 'border-box' }}>
+              <div style={{ position: 'absolute', top: '70.5mm', left: '0', width: '54mm', height: '11.5mm', borderTop: '0.5px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '1mm 3mm', boxSizing: 'border-box' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div style={{ padding: '0.3mm', background: 'white', borderRadius: '0.5mm', border: '0.5px solid #cbd5e1', display: 'flex' }}>
                     <QRCode value={student.uid || student.id} size={24} level="M" />
