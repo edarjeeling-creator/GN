@@ -3,6 +3,7 @@ import { Settings, BarChart, Users, FileText, CheckCircle, Zap } from 'lucide-re
 import FeeConfigurator from './Fees/FeeConfigurator';
 import FeeGenerationEngine from './Fees/FeeGenerationEngine';
 import FeeLedgers from './Fees/FeeLedgers';
+import FeeOverview from './Fees/FeeOverview';
 import FeeReconciliation from './Fees/FeeReconciliation';
 
 const FeesDashboard = () => {
@@ -63,12 +64,7 @@ const FeesDashboard = () => {
       </div>
 
       <div style={{ background: '#ffffff', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)', padding: '2rem', minHeight: '600px' }}>
-        {activeTab === 'overview' && (
-          <div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem' }}>Dashboard Overview</h2>
-            <p style={{ color: '#64748b' }}>Fee statistics and charts will appear here.</p>
-          </div>
-        )}
+        {activeTab === 'overview' && <FeeOverview />}
 
         {activeTab === 'engine' && <FeeGenerationEngine />}
 
