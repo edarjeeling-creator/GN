@@ -293,112 +293,107 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
       {/* Hidden Print Container for PDF Generation - Strict Absolute Positioning to guarantee NO blank pages and NO overlaps */}
       <div id="id-card-print-container" style={{ display: 'none', background: 'white' }}>
         {selectedStudents.map((student, index) => (
-          <div key={student.id} className={index > 0 ? 'page-break' : ''} style={{ 
-            position: 'relative',
-            width: '54mm', 
-            height: '85.5mm',
-            maxHeight: '85.5mm',
-            overflow: 'hidden'
-          }}>
-            {/* 1. Top Blue Gradient Background */}
-            <div style={{ position: 'absolute', top: 0, left: 0, width: '54mm', height: '26mm', background: 'linear-gradient(135deg, #1e3a8a, #3b82f6)' }}></div>
-            
-            {/* 2. Header Content Area */}
-            <div style={{ position: 'absolute', top: '1.5mm', left: 0, width: '54mm', textAlign: 'center' }}>
-              <img src={customLogoUrl || "/logo.png"} alt="Logo" style={{ width: '12mm', height: '12mm', objectFit: 'contain', margin: '0 auto' }} onError={(e) => { e.target.style.display = 'none'; }} />
-              <div style={{ fontSize: '6.5pt', fontWeight: 800, color: '#ffffff', marginTop: '0.5mm', letterSpacing: '0.2px' }}>GYANODAY NIKETAN</div>
-              <div style={{ fontSize: '3pt', color: 'white', marginTop: '0.2mm', lineHeight: '1.2' }}>
-                Shyam Cottage, P.O. Rose Bank, Darjeeling-734101<br/>
-                Ph: (0354) 2258311 | gyanodayniketan.edu.in
-              </div>
-              <div style={{ fontSize: '4.5pt', color: '#ffffff', fontWeight: 700, marginTop: '1mm', letterSpacing: '0.5px' }}>STUDENT IDENTITY CARD</div>
-            </div>
-
-            {/* 3. Student Photo - Using background image to fix html2canvas object-fit bugs */}
-            <div style={{ position: 'absolute', top: '27.5mm', left: '19mm', width: '16mm', height: '19mm', padding: '0.5mm', background: 'white', borderRadius: '1mm', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-              <div style={{ 
-                width: '100%', 
-                height: '100%', 
-                borderRadius: '0.5mm',
-                backgroundColor: '#f1f5f9',
-                backgroundImage: `url(${student.picture_url ? `${student.picture_url}?t=${Date.now()}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name)}&background=random`})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat'
-              }} />
-            </div>
-
-            {/* 4. Student Details Section */}
-            <div style={{ position: 'absolute', top: '48mm', left: '2mm', width: '50mm' }}>
-              <div style={{ fontSize: '7.5pt', fontWeight: 800, color: '#0f172a', textAlign: 'center', marginBottom: '1.5mm' }}>
-                {student.name}
+          <React.Fragment key={student.id}>
+            {index > 0 && <div className="html2pdf__page-break"></div>}
+            <div style={{ 
+              position: 'relative',
+              width: '54mm', 
+              height: '85.4mm',
+              backgroundColor: '#ffffff',
+              overflow: 'hidden'
+            }}>
+              {/* 1. Top Blue Gradient Background */}
+              <div style={{ position: 'absolute', top: 0, left: 0, width: '54mm', height: '19.5mm', background: 'linear-gradient(135deg, #1e3a8a, #3b82f6)' }}></div>
+              
+              {/* 2. Header Content Area */}
+              <div style={{ position: 'absolute', top: '1mm', left: 0, width: '54mm', textAlign: 'center' }}>
+                <img src={customLogoUrl || "/logo.png"} alt="Logo" style={{ width: '10mm', height: '10mm', objectFit: 'contain', margin: '0 auto' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                <div style={{ fontSize: '6pt', fontWeight: 800, color: '#ffffff', marginTop: '0.2mm', letterSpacing: '0.2px' }}>GYANODAY NIKETAN</div>
+                <div style={{ fontSize: '4pt', color: '#ffffff', fontWeight: 700, marginTop: '1mm', letterSpacing: '0.5px' }}>STUDENT IDENTITY CARD</div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7mm', fontSize: '4pt', lineHeight: '1.1' }}>
-                <div style={{ display: 'flex', width: '100%' }}>
-                  <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Class & Sec :</div>
-                  <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{getClassName(student.class_id)}</div>
-                </div>
-                
-                <div style={{ display: 'flex', width: '100%' }}>
-                  <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Admission No :</div>
-                  <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{student.uid || 'N/A'}</div>
-                </div>
-                
-                <div style={{ display: 'flex', width: '100%' }}>
-                  <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>D.O.B :</div>
-                  <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{student.dob || 'N/A'}</div>
-                </div>
-
-                <div style={{ display: 'flex', width: '100%' }}>
-                  <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Blood Group :</div>
-                  <div style={{ flex: 1, color: '#ef4444', fontWeight: 700 }}>{student.blood_group || 'N/A'}</div>
-                </div>
-                
-                <div style={{ display: 'flex', width: '100%' }}>
-                  <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Guardian :</div>
-                  {/* Using standard whiteSpace normal to allow multi-line without clipping horizontally */}
-                  <div style={{ flex: 1, color: '#0f172a', fontWeight: 700, whiteSpace: 'normal', wordBreak: 'break-word' }}>{student.father_name || 'N/A'}</div>
-                </div>
-
-                <div style={{ display: 'flex', width: '100%' }}>
-                  <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Contact :</div>
-                  <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{student.contact_number || 'N/A'}</div>
-                </div>
-                
-                <div style={{ display: 'flex', width: '100%' }}>
-                  <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Address :</div>
-                  <div style={{ flex: 1, color: '#0f172a', fontWeight: 700, whiteSpace: 'normal', wordBreak: 'break-word' }}>{student.address || 'N/A'}</div>
+              {/* 3. Student Photo */}
+              <div style={{ position: 'absolute', top: '20mm', left: '19mm', width: '16mm', height: '19mm', padding: '0.5mm', background: 'white', borderRadius: '1mm', boxShadow: '0 2px 4px rgba(0,0,0,0.15)' }}>
+                <div style={{ width: '100%', height: '100%', borderRadius: '0.5mm', backgroundColor: '#f1f5f9', overflow: 'hidden' }}>
+                  <img 
+                    src={student.picture_url ? `${student.picture_url}?t=${Date.now()}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name)}&background=random`} 
+                    alt="Photo" 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
                 </div>
               </div>
-            </div>
 
-            {/* 5. Footer Area (QR Code & Signature) */}
-            <div style={{ position: 'absolute', top: '71.5mm', left: '0', width: '54mm', height: '11mm', borderTop: '0.5px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '1mm 3mm', boxSizing: 'border-box' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ padding: '0.3mm', background: 'white', borderRadius: '0.5mm', border: '0.5px solid #cbd5e1', display: 'flex' }}>
-                  <QRCode value={student.id} size={24} level="M" />
+              {/* 4. Student Details Section */}
+              <div style={{ position: 'absolute', top: '40.5mm', left: '2mm', width: '50mm' }}>
+                <div style={{ fontSize: '7.5pt', fontWeight: 800, color: '#0f172a', textAlign: 'center', marginBottom: '1.5mm' }}>
+                  {student.name}
                 </div>
-                <span style={{ fontSize: '3pt', color: '#64748b', marginTop: '0.5mm' }}>Scan ID</span>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7mm', fontSize: '4.5pt', lineHeight: '1.1' }}>
+                  <div style={{ display: 'flex', width: '100%' }}>
+                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Class & Sec :</div>
+                    <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{getClassName(student.class_id)}</div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', width: '100%' }}>
+                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Admission No :</div>
+                    <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{student.uid || 'N/A'}</div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', width: '100%' }}>
+                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>D.O.B :</div>
+                    <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{student.dob || 'N/A'}</div>
+                  </div>
+
+                  <div style={{ display: 'flex', width: '100%' }}>
+                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Blood Group :</div>
+                    <div style={{ flex: 1, color: '#ef4444', fontWeight: 700 }}>{student.blood_group || 'N/A'}</div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', width: '100%' }}>
+                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Guardian :</div>
+                    <div style={{ flex: 1, color: '#0f172a', fontWeight: 700, whiteSpace: 'normal', wordBreak: 'break-word' }}>{student.father_name || 'N/A'}</div>
+                  </div>
+
+                  <div style={{ display: 'flex', width: '100%' }}>
+                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Contact :</div>
+                    <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{student.contact_number || 'N/A'}</div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', width: '100%' }}>
+                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Address :</div>
+                    <div style={{ flex: 1, color: '#0f172a', fontWeight: 700, whiteSpace: 'normal', wordBreak: 'break-word' }}>{student.address || 'N/A'}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 5. Footer Area (QR Code & Signature) */}
+              <div style={{ position: 'absolute', top: '72mm', left: '0', width: '54mm', height: '11mm', borderTop: '0.5px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '1mm 3mm', boxSizing: 'border-box' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ padding: '0.3mm', background: 'white', borderRadius: '0.5mm', border: '0.5px solid #cbd5e1', display: 'flex' }}>
+                    <QRCode value={student.uid || student.id} size={24} level="M" />
+                  </div>
+                  <span style={{ fontSize: '3pt', color: '#64748b', marginTop: '0.5mm' }}>Scan ID</span>
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ width: '20mm', borderBottom: signatureUrl ? 'none' : '0.5px dotted #64748b', marginBottom: '1mm', height: '6mm', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                    {signatureUrl ? (
+                       <img src={signatureUrl} alt="Principal Signature" style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
+                    ) : (
+                       <span style={{ fontFamily: 'cursive', fontSize: '3.5pt', color: '#0f172a' }}>Principal</span>
+                    )}
+                  </div>
+                  <span style={{ fontSize: '3.5pt', color: '#64748b', fontWeight: 600 }}>Principal</span>
+                </div>
               </div>
               
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ width: '20mm', borderBottom: signatureUrl ? 'none' : '0.5px dotted #64748b', marginBottom: '1mm', height: '6mm', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-                  {signatureUrl ? (
-                     <img src={signatureUrl} alt="Principal Signature" style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
-                  ) : (
-                     <span style={{ fontFamily: 'cursive', fontSize: '3.5pt', color: '#0f172a' }}>Principal</span>
-                  )}
-                </div>
-                <span style={{ fontSize: '3.5pt', color: '#64748b', fontWeight: 600 }}>Principal</span>
+              {/* 6. Bottom Session Strip */}
+              <div style={{ position: 'absolute', top: '83mm', left: '0', width: '54mm', height: '2.5mm', background: '#1e3a8a', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                 <span style={{ fontSize: '3pt', color: 'white', fontWeight: 500, letterSpacing: '0.5px' }}>Session: {sessionText}</span>
               </div>
             </div>
-            
-            {/* 6. Bottom Session Strip */}
-            <div style={{ position: 'absolute', top: '82.5mm', left: '0', width: '54mm', height: '3.1mm', background: '#1e3a8a', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-               <span style={{ fontSize: '3pt', color: 'white', fontWeight: 500, letterSpacing: '0.5px' }}>Session: {sessionText}</span>
-            </div>
-          </div>
+          </React.Fragment>
         ))}
       </div>
     </div>
