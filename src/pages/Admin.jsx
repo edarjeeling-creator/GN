@@ -18,7 +18,7 @@ import FeatureSettings from './Admin/FeatureSettings';
 const Admin = () => {
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const { academicYear, classes, subjects, students, updateStudentLanguages, updateStudentPictureUrl, updateSubjectName, removeStudent, loadingData } = useData();
+  const { academicYear, classes, subjects, students, updateStudentName, updateStudentLanguages, updateStudentPictureUrl, updateSubjectName, removeStudent, loadingData } = useData();
   const [stats, setStats] = useState({ classes: 0, students: 0, subjects: 0, teachers: 0 });
   const [activeTab, setActiveTab] = useState('dashboard');
   
@@ -220,11 +220,27 @@ const Admin = () => {
   };
 
   const handleDeleteSubject = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this subject? This will also delete all marks and teacher assignments associated with it!")) return;
+    if (!window.confirm("Are you sure you want to delete this subject?")) return;
     
     const { error } = await supabase.from('subjects').delete().match({ id });
-    if (!error) fetchStats();
-    else alert("Error deleting subject: " + error.message);
+    if (!error) {
+      fetchStats();
+    } else {
+      alert("Error deleting subject: " + error.message);
+    }
+  };
+
+  const handleEditStudentName = async (student) => {
+    const newSpelling = window.prompt("Enter the correct spelling for the student's name:", student.name);
+    if (!newSpelling || newSpelling.trim() === '' || newSpelling === student.name) return;
+    
+    const cleanName = newSpelling.trim();
+    const { error } = await supabase.from('students').update({ name: cleanName }).eq('id', student.id);
+    if (!error) {
+      updateStudentName(student.id, cleanName);
+    } else {
+      alert("Error updating student name: " + error.message);
+    }
   };
 
   const handleDeleteStudent = async (id) => {
@@ -835,6 +851,13 @@ const Admin = () => {
                             disabled={uploadingStudentId === s.id}
                           >
                             {uploadingStudentId === s.id ? 'Uploading...' : 'Upload Photo'}
+                          </button>
+                          <button 
+                            className="btn-hero-outline"
+                            style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', border: '1px solid #e2e8f0', color: '#475569' }}
+                            onClick={() => handleEditStudentName(s)}
+                          >
+                            Edit Name
                           </button>
                           <button 
                             className="btn btn-outline"

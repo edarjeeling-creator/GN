@@ -177,6 +177,10 @@ export const DataProvider = ({ children }) => {
     return { success: false, error };
   };
 
+  const updateStudentName = (studentId, newName) => {
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, name: newName } : s));
+  };
+
   const updateStudentLanguages = async (studentId, secondLang, thirdLang, electiveSubject = null, sixthSubject = null) => {
     if (isReadOnly) {
       alert("This action is disabled. The portal is in Read-Only Mode.");
@@ -335,7 +339,7 @@ export const DataProvider = ({ children }) => {
       academicYear, setAcademicYear,
       classes: activeClasses, subjects, students, teacherSubjects, marks, attendance, featureAccess,
       loadingData,
-      updateMark, toggleTeacherSubject, addStudent, updateStudentLanguages, updateStudentUid, updateStudentPictureUrl, updateSubjectName, removeStudent, grantFeatureAccess, revokeFeatureAccess
+      updateMark, toggleTeacherSubject, addStudent, updateStudentName, updateStudentLanguages, updateStudentUid, updateStudentPictureUrl, updateSubjectName, removeStudent, grantFeatureAccess, revokeFeatureAccess
     }}>
       {children}
     </DataContext.Provider>
