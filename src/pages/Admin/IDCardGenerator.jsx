@@ -120,7 +120,6 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
     const element = document.getElementById('id-card-print-container');
     element.style.display = 'block';
     
-    // Scale 3 prevents micro-overflows in jsPDF calculation that causes blank pages
     const opt = {
       margin:       0,
       filename:     `ID_Cards_${selectedClass === 'all' ? 'All' : 'Class'}.pdf`,
@@ -290,124 +289,113 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
         <Save size={14} /> Note: Click the blue upload icon next to a student's face to quickly fix bad photos!
       </div>
 
-      {/* Hidden Print Container for PDF Generation - 1 Card per Page exactly 54x85.6mm */}
+      {/* Hidden Print Container for PDF Generation - Strict Absolute Positioning to guarantee NO blank pages and NO overlaps */}
       <div id="id-card-print-container" style={{ display: 'none', background: 'white' }}>
         {selectedStudents.map((student, index) => (
           <div key={student.id} className={index !== selectedStudents.length - 1 ? 'html2pdf__page-break' : ''} style={{ 
+            position: 'relative',
             width: '54mm', 
             height: '85.6mm',
-            maxHeight: '85.6mm', // Strict boundary to prevent double page spawning
-            boxSizing: 'border-box', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            overflow: 'hidden',
-            position: 'relative',
-            backgroundColor: '#ffffff'
+            backgroundColor: '#ffffff',
+            overflow: 'hidden'
           }}>
-            {/* Top Blue Gradient Banner - Reduced height from 30mm to 25mm to give space for photo */}
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '25mm', background: 'linear-gradient(135deg, #1e3a8a, #3b82f6)', zIndex: 0 }}></div>
+            {/* 1. Top Blue Gradient Background */}
+            <div style={{ position: 'absolute', top: 0, left: 0, width: '54mm', height: '26mm', background: 'linear-gradient(135deg, #1e3a8a, #3b82f6)' }}></div>
             
-            <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2mm 2mm 0 2mm' }}>
-              {/* Larger, square logo without white circle */}
-              <div style={{ marginBottom: '0.5mm', display: 'flex', justifyContent: 'center' }}>
-                <img src={customLogoUrl || "/logo.png"} alt="Logo" style={{ width: '14mm', height: '14mm', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
-              </div>
-              <h1 style={{ fontSize: '7.5pt', fontWeight: 800, color: '#ffffff', margin: 0, letterSpacing: '0.2px', textAlign: 'center' }}>GYANODAY NIKETAN</h1>
-              
-              <div style={{ fontSize: '3.5pt', color: 'white', textAlign: 'center', marginTop: '0.2mm', lineHeight: '1.2' }}>
+            {/* 2. Header Content Area */}
+            <div style={{ position: 'absolute', top: '1.5mm', left: 0, width: '54mm', textAlign: 'center' }}>
+              <img src={customLogoUrl || "/logo.png"} alt="Logo" style={{ width: '12mm', height: '12mm', objectFit: 'contain', margin: '0 auto' }} onError={(e) => { e.target.style.display = 'none'; }} />
+              <div style={{ fontSize: '6.5pt', fontWeight: 800, color: '#ffffff', marginTop: '0.5mm', letterSpacing: '0.2px' }}>GYANODAY NIKETAN</div>
+              <div style={{ fontSize: '3pt', color: 'white', marginTop: '0.2mm', lineHeight: '1.2' }}>
                 Shyam Cottage, P.O. Rose Bank, Darjeeling-734101<br/>
                 Ph: (0354) 2258311 | gyanodayniketan.edu.in
               </div>
-
-              {/* Centered STUDENT IDENTITY CARD - No Background */}
-              <div style={{ marginTop: '1mm', width: '100%', textAlign: 'center' }}>
-                <p style={{ fontSize: '4.5pt', color: '#ffffff', margin: 0, fontWeight: 700, letterSpacing: '0.5px' }}>STUDENT IDENTITY CARD</p>
-              </div>
+              <div style={{ fontSize: '4.5pt', color: '#ffffff', fontWeight: 700, marginTop: '1mm', letterSpacing: '0.5px' }}>STUDENT IDENTITY CARD</div>
             </div>
 
-            {/* Student Photo Container */}
-            <div style={{ position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'center', marginTop: '1.5mm' }}>
-              <div style={{ padding: '0.5mm', background: 'white', borderRadius: '1mm', boxShadow: '0 2px 5px rgba(0,0,0,0.15)' }}>
-                <div style={{ width: '15mm', height: '19mm', overflow: 'hidden', borderRadius: '0.5mm', backgroundColor: '#f1f5f9' }}>
-                  {/* object-position: 20% 50% shifts the image slightly left to crop out the F D C U text stuck on the right side of uploaded photos */}
-                  <img 
-                    src={student.picture_url ? `${student.picture_url}?t=${Date.now()}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name)}&background=random`} 
-                    alt="Photo" 
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: '20% 50%' }}
-                  />
-                </div>
-              </div>
+            {/* 3. Student Photo - Using background image to fix html2canvas object-fit bugs */}
+            <div style={{ position: 'absolute', top: '27.5mm', left: '19mm', width: '16mm', height: '19mm', padding: '0.5mm', background: 'white', borderRadius: '1mm', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+              <div style={{ 
+                width: '100%', 
+                height: '100%', 
+                borderRadius: '0.5mm',
+                backgroundColor: '#f1f5f9',
+                backgroundImage: `url(${student.picture_url ? `${student.picture_url}?t=${Date.now()}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name)}&background=random`})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat'
+              }} />
             </div>
 
-            {/* Student Details */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '1mm 3mm', alignItems: 'center', zIndex: 1, marginTop: '0.5mm' }}>
-              <h2 style={{ fontSize: '7.5pt', fontWeight: 800, color: '#0f172a', margin: '0 0 1mm 0', textAlign: 'center', lineHeight: '1.1' }}>
+            {/* 4. Student Details Section */}
+            <div style={{ position: 'absolute', top: '48mm', left: '2mm', width: '50mm' }}>
+              <div style={{ fontSize: '7.5pt', fontWeight: 800, color: '#0f172a', textAlign: 'center', marginBottom: '1.5mm' }}>
                 {student.name}
-              </h2>
+              </div>
 
-              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5mm' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4pt', lineHeight: '1.2' }}>
-                  <span style={{ color: '#475569', fontWeight: 600 }}>Class & Sec :</span>
-                  <span style={{ color: '#0f172a', fontWeight: 700 }}>{getClassName(student.class_id)}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7mm', fontSize: '4pt', lineHeight: '1.1' }}>
+                <div style={{ display: 'flex', width: '100%' }}>
+                  <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Class & Sec :</div>
+                  <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{getClassName(student.class_id)}</div>
                 </div>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4pt', lineHeight: '1.2' }}>
-                  <span style={{ color: '#475569', fontWeight: 600 }}>Admission No :</span>
-                  <span style={{ color: '#0f172a', fontWeight: 700 }}>{student.uid || 'N/A'}</span>
+                <div style={{ display: 'flex', width: '100%' }}>
+                  <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Admission No :</div>
+                  <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{student.uid || 'N/A'}</div>
                 </div>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4pt', lineHeight: '1.2' }}>
-                  <span style={{ color: '#475569', fontWeight: 600 }}>D.O.B :</span>
-                  <span style={{ color: '#0f172a', fontWeight: 700 }}>{student.dob || 'N/A'}</span>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4pt', lineHeight: '1.2' }}>
-                  <span style={{ color: '#475569', fontWeight: 600 }}>Blood Group :</span>
-                  <span style={{ color: '#ef4444', fontWeight: 700 }}>{student.blood_group || 'N/A'}</span>
-                </div>
-                
-                {/* Fixed truncation: Using standard wrap logic so long names don't get vertically chopped */}
-                <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4pt', lineHeight: '1.2' }}>
-                  <span style={{ color: '#475569', fontWeight: 600 }}>Guardian :</span>
-                  <span style={{ color: '#0f172a', fontWeight: 700, whiteSpace: 'normal', overflow: 'hidden' }}>{student.father_name || 'N/A'}</span>
+                <div style={{ display: 'flex', width: '100%' }}>
+                  <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>D.O.B :</div>
+                  <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{student.dob || 'N/A'}</div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4pt', lineHeight: '1.2' }}>
-                  <span style={{ color: '#475569', fontWeight: 600 }}>Contact :</span>
-                  <span style={{ color: '#0f172a', fontWeight: 700 }}>{student.contact_number || 'N/A'}</span>
+                <div style={{ display: 'flex', width: '100%' }}>
+                  <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Blood Group :</div>
+                  <div style={{ flex: 1, color: '#ef4444', fontWeight: 700 }}>{student.blood_group || 'N/A'}</div>
                 </div>
                 
-                {/* Fixed truncation: Address can wrap to 2 lines cleanly */}
-                <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4pt', lineHeight: '1.2' }}>
-                  <span style={{ color: '#475569', fontWeight: 600 }}>Address :</span>
-                  <span style={{ color: '#0f172a', fontWeight: 700, whiteSpace: 'normal', overflow: 'hidden' }}>{student.address || 'N/A'}</span>
+                <div style={{ display: 'flex', width: '100%' }}>
+                  <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Guardian :</div>
+                  {/* Using standard whiteSpace normal to allow multi-line without clipping horizontally */}
+                  <div style={{ flex: 1, color: '#0f172a', fontWeight: 700, whiteSpace: 'normal', wordBreak: 'break-word' }}>{student.father_name || 'N/A'}</div>
+                </div>
+
+                <div style={{ display: 'flex', width: '100%' }}>
+                  <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Contact :</div>
+                  <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{student.contact_number || 'N/A'}</div>
+                </div>
+                
+                <div style={{ display: 'flex', width: '100%' }}>
+                  <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Address :</div>
+                  <div style={{ flex: 1, color: '#0f172a', fontWeight: 700, whiteSpace: 'normal', wordBreak: 'break-word' }}>{student.address || 'N/A'}</div>
                 </div>
               </div>
             </div>
 
-            {/* QR Code and Signature - Height adjusted so it doesn't push into a blank page */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '1mm 3mm 1mm 3mm', marginTop: 'auto', borderTop: '0.5px solid #e2e8f0', background: '#f8fafc' }}>
+            {/* 5. Footer Area (QR Code & Signature) */}
+            <div style={{ position: 'absolute', top: '71.5mm', left: '0', width: '54mm', height: '11mm', borderTop: '0.5px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '1mm 3mm', boxSizing: 'border-box' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div style={{ padding: '0.3mm', background: 'white', borderRadius: '0.5mm', border: '0.5px solid #cbd5e1', display: 'flex' }}>
-                  <QRCode value={student.id} size={26} level="M" />
+                  <QRCode value={student.id} size={24} level="M" />
                 </div>
                 <span style={{ fontSize: '3pt', color: '#64748b', marginTop: '0.5mm' }}>Scan ID</span>
               </div>
               
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ width: '18mm', borderBottom: signatureUrl ? 'none' : '0.5px dotted #64748b', marginBottom: '1mm', height: '6mm', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                <div style={{ width: '20mm', borderBottom: signatureUrl ? 'none' : '0.5px dotted #64748b', marginBottom: '1mm', height: '6mm', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
                   {signatureUrl ? (
                      <img src={signatureUrl} alt="Principal Signature" style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
                   ) : (
-                     <span style={{ fontFamily: 'cursive', fontSize: '3.5pt', color: '#0f172a' }}>Director</span>
+                     <span style={{ fontFamily: 'cursive', fontSize: '3.5pt', color: '#0f172a' }}>Principal</span>
                   )}
                 </div>
-                <span style={{ fontSize: '3.5pt', color: '#64748b', fontWeight: 600 }}>Director's Signature</span>
+                <span style={{ fontSize: '3.5pt', color: '#64748b', fontWeight: 600 }}>Principal</span>
               </div>
             </div>
             
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#1e3a8a', height: '3.5mm' }}>
-               <span style={{ fontSize: '3.5pt', color: 'white', fontWeight: 500, letterSpacing: '0.5px' }}>Session: {sessionText}</span>
+            {/* 6. Bottom Session Strip */}
+            <div style={{ position: 'absolute', top: '82.5mm', left: '0', width: '54mm', height: '3.1mm', background: '#1e3a8a', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+               <span style={{ fontSize: '3pt', color: 'white', fontWeight: 500, letterSpacing: '0.5px' }}>Session: {sessionText}</span>
             </div>
           </div>
         ))}
