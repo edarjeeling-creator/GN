@@ -18,12 +18,13 @@ const FeeLedgers = () => {
     if (!searchQuery.trim()) return;
     
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('students')
       .select('id, name, roll_no, uid, class_id, classes(name, section)')
-      .or(`name.ilike.%${searchQuery}%,uid.ilike.%${searchQuery}%,roll_no.ilike.%${searchQuery}%`)
+      .or(`name.ilike.%${searchQuery}%,uid.ilike.%${searchQuery}%`)
       .limit(10);
       
+    if (error) console.error("Search error:", error);
     if (data) setStudents(data);
     setLoading(false);
   };
