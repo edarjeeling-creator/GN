@@ -45,6 +45,7 @@ function App() {
           
           {/* Standalone Public Pages */}
           <Route path="/login" element={<Login />} />
+          <Route path="/pay-fees" element={<ParentPortal />} />
           <Route path="/result" element={<ResultPortal />} />
           
           {/* Protected Dashboard Routes */}
