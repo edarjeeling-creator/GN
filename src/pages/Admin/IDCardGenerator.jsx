@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import QRCode from 'react-qr-code';
 import html2pdf from 'html2pdf.js';
-import { Users, Printer, Loader2, Save } from 'lucide-react';
+import { Users, Printer, Loader2, Save, Upload } from 'lucide-react';
 
 const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
   const [selectedClass, setSelectedClass] = useState('all');
@@ -10,7 +10,18 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
   const [studentsList, setStudentsList] = useState([]);
   const [selectedStudentIds, setSelectedStudentIds] = useState(new Set());
   const [isGenerating, setIsGenerating] = useState(false);
-  
+  const [signatureUrl, setSignatureUrl] = useState(null);
+  const [uploadingPhotoId, setUploadingPhotoId] = useState(null);
+  const fileInputRefs = useRef({});
+
+  useEffect(() => {
+    const fetchSignature = async () => {
+      const { data } = await supabase.from('school_settings').select('setting_value').eq('setting_key', 'principal_signature_url').single();
+      if (data) setSignatureUrl(data.setting_value);
+    };
+    fetchSignature();
+  }, []);
+
   useEffect(() => {
     let filtered = globalStudents;
     if (selectedClass !== 'all') {
@@ -68,6 +79,29 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
     }
   };
 
+  const handlePhotoUpload = async (studentId, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingPhotoId(studentId);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${studentId}-${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('student-profiles').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage.from('student-profiles').getPublicUrl(fileName);
+      
+      const { error: updateError } = await supabase.from('students').update({ picture_url: publicUrl }).eq('id', studentId);
+      if (updateError) throw updateError;
+      
+      setStudentsList(prev => prev.map(s => s.id === studentId ? { ...s, picture_url: publicUrl } : s));
+    } catch (err) {
+      alert('Error uploading photo: ' + err.message);
+    } finally {
+      setUploadingPhotoId(null);
+    }
+  };
+
   const generatePDF = async () => {
     const selectedStudents = studentsList.filter(s => selectedStudentIds.has(s.id));
     if (selectedStudents.length === 0) return alert("Please select at least one student!");
@@ -78,15 +112,15 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
     element.style.display = 'block';
     
     const opt = {
-      margin:       [10, 10, 10, 10], 
+      margin:       0, // No margin, full bleed for CR80 printers
       filename:     `ID_Cards_${selectedClass === 'all' ? 'All' : 'Class'}.pdf`,
       image:        { type: 'jpeg', quality: 1.0 },
-      html2canvas:  { scale: 4, useCORS: true, logging: false },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak:    { mode: 'css', after: '.page-break-after' }
+      html2canvas:  { scale: 4, useCORS: true, logging: false, scrollY: 0, windowWidth: 800 },
+      jsPDF:        { unit: 'mm', format: [54, 85.6], orientation: 'portrait' }
     };
 
     try {
+      // Loop and create PDF manually or rely on pagebreak. html2pdf supports page-break-after inside format container.
       await html2pdf().set(opt).from(element).save();
     } catch (error) {
       console.error(error);
@@ -98,11 +132,6 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
   };
 
   const selectedStudents = studentsList.filter(s => selectedStudentIds.has(s.id));
-  const cardsPerPage = 9;
-  const pages = [];
-  for (let i = 0; i < selectedStudents.length; i += cardsPerPage) {
-    pages.push(selectedStudents.slice(i, i + cardsPerPage));
-  }
 
   const getClassName = (classId) => {
     const c = classes.find(c => c.id === classId);
@@ -169,7 +198,7 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
                   style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                 />
               </th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Student</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0', width: '220px' }}>Student</th>
               <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Father's Name</th>
               <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0', width: '120px' }}>D.O.B</th>
               <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0', width: '100px' }}>Blood G.</th>
@@ -188,13 +217,29 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
                     style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                   />
                 </td>
-                <td style={{ padding: '1rem' }}>
+                <td style={{ padding: '0.5rem 1rem' }}>
                   <div className="flex items-center gap-3">
-                    <img 
-                      src={s.picture_url ? `${s.picture_url}?t=${Date.now()}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=random`} 
-                      alt={s.name} 
-                      style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }}
-                    />
+                    <div style={{ position: 'relative' }}>
+                      <img 
+                        src={s.picture_url ? `${s.picture_url}?t=${Date.now()}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=random`} 
+                        alt={s.name} 
+                        style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
+                      />
+                      <button 
+                        onClick={() => fileInputRefs.current[s.id]?.click()}
+                        style={{ position: 'absolute', bottom: -5, right: -5, background: 'white', border: '1px solid #cbd5e1', borderRadius: '50%', padding: '2px', cursor: 'pointer' }}
+                        title="Upload new photo"
+                      >
+                        {uploadingPhotoId === s.id ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                      </button>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        ref={el => fileInputRefs.current[s.id] = el}
+                        style={{ display: 'none' }}
+                        onChange={(e) => handlePhotoUpload(s.id, e)}
+                      />
+                    </div>
                     <div>
                       <div style={{ fontWeight: 600, color: '#1e293b' }}>{s.name}</div>
                       <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{getClassName(s.class_id)} • R:{s.roll_no} • {s.uid}</div>
@@ -231,115 +276,118 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
         <Save size={14} /> Note: Edits made in this table are automatically saved to the database when you click outside the box.
       </div>
 
+      {/* Hidden Print Container for PDF Generation - 1 Card per Page */}
       <div id="id-card-print-container" style={{ display: 'none', background: 'white' }}>
-        {pages.map((pageStudents, pageIndex) => (
-          <div key={pageIndex} className="page-break-after" style={{ width: '210mm', height: '297mm', padding: '10mm', boxSizing: 'border-box', pageBreakAfter: 'always', background: 'white' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 54mm)', gridAutoRows: '85.6mm', gap: '10mm', justifyContent: 'center', alignContent: 'start' }}>
-              {pageStudents.map(student => (
-                <div key={student.id} style={{ 
-                  width: '54mm', 
-                  height: '85.6mm', 
-                  border: '1px solid #cbd5e1', 
-                  borderRadius: '3mm', 
-                  boxSizing: 'border-box', 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  overflow: 'hidden',
-                  position: 'relative',
-                  backgroundColor: '#ffffff'
-                }}>
-                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '30mm', background: 'linear-gradient(135deg, #1e3a8a, #3b82f6)', zIndex: 0 }}></div>
-                  
-                  <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2mm 2mm 0 2mm' }}>
-                    <div style={{ background: 'white', padding: '1mm', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', marginBottom: '1mm' }}>
-                      <img src="/logo.png" alt="Logo" style={{ width: '8mm', height: '8mm', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
-                    </div>
-                    <h1 style={{ fontSize: '7.5pt', fontWeight: 800, color: '#ffffff', margin: 0, letterSpacing: '0.2px', textAlign: 'center' }}>GYANODAY NIKETAN</h1>
-                    
-                    <div style={{ fontSize: '3.5pt', color: 'white', textAlign: 'center', marginTop: '0.5mm', lineHeight: '1.2' }}>
-                      Shyam Cottage, P.O. Rose Bank, Darjeeling-734101<br/>
-                      Ph: (0354) 2258311 | gyanodayniketan.edu.in
-                    </div>
+        {selectedStudents.map(student => (
+          <div key={student.id} className="html2pdf__page-break" style={{ 
+            width: '54mm', 
+            height: '85.6mm', 
+            boxSizing: 'border-box', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            overflow: 'hidden',
+            position: 'relative',
+            backgroundColor: '#ffffff'
+          }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '30mm', background: 'linear-gradient(135deg, #1e3a8a, #3b82f6)', zIndex: 0 }}></div>
+            
+            <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2mm 2mm 0 2mm' }}>
+              {/* Removed white circle background, just logo */}
+              <div style={{ marginBottom: '1mm' }}>
+                <img src="/logo.png" alt="Logo" style={{ width: '12mm', height: '12mm', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
+              </div>
+              <h1 style={{ fontSize: '7.5pt', fontWeight: 800, color: '#ffffff', margin: 0, letterSpacing: '0.2px', textAlign: 'center' }}>GYANODAY NIKETAN</h1>
+              
+              <div style={{ fontSize: '3.5pt', color: 'white', textAlign: 'center', marginTop: '0.5mm', lineHeight: '1.2' }}>
+                Shyam Cottage, P.O. Rose Bank, Darjeeling-734101<br/>
+                Ph: (0354) 2258311 | gyanodayniketan.edu.in
+              </div>
 
-                    <div style={{ background: 'rgba(255,255,255,0.2)', padding: '0.5mm 1.5mm', borderRadius: '2mm', marginTop: '1.5mm' }}>
-                      <p style={{ fontSize: '4pt', color: '#ffffff', margin: 0, textAlign: 'center', fontWeight: 600 }}>STUDENT IDENTITY CARD</p>
-                    </div>
-                  </div>
+              {/* Centered STUDENT IDENTITY CARD without background */}
+              <div style={{ marginTop: '1.5mm', width: '100%', textAlign: 'center' }}>
+                <p style={{ fontSize: '4.5pt', color: '#ffffff', margin: 0, fontWeight: 700, letterSpacing: '0.5px' }}>STUDENT IDENTITY CARD</p>
+              </div>
+            </div>
 
-                  <div style={{ position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'center', marginTop: '0.5mm' }}>
-                    <div style={{ padding: '0.5mm', background: 'white', borderRadius: '1mm', boxShadow: '0 2px 5px rgba(0,0,0,0.15)' }}>
-                      <img 
-                        src={student.picture_url ? `${student.picture_url}?t=${Date.now()}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name)}&background=random`} 
-                        alt="Photo" 
-                        style={{ width: '16mm', height: '20mm', objectFit: 'cover', borderRadius: '0.5mm' }}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '1.5mm 3mm', alignItems: 'center', zIndex: 1, marginTop: '0.5mm' }}>
-                    <h2 style={{ fontSize: '8pt', fontWeight: 800, color: '#0f172a', margin: '0 0 1.5mm 0', textAlign: 'center', lineHeight: '1.1' }}>
-                      {student.name}
-                    </h2>
-
-                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.7mm' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4.5pt', lineHeight: '1' }}>
-                        <span style={{ color: '#475569', fontWeight: 600 }}>Class & Sec :</span>
-                        <span style={{ color: '#0f172a', fontWeight: 700 }}>{getClassName(student.class_id)}</span>
-                      </div>
-                      
-                      <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4.5pt', lineHeight: '1' }}>
-                        <span style={{ color: '#475569', fontWeight: 600 }}>Admission No :</span>
-                        <span style={{ color: '#0f172a', fontWeight: 700 }}>{student.uid || 'N/A'}</span>
-                      </div>
-                      
-                      <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4.5pt', lineHeight: '1' }}>
-                        <span style={{ color: '#475569', fontWeight: 600 }}>D.O.B :</span>
-                        <span style={{ color: '#0f172a', fontWeight: 700 }}>{student.dob || 'N/A'}</span>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4.5pt', lineHeight: '1' }}>
-                        <span style={{ color: '#475569', fontWeight: 600 }}>Blood Group :</span>
-                        <span style={{ color: '#ef4444', fontWeight: 700 }}>{student.blood_group || 'N/A'}</span>
-                      </div>
-                      
-                      <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4.5pt', lineHeight: '1' }}>
-                        <span style={{ color: '#475569', fontWeight: 600 }}>Guardian :</span>
-                        <span style={{ color: '#0f172a', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{student.father_name || 'N/A'}</span>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4.5pt', lineHeight: '1' }}>
-                        <span style={{ color: '#475569', fontWeight: 600 }}>Contact :</span>
-                        <span style={{ color: '#0f172a', fontWeight: 700 }}>{student.contact_number || 'N/A'}</span>
-                      </div>
-                      
-                      <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4.5pt', lineHeight: '1' }}>
-                        <span style={{ color: '#475569', fontWeight: 600 }}>Address :</span>
-                        <span style={{ color: '#0f172a', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{student.address || 'N/A'}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '1mm 3mm', marginTop: 'auto', borderTop: '0.5px solid #e2e8f0', background: '#f8fafc' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <div style={{ padding: '0.5mm', background: 'white', borderRadius: '0.5mm', border: '0.5px solid #cbd5e1', display: 'flex' }}>
-                        <QRCode value={student.id} size={32} level="M" />
-                      </div>
-                      <span style={{ fontSize: '3pt', color: '#64748b', marginTop: '0.5mm' }}>Scan ID</span>
-                    </div>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <div style={{ width: '15mm', borderBottom: '0.5px dotted #64748b', marginBottom: '1mm', height: '6mm', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-                        <span style={{ fontFamily: 'cursive', fontSize: '4pt', color: '#0f172a' }}>Director</span>
-                      </div>
-                      <span style={{ fontSize: '4pt', color: '#64748b', fontWeight: 600 }}>Director's Signature</span>
-                    </div>
-                  </div>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#1e3a8a', height: '4mm' }}>
-                     <span style={{ fontSize: '3.5pt', color: 'white', fontWeight: 500, letterSpacing: '0.5px' }}>Session: {sessionText}</span>
-                  </div>
+            <div style={{ position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'center', marginTop: '0.5mm' }}>
+              <div style={{ padding: '0.5mm', background: 'white', borderRadius: '1mm', boxShadow: '0 2px 5px rgba(0,0,0,0.15)' }}>
+                <div style={{ width: '16mm', height: '20mm', overflow: 'hidden', borderRadius: '0.5mm' }}>
+                  {/* Scaled slightly to crop edges like stray letters on right side */}
+                  <img 
+                    src={student.picture_url ? `${student.picture_url}?t=${Date.now()}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name)}&background=random`} 
+                    alt="Photo" 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.15) translateX(-2%)' }}
+                  />
                 </div>
-              ))}
+              </div>
+            </div>
+
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '1.5mm 3mm', alignItems: 'center', zIndex: 1, marginTop: '0.5mm' }}>
+              <h2 style={{ fontSize: '8pt', fontWeight: 800, color: '#0f172a', margin: '0 0 1.5mm 0', textAlign: 'center', lineHeight: '1.1' }}>
+                {student.name}
+              </h2>
+
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.7mm' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4.5pt', lineHeight: '1.2' }}>
+                  <span style={{ color: '#475569', fontWeight: 600 }}>Class & Sec :</span>
+                  <span style={{ color: '#0f172a', fontWeight: 700 }}>{getClassName(student.class_id)}</span>
+                </div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4.5pt', lineHeight: '1.2' }}>
+                  <span style={{ color: '#475569', fontWeight: 600 }}>Admission No :</span>
+                  <span style={{ color: '#0f172a', fontWeight: 700 }}>{student.uid || 'N/A'}</span>
+                </div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4.5pt', lineHeight: '1.2' }}>
+                  <span style={{ color: '#475569', fontWeight: 600 }}>D.O.B :</span>
+                  <span style={{ color: '#0f172a', fontWeight: 700 }}>{student.dob || 'N/A'}</span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4.5pt', lineHeight: '1.2' }}>
+                  <span style={{ color: '#475569', fontWeight: 600 }}>Blood Group :</span>
+                  <span style={{ color: '#ef4444', fontWeight: 700 }}>{student.blood_group || 'N/A'}</span>
+                </div>
+                
+                {/* Changed to allow multi-line wrap instead of truncate */}
+                <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4.5pt', lineHeight: '1.2' }}>
+                  <span style={{ color: '#475569', fontWeight: 600 }}>Guardian :</span>
+                  <span style={{ color: '#0f172a', fontWeight: 700, whiteSpace: 'normal', wordBreak: 'break-word', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{student.father_name || 'N/A'}</span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4.5pt', lineHeight: '1.2' }}>
+                  <span style={{ color: '#475569', fontWeight: 600 }}>Contact :</span>
+                  <span style={{ color: '#0f172a', fontWeight: 700 }}>{student.contact_number || 'N/A'}</span>
+                </div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '17mm 1fr', fontSize: '4.5pt', lineHeight: '1.2' }}>
+                  <span style={{ color: '#475569', fontWeight: 600 }}>Address :</span>
+                  <span style={{ color: '#0f172a', fontWeight: 700, whiteSpace: 'normal', wordBreak: 'break-word', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{student.address || 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '1mm 3mm', marginTop: 'auto', borderTop: '0.5px solid #e2e8f0', background: '#f8fafc', paddingBottom: '2mm' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ padding: '0.5mm', background: 'white', borderRadius: '0.5mm', border: '0.5px solid #cbd5e1', display: 'flex' }}>
+                  <QRCode value={student.id} size={30} level="M" />
+                </div>
+                <span style={{ fontSize: '3pt', color: '#64748b', marginTop: '0.5mm' }}>Scan ID</span>
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ width: '18mm', borderBottom: signatureUrl ? 'none' : '0.5px dotted #64748b', marginBottom: '1mm', height: '8mm', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                  {signatureUrl ? (
+                     <img src={signatureUrl} alt="Principal Signature" style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
+                  ) : (
+                     <span style={{ fontFamily: 'cursive', fontSize: '4pt', color: '#0f172a' }}>Director</span>
+                  )}
+                </div>
+                <span style={{ fontSize: '4pt', color: '#64748b', fontWeight: 600 }}>Director's Signature</span>
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#1e3a8a', height: '4mm' }}>
+               <span style={{ fontSize: '3.5pt', color: 'white', fontWeight: 500, letterSpacing: '0.5px' }}>Session: {sessionText}</span>
             </div>
           </div>
         ))}
