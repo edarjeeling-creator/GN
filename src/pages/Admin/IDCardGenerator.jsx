@@ -325,12 +325,12 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
               </div>
 
               {/* 4. Student Details Section */}
-              <div style={{ position: 'absolute', top: '40.5mm', left: '2mm', width: '50mm' }}>
-                <div style={{ fontSize: '7.5pt', fontWeight: 800, color: '#0f172a', textAlign: 'center', marginBottom: '1.5mm' }}>
+              <div style={{ position: 'absolute', top: '39.5mm', left: '2mm', width: '50mm' }}>
+                <div style={{ fontSize: '7.5pt', fontWeight: 800, color: '#0f172a', textAlign: 'center', marginBottom: '1.2mm' }}>
                   {student.name}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9mm', fontSize: '4.5pt', lineHeight: '1.1' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5mm', fontSize: '4.5pt', lineHeight: '1.1' }}>
                   <div style={{ display: 'flex', width: '100%' }}>
                     <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Class & Sec :</div>
                     <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{getClassName(student.class_id)}</div>
@@ -364,6 +364,11 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
                   <div style={{ display: 'flex', width: '100%' }}>
                     <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Address :</div>
                     <div style={{ flex: 1, color: '#0f172a', fontWeight: 700, whiteSpace: 'normal', wordBreak: 'break-word' }}>{student.address || 'N/A'}</div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', width: '100%' }}>
+                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Valid Upto :</div>
+                    <div style={{ flex: 1, color: '#ef4444', fontWeight: 700 }}>31/03/{sessionText.includes('-') ? sessionText.split('-')[1] : '2027'}</div>
                   </div>
                 </div>
               </div>
