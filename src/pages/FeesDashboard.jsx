@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { Settings, BarChart, Users, FileText, CheckCircle } from 'lucide-react';
+import { Settings, BarChart, Users, FileText, CheckCircle, Zap } from 'lucide-react';
 import FeeConfigurator from './Fees/FeeConfigurator';
+import FeeGenerationEngine from './Fees/FeeGenerationEngine';
 
 const FeesDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: <BarChart size={18} /> },
+    { id: 'engine', label: 'Batch Generation', icon: <Zap size={18} /> },
     { id: 'ledgers', label: 'Student Ledgers', icon: <Users size={18} /> },
     { id: 'reconciliation', label: 'Bank & Approval', icon: <CheckCircle size={18} /> },
     { id: 'reports', label: 'Reports', icon: <FileText size={18} /> },
@@ -65,6 +67,8 @@ const FeesDashboard = () => {
             <p style={{ color: '#64748b' }}>Fee statistics and charts will appear here.</p>
           </div>
         )}
+
+        {activeTab === 'engine' && <FeeGenerationEngine />}
 
         {activeTab === 'ledgers' && (
           <div>
