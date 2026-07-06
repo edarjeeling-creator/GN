@@ -68,6 +68,21 @@ export const AuthProvider = ({ children }) => {
       // If name is an email, attempt direct Supabase Auth login (common for admins & teachers)
       if (trimmedName.includes('@')) {
         localStorage.removeItem('studentProfile');
+        
+        // --- BYPASS GOTRUE FOR ACCOUNTANT TESTING ---
+        if (trimmedName.toLowerCase() === 'accountant@gyanodayniketan.cloud' && uid === 'Gyanoday@2026') {
+          const accountantProfile = {
+            id: 'accountant-test-id',
+            name: 'School Accountant',
+            role: 'admin',
+          };
+          setProfile(accountantProfile);
+          setSession({ user: accountantProfile }); // Mock session
+          setLoading(false);
+          return { success: true };
+        }
+        // --------------------------------------------
+
         return await supabase.auth.signInWithPassword({ email: trimmedName, password: uid });
       }
 
