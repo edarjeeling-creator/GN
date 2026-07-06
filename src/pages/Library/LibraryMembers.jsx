@@ -18,7 +18,7 @@ const LibraryMembers = () => {
         .from('lib_members')
         .select(`
           *,
-          students(name, roll_no, current_class, uid)
+          students(name, roll_no, class_id, uid)
         `)
         .order('created_at', { ascending: false });
 
