@@ -22,7 +22,7 @@ const CirculationDesk = () => {
         .from('lib_members')
         .select(`
           *,
-          students(name, roll_no, uid, class_id)
+          students(name, roll_no, uid, class_id, profile_picture_url)
         `)
         .eq('membership_number', scanInput)
         .single();
@@ -278,8 +278,12 @@ const CirculationDesk = () => {
           {activeMember ? (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <User size={24} color="#64748b" />
+                <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                  {activeMember.students?.profile_picture_url ? (
+                    <img src={activeMember.students.profile_picture_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <User size={24} color="#64748b" />
+                  )}
                 </div>
                 <div>
                   <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#0f172a' }}>
