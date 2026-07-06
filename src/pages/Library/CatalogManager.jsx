@@ -108,6 +108,17 @@ const CatalogManager = () => {
     }
   };
 
+  const handleDeleteBook = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this book?')) return;
+    try {
+      const { error } = await supabase.from('lib_books').delete().eq('id', id);
+      if (error) throw error;
+      fetchData(); // refresh list
+    } catch (err) {
+      alert('Error deleting book: ' + err.message);
+    }
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -247,7 +258,7 @@ const CatalogManager = () => {
                       <td style={{ padding: '1rem 0' }}>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                           <button style={{ padding: '0.5rem', background: '#eff6ff', color: '#2563eb', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}><Edit2 size={16} /></button>
-                          <button style={{ padding: '0.5rem', background: '#fef2f2', color: '#ef4444', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                          <button onClick={() => handleDeleteBook(book.id)} style={{ padding: '0.5rem', background: '#fef2f2', color: '#ef4444', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}><Trash2 size={16} /></button>
                         </div>
                       </td>
                     </tr>
