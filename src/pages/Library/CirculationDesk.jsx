@@ -24,8 +24,8 @@ const CirculationDesk = () => {
           *,
           students(name, roll_no, uid, class_id, profile_picture_url)
         `)
-        .eq('membership_number', scanInput)
-        .single();
+        .ilike('membership_number', scanInput)
+        .maybeSingle();
 
       if (memberData) {
         setActiveMember(memberData);
@@ -41,14 +41,16 @@ const CirculationDesk = () => {
           *,
           lib_books(title, isbn, cover_image_url)
         `)
-        .or(`barcode.eq.${scanInput},accession_number.eq.${scanInput}`)
+        .or(`barcode.ilike.${scanInput},accession_number.ilike.${scanInput}`)
         .limit(1)
         .maybeSingle();
 
       // 3. Fallback: Search by book title
+      let foundBookWithoutCopy = false;
       if (!bookData) {
         const { data: books } = await supabase.from('lib_books').select('id').ilike('title', `%${scanInput}%`).limit(1);
         if (books && books.length > 0) {
+          foundBookWithoutCopy = true;
           const { data: copyData } = await supabase
             .from('lib_book_copies')
             .select(`
@@ -71,7 +73,11 @@ const CirculationDesk = () => {
         return;
       }
 
-      setMessage({ type: 'error', text: 'Barcode not found. Please try again.' });
+      if (foundBookWithoutCopy) {
+        setMessage({ type: 'error', text: 'Book found in catalog, but there are no physical copies currently available to issue.' });
+      } else {
+        setMessage({ type: 'error', text: 'Barcode or ID not found. Please check and try again.' });
+      }
     } catch (err) {
       console.error(err);
       setMessage({ type: 'error', text: 'An error occurred while scanning.' });
