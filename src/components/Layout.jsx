@@ -458,6 +458,12 @@ const Layout = ({ children }) => {
              </NavLink>
           )}
 
+          {(profile?.role === 'admin' || profile?.role === 'librarian' || profile?.role === 'principal') && (
+             <NavLink to="/library" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+               <BookOpen size={18} /> Library Management
+             </NavLink>
+          )}
+
           <div className="nav-item" style={{ marginTop: 'auto', cursor: 'pointer', borderRadius: '0.5rem', color: '#ef4444' }} onClick={handleLogout}>
             <LogOut size={18} /> Secure Logout
           </div>

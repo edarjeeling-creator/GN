@@ -57,6 +57,7 @@ const Login = () => {
       if (profile?.role === 'principal') return <Navigate to="/principal" replace />;
       if (profile?.role === 'admin') return <Navigate to="/admin" replace />;
       if (profile?.role === 'accountant') return <Navigate to="/fees" replace />;
+      if (profile?.role === 'librarian') return <Navigate to="/library" replace />;
       return <Navigate to="/dashboard" replace />;
     }
   }

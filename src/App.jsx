@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeProvider';
 import ProtectedRoute from './components/ProtectedRoute';
-import { AdminRoute, TeacherRoute, StudentRoute, PrincipalRoute, FeatureRoute, ParentRoute, AccountantRoute } from './components/RouteGuards';
+import { AdminRoute, TeacherRoute, StudentRoute, PrincipalRoute, FeatureRoute, ParentRoute, AccountantRoute, LibrarianRoute } from './components/RouteGuards';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Classes from './pages/Classes';
@@ -16,6 +16,7 @@ import StudyMaterials from './pages/StudyMaterials';
 import Assignments from './pages/Assignments';
 import Admin from './pages/Admin';
 import FeesDashboard from './pages/FeesDashboard';
+import LibraryDashboard from './pages/LibraryDashboard';
 import StudentSearch from './pages/StudentSearch';
 import Attendance from './pages/Attendance';
 import AttendanceReports from './pages/AttendanceReports';
@@ -81,6 +82,9 @@ function App() {
             
             {/* Accountant & Admin Routes */}
             <Route path="/fees" element={<AccountantRoute><FeesDashboard /></AccountantRoute>} />
+            
+            {/* Library Routes */}
+            <Route path="/library" element={<LibrarianRoute><LibraryDashboard /></LibrarianRoute>} />
           </Route>
         </Routes>
       </Router>
