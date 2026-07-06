@@ -18,18 +18,19 @@ const CatalogManager = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Always fetch categories so the dropdown has data
+      const { data: catData, error: catError } = await supabase
+        .from('lib_categories')
+        .select('*')
+        .order('display_order', { ascending: true });
+      if (!catError && catData) setCategories(catData);
+
       if (activeTab === 'books') {
         const { data, error } = await supabase
           .from('lib_books')
           .select('*, lib_categories(name)')
           .order('created_at', { ascending: false });
         if (!error && data) setBooks(data);
-      } else if (activeTab === 'categories') {
-        const { data, error } = await supabase
-          .from('lib_categories')
-          .select('*')
-          .order('display_order', { ascending: true });
-        if (!error && data) setCategories(data);
       }
     } catch (err) {
       console.error(err);
