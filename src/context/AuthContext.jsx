@@ -74,7 +74,7 @@ export const AuthProvider = ({ children }) => {
           const accountantProfile = {
             id: 'accountant-test-id',
             name: 'School Accountant',
-            role: 'admin',
+            role: 'accountant',
           };
           setProfile(accountantProfile);
           setSession({ user: accountantProfile }); // Mock session
