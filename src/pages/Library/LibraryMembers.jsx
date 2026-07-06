@@ -37,8 +37,7 @@ const LibraryMembers = () => {
         .from('lib_members')
         .select(`
           *,
-          students(name, roll_no, class_id, uid),
-          profiles(name, role)
+          students(name, roll_no, class_id, uid)
         `)
         .order('created_at', { ascending: false });
 
@@ -52,11 +51,14 @@ const LibraryMembers = () => {
     }
   };
 
-  const filteredMembers = members.filter(m => 
-    m.membership_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.students?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.profiles?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredMembers = members.filter(m => {
+    const staffName = m.member_type !== 'student' ? staffList.find(s => s.id === m.user_id)?.name : null;
+    return (
+      m.membership_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.students?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      staffName?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   const handleAddMember = async (e) => {
     e.preventDefault();
@@ -70,8 +72,7 @@ const LibraryMembers = () => {
         membership_number: newMember.membership_number,
         member_type: newMember.member_type,
         student_id: newMember.member_type === 'student' ? newMember.student_id : null,
-        staff_id: newMember.member_type === 'staff' ? newMember.staff_id : null,
-        max_books_allowed: newMember.member_type === 'staff' ? 5 : 2
+        user_id: newMember.member_type === 'staff' ? newMember.staff_id : null
       };
 
       const { error } = await supabase.from('lib_members').insert([payload]);
@@ -203,7 +204,7 @@ const LibraryMembers = () => {
                     <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <User size={16} color="#64748b" />
                     </div>
-                    {member.member_type === 'student' ? (member.students?.name || 'Unknown Student') : (member.profiles?.name || 'Unknown Staff')}
+                    {member.member_type === 'student' ? (member.students?.name || 'Unknown Student') : (staffList.find(s => s.id === member.user_id)?.name || 'Unknown Staff')}
                   </td>
                   <td style={{ padding: '1rem 0', color: '#64748b', textTransform: 'capitalize' }}>
                     {member.member_type}
