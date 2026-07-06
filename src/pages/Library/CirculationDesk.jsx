@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, User, Book as BookIcon, CheckCircle, AlertCircle, ArrowRightLeft, CornerUpLeft, Clock } from 'lucide-react';
-import { supabase } from '../../supabaseClient';
+import { supabase } from '../../lib/supabase';
 
 const CirculationDesk = () => {
   const [scanInput, setScanInput] = useState('');
