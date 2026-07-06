@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Users, Search, CreditCard, AlertCircle, User, Plus } from 'lucide-react';
-import { useData } from '../context/DataContext';
+import { useData } from '../../context/DataContext';
 
 const LibraryMembers = () => {
   const { students } = useData();
