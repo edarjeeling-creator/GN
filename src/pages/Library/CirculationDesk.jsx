@@ -22,7 +22,7 @@ const CirculationDesk = () => {
         .from('lib_members')
         .select(`
           *,
-          students(name, roll_no, uid, class_id, profile_picture_url)
+          students(name, roll_no, uid, class_id, picture_url)
         `)
         .ilike('membership_number', scanInput)
         .maybeSingle();
@@ -285,8 +285,8 @@ const CirculationDesk = () => {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
                 <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                  {activeMember.students?.profile_picture_url ? (
-                    <img src={activeMember.students.profile_picture_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  {activeMember.students?.picture_url ? (
+                    <img src={activeMember.students.picture_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
                     <User size={24} color="#64748b" />
                   )}
