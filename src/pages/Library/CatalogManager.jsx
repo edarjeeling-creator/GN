@@ -9,6 +9,8 @@ const CatalogManager = () => {
   const [loading, setLoading] = useState(true);
   const [showAddBookModal, setShowAddBookModal] = useState(false);
   const [newBook, setNewBook] = useState({ title: '', isbn: '', category_id: '' });
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [newCategory, setNewCategory] = useState({ name: '', description: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -62,6 +64,34 @@ const CatalogManager = () => {
       fetchData(); // Refresh list
     } catch (err) {
       alert('Error adding book: ' + err.message);
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAddCategory = async (e) => {
+    e.preventDefault();
+    if (!newCategory.name) return alert('Category Name is required');
+    
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase
+        .from('lib_categories')
+        .insert([{ 
+          name: newCategory.name, 
+          description: newCategory.description || null
+        }])
+        .select();
+        
+      if (error) throw error;
+      
+      alert('Category added successfully!');
+      setShowAddCategoryModal(false);
+      setNewCategory({ name: '', description: '' });
+      fetchData(); // Refresh list
+    } catch (err) {
+      alert('Error adding category: ' + err.message);
       console.error(err);
     } finally {
       setIsSubmitting(false);
@@ -220,10 +250,59 @@ const CatalogManager = () => {
       ) : (
         <div>
           {/* Categories View */}
-          <button style={{ marginBottom: '1rem', padding: '0.75rem 1.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+          <button 
+            onClick={() => setShowAddCategoryModal(true)}
+            style={{ marginBottom: '1rem', padding: '0.75rem 1.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+          >
             <Plus size={18} /> Add Category
           </button>
           
+          {showAddCategoryModal && (
+            <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+              <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', width: '100%', maxWidth: '500px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: '#0f172a' }}>Add New Category</h3>
+                <form onSubmit={handleAddCategory} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>Category Name *</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={newCategory.name}
+                      onChange={e => setNewCategory({...newCategory, name: e.target.value})}
+                      style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
+                      placeholder="e.g. Science Fiction"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>Description</label>
+                    <textarea 
+                      value={newCategory.description}
+                      onChange={e => setNewCategory({...newCategory, description: e.target.value})}
+                      style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', minHeight: '80px' }}
+                      placeholder="Short description of this category..."
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                    <button 
+                      type="button"
+                      onClick={() => setShowAddCategoryModal(false)}
+                      style={{ flex: 1, padding: '0.75rem', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      type="submit"
+                      disabled={isSubmitting}
+                      style={{ flex: 1, padding: '0.75rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: isSubmitting ? 'not-allowed' : 'pointer', opacity: isSubmitting ? 0.7 : 1 }}
+                    >
+                      {isSubmitting ? 'Adding...' : 'Save Category'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
             {categories.map(cat => (
               <div key={cat.id} style={{ padding: '1.5rem', border: '1px solid #e2e8f0', borderRadius: '1rem', display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
