@@ -22,7 +22,7 @@ const CirculationDesk = () => {
         .from('lib_members')
         .select(`
           *,
-          students:student_id(first_name, last_name, admission_number, current_class)
+          students(name, roll_no, uid, class_id)
         `)
         .eq('membership_number', scanInput)
         .single();
@@ -263,7 +263,7 @@ const CirculationDesk = () => {
                 </div>
                 <div>
                   <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#0f172a' }}>
-                    {activeMember.students ? `${activeMember.students.first_name} ${activeMember.students.last_name}` : 'Staff Member'}
+                    {activeMember.students ? activeMember.students.name : 'Staff Member'}
                   </h3>
                   <p style={{ color: '#64748b', fontSize: '0.875rem' }}>
                     {activeMember.member_type.charAt(0).toUpperCase() + activeMember.member_type.slice(1)} • ID: {activeMember.membership_number}
