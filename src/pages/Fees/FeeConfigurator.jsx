@@ -294,12 +294,84 @@ const FeeStructuresManager = () => {
 };
 
 const FeeSettingsManager = () => {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [bankDetails, setBankDetails] = useState({
+    accountName: '',
+    bankName: '',
+    accountNo: '',
+    ifscCode: '',
+    upiId: ''
+  });
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('fee_settings')
+      .select('value')
+      .eq('key', 'school_bank_details')
+      .single();
+    
+    if (data?.value) {
+      setBankDetails(data.value);
+    }
+    setLoading(false);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    const { error } = await supabase
+      .from('fee_settings')
+      .upsert({ key: 'school_bank_details', value: bankDetails }, { onConflict: 'key' });
+    
+    if (error) alert("Failed to save: " + error.message);
+    else alert("Bank details updated successfully!");
+    setSaving(false);
+  };
+
   return (
     <div>
-      <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem' }}>Global Settings</h3>
-      <div style={{ background: '#f8fafc', padding: '2rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', color: '#64748b' }}>
-        Settings configurator under construction (Late Fee Rules, Due Dates, Bank Details).
-      </div>
+      <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem' }}>Bank & Payment Settings</h3>
+      
+      {loading ? (
+        <div style={{ color: '#64748b' }}>Loading settings...</div>
+      ) : (
+        <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', border: '1px solid #e2e8f0', maxWidth: '600px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.5rem' }}>School Account Name</label>
+              <input type="text" value={bankDetails.accountName} onChange={e => setBankDetails({...bankDetails, accountName: e.target.value})} placeholder="e.g. Gyanoday Niketan" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.5rem' }}>Bank Name</label>
+              <input type="text" value={bankDetails.bankName} onChange={e => setBankDetails({...bankDetails, bankName: e.target.value})} placeholder="e.g. State Bank of India" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.5rem' }}>Account Number</label>
+              <input type="text" value={bankDetails.accountNo} onChange={e => setBankDetails({...bankDetails, accountNo: e.target.value})} placeholder="e.g. 31245678901" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.5rem' }}>IFSC Code</label>
+              <input type="text" value={bankDetails.ifscCode} onChange={e => setBankDetails({...bankDetails, ifscCode: e.target.value})} placeholder="e.g. SBIN0001234" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
+            </div>
+            <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1.25rem', marginTop: '0.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.5rem' }}>Official UPI ID (For QR Generation)</label>
+              <input type="text" value={bankDetails.upiId} onChange={e => setBankDetails({...bankDetails, upiId: e.target.value})} placeholder="e.g. schoolname@sbi" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
+            </div>
+          </div>
+          <button 
+            onClick={handleSave} 
+            disabled={saving}
+            style={{ width: '100%', background: '#2563eb', color: 'white', padding: '1rem', borderRadius: '0.5rem', fontWeight: 700, border: 'none', marginTop: '2rem', cursor: saving ? 'not-allowed' : 'pointer' }}
+          >
+            {saving ? 'Saving...' : 'Save Bank Details'}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

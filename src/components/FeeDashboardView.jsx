@@ -16,6 +16,15 @@ const FeeDashboardView = ({ studentId }) => {
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
+  // Bank Settings
+  const [bankDetails, setBankDetails] = useState({
+    accountName: 'Gyanoday Niketan',
+    bankName: 'State Bank of India',
+    accountNo: '31245678901',
+    ifscCode: 'SBIN0001234',
+    upiId: 'gyanoday@sbi'
+  });
+
   useEffect(() => {
     if (studentId) {
       fetchData();
@@ -49,6 +58,16 @@ const FeeDashboardView = ({ studentId }) => {
       .order('created_at', { ascending: false });
 
     if (fetchedPayments) setPayments(fetchedPayments);
+
+    // Fetch Bank Settings
+    const { data: settingsData } = await supabase
+      .from('fee_settings')
+      .select('value')
+      .eq('key', 'school_bank_details')
+      .single();
+    if (settingsData?.value) {
+      setBankDetails(prev => ({ ...prev, ...settingsData.value }));
+    }
 
     // Calculate total payable (Billed - Paid/Pending Verification)
     let totalBilled = 0;
@@ -231,19 +250,19 @@ const FeeDashboardView = ({ studentId }) => {
                     <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '1rem', padding: '1.5rem', textAlign: 'center', marginBottom: '1rem' }}>
                       <p style={{ fontWeight: 600, color: '#334155', marginBottom: '1rem' }}>Scan and pay using any UPI App</p>
                       <div style={{ width: '200px', height: '200px', background: 'white', border: '2px solid #e2e8f0', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0.5rem' }}>
-                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=gyanoday@sbi&pn=Gyanoday%20Niketan&am=${paymentAmount}&cu=INR`} alt="UPI QR" />
+                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=${bankDetails.upiId}&pn=${encodeURIComponent(bankDetails.accountName)}&am=${paymentAmount}&cu=INR`} alt="UPI QR" />
                       </div>
                       <p style={{ fontWeight: 800, fontSize: '1.5rem', marginTop: '1rem', color: '#0f172a' }}>₹{paymentAmount.toLocaleString('en-IN')}</p>
-                      <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.25rem' }}>UPI ID: gyanoday@sbi</p>
+                      <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.25rem' }}>UPI ID: {bankDetails.upiId}</p>
                     </div>
 
                     <div style={{ fontSize: '0.9rem' }}>
                       <p style={{ fontWeight: 700, color: '#334155', marginBottom: '0.5rem' }}>Or Bank Transfer (NEFT/IMPS):</p>
                       <div style={{ background: '#f1f5f9', padding: '1rem', borderRadius: '0.5rem', color: '#475569', lineHeight: 1.6 }}>
-                        <div>Account Name: <strong>Gyanoday Niketan</strong></div>
-                        <div>Bank: <strong>State Bank of India</strong></div>
-                        <div>Account No: <strong>31245678901</strong></div>
-                        <div>IFSC Code: <strong>SBIN0001234</strong></div>
+                        <div>Account Name: <strong>{bankDetails.accountName}</strong></div>
+                        <div>Bank: <strong>{bankDetails.bankName}</strong></div>
+                        <div>Account No: <strong>{bankDetails.accountNo}</strong></div>
+                        <div>IFSC Code: <strong>{bankDetails.ifscCode}</strong></div>
                       </div>
                     </div>
                   </div>
