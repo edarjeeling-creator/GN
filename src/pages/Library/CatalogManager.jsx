@@ -47,7 +47,7 @@ const CatalogManager = () => {
     
     setIsSubmitting(true);
     try {
-      const { data, error } = await supabase
+      const { data: bookData, error } = await supabase
         .from('lib_books')
         .insert([{ 
           title: newBook.title, 
@@ -58,7 +58,17 @@ const CatalogManager = () => {
         
       if (error) throw error;
       
-      alert('Book added successfully!');
+      const newBookId = bookData[0].id;
+      const accessionNumber = `ACC-${Math.floor(100000 + Math.random() * 900000)}`;
+      
+      // Auto-create 1 physical copy for circulation
+      await supabase.from('lib_book_copies').insert([{
+        book_id: newBookId,
+        accession_number: accessionNumber,
+        barcode: accessionNumber // use same for barcode for easy testing
+      }]);
+
+      alert(`Book added successfully! Generated Accession/Barcode: ${accessionNumber}`);
       setShowAddBookModal(false);
       setNewBook({ title: '', isbn: '', category_id: '' });
       fetchData(); // Refresh list

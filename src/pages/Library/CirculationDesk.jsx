@@ -34,15 +34,35 @@ const CirculationDesk = () => {
         return;
       }
 
-      // 2. Check if it's a book barcode
-      const { data: bookData, error: bookError } = await supabase
+      // 2. Check if it's a book barcode or accession number
+      let { data: bookData } = await supabase
         .from('lib_book_copies')
         .select(`
           *,
           lib_books(title, isbn, cover_image_url)
         `)
-        .eq('barcode', scanInput)
-        .single();
+        .or(`barcode.eq.${scanInput},accession_number.eq.${scanInput}`)
+        .limit(1)
+        .maybeSingle();
+
+      // 3. Fallback: Search by book title
+      if (!bookData) {
+        const { data: books } = await supabase.from('lib_books').select('id').ilike('title', `%${scanInput}%`).limit(1);
+        if (books && books.length > 0) {
+          const { data: copyData } = await supabase
+            .from('lib_book_copies')
+            .select(`
+              *,
+              lib_books(title, isbn, cover_image_url)
+            `)
+            .eq('book_id', books[0].id)
+            .eq('status', 'available')
+            .limit(1)
+            .maybeSingle();
+            
+          if (copyData) bookData = copyData;
+        }
+      }
 
       if (bookData) {
         setScannedBook(bookData);
