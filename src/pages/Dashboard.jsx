@@ -35,6 +35,8 @@ const Dashboard = () => {
     return <Navigate to="/principal" replace />;
   }
 
+  const isLibrarian = profile?.role === 'librarian';
+
   const assignedActiveClasses = Object.keys(teacherSubjects).filter(classId => classes.some(c => c.id === classId));
   const totalAssignedClasses = assignedActiveClasses.length;
   
@@ -252,9 +254,10 @@ const Dashboard = () => {
       {/* Teacher Attendance History */}
       <TeacherAttendanceHistory teacherId={profile?.id} />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        
-        {/* Core KPIs */}
+      {!isLibrarian && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          
+          {/* Core KPIs */}
         <Card hoverable className="border-t-4 border-t-brand-500 flex flex-col justify-between">
           <CardContent className="p-6 flex flex-col gap-4 h-full">
             <div className="flex justify-between items-start">
@@ -316,9 +319,10 @@ const Dashboard = () => {
         </Card>
 
       </div>
+      )}
 
       {/* Absentees Collapsible Section */}
-      {(() => {
+      {!isLibrarian && (() => {
         const absentees = attendanceData.filter(a => a.status === 'Absent' || a.status === 'Leave');
         if (absentees.length === 0) return null;
 
@@ -413,29 +417,48 @@ const Dashboard = () => {
       <div className="pt-4">
          <h3 className="text-xl font-bold mb-4 text-slate-800">Quick Actions</h3>
          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            <Card hoverable className="cursor-pointer group" onClick={() => window.location.href='/classes'}>
-               <CardContent className="p-5 flex items-center gap-4">
-                 <div className="w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                   <Users size={28} />
-                 </div>
-                 <div>
-                   <strong className="block text-lg font-semibold text-slate-800 group-hover:text-brand-600 transition-colors">Enter Marks</strong>
-                   <span className="text-sm text-slate-500">Input marks for classes</span>
-                 </div>
-               </CardContent>
-            </Card>
             
-            <Card hoverable className="cursor-pointer group" onClick={() => window.location.href='/classes'}>
-               <CardContent className="p-5 flex items-center gap-4">
-                 <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                   <CheckCircle size={28} />
-                 </div>
-                 <div>
-                   <strong className="block text-lg font-semibold text-slate-800 group-hover:text-emerald-600 transition-colors">Reports</strong>
-                   <span className="text-sm text-slate-500">Generate report cards</span>
-                 </div>
-               </CardContent>
-            </Card>
+            {isLibrarian && (
+              <Card hoverable className="cursor-pointer group" onClick={() => window.location.href='/library'}>
+                 <CardContent className="p-5 flex items-center gap-4">
+                   <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                     <BookOpen size={28} />
+                   </div>
+                   <div>
+                     <strong className="block text-lg font-semibold text-slate-800 group-hover:text-indigo-600 transition-colors">Library Dashboard</strong>
+                     <span className="text-sm text-slate-500">Manage catalog and circulation</span>
+                   </div>
+                 </CardContent>
+              </Card>
+            )}
+
+            {!isLibrarian && (
+              <>
+                <Card hoverable className="cursor-pointer group" onClick={() => window.location.href='/classes'}>
+                   <CardContent className="p-5 flex items-center gap-4">
+                     <div className="w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                       <Users size={28} />
+                     </div>
+                     <div>
+                       <strong className="block text-lg font-semibold text-slate-800 group-hover:text-brand-600 transition-colors">Enter Marks</strong>
+                       <span className="text-sm text-slate-500">Input marks for classes</span>
+                     </div>
+                   </CardContent>
+                </Card>
+                
+                <Card hoverable className="cursor-pointer group" onClick={() => window.location.href='/classes'}>
+                   <CardContent className="p-5 flex items-center gap-4">
+                     <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                       <CheckCircle size={28} />
+                     </div>
+                     <div>
+                       <strong className="block text-lg font-semibold text-slate-800 group-hover:text-emerald-600 transition-colors">Reports</strong>
+                       <span className="text-sm text-slate-500">Generate report cards</span>
+                     </div>
+                   </CardContent>
+                </Card>
+              </>
+            )}
 
             <Card hoverable className="cursor-pointer group relative overflow-hidden">
                <CardContent className="p-5 flex items-center gap-4">
