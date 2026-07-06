@@ -3,9 +3,10 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Bell, CheckCircle, Trash2, CheckSquare, Search, Calendar, Activity, Download, Book, FileText, Award } from 'lucide-react';
+import { ArrowRight, Bell, CheckCircle, Trash2, CheckSquare, Search, Calendar, Activity, Download, Book, FileText, Award, CreditCard } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { motion, AnimatePresence } from 'framer-motion';
+import FeeDashboardView from '../components/FeeDashboardView';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -184,6 +185,7 @@ const StudentPortal = () => {
         <div className="flex gap-2 sm:gap-6 min-w-max">
           {[
             { id: 'overview', label: 'Overview' },
+            { id: 'fees', label: 'My Fees' },
             { id: 'attendance', label: 'Attendance' },
             { id: 'notifications', label: 'Alerts', badge: unreadCount > 0 ? unreadCount : null }
           ].map(tab => (
@@ -249,6 +251,17 @@ const StudentPortal = () => {
                 </CardContent>
               </Card>
             </Link>
+          </motion.div>
+        )}
+
+        {/* Fees Tab */}
+        {activeTab === 'fees' && (
+          <motion.div key="fees" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+            {studentData?.id ? (
+              <FeeDashboardView studentId={studentData.id} />
+            ) : (
+              <div className="text-center p-8 text-slate-500">Student data not loaded.</div>
+            )}
           </motion.div>
         )}
 
