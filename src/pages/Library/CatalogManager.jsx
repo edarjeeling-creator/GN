@@ -7,6 +7,9 @@ const CatalogManager = () => {
   const [books, setBooks] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAddBookModal, setShowAddBookModal] = useState(false);
+  const [newBook, setNewBook] = useState({ title: '', isbn: '', category_id: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -32,6 +35,35 @@ const CatalogManager = () => {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddBook = async (e) => {
+    e.preventDefault();
+    if (!newBook.title) return alert('Title is required');
+    
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase
+        .from('lib_books')
+        .insert([{ 
+          title: newBook.title, 
+          isbn: newBook.isbn || null, 
+          category_id: newBook.category_id || null 
+        }])
+        .select();
+        
+      if (error) throw error;
+      
+      alert('Book added successfully!');
+      setShowAddBookModal(false);
+      setNewBook({ title: '', isbn: '', category_id: '' });
+      fetchData(); // Refresh list
+    } catch (err) {
+      alert('Error adding book: ' + err.message);
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -78,10 +110,73 @@ const CatalogManager = () => {
         <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading...</div>
       ) : activeTab === 'books' ? (
         <div>
-          <button style={{ marginBottom: '1rem', padding: '0.75rem 1.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+          <button 
+            onClick={() => setShowAddBookModal(true)}
+            style={{ marginBottom: '1rem', padding: '0.75rem 1.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+          >
             <Plus size={18} /> Add New Book
           </button>
           
+          {showAddBookModal && (
+            <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+              <div style={{ background: 'white', padding: '2rem', borderRadius: '1rem', width: '100%', maxWidth: '500px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: '#0f172a' }}>Add New Book</h3>
+                <form onSubmit={handleAddBook} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>Title *</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={newBook.title}
+                      onChange={e => setNewBook({...newBook, title: e.target.value})}
+                      style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
+                      placeholder="Enter book title"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>ISBN</label>
+                    <input 
+                      type="text" 
+                      value={newBook.isbn}
+                      onChange={e => setNewBook({...newBook, isbn: e.target.value})}
+                      style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
+                      placeholder="e.g. 978-0132350884"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>Category</label>
+                    <select 
+                      value={newBook.category_id}
+                      onChange={e => setNewBook({...newBook, category_id: e.target.value})}
+                      style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', backgroundColor: 'white' }}
+                    >
+                      <option value="">Select a category</option>
+                      {categories.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                    <button 
+                      type="button"
+                      onClick={() => setShowAddBookModal(false)}
+                      style={{ flex: 1, padding: '0.75rem', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      type="submit"
+                      disabled={isSubmitting}
+                      style={{ flex: 1, padding: '0.75rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: isSubmitting ? 'not-allowed' : 'pointer', opacity: isSubmitting ? 0.7 : 1 }}
+                    >
+                      {isSubmitting ? 'Adding...' : 'Save Book'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
           {books.length === 0 ? (
             <div style={{ padding: '3rem', textAlign: 'center', background: '#f8fafc', borderRadius: '1rem', border: '1px dashed #cbd5e1' }}>
               <Book size={48} color="#94a3b8" style={{ margin: '0 auto 1rem' }} />
