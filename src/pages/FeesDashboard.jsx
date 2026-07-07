@@ -5,6 +5,7 @@ import FeeGenerationEngine from './Fees/FeeGenerationEngine';
 import FeeLedgers from './Fees/FeeLedgers';
 import FeeOverview from './Fees/FeeOverview';
 import FeeReconciliation from './Fees/FeeReconciliation';
+import BulkBankReceipts from './Fees/BulkBankReceipts';
 
 const FeesDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -14,6 +15,7 @@ const FeesDashboard = () => {
     { id: 'engine', label: 'Batch Generation', icon: <Zap size={18} /> },
     { id: 'ledgers', label: 'Student Ledgers', icon: <Users size={18} /> },
     { id: 'reconciliation', label: 'Bank & Approval', icon: <CheckCircle size={18} /> },
+    { id: 'bulk-receipts', label: 'Bulk Receipts', icon: <FileText size={18} /> },
     { id: 'reports', label: 'Reports', icon: <FileText size={18} /> },
     { id: 'configurator', label: 'Configuration', icon: <Settings size={18} /> },
   ];
@@ -71,6 +73,8 @@ const FeesDashboard = () => {
         {activeTab === 'ledgers' && <FeeLedgers />}
 
         {activeTab === 'reconciliation' && <FeeReconciliation />}
+
+        {activeTab === 'bulk-receipts' && <BulkBankReceipts />}
 
         {activeTab === 'reports' && (
           <div>
