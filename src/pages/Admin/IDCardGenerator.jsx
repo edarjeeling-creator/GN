@@ -295,7 +295,7 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
       <div id="id-card-print-container" style={{ display: 'none', background: 'white' }}>
         {selectedStudents.map((student, index) => (
           <React.Fragment key={student.id}>
-            {index > 0 && <div className="html2pdf__page-break"></div>}
+            {index > 0 && <div className="page-break"></div>}
             <div style={{ 
               position: 'relative',
               width: '54mm', 
