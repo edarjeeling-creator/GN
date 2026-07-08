@@ -126,12 +126,26 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
       filename:     `ID_Cards_${selectedClass === 'all' ? 'All' : 'Class'}.pdf`,
       image:        { type: 'jpeg', quality: 1.0 },
       html2canvas:  { scale: 3, useCORS: true, logging: false },
-      jsPDF:        { unit: 'mm', format: [54, 86], orientation: 'portrait' },
-      pagebreak:    { mode: 'css', before: '.page-break' }
+      jsPDF:        { unit: 'mm', format: [54, 86], orientation: 'portrait' }
     };
 
     try {
-      await html2pdf().set(opt).from(element).save();
+      let worker = html2pdf().set(opt);
+      
+      for (let i = 0; i < selectedStudents.length; i++) {
+        const student = selectedStudents[i];
+        const cardElement = document.getElementById(`id-card-${student.id}`);
+        
+        if (i === 0) {
+          worker = worker.from(cardElement).toPdf();
+        } else {
+          worker = worker.get('pdf').then(pdf => {
+            pdf.addPage();
+          }).from(cardElement).toContainer().toCanvas().toPdf();
+        }
+      }
+      
+      await worker.save();
     } catch (error) {
       console.error(error);
       alert("Error generating PDF!");
@@ -295,8 +309,7 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
       <div id="id-card-print-container" style={{ display: 'none', background: 'white' }}>
         {selectedStudents.map((student, index) => (
           <React.Fragment key={student.id}>
-            {index > 0 && <div className="page-break" style={{ pageBreakBefore: 'always', clear: 'both' }}></div>}
-            <div style={{ 
+            <div id={`id-card-${student.id}`} style={{ 
               position: 'relative',
               width: '54mm', 
               height: '86mm',
