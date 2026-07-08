@@ -126,7 +126,7 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
       filename:     `ID_Cards_${selectedClass === 'all' ? 'All' : 'Class'}.pdf`,
       image:        { type: 'jpeg', quality: 1.0 },
       html2canvas:  { scale: 3, useCORS: true, logging: false },
-      jsPDF:        { unit: 'mm', format: [54, 85.6], orientation: 'portrait' },
+      jsPDF:        { unit: 'mm', format: [54, 86], orientation: 'portrait' },
       pagebreak:    { mode: 'css', before: '.page-break' }
     };
 
@@ -295,11 +295,11 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
       <div id="id-card-print-container" style={{ display: 'none', background: 'white' }}>
         {selectedStudents.map((student, index) => (
           <React.Fragment key={student.id}>
-            {index > 0 && <div className="page-break"></div>}
+            {index > 0 && <div className="page-break" style={{ pageBreakBefore: 'always', clear: 'both' }}></div>}
             <div style={{ 
               position: 'relative',
               width: '54mm', 
-              height: '85.4mm',
+              height: '86mm',
               backgroundColor: '#ffffff',
               overflow: 'hidden'
             }}>
