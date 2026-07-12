@@ -364,15 +364,12 @@ const ResultPortal = () => {
             </tr>
 
             {/* Subjects Rows */}
-            {finalSubjectRows.map(score => {
-              if (!score.isGroupStart && groupsToUse.length > 0) return null; // We only render one row per group/standalone in this simplified layout
+            {subjectScores.map(score => {
               return (
                 <tr key={score.subjectId}>
-                  <td style={{ padding: '8px 12px', border: '1px solid black' }}>
-                    {score.isStandalone ? score.subjectName : (groupsToUse.find(g => g.matchers.some(m => score.subjectName.toLowerCase().includes(m)))?.name || score.subjectName)}
-                  </td>
+                  <td style={{ padding: '8px 12px', border: '1px solid black' }}>{score.subjectName}</td>
                   <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>
-                    {score.groupTotal}
+                    {score.total}
                   </td>
                 </tr>
               );
@@ -380,7 +377,7 @@ const ResultPortal = () => {
 
             {/* Total Row */}
             <tr>
-              <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold' }}>TOTAL</td>
+              <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textTransform: 'uppercase' }}>TOTAL</td>
               <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold' }}>{grandTotal}</td>
             </tr>
 
@@ -389,9 +386,9 @@ const ResultPortal = () => {
               <td colSpan="2" style={{ padding: '15px 12px', border: '1px solid black', lineHeight: '1.8' }}>
                 <div>RANK IN CLASS: <span>{rank}</span></div>
                 <div>PERCENTAGE: <span>{percentage}%</span></div>
-                <div>ATTENDANCE: <span>{totalWorkingDays > 0 ? `${effectivePresent} / ${totalWorkingDays} Days (${attendancePercentage}%)` : 'N/A'}</span></div>
-                <div>CONDUCT: <span></span></div>
-                <div>PERSONALITY & NEATNESS: <span></span></div>
+                <div>ATTENDANCE: <span>Regular/Irregular</span></div>
+                <div>CONDUCT: <span>Good/Satisfactory/Unsatisfactory</span></div>
+                <div>PERSONALITY & NEATNESS: <span>Good/Satisfactory/Unsatisfactory</span></div>
               </td>
             </tr>
           </tbody>

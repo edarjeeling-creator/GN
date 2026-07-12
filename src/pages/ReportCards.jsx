@@ -71,7 +71,8 @@ const ReportCards = () => {
 
   // 1. Calculate totals for each student
   const rawData = classStudents.map(student => {
-    let grandTotal = 0;
+    let grandMtTotal = 0;
+    
     // Filter to only subjects the student actually has marks for
     const studentSubjects = assignedSubjects.filter(sub => {
       return Object.keys(marks).some(k => k.startsWith(`${student.id}_${sub.id}_`));
@@ -79,13 +80,13 @@ const ReportCards = () => {
 
     // Sort subjects
     const subjectOrder = [
-      'english language', 'english literature', '2nd language', 'physics', 
-      'chemistry', 'biology', 'maths', 'history', 'geography', 
+      'english language', 'english literature', 'english paper 1', 'english paper 2', '2nd language', 'second language', 'physics', 
+      'chemistry', 'biology', 'maths', 'mathematics', 'history', 'geography', 
       'computer', 'general knowledge', '3rd language'
     ];
     studentSubjects.sort((a, b) => {
-      const idxA = subjectOrder.indexOf(a.name.toLowerCase().trim());
-      const idxB = subjectOrder.indexOf(b.name.toLowerCase().trim());
+      const idxA = subjectOrder.findIndex(o => a.name.toLowerCase().includes(o));
+      const idxB = subjectOrder.findIndex(o => b.name.toLowerCase().includes(o));
       return (idxA !== -1 ? idxA : 99) - (idxB !== -1 ? idxB : 99);
     });
 
@@ -125,104 +126,17 @@ const ReportCards = () => {
       const mtConv = mtExam * (examConv / 100);
       const mtTotal = Math.round(mtConv + mtTest);
 
-      const ftExam = getVal('Finalterm_Exam');
-      const ftTest = getVal('Finalterm_Test');
-      const ftConv = ftExam * (examConv / 100);
-      const ftTotal = Math.round(ftConv + ftTest);
-
-      const subjectTotal = mtTotal + ftTotal;
+      grandMtTotal += mtTotal;
+      maxPossibleTotal += 100;
 
       return { 
         subjectId: sub.id, 
         subjectName: getDynamicName(sub.name), 
-        mtTotal, 
-        ftTotal, 
-        total: subjectTotal 
+        mtTotal
       };
     });
 
-    let finalSubjectRows = [];
-    grandTotal = 0;
-    maxPossibleTotal = 0;
-
-    if (groupsToUse.length > 0) {
-      // Group the subjects
-      const grouped = [];
-      const standalone = [];
-      
-      const findGroup = (name) => {
-        const lowerName = name.toLowerCase();
-        return groupsToUse.find(g => g.matchers.some(m => lowerName.includes(m)));
-      };
-
-      subjectScores.forEach(score => {
-        const group = findGroup(score.subjectName);
-        if (group) {
-          let existing = grouped.find(g => g.groupName === group.name);
-          if (!existing) {
-            existing = { groupName: group.name, items: [] };
-            grouped.push(existing);
-          }
-          existing.items.push(score);
-        } else {
-          standalone.push(score);
-        }
-      });
-
-      grouped.forEach(g => {
-        const sumMt = g.items.reduce((acc, curr) => acc + curr.mtTotal, 0);
-        const avgMt = Math.round(sumMt / g.items.length);
-
-        const sumFt = g.items.reduce((acc, curr) => acc + curr.ftTotal, 0);
-        const avgFt = Math.round(sumFt / g.items.length);
-
-        const sumTotal = g.items.reduce((acc, curr) => acc + curr.total, 0);
-        const avgTotal = Math.round(sumTotal / g.items.length);
-
-        grandTotal += avgTotal;
-        maxPossibleTotal += 200;
-
-        g.items.forEach((item, index) => {
-          finalSubjectRows.push({
-            ...item,
-            isGroupStart: index === 0,
-            rowSpan: g.items.length,
-            groupMtTotal: avgMt,
-            groupFtTotal: avgFt,
-            groupTotal: avgTotal,
-            isStandalone: false
-          });
-        });
-      });
-
-      standalone.forEach(item => {
-        grandTotal += item.total;
-        maxPossibleTotal += 200;
-        finalSubjectRows.push({
-          ...item,
-          isGroupStart: true,
-          rowSpan: 1,
-          groupMtTotal: item.mtTotal,
-          groupFtTotal: item.ftTotal,
-          groupTotal: item.total,
-          isStandalone: true
-        });
-      });
-    } else {
-      finalSubjectRows = subjectScores.map(item => ({
-        ...item,
-        isGroupStart: true,
-        rowSpan: 1,
-        groupMtTotal: item.mtTotal,
-        groupFtTotal: item.ftTotal,
-        groupTotal: item.total,
-        isStandalone: true
-      }));
-      grandTotal = subjectScores.reduce((acc, curr) => acc + curr.total, 0);
-      maxPossibleTotal = subjectScores.length * 200;
-    }
-
-    const percentage = maxPossibleTotal > 0 ? (grandTotal / maxPossibleTotal) * 100 : 0;
+    const percentage = maxPossibleTotal > 0 ? (grandMtTotal / maxPossibleTotal) * 100 : 0;
 
     // Calculate Attendance
     const stuAtt = attendance ? attendance.filter(a => a.student_id === student.id && a.academic_year === academicYear) : [];
@@ -234,8 +148,8 @@ const ReportCards = () => {
 
     return {
       ...student,
-      subjectScores: finalSubjectRows,
-      grandTotal,
+      subjectScores,
+      grandMtTotal,
       maxPossibleTotal,
       percentage: percentage.toFixed(1),
       grade: getGrade(percentage),
@@ -248,26 +162,21 @@ const ReportCards = () => {
   });
 
   // 2. Calculate Rank
-  const sortedData = [...rawData].sort((a, b) => {
-    if (isISCClass) {
-      return Number(b.percentage) - Number(a.percentage);
-    }
-    return b.grandTotal - a.grandTotal;
-  });
+  const sortedData = [...rawData].sort((a, b) => b.grandMtTotal - a.grandMtTotal);
   
   let currentRank = 1;
   let currentValue = -1;
   sortedData.forEach((student, index) => {
-    const compareValue = isISCClass ? Number(student.percentage) : student.grandTotal;
-    if (compareValue !== currentValue) {
+    if (student.grandMtTotal !== currentValue) {
       currentRank = index + 1;
-      currentValue = compareValue;
+      currentValue = student.grandMtTotal;
     }
     student.rank = currentRank;
   });
 
   // 3. Sort by Roll No for printing
   const reportCardsData = sortedData.sort((a, b) => a.roll_no - b.roll_no);
+
 
   const hasGroupedSubjects = groupsToUse.length > 0;
 
@@ -553,9 +462,9 @@ const ReportCards = () => {
               <tbody>
                 {/* Header Row */}
                 <tr>
-                  <td colSpan={hasGroupedSubjects ? 6 : 5} style={{ padding: '10px 12px', border: '1px solid black' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <span><span style={{ fontWeight: 'bold' }}>Student Name:</span> <span>{student.name}</span></span>
+                  <td colSpan="2" style={{ padding: '10px 12px', border: '1px solid black' }}>
+                    <div style={{ marginBottom: '8px' }}>
+                      <span style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>Student Name:</span> <span>{student.name}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span><span style={{ fontWeight: 'bold' }}>Class:</span> <span>{cls?.name}</span></span>
@@ -565,72 +474,41 @@ const ReportCards = () => {
                   </td>
                 </tr>
                 <tr>
-                  <td colSpan={hasGroupedSubjects ? 6 : 5} style={{ padding: '15px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1em', textTransform: 'uppercase' }}>
-                    ANNUAL PROGRESS REPORT CARD - {academicYear}
+                  <td colSpan="2" style={{ padding: '15px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1em', textTransform: 'uppercase' }}>
+                    MID-TERM PROGRESS REPORT CARD - {academicYear}
                   </td>
                 </tr>
                 
                 {/* Column Headers */}
                 <tr>
                   <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold' }}>Subjects</td>
-                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Mid-Term (100)</td>
-                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Final-Term (100)</td>
-                  {hasGroupedSubjects && <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Group Total (200)</td>}
-                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Annual Total (200)</td>
-                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Grade</td>
+                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center', width: '150px' }}>Marks out of 100</td>
                 </tr>
 
                 {/* Subjects Rows */}
                 {student.subjectScores.map(score => {
-                  const annTotal = score.total;
-                  const annPerc = (annTotal / 200) * 100;
-                  const annGrade = getGrade(annPerc);
-
                   return (
                     <tr key={score.subjectId}>
                       <td style={{ padding: '8px 12px', border: '1px solid black' }}>{score.subjectName}</td>
                       <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{score.mtTotal}</td>
-                      <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{score.ftTotal}</td>
-                      
-                      {/* Group Total Handling */}
-                      {hasGroupedSubjects && score.isGroupStart && (
-                        <td rowSpan={score.rowSpan} style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center', verticalAlign: 'middle' }}>
-                          {score.groupTotal}
-                        </td>
-                      )}
-                      
-                      {/* Annual Total column */}
-                      {(!hasGroupedSubjects || score.isGroupStart) && (
-                        <td rowSpan={hasGroupedSubjects ? score.rowSpan : 1} style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center', verticalAlign: 'middle', fontWeight: hasGroupedSubjects ? 'bold' : 'normal' }}>
-                          {hasGroupedSubjects ? score.groupTotal : annTotal}
-                        </td>
-                      )}
-
-                      {/* Grade Column */}
-                      {(!hasGroupedSubjects || score.isGroupStart) && (
-                        <td rowSpan={hasGroupedSubjects ? score.rowSpan : 1} style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'bold' }}>
-                          {hasGroupedSubjects ? getGrade((score.groupTotal/200)*100) : annGrade}
-                        </td>
-                      )}
                     </tr>
                   )
                 })}
 
                 {/* Total Row */}
                 <tr>
-                  <td colSpan={hasGroupedSubjects ? 4 : 3} style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold' }}>TOTAL</td>
-                  <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold' }}>{student.grandTotal}</td>
-                  <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}></td>
+                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textTransform: 'uppercase' }}>TOTAL</td>
+                  <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold' }}>{student.grandMtTotal}</td>
                 </tr>
 
                 {/* Footer Details */}
                 <tr>
-                  <td colSpan={hasGroupedSubjects ? 6 : 5} style={{ padding: '15px 12px', border: '1px solid black', lineHeight: '1.8' }}>
-                    <div>RANK IN CLASS: <span>{student.rank}</span></div>
+                  <td colSpan="2" style={{ padding: '15px 12px', border: '1px solid black', lineHeight: '1.8' }}>
+                    <div>RANK IN CLASS: <span>{student.rank}{student.rank === 1 ? 'st' : student.rank === 2 ? 'nd' : student.rank === 3 ? 'rd' : 'th'} Out of {reportCardsData.length}</span></div>
                     <div>PERCENTAGE: <span>{student.percentage}%</span></div>
-                    <div>ATTENDANCE: <span>{student.totalWorkingDays > 0 ? `${student.effectivePresent} / ${student.totalWorkingDays} Days (${student.attendancePercentage}%)` : 'N/A'}</span></div>
-                    <div>CONDUCT: <span></span></div>
-                    <div>PERSONALITY & NEATNESS: <span></span></div>
+                    <div>ATTENDANCE: <span>Regular/Irregular</span></div>
+                    <div>CONDUCT: <span>Good/Satisfactory/Unsatisfactory</span></div>
+                    <div>PERSONALITY & NEATNESS: <span>Good/Satisfactory/Unsatisfactory</span></div>
                   </td>
                 </tr>
               </tbody>
