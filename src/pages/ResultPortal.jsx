@@ -328,94 +328,70 @@ const ResultPortal = () => {
 
     return (
       <div className="report-card-slip" style={{
-        border: '2px solid #000',
         width: '100%',
-        maxWidth: '600px',
+        maxWidth: '800px',
         margin: '2rem auto',
         padding: '1rem',
-        fontFamily: '"Times New Roman", Times, serif',
+        fontFamily: 'Arial, sans-serif',
         background: '#fff',
         color: '#000',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
       }}>
-        <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
-           <h2 style={{ margin: 0, color: '#000' }}>SmartGrades School</h2>
-           <p style={{ margin: 0 }}>Online Result Portal</p>
-        </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', marginBottom: '1rem' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', border: '2px solid black', fontSize: '14px' }}>
           <tbody>
+            {/* Header Row */}
             <tr>
-              <td colSpan="3" style={{ padding: '0.25rem 0.5rem', border: '1px solid #000', textTransform: 'uppercase' }}>
-                <strong>STUDENT NAME :</strong> {student.name}
+              <td colSpan="2" style={{ padding: '10px 12px', border: '1px solid black' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span><span style={{ fontWeight: 'bold' }}>Student Name:</span> <span>{student.name}</span></span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span><span style={{ fontWeight: 'bold' }}>Class:</span> <span>{cls.name}</span></span>
+                  <span><span style={{ fontWeight: 'bold' }}>Section:</span> <span>{cls.section}</span></span>
+                  <span><span style={{ fontWeight: 'bold' }}>Roll No:</span> <span>{student.roll_no}</span></span>
+                </div>
               </td>
             </tr>
             <tr>
-              <td style={{ padding: '0.25rem 0.5rem', border: '1px solid #000' }}>
-                <strong>Class :</strong> {cls.name}
-              </td>
-              <td style={{ padding: '0.25rem 0.5rem', border: '1px solid #000' }}>
-                <strong>Section :</strong> {cls.section}
-              </td>
-              <td style={{ padding: '0.25rem 0.5rem', border: '1px solid #000' }}>
-                <strong>Roll No:</strong> {student.roll_no}
-              </td>
-            </tr>
-            <tr>
-              <td colSpan="3" style={{ padding: '0.5rem', border: '1px solid #000', textAlign: 'center', fontWeight: 'bold' }}>
+              <td colSpan="2" style={{ padding: '15px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1em', textTransform: 'uppercase' }}>
                 {getTermLabel()} PROGRESS REPORT CARD - {academicYear}
               </td>
             </tr>
-          </tbody>
-        </table>
-
-        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', marginBottom: '1rem' }}>
-          <thead>
+            
+            {/* Column Headers */}
             <tr>
-              <th style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textAlign: 'left', width: groupsToUse.length > 0 ? '40%' : '60%' }}>Subjects</th>
-              {groupsToUse.length > 0 && <th style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textAlign: 'center', width: '30%' }}>Marks out of {getOutOFAmount()}</th>}
-              <th style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textAlign: 'center', width: groupsToUse.length > 0 ? '30%' : '40%' }}>Total</th>
+              <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold' }}>Subjects</td>
+              <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center', width: '150px' }}>Marks out of {getOutOFAmount()}</td>
             </tr>
-          </thead>
-          <tbody>
-            {finalSubjectRows.map(score => (
-              <tr key={score.subjectId}>
-                <td style={{ border: '1px solid #000', padding: '0.25rem 0.5rem' }}>{score.subjectName}</td>
-                {groupsToUse.length > 0 && (
-                  <td style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textAlign: 'center' }}>
-                    {score.marksOut100 !== null ? score.marksOut100 : ''}
+
+            {/* Subjects Rows */}
+            {finalSubjectRows.map(score => {
+              if (!score.isGroupStart && groupsToUse.length > 0) return null; // We only render one row per group/standalone in this simplified layout
+              return (
+                <tr key={score.subjectId}>
+                  <td style={{ padding: '8px 12px', border: '1px solid black' }}>
+                    {score.isStandalone ? score.subjectName : (groupsToUse.find(g => g.matchers.some(m => score.subjectName.toLowerCase().includes(m)))?.name || score.subjectName)}
                   </td>
-                )}
-                {score.isGroupStart && (
-                  <td 
-                    rowSpan={score.rowSpan} 
-                    style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textAlign: 'center', verticalAlign: 'middle' }}
-                  >
+                  <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>
                     {score.groupTotal}
                   </td>
-                )}
-              </tr>
-            ))}
-            <tr>
-              <td colSpan={groupsToUse.length > 0 ? 2 : 1} style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', fontWeight: 'bold', textTransform: 'uppercase' }}>TOTAL</td>
-              <td style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textAlign: 'center', fontWeight: 'bold' }}>{grandTotal}</td>
-            </tr>
-          </tbody>
-        </table>
+                </tr>
+              );
+            })}
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000' }}>
-          <tbody>
+            {/* Total Row */}
             <tr>
-              <td style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textTransform: 'uppercase', width: '33%' }}>PERCENTAGE %</td>
-              <td style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', width: '33%', textAlign: 'center' }}>{percentage}</td>
-              <td style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textTransform: 'uppercase', width: '17%' }}>RANK</td>
-              <td style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', width: '17%', textAlign: 'center', fontWeight: 'bold' }}>{rank}</td>
+              <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold' }}>TOTAL</td>
+              <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold' }}>{grandTotal}</td>
             </tr>
+
+            {/* Footer Details */}
             <tr>
-              <td style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textTransform: 'uppercase' }}>ATTENDANCE:</td>
-              <td colSpan="3" style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textAlign: 'center' }}>
-                {totalWorkingDays > 0 
-                  ? `${effectivePresent} / ${totalWorkingDays} Days (${attendancePercentage}%)` 
-                  : 'N/A'}
+              <td colSpan="2" style={{ padding: '15px 12px', border: '1px solid black', lineHeight: '1.8' }}>
+                <div>RANK IN CLASS: <span>{rank}</span></div>
+                <div>PERCENTAGE: <span>{percentage}%</span></div>
+                <div>ATTENDANCE: <span>{totalWorkingDays > 0 ? `${effectivePresent} / ${totalWorkingDays} Days (${attendancePercentage}%)` : 'N/A'}</span></div>
+                <div>CONDUCT: <span></span></div>
+                <div>PERSONALITY & NEATNESS: <span></span></div>
               </td>
             </tr>
           </tbody>

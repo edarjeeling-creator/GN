@@ -540,56 +540,47 @@ const ReportCards = () => {
 
       <div className="print-container">
         {reportCardsData.map((student) => (
-          <div key={student.id} className="a4-page">
-            
-            {/* Header */}
-            <div className="rc-header">
-              <h1 className="rc-title">Annual Progress Report</h1>
-              <p className="rc-subtitle">Academic Session {academicYear}</p>
-            </div>
-
-            {/* Student Info */}
-            <div className="rc-student-section">
-              <div className="rc-student-info">
-                <div className="rc-info-row">
-                  <div className="rc-info-label">Name:</div>
-                  <div className="rc-info-val" style={{ fontSize: '16px', textTransform: 'uppercase' }}>{student.name}</div>
-                </div>
-                <div className="rc-info-row mt-2">
-                  <div className="rc-info-label">Class:</div>
-                  <div className="rc-info-val">{cls?.name}</div>
-                </div>
-                <div className="rc-info-row">
-                  <div className="rc-info-label">Section:</div>
-                  <div className="rc-info-val">{cls?.section}</div>
-                </div>
-                <div className="rc-info-row">
-                  <div className="rc-info-label">Roll No:</div>
-                  <div className="rc-info-val">{student.roll_no}</div>
-                </div>
-              </div>
-              <div className="rc-photo-container">
-                {student.picture_url ? (
-                  <img src={student.picture_url} alt={student.name} className="rc-photo" />
-                ) : (
-                  <User size={40} className="rc-photo-placeholder" />
-                )}
-              </div>
-            </div>
-
-            {/* Academic Performance Table */}
-            <table className="rc-table">
-              <thead>
-                <tr>
-                  <th style={{ width: hasGroupedSubjects ? '30%' : '40%' }}>Scholastic Subjects</th>
-                  <th>Mid-Term<br/><span style={{fontWeight: 500, fontSize: '9px'}}>(100)</span></th>
-                  <th>Final-Term<br/><span style={{fontWeight: 500, fontSize: '9px'}}>(100)</span></th>
-                  {hasGroupedSubjects && <th>Group Total<br/><span style={{fontWeight: 500, fontSize: '9px'}}>(200)</span></th>}
-                  <th>Annual Total<br/><span style={{fontWeight: 500, fontSize: '9px'}}>(200)</span></th>
-                  <th>Grade</th>
-                </tr>
-              </thead>
+          <div key={student.id} className="a4-page report-card-slip" style={{
+            width: '100%',
+            maxWidth: '800px',
+            margin: '0 auto',
+            padding: '0',
+            fontFamily: 'Arial, sans-serif',
+            background: '#fff',
+            color: '#000',
+          }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', border: '2px solid black', fontSize: '14px' }}>
               <tbody>
+                {/* Header Row */}
+                <tr>
+                  <td colSpan={hasGroupedSubjects ? 6 : 5} style={{ padding: '10px 12px', border: '1px solid black' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span><span style={{ fontWeight: 'bold' }}>Student Name:</span> <span>{student.name}</span></span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span><span style={{ fontWeight: 'bold' }}>Class:</span> <span>{cls?.name}</span></span>
+                      <span><span style={{ fontWeight: 'bold' }}>Section:</span> <span>{cls?.section}</span></span>
+                      <span><span style={{ fontWeight: 'bold' }}>Roll No:</span> <span>{student.roll_no}</span></span>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td colSpan={hasGroupedSubjects ? 6 : 5} style={{ padding: '15px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1em', textTransform: 'uppercase' }}>
+                    ANNUAL PROGRESS REPORT CARD - {academicYear}
+                  </td>
+                </tr>
+                
+                {/* Column Headers */}
+                <tr>
+                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold' }}>Subjects</td>
+                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Mid-Term (100)</td>
+                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Final-Term (100)</td>
+                  {hasGroupedSubjects && <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Group Total (200)</td>}
+                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Annual Total (200)</td>
+                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Grade</td>
+                </tr>
+
+                {/* Subjects Rows */}
                 {student.subjectScores.map(score => {
                   const annTotal = score.total;
                   const annPerc = (annTotal / 200) * 100;
@@ -597,128 +588,53 @@ const ReportCards = () => {
 
                   return (
                     <tr key={score.subjectId}>
-                      <td>{score.subjectName}</td>
-                      <td>{score.mtTotal}</td>
-                      <td>{score.ftTotal}</td>
+                      <td style={{ padding: '8px 12px', border: '1px solid black' }}>{score.subjectName}</td>
+                      <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{score.mtTotal}</td>
+                      <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{score.ftTotal}</td>
                       
                       {/* Group Total Handling */}
                       {hasGroupedSubjects && score.isGroupStart && (
-                        <td rowSpan={score.rowSpan} className="rc-group-total">
+                        <td rowSpan={score.rowSpan} style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center', verticalAlign: 'middle' }}>
                           {score.groupTotal}
                         </td>
                       )}
                       
                       {/* Annual Total column */}
                       {(!hasGroupedSubjects || score.isGroupStart) && (
-                        <td rowSpan={hasGroupedSubjects ? score.rowSpan : 1} className={hasGroupedSubjects ? "rc-group-total" : ""}>
+                        <td rowSpan={hasGroupedSubjects ? score.rowSpan : 1} style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center', verticalAlign: 'middle', fontWeight: hasGroupedSubjects ? 'bold' : 'normal' }}>
                           {hasGroupedSubjects ? score.groupTotal : annTotal}
                         </td>
                       )}
 
                       {/* Grade Column */}
                       {(!hasGroupedSubjects || score.isGroupStart) && (
-                        <td rowSpan={hasGroupedSubjects ? score.rowSpan : 1} style={{ fontWeight: 'bold', color: getGradeColor(hasGroupedSubjects ? getGrade((score.groupTotal/200)*100) : annGrade) }}>
+                        <td rowSpan={hasGroupedSubjects ? score.rowSpan : 1} style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'bold' }}>
                           {hasGroupedSubjects ? getGrade((score.groupTotal/200)*100) : annGrade}
                         </td>
                       )}
                     </tr>
                   )
                 })}
+
+                {/* Total Row */}
+                <tr>
+                  <td colSpan={hasGroupedSubjects ? 4 : 3} style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold' }}>TOTAL</td>
+                  <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold' }}>{student.grandTotal}</td>
+                  <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}></td>
+                </tr>
+
+                {/* Footer Details */}
+                <tr>
+                  <td colSpan={hasGroupedSubjects ? 6 : 5} style={{ padding: '15px 12px', border: '1px solid black', lineHeight: '1.8' }}>
+                    <div>RANK IN CLASS: <span>{student.rank}</span></div>
+                    <div>PERCENTAGE: <span>{student.percentage}%</span></div>
+                    <div>ATTENDANCE: <span>{student.totalWorkingDays > 0 ? `${student.effectivePresent} / ${student.totalWorkingDays} Days (${student.attendancePercentage}%)` : 'N/A'}</span></div>
+                    <div>CONDUCT: <span></span></div>
+                    <div>PERSONALITY & NEATNESS: <span></span></div>
+                  </td>
+                </tr>
               </tbody>
             </table>
-
-            {/* Overall Summary & Attendance */}
-            <div className="rc-summary-section">
-              <div className="rc-summary-box">
-                <h4 className="rc-box-title">Overall Performance</h4>
-                <div className="rc-summary-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
-                  <div className="rc-stat">
-                    <span className="rc-stat-label">Max Marks</span>
-                    <span className="rc-stat-val">{student.maxPossibleTotal}</span>
-                  </div>
-                  <div className="rc-stat">
-                    <span className="rc-stat-label">Marks Obtained</span>
-                    <span className="rc-stat-val">{student.grandTotal}</span>
-                  </div>
-                  <div className="rc-stat">
-                    <span className="rc-stat-label">Percentage</span>
-                    <span className="rc-stat-val">{student.percentage}%</span>
-                  </div>
-                  <div className="rc-stat mt-2">
-                    <span className="rc-stat-label">Overall Grade</span>
-                    <span className="rc-stat-val" style={{ color: getGradeColor(student.grade), fontSize: '18px' }}>{student.grade}</span>
-                  </div>
-                  <div className="rc-stat mt-2">
-                    <span className="rc-stat-label">Rank</span>
-                    <span className="rc-stat-val">{student.rank}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rc-summary-box">
-                <h4 className="rc-box-title">Attendance & Co-Scholastic</h4>
-                <div className="rc-summary-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
-                  <div className="rc-stat">
-                    <span className="rc-stat-label">Work. Days</span>
-                    <span className="rc-stat-val">{student.attendanceStats.totalWorkingDays || '-'}</span>
-                  </div>
-                  <div className="rc-stat">
-                    <span className="rc-stat-label">Present</span>
-                    <span className="rc-stat-val">{student.attendanceStats.daysPresent || '-'}</span>
-                  </div>
-                  <div className="rc-stat">
-                    <span className="rc-stat-label">Att. %</span>
-                    <span className="rc-stat-val">{student.attendanceStats.percentage}%</span>
-                  </div>
-                  
-                  <div className="rc-stat mt-2">
-                    <span className="rc-stat-label">Discipline</span>
-                    <span className="rc-stat-val text-green-600">A</span>
-                  </div>
-                  <div className="rc-stat mt-2">
-                    <span className="rc-stat-label">Leadership</span>
-                    <span className="rc-stat-val text-blue-600">B+</span>
-                  </div>
-                  <div className="rc-stat mt-2">
-                    <span className="rc-stat-label">Neatness</span>
-                    <span className="rc-stat-val text-green-600">A</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Remarks */}
-            <div className="rc-remarks-section">
-              <h4 className="rc-box-title">Class Teacher Remarks</h4>
-              <p style={{ marginTop: '8px', fontSize: '13px', color: '#334155', fontStyle: 'italic', lineHeight: 1.6 }}>
-                {/* Placeholder for remarks until backend field is added */}
-                {student.percentage >= 80 ? 'An outstanding performance! Keep up the excellent work.' : 
-                 student.percentage >= 60 ? 'Good effort this session. With more focus, further improvement is possible.' : 
-                 'Needs more attention to studies and regular revision to improve grades in the next session.'}
-              </p>
-            </div>
-
-            {/* Signatures */}
-            <div className="rc-signatures">
-              <div className="rc-sig-block">
-                <div className="rc-sig-line"></div>
-                <div className="rc-sig-label">Class Teacher</div>
-              </div>
-              <div className="rc-sig-block">
-                {signatureUrl ? (
-                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2px', height: '40px' }}>
-                    <img src={signatureUrl} alt="Principal Signature" style={{ maxHeight: '100%', objectFit: 'contain' }} />
-                  </div>
-                ) : <div style={{ height: '40px' }}></div>}
-                <div className="rc-sig-line"></div>
-                <div className="rc-sig-label">Principal</div>
-              </div>
-              <div className="rc-sig-block">
-                <div className="rc-sig-line"></div>
-                <div className="rc-sig-label">Parent/Guardian</div>
-              </div>
-            </div>
-
           </div>
         ))}
         {reportCardsData.length === 0 && (

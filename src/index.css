@@ -125,4 +125,44 @@
   .data-table th { @apply bg-[var(--bg-color)] font-semibold text-[var(--text-secondary)] text-sm uppercase tracking-wider; }
   .data-table tbody tr { @apply hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors; }
   .marks-input { @apply w-20 text-center font-bold; }
+
+  /* Print Styles for Pre-Printed Templates */
+  @page {
+    size: A4 portrait;
+    /* 
+     * Top margin: ~95mm to clear the pre-printed school header and logo.
+     * Bottom margin: ~65mm to clear the pre-printed signatures and footer.
+     * Left/Right margin: ~25mm to stay inside the pre-printed green borders.
+     */
+    margin: 95mm 25mm 65mm 25mm;
+  }
+
+  @media print {
+    body {
+      background-color: transparent !important;
+      margin: 0;
+      display: block;
+    }
+    .no-print {
+      display: none !important;
+    }
+    .print-only {
+      display: block !important;
+    }
+    .report-card-slip {
+      margin: 0 !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      max-width: 100% !important;
+      width: 100% !important;
+    }
+    .a4-page {
+      margin: 0 !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      page-break-after: always;
+    }
+  }
 }
