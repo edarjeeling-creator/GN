@@ -17,6 +17,7 @@ import FeatureSettings from './Admin/FeatureSettings';
 import IDCardGenerator from './Admin/IDCardGenerator';
 import MarksManager from './Admin/MarksManager';
 import ImportHistory from './Admin/ImportHistory';
+import ReportCardCMS from './Admin/ReportCardCMS';
 
 const Admin = () => {
   const { logout, profile } = useAuth();
@@ -695,6 +696,7 @@ const Admin = () => {
               <option value="routine">Routine & Substitution Engine</option>
               <option value="data">Data Import & Export</option>
               <option value="marks">Marks Manager</option>
+              <option value="report_cms">Report Configuration (CMS)</option>
             </select>
           </div>
 
@@ -974,6 +976,10 @@ const Admin = () => {
               subjects={subjects} 
               academicYear={academicYear} 
             />
+          )}
+
+          {managementSection === 'report_cms' && (
+            <ReportCardCMS />
           )}
 
           {managementSection === 'academics' && (
