@@ -18,12 +18,12 @@
             background-color: white;
             padding: 40px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 800px; /* Represents the usable A4 width */
         }
 
         .report-card-table {
             width: 100%;
-            min-width: 700px;
-            max-width: 900px;
             border: 2px solid black;
             border-collapse: collapse;
             font-size: 14px;
@@ -72,20 +72,32 @@
         }
 
         /* Print Styles */
+        @page {
+            size: A4 portrait;
+            /* 
+             * Top margin: ~95mm to clear the pre-printed school header and logo.
+             * Bottom margin: ~65mm to clear the pre-printed signatures and footer.
+             * Left/Right margin: ~25mm to stay inside the pre-printed green borders.
+             */
+            margin: 95mm 25mm 65mm 25mm;
+        }
+
         @media print {
             body {
                 background-color: transparent;
                 margin: 0;
+                display: block;
             }
             .page-wrapper {
                 padding: 0;
                 box-shadow: none;
+                max-width: 100%;
+                width: 100%;
             }
             .no-print {
                 display: none !important;
             }
             .report-card-table {
-                min-width: 100%;
                 width: 100%;
             }
         }
