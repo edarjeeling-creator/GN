@@ -15,6 +15,7 @@ import RoutineGenerator from './Admin/RoutineGenerator';
 import SubstitutionDashboard from './Admin/SubstitutionDashboard';
 import FeatureSettings from './Admin/FeatureSettings';
 import IDCardGenerator from './Admin/IDCardGenerator';
+import MarksManager from './Admin/MarksManager';
 
 const Admin = () => {
   const { logout } = useAuth();
@@ -679,6 +680,7 @@ const Admin = () => {
               <option value="academics">Manage Classes & Subjects</option>
               <option value="routine">Routine & Substitution Engine</option>
               <option value="data">Data Import & Export</option>
+              <option value="marks">Marks Manager</option>
             </select>
           </div>
 
@@ -943,6 +945,14 @@ const Admin = () => {
             />
 
             </div>
+          )}
+
+          {managementSection === 'marks' && (
+            <MarksManager 
+              classes={classes} 
+              subjects={subjects} 
+              academicYear={academicYear} 
+            />
           )}
 
           {managementSection === 'academics' && (
