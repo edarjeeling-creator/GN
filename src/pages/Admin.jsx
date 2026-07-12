@@ -16,9 +16,10 @@ import SubstitutionDashboard from './Admin/SubstitutionDashboard';
 import FeatureSettings from './Admin/FeatureSettings';
 import IDCardGenerator from './Admin/IDCardGenerator';
 import MarksManager from './Admin/MarksManager';
+import ImportHistory from './Admin/ImportHistory';
 
 const Admin = () => {
-  const { logout } = useAuth();
+  const { logout, profile } = useAuth();
   const navigate = useNavigate();
   const { academicYear, classes, subjects, students, updateStudentName, updateStudentLanguages, updateStudentPictureUrl, updateSubjectName, removeStudent, loadingData } = useData();
   const [stats, setStats] = useState({ classes: 0, students: 0, subjects: 0, teachers: 0 });
@@ -573,6 +574,19 @@ const Admin = () => {
         if (updates.length > 0) {
           const { error } = await supabase.from('marks').upsert(updates, { onConflict: 'student_id, subject_id, term' });
           if (error) throw error;
+          
+          // Log to import history
+          await supabase.from('import_history').insert({
+            file_name: file.name,
+            user_id: profile?.id,
+            user_name: profile?.name,
+            record_count: matchedSubjectsCount,
+            status: 'Success',
+            academic_year: academicYear,
+            term: flowsheetTerm,
+            class_id: flowsheetClassId
+          });
+
           alert(`Successfully imported marks for ${data.length} students! Found and processed ${matchedSubjectsCount} subject scores.`);
         } else {
           alert('No valid marks found. Please ensure the column headers in your Excel file exactly match the Subject Names in the system!');
@@ -814,8 +828,9 @@ const Admin = () => {
                 value={flowsheetTerm} 
                 onChange={e => setFlowsheetTerm(e.target.value)}
               >
-                <option value="Midterm">2. Mid-Term</option>
-                <option value="Finalterm">2. Final-Term</option>
+                <option value="Midterm">2. Term (Mid-Term)</option>
+                <option value="Finalterm">2. Term (Final-Term)</option>
+                <option value="Unit">2. Term (Unit Test)</option>
               </select>
 
               <div style={{ marginTop: '0.5rem' }}>
@@ -827,13 +842,19 @@ const Admin = () => {
                     ref={flowsheetFileRef}
                     style={{ padding: '0.5rem', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', width: '100%', background: '#f8fafc' }}
                   />
-                  <button className="btn-hero-primary" style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.5rem 1rem' }} onClick={handleUploadFlowsheet}>
+                  <button className="btn-hero-primary" style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.5rem 1rem' }} onClick={async () => {
+                    await handleUploadFlowsheet();
+                    await supabase.from('import_history').insert({ class_id: flowsheetClassId, term: flowsheetTerm, academic_year: academicYear });
+                  }}>
                     Import
                   </button>
                 </div>
               </div>
             </div>
           </div>
+
+          <ImportHistory academicYear={academicYear} />
+
             </div>
           )}
 
