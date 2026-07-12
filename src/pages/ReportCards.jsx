@@ -4,6 +4,7 @@ import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { ArrowLeft, Printer, User } from 'lucide-react';
 import { getConversionConstants } from './SubjectMarks';
+import { getGroupsForClass, getDynamicSubjectName, calculateAttendancePercentage } from '../utils/reportUtils';
 
 const ReportCards = () => {
   const { classId } = useParams();
@@ -12,17 +13,41 @@ const ReportCards = () => {
 
   const cls = classes.find(c => c.id === classId);
   const classStudents = students.filter(s => s.class_id === classId);
-  const [signatureUrl, setSignatureUrl] = useState(null);
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
   
   useEffect(() => {
-    const fetchSig = async () => {
-      const { data } = await supabase.from('school_settings').select('setting_value').eq('setting_key', 'principal_signature_url').single();
-      if (data && data.setting_value) {
-        setSignatureUrl(data.setting_value);
+    const fetchTemplates = async () => {
+      const { data } = await supabase.from('report_templates').select('*');
+      if (data && data.length > 0) {
+        setTemplates(data);
+        const active = data.find(t => t.is_active);
+        if (active) setSelectedTemplateId(active.id);
+        else setSelectedTemplateId(data[0].id);
       }
     };
-    fetchSig();
+    fetchTemplates();
   }, []);
+
+  const activeTemplate = templates.find(t => t.id === selectedTemplateId) || {
+    settings: {
+      title: 'REPORT CARD',
+      academicYear: academicYear,
+      layoutTemplate: 'midterm-standard',
+      logoUrl: '',
+      principalSignatureUrl: '',
+      classTeacherSignatureUrl: '',
+      promotionRuleText: '',
+      showAttendance: true,
+      showRemarks: true,
+      showRank: false,
+      showPercentage: true,
+      margins: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' }
+    },
+    type: 'Mid-Term'
+  };
+  const settings = activeTemplate.settings || {};
+  const margins = settings.margins || { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' };
   
   const classSubjectIds = teacherSubjects[classId] || [];
   
@@ -34,22 +59,10 @@ const ReportCards = () => {
   });
 
   const { examConv } = getConversionConstants(cls?.name);
-  const isICSEClass = cls?.name?.match(/\b(9|10|ix|x)\b/i);
   const isISCClass = cls?.name?.match(/\b(11|12|xi|xii)\b/i);
 
   // Group definitions
-  let groupsToUse = [];
-  if (isICSEClass) {
-    groupsToUse = [
-      { name: 'English', matchers: ['english paper', 'english language', 'english literature'] },
-      { name: 'HCG', matchers: ['history', 'civics', 'geography'] },
-      { name: 'Science', matchers: ['physics', 'chemistry', 'biology', 'science'] }
-    ];
-  } else if (isISCClass) {
-    groupsToUse = [
-      { name: 'English', matchers: ['english paper', 'english language', 'english literature'] }
-    ];
-  }
+  const groupsToUse = getGroupsForClass(cls?.name);
 
   const getGrade = (percentage) => {
     if (percentage >= 90) return 'A+';
@@ -93,36 +106,16 @@ const ReportCards = () => {
     let maxPossibleTotal = 0;
 
     const subjectScores = studentSubjects.map(sub => {
-      const getDynamicName = (name) => {
-        const lowerName = name.toLowerCase();
-        const isSec = lowerName.includes('2nd language') || lowerName.includes('second language');
-        const isThird = lowerName.includes('3rd language') || lowerName.includes('third language');
-        const isElective = lowerName.includes('elective') || lowerName.includes('evs/math') || lowerName.includes('maths/evs') || lowerName.includes('math/evs');
-        const isSixth = lowerName.includes('6th') || lowerName.includes('sixth');
-        
-        if (isSec && student.second_language && !lowerName.includes(student.second_language.toLowerCase())) {
-          return `${name} (${student.second_language})`;
-        }
-        if (isThird && student.third_language && !lowerName.includes(student.third_language.toLowerCase())) {
-          return `${name} (${student.third_language})`;
-        }
-        if (isElective && student.elective_subject) {
-          return student.elective_subject;
-        }
-        if (isSixth && student.sixth_subject) {
-          return student.sixth_subject;
-        }
-        return name;
-      };
-
-      const getVal = (term) => {
-        const fullTerm = `${academicYear}_${term}`;
+      const getVal = (termStr) => {
+        const fullTerm = `${settings.academicYear || academicYear}_${termStr}`;
         const val = marks[`${student.id}_${sub.id}_${fullTerm}`];
         return val !== undefined && val !== '' ? Number(val) : 0;
       };
 
-      const mtExam = getVal('Midterm_Exam');
-      const mtTest = getVal('Midterm_Test');
+      const termPrefix = activeTemplate.type === 'Final-Term' ? 'Finalterm' : 'Midterm';
+      
+      const mtExam = getVal(`${termPrefix}_Exam`);
+      const mtTest = getVal(`${termPrefix}_Test`);
       const mtConv = mtExam * (examConv / 100);
       const mtTotal = Math.round(mtConv + mtTest);
 
@@ -131,7 +124,7 @@ const ReportCards = () => {
 
       return { 
         subjectId: sub.id, 
-        subjectName: getDynamicName(sub.name), 
+        subjectName: getDynamicSubjectName(sub.name, student), 
         mtTotal
       };
     });
@@ -139,12 +132,7 @@ const ReportCards = () => {
     const percentage = maxPossibleTotal > 0 ? (grandMtTotal / maxPossibleTotal) * 100 : 0;
 
     // Calculate Attendance
-    const stuAtt = attendance ? attendance.filter(a => a.student_id === student.id && a.academic_year === academicYear) : [];
-    const totalWorkingDays = stuAtt.length;
-    const daysPresent = stuAtt.filter(a => a.status === 'Present' || a.status === 'Late').length;
-    const daysHalfDay = stuAtt.filter(a => a.status === 'Half Day').length;
-    const effectivePresent = daysPresent + (daysHalfDay * 0.5);
-    const attendancePercentage = totalWorkingDays > 0 ? ((effectivePresent / totalWorkingDays) * 100).toFixed(1) : '-';
+    const attendancePercentage = calculateAttendancePercentage(attendance, student.id, academicYear);
 
     return {
       ...student,
@@ -187,10 +175,20 @@ const ReportCards = () => {
           <button className="btn btn-outline btn-sm mb-2" onClick={() => navigate(`/classes/${classId}/flowsheet`)}>
             <ArrowLeft size={16} /> Back to Flowsheet
           </button>
-          <h1>Annual Report Cards</h1>
-          <p>{cls?.name} {cls?.section} - Modern A4 Layout</p>
+          <h1>Report Cards</h1>
+          <p>{cls?.name} {cls?.section} - Using Template: {activeTemplate.name || 'Default'}</p>
         </div>
         <div className="flex gap-4 items-center">
+          {templates.length > 0 && (
+            <select 
+              className="input-field" 
+              value={selectedTemplateId} 
+              onChange={e => setSelectedTemplateId(e.target.value)}
+              style={{ width: '250px' }}
+            >
+              {templates.map(t => <option key={t.id} value={t.id}>{t.name} ({t.type})</option>)}
+            </select>
+          )}
           <button className="btn btn-primary" onClick={() => window.print()}>
             <Printer size={18} /> Print All Cards
           </button>
@@ -221,7 +219,7 @@ const ReportCards = () => {
             width: 210mm;
             height: 297mm;
             margin: 0;
-            padding: 15mm;
+            padding: ${margins.top} ${margins.right} ${margins.bottom} ${margins.left};
             page-break-after: always;
             box-sizing: border-box;
             background: white;
@@ -236,7 +234,7 @@ const ReportCards = () => {
           width: 210mm;
           min-height: 297mm;
           margin: 0 auto 2rem auto;
-          padding: 15mm;
+          padding: ${margins.top} ${margins.right} ${margins.bottom} ${margins.left};
           background: white;
           box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
           font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -475,7 +473,7 @@ const ReportCards = () => {
                 </tr>
                 <tr>
                   <td colSpan="2" style={{ padding: '15px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1em', textTransform: 'uppercase' }}>
-                    MID-TERM PROGRESS REPORT CARD - {academicYear}
+                    {settings.title || 'PROGRESS REPORT CARD'} - {settings.academicYear || academicYear}
                   </td>
                 </tr>
                 
@@ -504,11 +502,27 @@ const ReportCards = () => {
                 {/* Footer Details */}
                 <tr>
                   <td colSpan="2" style={{ padding: '15px 12px', border: '1px solid black', lineHeight: '1.8' }}>
-                    <div>RANK IN CLASS: <span>{student.rank}{student.rank === 1 ? 'st' : student.rank === 2 ? 'nd' : student.rank === 3 ? 'rd' : 'th'} Out of {reportCardsData.length}</span></div>
-                    <div>PERCENTAGE: <span>{student.percentage}%</span></div>
-                    <div>ATTENDANCE: <span>Regular/Irregular</span></div>
-                    <div>CONDUCT: <span>Good/Satisfactory/Unsatisfactory</span></div>
-                    <div>PERSONALITY & NEATNESS: <span>Good/Satisfactory/Unsatisfactory</span></div>
+                    {settings.showRank !== false && <div>RANK IN CLASS: <span>{student.rank}{student.rank === 1 ? 'st' : student.rank === 2 ? 'nd' : student.rank === 3 ? 'rd' : 'th'} Out of {reportCardsData.length}</span></div>}
+                    {settings.showPercentage !== false && <div>PERCENTAGE: <span>{student.percentage}%</span></div>}
+                    {settings.showAttendance !== false && <div>ATTENDANCE: <span>{student.attendanceStats.percentage}% ({student.attendanceStats.daysPresent}/{student.attendanceStats.totalWorkingDays} days)</span></div>}
+                    {settings.showRemarks !== false && (
+                      <>
+                        <div>CONDUCT: <span>Good/Satisfactory/Unsatisfactory</span></div>
+                        <div>PERSONALITY & NEATNESS: <span>Good/Satisfactory/Unsatisfactory</span></div>
+                      </>
+                    )}
+                    {settings.promotionRuleText && <div style={{ marginTop: '8px', fontWeight: 'bold' }}>REMARKS: {settings.promotionRuleText}</div>}
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '40px' }}>
+                      <div style={{ textAlign: 'center', width: '150px' }}>
+                        {settings.classTeacherSignatureUrl ? <img src={settings.classTeacherSignatureUrl} alt="Class Teacher" style={{ maxHeight: '40px' }} /> : <div style={{ height: '40px' }}></div>}
+                        <div style={{ borderTop: '1px solid black', paddingTop: '4px', fontSize: '0.9em' }}>Class Teacher</div>
+                      </div>
+                      <div style={{ textAlign: 'center', width: '150px' }}>
+                        {settings.principalSignatureUrl ? <img src={settings.principalSignatureUrl} alt="Principal" style={{ maxHeight: '40px' }} /> : <div style={{ height: '40px' }}></div>}
+                        <div style={{ borderTop: '1px solid black', paddingTop: '4px', fontSize: '0.9em' }}>Principal</div>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               </tbody>

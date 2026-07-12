@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useData } from '../../context/DataContext';
-import { Clock, RotateCcw, AlertCircle } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { Clock, RotateCcw, AlertCircle, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 const ImportHistory = ({ academicYear }) => {
   const { classes, students } = useData();
+  const { profile } = useAuth();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,20 +40,14 @@ const ImportHistory = ({ academicYear }) => {
     if (!confirmed) return;
     
     try {
-      // Find all students for this class
-      const classStudents = students.filter(s => s.class_id === record.class_id);
-      const studentIds = classStudents.map(s => s.id);
-      
-      if (studentIds.length > 0) {
-        // Delete the marks
-        const { error: deleteError } = await supabase
-          .from('marks')
-          .delete()
-          .in('student_id', studentIds)
-          .eq('term', record.term);
-          
-        if (deleteError) throw deleteError;
-      }
+      // Soft-delete the marks associated with this import session
+      const { error: deleteError } = await supabase
+        .from('marks')
+        .update({ deleted_at: new Date().toISOString(), deleted_by: profile?.id })
+        .eq('import_id', record.id)
+        .is('deleted_at', null);
+        
+      if (deleteError) throw deleteError;
       
       // Update history status
       await supabase
@@ -70,9 +67,23 @@ const ImportHistory = ({ academicYear }) => {
 
   return (
     <div className="bento-card" style={{ padding: '2rem', marginTop: '2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-        <Clock size={24} color="var(--primary-color)" />
-        <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>Excel Import History</h3>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <Clock size={24} color="var(--primary-color)" />
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>Excel Import History</h3>
+        </div>
+        <button 
+          onClick={() => {
+            const ws = XLSX.utils.json_to_sheet(history);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "ImportHistory");
+            XLSX.writeFile(wb, `Import_History_${academicYear}.xlsx`);
+          }}
+          className="btn"
+          style={{ background: '#fff', border: '1px solid #cbd5e1', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+        >
+          <Download size={16} /> Export to Excel
+        </button>
       </div>
       
       <div style={{ overflowX: 'auto', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>

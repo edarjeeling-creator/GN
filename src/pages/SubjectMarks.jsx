@@ -31,6 +31,7 @@ const SubjectMarks = () => {
 
   const [localMarks, setLocalMarks] = useState({});
   const [saveStatus, setSaveStatus] = useState('idle'); // idle, saving, saved, error
+  const [isLocked, setIsLocked] = useState(false);
   
   const filteredStudents = useMemo(() => {
     return classStudents.filter(student => {
@@ -74,6 +75,21 @@ const SubjectMarks = () => {
     });
     setLocalMarks(initialMarks);
   }, [classStudents.map(s => s.id).join(','), marks, subjectId, academicYear]);
+
+  useEffect(() => {
+    const checkLockStatus = async () => {
+      const fullTerm = `${academicYear}_${selectedTerm}_Exam`;
+      const { data } = await supabase
+        .from('marks_status')
+        .select('status')
+        .eq('class_id', classId)
+        .eq('term', fullTerm)
+        .single();
+      
+      setIsLocked(data?.status === 'Locked' || data?.status === 'Published');
+    };
+    checkLockStatus();
+  }, [classId, selectedTerm, academicYear]);
 
   const handleMarkChange = (studentId, term, value) => {
     let maxMark = 100;
@@ -174,10 +190,10 @@ const SubjectMarks = () => {
         id: 'exam',
         header: 'Exam (100)',
         cell: ({ row, table }) => {
-          const { localMarks, handleMarkChange, handleBlur, subjectId, academicYear } = table.options.meta;
+          const { localMarks, handleMarkChange, handleBlur, subjectId, academicYear, isLocked } = table.options.meta;
           const termKey = isMid ? 'Midterm_Exam' : 'Finalterm_Exam';
           const val = localMarks[`${row.original.id}_${subjectId}_${academicYear}_${termKey}`];
-          return <Input type="number" className="w-20 text-center font-semibold" value={val !== undefined ? val : ''} min="0" max="100" onChange={e => handleMarkChange(row.original.id, termKey, e.target.value)} onBlur={() => handleBlur(row.original.id, termKey)} />;
+          return <Input type="number" className="w-20 text-center font-semibold" value={val !== undefined ? val : ''} min="0" max="100" onChange={e => handleMarkChange(row.original.id, termKey, e.target.value)} onBlur={() => handleBlur(row.original.id, termKey)} disabled={isLocked} />;
         }
       },
       {
@@ -195,10 +211,10 @@ const SubjectMarks = () => {
         id: 'test',
         header: `Test (${testMax})`,
         cell: ({ row, table }) => {
-          const { localMarks, handleMarkChange, handleBlur, subjectId, academicYear } = table.options.meta;
+          const { localMarks, handleMarkChange, handleBlur, subjectId, academicYear, isLocked } = table.options.meta;
           const termKey = isMid ? 'Midterm_Test' : 'Finalterm_Test';
           const val = localMarks[`${row.original.id}_${subjectId}_${academicYear}_${termKey}`];
-          return <Input type="number" className="w-20 text-center font-semibold" value={val !== undefined ? val : ''} min="0" max={testMax} onChange={e => handleMarkChange(row.original.id, termKey, e.target.value)} onBlur={() => handleBlur(row.original.id, termKey)} />;
+          return <Input type="number" className="w-20 text-center font-semibold" value={val !== undefined ? val : ''} min="0" max={testMax} onChange={e => handleMarkChange(row.original.id, termKey, e.target.value)} onBlur={() => handleBlur(row.original.id, termKey)} disabled={isLocked} />;
         }
       },
       {
@@ -235,7 +251,8 @@ const SubjectMarks = () => {
       handleBlur,
       subjectId,
       academicYear,
-      calculateConverted
+      calculateConverted,
+      isLocked
     }
   });
 
@@ -248,6 +265,11 @@ const SubjectMarks = () => {
           </Button>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Marks Entry: {subject?.name}</h1>
           <p className="text-slate-500 mt-1">{cls?.name} {cls?.section} <span className="inline-block mx-2 text-slate-300">|</span> Exam translates to {examConv}, Test is out of {testMax}</p>
+          {isLocked && (
+            <div className="mt-2 text-orange-600 bg-orange-50 px-3 py-1.5 rounded-md inline-flex items-center gap-2 font-semibold">
+              <AlertCircle size={16} /> Results for this term are Locked. Editing is disabled.
+            </div>
+          )}
         </div>
         
         <div className="flex items-center gap-3">
@@ -257,8 +279,8 @@ const SubjectMarks = () => {
             {saveStatus === 'saved' && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-emerald-500 flex items-center gap-1.5 text-sm font-semibold bg-emerald-50 px-3 py-1.5 rounded-full"><CheckCircle2 size={16}/> Saved</motion.span>}
           </AnimatePresence>
           
-          <input type="file" accept=".xlsx, .xls, .csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="shrink-0 bg-white shadow-sm">
+          <input type="file" accept=".xlsx, .xls, .csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" disabled={isLocked} />
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="shrink-0 bg-white shadow-sm" disabled={isLocked}>
             <Upload size={18} className="mr-2" /> Import Excel
           </Button>
           <Button onClick={() => {
@@ -272,7 +294,7 @@ const SubjectMarks = () => {
               }
             });
             setSaveStatus('saved'); setTimeout(() => setSaveStatus('idle'), 2000);
-          }} className="shrink-0 shadow-md">
+          }} className="shrink-0 shadow-md" disabled={isLocked}>
             <Save size={18} className="mr-2" /> Save All
           </Button>
         </div>

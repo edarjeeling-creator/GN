@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Search, Loader2, BookOpen, Home, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { getGroupsForClass, getDynamicSubjectName, calculateAttendancePercentage } from '../utils/reportUtils';
 
 const ResultPortal = () => {
   const queryParams = new URLSearchParams(window.location.search);
@@ -38,6 +39,30 @@ const ResultPortal = () => {
         return;
       }
 
+      // Check if results are published
+      const fullTerm = `${academicYear}_${selectedTerm}_Exam`;
+      const { data: statusData } = await supabase
+        .from('marks_status')
+        .select('status')
+        .eq('class_id', data.class.id)
+        .eq('term', fullTerm)
+        .single();
+
+      if (!statusData || statusData.status !== 'Published') {
+        setError(`Results for ${selectedTerm} are not yet published for your class.`);
+        return;
+      }
+      
+      // Fetch the generated report snapshot
+      const { data: reportSnapshot } = await supabase
+        .from('generated_reports')
+        .select('template_snapshot')
+        .eq('class_id', data.class.id)
+        .eq('term', fullTerm)
+        .eq('academic_year', academicYear)
+        .maybeSingle();
+
+      data.snapshot = reportSnapshot?.template_snapshot || null;
       setResultData(data);
     } catch (err) {
       console.error(err);
@@ -57,25 +82,23 @@ const ResultPortal = () => {
   const renderReportCard = () => {
     if (!resultData) return null;
 
-    const { student, class: cls, marks, subjects, class_marks, attendance } = resultData;
+    const { student, class: cls, marks, subjects, class_marks, attendance, snapshot } = resultData;
+    
+    const settings = snapshot || {
+      title: 'REPORT CARD',
+      showAttendance: true,
+      showRemarks: true,
+      showRank: false,
+      showPercentage: true,
+      margins: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' }
+    };
+    const margins = settings.margins || { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' };
     
     const isHigherClass = ['9', '10', '11', '12'].some(grade => cls.name.includes(grade));
     const examConv = isHigherClass ? 80 : 75;
-    const isICSEClass = cls?.name?.match(/\b(9|10|ix|x)\b/i);
     const isISCClass = cls?.name?.match(/\b(11|12|xi|xii)\b/i);
 
-    let groupsToUse = [];
-    if (isICSEClass) {
-      groupsToUse = [
-        { name: 'English', matchers: ['english paper', 'english language', 'english literature'] },
-        { name: 'HCG', matchers: ['history', 'civics', 'geography'] },
-        { name: 'Science', matchers: ['physics', 'chemistry', 'biology', 'science'] }
-      ];
-    } else if (isISCClass) {
-      groupsToUse = [
-        { name: 'English', matchers: ['english paper', 'english language', 'english literature'] }
-      ];
-    }
+    const groupsToUse = getGroupsForClass(cls?.name);
 
     const allSubjects = subjects || [];
     
@@ -99,28 +122,6 @@ const ResultPortal = () => {
     // 1. Calculate Grand Total for THIS student
     let grandTotal = 0;
     const subjectScores = studentSubjects.map(sub => {
-      const getDynamicName = (name) => {
-        const lowerName = name.toLowerCase();
-        const isSec = lowerName.includes('2nd language') || lowerName.includes('second language');
-        const isThird = lowerName.includes('3rd language') || lowerName.includes('third language');
-        const isElective = lowerName.includes('elective') || lowerName.includes('evs/math') || lowerName.includes('maths/evs') || lowerName.includes('math/evs');
-        const isSixth = lowerName.includes('6th') || lowerName.includes('sixth');
-        
-        if (isSec && student.second_language && !lowerName.includes(student.second_language.toLowerCase())) {
-          return `${name} (${student.second_language})`;
-        }
-        if (isThird && student.third_language && !lowerName.includes(student.third_language.toLowerCase())) {
-          return `${name} (${student.third_language})`;
-        }
-        if (isElective && student.elective_subject) {
-          return student.elective_subject;
-        }
-        if (isSixth && student.sixth_subject) {
-          return student.sixth_subject;
-        }
-        return name;
-      };
-
       const getVal = (term) => {
         const fullTerm = `${academicYear}_${term}`;
         const markObj = marks ? marks.find(m => m && m.subject_id === sub.id && m.term === fullTerm) : null;
@@ -142,7 +143,7 @@ const ResultPortal = () => {
       else if (selectedTerm === 'Finalterm') subjectTotal = ftTotal;
       else subjectTotal = mtTotal + ftTotal;
 
-      return { subjectId: sub.id, subjectName: getDynamicName(sub.name), total: subjectTotal };
+      return { subjectId: sub.id, subjectName: getDynamicSubjectName(sub.name, student), total: subjectTotal };
     });
 
     let finalSubjectRows = [];
@@ -319,12 +320,7 @@ const ResultPortal = () => {
     const getOutOFAmount = () => selectedTerm === 'Combined' ? 200 : 100;
 
     // Calculate Attendance
-    const stuAtt = attendance || [];
-    const totalWorkingDays = stuAtt.length;
-    const daysPresent = stuAtt.filter(a => a.status === 'Present' || a.status === 'Late').length;
-    const daysHalfDay = stuAtt.filter(a => a.status === 'Half Day').length;
-    const effectivePresent = daysPresent + (daysHalfDay * 0.5);
-    const attendancePercentage = totalWorkingDays > 0 ? ((effectivePresent / totalWorkingDays) * 100).toFixed(1) : '-';
+    const attendancePercentage = calculateAttendancePercentage(attendance, student.id, academicYear);
 
     return (
       <div className="report-card-slip" style={{
@@ -384,15 +380,25 @@ const ResultPortal = () => {
             {/* Footer Details */}
             <tr>
               <td colSpan="2" style={{ padding: '15px 12px', border: '1px solid black', lineHeight: '1.8' }}>
-                <div>RANK IN CLASS: <span>{rank}</span></div>
-                <div>PERCENTAGE: <span>{percentage}%</span></div>
-                <div>ATTENDANCE: <span>Regular/Irregular</span></div>
-                <div>CONDUCT: <span>Good/Satisfactory/Unsatisfactory</span></div>
-                <div>PERSONALITY & NEATNESS: <span>Good/Satisfactory/Unsatisfactory</span></div>
+                {settings.showRank !== false && <div>RANK IN CLASS: <span>{rank}</span></div>}
+                {settings.showPercentage !== false && <div>PERCENTAGE: <span>{percentage}%</span></div>}
+                {settings.showAttendance !== false && <div>ATTENDANCE: <span>{attendancePercentage}%</span></div>}
+                {settings.showRemarks !== false && <div>REMARKS: <span>Good</span></div>}
               </td>
             </tr>
           </tbody>
         </table>
+        
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '60px' }}>
+           <div style={{ textAlign: 'center' }}>
+             {settings.classTeacherSignatureUrl && <img src={settings.classTeacherSignatureUrl} alt="Class Teacher Signature" style={{ height: '40px', display: 'block', margin: '0 auto 5px' }} />}
+             <div style={{ borderTop: '1px solid black', paddingTop: '5px', width: '150px' }}>Class Teacher</div>
+           </div>
+           <div style={{ textAlign: 'center' }}>
+             {settings.principalSignatureUrl && <img src={settings.principalSignatureUrl} alt="Principal Signature" style={{ height: '40px', display: 'block', margin: '0 auto 5px' }} />}
+             <div style={{ borderTop: '1px solid black', paddingTop: '5px', width: '150px' }}>Principal</div>
+           </div>
+        </div>
         
         <div style={{ marginTop: '1rem', textAlign: 'center', display: 'flex', gap: '1rem', justifyContent: 'center' }} className="no-print">
            <button className="btn" style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={() => { setUid(''); setResultData(null); window.history.replaceState({}, document.title, window.location.pathname); }}>

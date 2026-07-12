@@ -41,7 +41,7 @@ export const DataProvider = ({ children }) => {
 
       if (session) {
         queries.push(supabase.from('teacher_subjects').select('*').eq('teacher_id', session.user.id));
-        queries.push(supabase.from('marks').select('*'));
+        queries.push(supabase.from('marks').select('*').is('deleted_at', null));
         queries.push(supabase.from('attendance').select('*'));
       }
 
@@ -89,19 +89,34 @@ export const DataProvider = ({ children }) => {
 
     fetchData();
 
-    // Subscribe to realtime marks updates
-    const marksSubscription = supabase
-      .channel('public:marks')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'marks' }, payload => {
-        const { new: newRecord } = payload;
-        if (newRecord) {
-          setMarks(prev => ({
-            ...prev,
-            [`${newRecord.student_id}_${newRecord.subject_id}_${newRecord.term}`]: newRecord.score
-          }));
-        }
-      })
-      .subscribe();
+      const marksSubscription = supabase
+        .channel('public:marks')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'marks' }, payload => {
+          const { new: newRecord, old: oldRecord, eventType } = payload;
+          
+          if (eventType === 'DELETE' && oldRecord) {
+            setMarks(prev => {
+              const updated = { ...prev };
+              delete updated[`${oldRecord.student_id}_${oldRecord.subject_id}_${oldRecord.term}`];
+              return updated;
+            });
+          } else if (newRecord) {
+            // Check if it was soft deleted
+            if (newRecord.deleted_at) {
+              setMarks(prev => {
+                const updated = { ...prev };
+                delete updated[`${newRecord.student_id}_${newRecord.subject_id}_${newRecord.term}`];
+                return updated;
+              });
+            } else {
+              setMarks(prev => ({
+                ...prev,
+                [`${newRecord.student_id}_${newRecord.subject_id}_${newRecord.term}`]: newRecord.score
+              }));
+            }
+          }
+        })
+        .subscribe();
 
     return () => {
       supabase.removeChannel(marksSubscription);
@@ -115,6 +130,7 @@ export const DataProvider = ({ children }) => {
     }
 
     const fullTerm = term.startsWith('202') ? term : `${academicYear}_${term}`;
+    const oldScore = marks[`${studentId}_${subjectId}_${fullTerm}`];
 
     // Optimistic UI update
     setMarks(prev => ({
@@ -123,14 +139,30 @@ export const DataProvider = ({ children }) => {
     }));
 
     // Upsert to Supabase
-    const { error } = await supabase.from('marks').upsert({
+    const { data, error } = await supabase.from('marks').upsert({
       student_id: studentId,
       subject_id: subjectId,
       term: fullTerm,
       score: score
-    }, { onConflict: 'student_id,subject_id,term' });
+    }, { onConflict: 'student_id,subject_id,term' }).select();
     
-    if (error) console.error("Error saving mark:", error);
+    if (error) {
+      console.error("Error saving mark:", error);
+      return;
+    }
+
+    // Insert into marks_audit_log
+    if (session) {
+      await supabase.from('marks_audit_log').insert({
+        student_id: studentId,
+        subject_id: subjectId,
+        term: fullTerm,
+        old_score: oldScore === undefined || oldScore === '' ? null : Number(oldScore),
+        new_score: score === '' ? null : Number(score),
+        changed_by: session.user.id,
+        changer_name: profile?.name || 'Teacher'
+      });
+    }
   };
 
   const toggleTeacherSubject = async (classId, subjectId) => {

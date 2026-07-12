@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
 import { Trash2, Edit2, Save, X, Search, AlertTriangle } from 'lucide-react';
 
 const MarksManager = ({ classes, subjects, academicYear }) => {
   const { students } = useData();
+  const { profile } = useAuth();
   const [selectedClassId, setSelectedClassId] = useState('');
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [selectedTerm, setSelectedTerm] = useState('Midterm_Exam');
@@ -14,6 +16,7 @@ const MarksManager = ({ classes, subjects, academicYear }) => {
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
+  const [isLocked, setIsLocked] = useState(false);
 
   const TERMS = [
     { id: 'Midterm_Exam', name: 'Mid-Term Exam' },
@@ -73,6 +76,31 @@ const MarksManager = ({ classes, subjects, academicYear }) => {
     fetchMarks();
   }, [selectedClassId, selectedSubjectId, selectedTerm, academicYear, students]);
 
+  useEffect(() => {
+    const checkLockStatus = async () => {
+      if (!selectedClassId || !selectedTerm) {
+        setIsLocked(false);
+        return;
+      }
+      
+      // We look at the top-level term (e.g. 2026_Midterm_Exam) for lock status
+      // selectedTerm in this component is like Midterm_Exam or Midterm_Test
+      // The lock applies to the overall term (e.g. Midterm_Exam)
+      const lockTerm = selectedTerm.includes('Test') ? selectedTerm.replace('Test', 'Exam') : selectedTerm;
+      const fullTerm = `${academicYear}_${lockTerm}`;
+      
+      const { data } = await supabase
+        .from('marks_status')
+        .select('status')
+        .eq('class_id', selectedClassId)
+        .eq('term', fullTerm)
+        .single();
+      
+      setIsLocked(data?.status === 'Locked' || data?.status === 'Published');
+    };
+    checkLockStatus();
+  }, [selectedClassId, selectedTerm, academicYear]);
+
   const handleBulkDelete = async () => {
     if (!selectedClassId || !selectedTerm) {
       return alert("Please select a Class and Term to clear marks.");
@@ -81,7 +109,7 @@ const MarksManager = ({ classes, subjects, academicYear }) => {
     const fullTerm = `${academicYear}_${selectedTerm}`;
     const cls = classes.find(c => c.id === selectedClassId);
     
-    const confirmed = window.confirm(`⚠️ WARNING ⚠️\n\nAre you sure you want to permanently delete ALL marks for:\nClass: ${cls.name} ${cls.section}\nTerm: ${fullTerm}\n\nThis cannot be undone!`);
+    const confirmed = window.confirm(`⚠️ WARNING ⚠️\n\nAre you sure you want to delete ALL marks for:\nClass: ${cls.name} ${cls.section}\nTerm: ${fullTerm}\n\n(This action will soft-delete the records and can be restored by an admin)`);
     
     if (!confirmed) return;
     
@@ -95,9 +123,10 @@ const MarksManager = ({ classes, subjects, academicYear }) => {
       // If a subject is selected, only delete for that subject. Otherwise, delete for ALL subjects.
       let query = supabase
         .from('marks')
-        .delete()
+        .update({ deleted_at: new Date().toISOString(), deleted_by: profile?.id })
         .in('student_id', studentIds)
-        .eq('term', fullTerm);
+        .eq('term', fullTerm)
+        .is('deleted_at', null);
         
       if (selectedSubjectId) {
         query = query.eq('subject_id', selectedSubjectId);
@@ -199,14 +228,20 @@ const MarksManager = ({ classes, subjects, academicYear }) => {
         
         <button 
           onClick={handleBulkDelete}
-          disabled={!selectedClassId || !selectedTerm}
+          disabled={!selectedClassId || !selectedTerm || isLocked}
           className="btn-danger"
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', borderRadius: 'var(--radius-sm)', background: (!selectedClassId || !selectedTerm) ? '#f87171' : '#ef4444', color: 'white', border: 'none', fontWeight: 600, cursor: (!selectedClassId || !selectedTerm) ? 'not-allowed' : 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', borderRadius: 'var(--radius-sm)', background: (!selectedClassId || !selectedTerm || isLocked) ? '#f87171' : '#ef4444', color: 'white', border: 'none', fontWeight: 600, cursor: (!selectedClassId || !selectedTerm || isLocked) ? 'not-allowed' : 'pointer' }}
         >
           <Trash2 size={16} />
           {selectedSubjectId ? 'Clear Marks for Subject' : 'Clear ALL Marks for Class'}
         </button>
       </div>
+      
+      {isLocked && (
+        <div style={{ marginBottom: '1.5rem', padding: '0.75rem', background: '#fff7ed', color: '#c2410c', borderRadius: '0.5rem', border: '1px solid #fed7aa', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500 }}>
+          <AlertTriangle size={18} /> Results for this term are Locked. Editing and clearing are disabled.
+        </div>
+      )}
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '3rem' }}>Loading marks...</div>
@@ -279,7 +314,8 @@ const MarksManager = ({ classes, subjects, academicYear }) => {
                                 setEditingId(m.student.id);
                                 setEditValue(m.score === '-' ? '' : m.score);
                               }}
-                              style={{ padding: '0.4rem 0.8rem', background: 'white', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                              disabled={isLocked}
+                              style={{ padding: '0.4rem 0.8rem', background: 'white', color: isLocked ? '#94a3b8' : '#475569', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: isLocked ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', opacity: isLocked ? 0.6 : 1 }}
                             >
                               <Edit2 size={14} /> Edit
                             </button>

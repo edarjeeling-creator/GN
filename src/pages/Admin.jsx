@@ -18,6 +18,8 @@ import IDCardGenerator from './Admin/IDCardGenerator';
 import MarksManager from './Admin/MarksManager';
 import ImportHistory from './Admin/ImportHistory';
 import ReportCardCMS from './Admin/ReportCardCMS';
+import AuditLog from './Admin/AuditLog';
+import ResultStatusManager from './Admin/ResultStatusManager';
 
 const Admin = () => {
   const { logout, profile } = useAuth();
@@ -573,11 +575,8 @@ const Admin = () => {
         });
 
         if (updates.length > 0) {
-          const { error } = await supabase.from('marks').upsert(updates, { onConflict: 'student_id, subject_id, term' });
-          if (error) throw error;
-          
-          // Log to import history
-          await supabase.from('import_history').insert({
+          // Log to import history first to get the import session ID
+          const { data: importSession, error: importError } = await supabase.from('import_history').insert({
             file_name: file.name,
             user_id: profile?.id,
             user_name: profile?.name,
@@ -586,7 +585,15 @@ const Admin = () => {
             academic_year: academicYear,
             term: flowsheetTerm,
             class_id: flowsheetClassId
-          });
+          }).select().single();
+
+          if (importError) throw importError;
+
+          // Attach import_id to marks
+          const finalUpdates = updates.map(u => ({ ...u, import_id: importSession.id, deleted_at: null, deleted_by: null }));
+
+          const { error } = await supabase.from('marks').upsert(finalUpdates, { onConflict: 'student_id, subject_id, term' });
+          if (error) throw error;
 
           alert(`Successfully imported marks for ${data.length} students! Found and processed ${matchedSubjectsCount} subject scores.`);
         } else {
@@ -697,8 +704,18 @@ const Admin = () => {
               <option value="data">Data Import & Export</option>
               <option value="marks">Marks Manager</option>
               <option value="report_cms">Report Configuration (CMS)</option>
+              <option value="audit">Marks Audit Log</option>
+              <option value="publishing">Result Publishing & Locking</option>
             </select>
           </div>
+
+          {managementSection === 'audit' && (
+            <AuditLog />
+          )}
+
+          {managementSection === 'publishing' && (
+            <ResultStatusManager classes={classes} academicYear={academicYear} profile={profile} />
+          )}
 
           {managementSection === 'overview' && (
             <>
@@ -844,10 +861,7 @@ const Admin = () => {
                     ref={flowsheetFileRef}
                     style={{ padding: '0.5rem', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', width: '100%', background: '#f8fafc' }}
                   />
-                  <button className="btn-hero-primary" style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.5rem 1rem' }} onClick={async () => {
-                    await handleUploadFlowsheet();
-                    await supabase.from('import_history').insert({ class_id: flowsheetClassId, term: flowsheetTerm, academic_year: academicYear });
-                  }}>
+                  <button className="btn-hero-primary" style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.5rem 1rem' }} onClick={handleUploadFlowsheet}>
                     Import
                   </button>
                 </div>
