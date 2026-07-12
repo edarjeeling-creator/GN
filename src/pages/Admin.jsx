@@ -498,16 +498,53 @@ const Admin = () => {
         let matchedSubjectsCount = 0;
 
         data.forEach(row => {
-          const rollNo = row['No.'] || row['Roll No'] || row['Roll Number'] || row['roll no'] || row['Roll'];
+          const rollKey = Object.keys(row).find(k => {
+             const clean = k.toLowerCase().replace(/[\s_\-.]/g, '');
+             return clean === 'rollno' || clean === 'roll' || clean === 'rollnumber' || clean === 'no';
+          });
+          const rollNo = rollKey ? row[rollKey] : null;
           if (!rollNo) return;
           
           const student = classStudents.find(s => Number(s.roll_no) === Number(rollNo));
           if (!student) return;
 
+          const subjectClusters = [
+            ['english 1', 'english paper 1', 'eng1', 'eng 1', 'english i', 'english-1'],
+            ['english 2', 'english paper 2', 'eng2', 'eng 2', 'english ii', 'english-2'],
+            ['second language', 'geng', '2nd lang', 'second lang', 'general english', '2nd language'],
+            ['nepali', 'nep', 'nepal'],
+            ['hindi', 'hin'],
+            ['mathematics', 'math', 'maths'],
+            ['physics', 'phy', 'phys'],
+            ['chemistry', 'chem'],
+            ['biology', 'bio', 'biol'],
+            ['physical education', 'pe', 'physical ed'],
+            ['economics', 'eco', 'econ'],
+            ['history', 'hist', 'his'],
+            ['geography', 'geog', 'geo'],
+            ['political science', 'pol sc', 'pol. sc.', 'pol science', 'polsc'],
+            ['sociology', 'soc', 'socio']
+          ];
+
           subjects.forEach(sub => {
-            const excelHeader = Object.keys(row).find(
-              key => key.trim().toLowerCase() === sub.name.trim().toLowerCase()
-            );
+            const normalizedSubName = sub.name.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+            const excelHeader = Object.keys(row).find(key => {
+              const normalizedKey = key.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+              if (normalizedKey === normalizedSubName) return true;
+              
+              for (const cluster of subjectClusters) {
+                 const cleanCluster = cluster.map(c => c.replace(/[^a-z0-9]/g, ''));
+                 if (cleanCluster.includes(normalizedSubName) && cleanCluster.includes(normalizedKey)) {
+                    return true;
+                 }
+              }
+              
+              if (normalizedKey.length >= 4 && normalizedSubName.includes(normalizedKey)) return true;
+              if (normalizedSubName.length >= 4 && normalizedKey.includes(normalizedSubName)) return true;
+
+              return false;
+            });
 
             if (excelHeader && row[excelHeader] !== undefined && row[excelHeader] !== '') {
               matchedSubjectsCount++;

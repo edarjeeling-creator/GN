@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Card Layout - 12 Science</title>
+    <style>
+        /* Base styling */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            display: flex;
+            justify-content: center;
+            background-color: #f5f5f5;
+        }
+
+        .page-wrapper {
+            background-color: white;
+            padding: 40px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .report-card-table {
+            width: 100%;
+            min-width: 700px;
+            max-width: 900px;
+            border: 2px solid black;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        /* All cells have basic 1px black border */
+        .report-card-table td, .report-card-table th {
+            border: 1px solid black;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        /* Utility classes */
+        .bold-text {
+            font-weight: bold;
+        }
+        
+        .text-center {
+            text-align: center !important;
+        }
+
+        .marks-column {
+            text-align: center !important;
+            width: 150px;
+        }
+
+        .flex-container {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Specific section styling */
+        .header-cell {
+            padding: 10px 12px;
+        }
+
+        .title-cell {
+            padding: 15px 12px;
+            font-size: 1.1em;
+            text-transform: uppercase;
+        }
+
+        .footer-cell {
+            line-height: 1.8;
+            padding: 15px 12px;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background-color: transparent;
+                margin: 0;
+            }
+            .page-wrapper {
+                padding: 0;
+                box-shadow: none;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .report-card-table {
+                min-width: 100%;
+                width: 100%;
+            }
+        }
+        
+        /* Controls UI (Not for print) */
+        .controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            text-align: center;
+        }
+        
+        button {
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="page-wrapper">
+        <div class="controls no-print">
+            <p><strong>Science Layout:</strong> Rows with empty marks are automatically hidden.</p>
+            <button onclick="window.print()">Print Report Card</button>
+        </div>
+
+        <table class="report-card-table" id="reportCard">
+            <!-- Header Section -->
+            <tr>
+                <td colspan="2" class="bold-text header-cell">
+                    STUDENT NAME: <span style="font-weight: normal;" class="data-field">Thapa Dikshya</span>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2" class="header-cell">
+                    <div class="flex-container bold-text">
+                        <span>Class: <span style="font-weight: normal;" class="data-field">XII</span></span>
+                        <span>Section: <span style="font-weight: normal;" class="data-field">Science</span></span>
+                        <span>Roll No: <span style="font-weight: normal;" class="data-field">9</span></span>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2" class="text-center bold-text title-cell">
+                    MID-TERM PROGRESS REPORT CARD-2026
+                </td>
+            </tr>
+            
+            <!-- Column Headers -->
+            <tr>
+                <td class="bold-text">Subjects</td>
+                <td class="bold-text marks-column">Marks out of 100</td>
+            </tr>
+
+            <!-- Subjects Rows -->
+            <tbody id="subjects-body">
+                <!-- Example Data based on Science Layout -->
+                <tr class="subject-row">
+                    <td>English Paper 1</td>
+                    <td class="marks-column data-field">79</td>
+                </tr>
+                <tr class="subject-row">
+                    <td>English Paper 2</td>
+                    <td class="marks-column data-field">70</td>
+                </tr>
+                <tr class="subject-row">
+                    <td>Second Language</td>
+                    <td class="marks-column data-field">73</td>
+                </tr>
+                <tr class="subject-row">
+                    <td>Nepali</td>
+                    <td class="marks-column data-field"></td>
+                </tr>
+                <tr class="subject-row">
+                    <td>Hindi</td>
+                    <td class="marks-column data-field"></td>
+                </tr>
+                <tr class="subject-row">
+                    <td>Mathematics</td>
+                    <td class="marks-column data-field"></td>
+                </tr>
+                <tr class="subject-row">
+                    <td>Physics</td>
+                    <td class="marks-column data-field">27</td>
+                </tr>
+                <tr class="subject-row">
+                    <td>Chemistry</td>
+                    <td class="marks-column data-field">55</td>
+                </tr>
+                <tr class="subject-row">
+                    <td>Biology</td>
+                    <td class="marks-column data-field">66</td>
+                </tr>
+                <tr class="subject-row">
+                    <td>Physical Education</td>
+                    <td class="marks-column data-field"></td>
+                </tr>
+            </tbody>
+
+            <!-- Total Row -->
+            <tr>
+                <td class="bold-text">TOTAL</td>
+                <td class="marks-column data-field bold-text">296</td>
+            </tr>
+
+            <!-- Footer Details -->
+            <tr>
+                <td colspan="2" class="footer-cell">
+                    <div>RANK IN CLASS: <span class="data-field">6th Out of 9</span></div>
+                    <div>PERCENTAGE: <span class="data-field">59.1%</span></div>
+                    <div>ATTENDANCE: <span class="data-field">Regular/Irregular</span></div>
+                    <div>CONDUCT: <span class="data-field">Good/Satisfactory/Unsatisfactory</span></div>
+                    <div>PERSONALITY & NEATNESS: <span class="data-field">Good/Satisfactory/Unsatisfactory</span></div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <script>
+        function processReportCard() {
+            const subjectRows = document.querySelectorAll('.subject-row');
+            
+            subjectRows.forEach(row => {
+                const marksCell = row.querySelector('.marks-column');
+                if (marksCell) {
+                    const marks = marksCell.textContent.trim();
+                    if (marks === '') {
+                        row.style.display = 'none';
+                    } else {
+                        row.style.display = '';
+                    }
+                }
+            });
+        }
+        document.addEventListener('DOMContentLoaded', processReportCard);
+    </script>
+</body>
+</html>
