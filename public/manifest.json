@@ -1,7 +1,9 @@
 {
+  "id": "/?source=pwa",
   "short_name": "Gyanoday",
   "name": "Gyanoday Niketan",
   "description": "SmartGrades School Management Portal",
+  "categories": ["education", "productivity"],
   "icons": [
     {
       "src": "/logo.png",
@@ -19,6 +21,7 @@
   "start_url": "/",
   "background_color": "#090d16",
   "display": "standalone",
+  "display_override": ["standalone", "window-controls-overlay"],
   "theme_color": "#111827",
   "orientation": "portrait"
 }
