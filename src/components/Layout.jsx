@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText, AlertTriangle, Lock, Menu, X, Bell, Wallet } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText, AlertTriangle, Lock, Menu, X, Wallet } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeProvider';
@@ -18,13 +18,11 @@ const Layout = ({ children }) => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
 
-  const studentData = students?.find(s => 
-    s.id === profile?.id || 
-    (profile?.uid && s.uid === profile?.uid) || 
-    (profile?.name && s.name && s.name.trim().toLowerCase() === profile.name.trim().toLowerCase())
-  );
 
   useEffect(() => {
+    // Add dark class on mount to ensure premium dark theme default
+    document.documentElement.classList.add('dark');
+    
     const handleResize = () => {
       setIsMobile(window.innerWidth < 1024);
     };
@@ -300,10 +298,10 @@ const Layout = ({ children }) => {
         borderRight: '1px solid rgba(0,0,0,0.05)',
         zIndex: 40
       }}>
-        <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '1.5rem', background: 'linear-gradient(to right, rgba(37, 99, 235, 0.05), transparent)' }}>
+        <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '1.5rem', background: 'linear-gradient(to right, rgba(37, 99, 235, 0.03), transparent)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <img src={siteBranding?.logoUrl || "/logo.png"} alt="School Logo" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
-            <span style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.025em', color: 'var(--primary-color)' }}>{siteBranding?.siteName || 'Gyanoday Niketan'}</span>
+            <img src={siteBranding?.logoUrl || "/logo.png"} alt="School Logo" style={{ width: '48px', height: '48px', objectFit: 'contain', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.15))' }} />
+            <span style={{ fontSize: '1.1rem', fontWeight: '850', letterSpacing: '-0.02em', color: 'var(--primary-color)' }}>{siteBranding?.siteName || 'Gyanoday Niketan'}</span>
           </div>
           {isMobile && (
             <button 
@@ -470,7 +468,7 @@ const Layout = ({ children }) => {
         </nav>
       </aside>
       
-      <main className="main-content" style={{ background: '#f8fafc', display: 'flex', flexDirection: 'column' }}>
+      <main className="main-content" style={{ background: 'var(--bg-color)', display: 'flex', flexDirection: 'column' }}>
         {isReadOnly && (
           <div style={{
             background: 'linear-gradient(to right, #ef4444, #b91c1c)',
