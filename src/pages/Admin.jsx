@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { supabase, getClientSchoolId } from '../lib/supabase';
 import { motion } from 'framer-motion';
-import { Users, BookOpen, Shield, Layers, LogOut } from 'lucide-react';
+import { Users, BookOpen, Shield, Layers, LogOut, QrCode, ShieldCheck } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { getConversionConstants } from './SubjectMarks';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import * as XLSX from 'xlsx';
@@ -15,6 +15,7 @@ import RoutineGenerator from './Admin/RoutineGenerator';
 import SubstitutionDashboard from './Admin/SubstitutionDashboard';
 import FeatureSettings from './Admin/FeatureSettings';
 import IDCardGenerator from './Admin/IDCardGenerator';
+import TeacherIDCardGenerator from './Admin/TeacherIDCardGenerator';
 import MarksManager from './Admin/MarksManager';
 import ImportHistory from './Admin/ImportHistory';
 import ReportCardCMS from './Admin/ReportCardCMS';
@@ -675,7 +676,13 @@ const Admin = () => {
           onClick={() => setActiveTab('id_cards')} 
           style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'id_cards' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'id_cards' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: activeTab === 'id_cards' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '1rem' }}
         >
-          ID Cards
+          Student ID Cards
+        </button>
+        <button 
+          onClick={() => setActiveTab('teacher_id_cards')} 
+          style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'teacher_id_cards' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'teacher_id_cards' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: activeTab === 'teacher_id_cards' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '1rem' }}
+        >
+          Teacher ID Cards
         </button>
       </div>
 
@@ -685,6 +692,10 @@ const Admin = () => {
 
       {activeTab === 'id_cards' && (
         <IDCardGenerator classes={classes} students={students} fetchStats={fetchStats} />
+      )}
+
+      {activeTab === 'teacher_id_cards' && (
+        <TeacherIDCardGenerator teachers={teachers} fetchStats={fetchStats} />
       )}
 
       {activeTab === 'dashboard' && (
@@ -782,6 +793,18 @@ const Admin = () => {
           {managementSection === 'data' && (
             <div className="flex" style={{ flexDirection: 'column', gap: '2rem' }}>
           <div className="bento-card" style={{ padding: '2rem' }}>
+            <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-3 mb-4">
+              <ShieldCheck className="text-indigo-600" size={32} />
+              System Administration
+            </h1>
+            <Link 
+              to="/kiosk/attendance" 
+              target="_blank"
+              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-medium transition-colors shadow-sm mb-6"
+            >
+              <QrCode size={20} />
+              Open QR Attendance Scanner
+            </Link>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--text-primary)' }}>Bulk Import Students</h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
               Select a class and upload an Excel (.xlsx or .csv) file with columns <strong>Name</strong> and <strong>Roll No</strong>.

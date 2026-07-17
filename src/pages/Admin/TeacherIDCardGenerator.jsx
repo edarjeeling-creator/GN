@@ -4,11 +4,10 @@ import QRCode from 'react-qr-code';
 import html2pdf from 'html2pdf.js';
 import { Users, Printer, Loader2, Save, Upload, Image as ImageIcon } from 'lucide-react';
 
-const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
-  const [selectedClass, setSelectedClass] = useState('all');
+const TeacherIDCardGenerator = ({ teachers: globalTeachers, fetchStats }) => {
   const [sessionText, setSessionText] = useState('2026-2027');
-  const [studentsList, setStudentsList] = useState([]);
-  const [selectedStudentIds, setSelectedStudentIds] = useState(new Set());
+  const [teachersList, setTeachersList] = useState([]);
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState(new Set());
   const [isGenerating, setIsGenerating] = useState(false);
   const [signatureUrl, setSignatureUrl] = useState(null);
   const [uploadingPhotoId, setUploadingPhotoId] = useState(null);
@@ -24,53 +23,47 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
   }, []);
 
   useEffect(() => {
-    let filtered = globalStudents;
-    if (selectedClass !== 'all') {
-      filtered = globalStudents.filter(s => s.class_id === selectedClass);
-    }
-    filtered = [...filtered].sort((a,b) => {
-      if (a.class_id !== b.class_id) return a.class_id.localeCompare(b.class_id);
-      return a.roll_no - b.roll_no;
-    });
-    setStudentsList(filtered);
-    setSelectedStudentIds(new Set(filtered.map(s => s.id)));
-  }, [selectedClass, globalStudents]);
+    let filtered = [...globalTeachers].sort((a,b) => a.name.localeCompare(b.name));
+    setTeachersList(filtered);
+    setSelectedTeacherIds(new Set(filtered.map(t => t.id)));
+  }, [globalTeachers]);
 
   const toggleSelectAll = () => {
-    if (selectedStudentIds.size === studentsList.length) {
-      setSelectedStudentIds(new Set());
+    if (selectedTeacherIds.size === teachersList.length) {
+      setSelectedTeacherIds(new Set());
     } else {
-      setSelectedStudentIds(new Set(studentsList.map(s => s.id)));
+      setSelectedTeacherIds(new Set(teachersList.map(t => t.id)));
     }
   };
 
-  const toggleStudent = (id) => {
-    const newSet = new Set(selectedStudentIds);
+  const toggleTeacher = (id) => {
+    const newSet = new Set(selectedTeacherIds);
     if (newSet.has(id)) newSet.delete(id);
     else newSet.add(id);
-    setSelectedStudentIds(newSet);
+    setSelectedTeacherIds(newSet);
   };
 
-  const handleFieldChange = (studentId, field, value) => {
-    setStudentsList(prev => prev.map(s => s.id === studentId ? { ...s, [field]: value } : s));
+  const handleFieldChange = (teacherId, field, value) => {
+    setTeachersList(prev => prev.map(t => t.id === teacherId ? { ...t, [field]: value } : t));
   };
 
-  const saveStudentDetails = async (studentId) => {
-    const s = studentsList.find(st => st.id === studentId);
-    if (!s) return;
+  const saveTeacherDetails = async (teacherId) => {
+    const t = teachersList.find(st => st.id === teacherId);
+    if (!t) return;
     
     try {
-      const { error } = await supabase.from('students').update({
-        father_name: s.father_name || null,
-        dob: s.dob || null,
-        blood_group: s.blood_group || null,
-        contact_number: s.contact_number || null,
-        address: s.address || null
-      }).eq('id', studentId);
+      const { error } = await supabase.from('profiles').update({
+        designation: t.designation || null,
+        dob: t.dob || null,
+        blood_group: t.blood_group || null,
+        contact_number: t.contact_number || null,
+        address: t.address || null,
+        employee_id: t.employee_id || null
+      }).eq('id', teacherId);
       
       if (error) {
-        if (error.message.includes("could not find the column")) {
-          alert("Database Error: It looks like the new columns haven't been added to your database yet. Please run the SQL Migration script provided earlier in the Supabase SQL Editor!");
+        if (error.message.includes("could not find the column") || error.message.includes("does not exist")) {
+          alert("Database Error: It looks like the new columns (designation, dob, blood_group, contact_number, address, employee_id) haven't been added to your profiles table yet. Please run an SQL Migration in your Supabase SQL Editor!");
         } else {
           alert("Error saving: " + error.message);
         }
@@ -88,23 +81,23 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
     }
   };
 
-  const handlePhotoUpload = async (studentId, e) => {
+  const handlePhotoUpload = async (teacherId, e) => {
     const file = e.target.files[0];
     if (!file) return;
-    setUploadingPhotoId(studentId);
+    setUploadingPhotoId(teacherId);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${studentId}-${Date.now()}.${fileExt}`;
+      const fileName = `teacher-${teacherId}-${Date.now()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage.from('student-profiles').upload(fileName, file);
       if (uploadError) throw uploadError;
       
       const { data: { publicUrl } } = supabase.storage.from('student-profiles').getPublicUrl(fileName);
       
-      const { error: updateError } = await supabase.from('students').update({ picture_url: publicUrl }).eq('id', studentId);
+      const { error: updateError } = await supabase.from('profiles').update({ picture_url: publicUrl }).eq('id', teacherId);
       if (updateError) throw updateError;
       
-      setStudentsList(prev => prev.map(s => s.id === studentId ? { ...s, picture_url: publicUrl } : s));
-      alert("Student photo updated successfully! It will now appear perfectly on the ID card.");
+      setTeachersList(prev => prev.map(t => t.id === teacherId ? { ...t, picture_url: publicUrl } : t));
+      alert("Teacher photo updated successfully!");
     } catch (err) {
       alert('Error uploading photo: ' + err.message);
     } finally {
@@ -113,17 +106,17 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
   };
 
   const generatePDF = async () => {
-    const selectedStudents = studentsList.filter(s => selectedStudentIds.has(s.id));
-    if (selectedStudents.length === 0) return alert("Please select at least one student!");
+    const selectedTeachers = teachersList.filter(t => selectedTeacherIds.has(t.id));
+    if (selectedTeachers.length === 0) return alert("Please select at least one teacher!");
     
     setIsGenerating(true);
     
-    const element = document.getElementById('id-card-print-container');
+    const element = document.getElementById('teacher-id-card-print-container');
     element.style.display = 'block';
     
     const opt = {
       margin:       0,
-      filename:     `ID_Cards_${selectedClass === 'all' ? 'All' : 'Class'}.pdf`,
+      filename:     `Teacher_ID_Cards.pdf`,
       image:        { type: 'jpeg', quality: 1.0 },
       html2canvas:  { scale: 3, useCORS: true, logging: false },
       jsPDF:        { unit: 'mm', format: [54, 86], orientation: 'portrait' }
@@ -132,9 +125,9 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
     try {
       let worker = html2pdf().set(opt);
       
-      for (let i = 0; i < selectedStudents.length; i++) {
-        const student = selectedStudents[i];
-        const cardElement = document.getElementById(`id-card-${student.id}`);
+      for (let i = 0; i < selectedTeachers.length; i++) {
+        const teacher = selectedTeachers[i];
+        const cardElement = document.getElementById(`teacher-id-card-${teacher.id}`);
         
         if (i === 0) {
           worker = worker.from(cardElement).toPdf();
@@ -155,19 +148,14 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
     }
   };
 
-  const selectedStudents = studentsList.filter(s => selectedStudentIds.has(s.id));
+  const selectedTeachers = teachersList.filter(t => selectedTeacherIds.has(t.id));
 
-  const getClassName = (classId) => {
-    const c = classes.find(c => c.id === classId);
-    return c ? `${c.name} ${c.section}`.trim() : 'Unknown';
-  };
-
-  const generateQRData = (student) => {
+  const generateQRData = (teacher) => {
     const payload = {
-      type: "student",
-      id: student.id,
-      uid: student.uid || student.id,
-      signature: btoa(student.id + "GN-SECURE").substring(0, 10)
+      type: "teacher",
+      id: teacher.id,
+      employee_id: teacher.employee_id || teacher.id,
+      signature: btoa(teacher.id + "GN-SECURE").substring(0, 10)
     };
     return JSON.stringify(payload);
   };
@@ -176,8 +164,8 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
     <div className="bento-card" style={{ padding: '2rem' }}>
       <div className="flex justify-between items-center mb-6" style={{ flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Student ID Card Generator</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.25rem' }}>Design, preview, and generate print-ready vertical ID Cards.</p>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Teacher ID Card Generator</h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.25rem' }}>Design, preview, and generate print-ready vertical ID Cards for Teachers.</p>
         </div>
         
         <div className="flex items-center gap-4">
@@ -188,30 +176,17 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
           </label>
           <button 
             className="btn-hero-primary flex items-center gap-2" 
-            style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.5rem 1.5rem', borderRadius: '0.5rem', fontWeight: 600 }}
+            style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.5rem 1.5rem', borderRadius: '0.5rem', fontWeight: 600 }}
             onClick={generatePDF}
-            disabled={isGenerating || selectedStudentIds.size === 0}
+            disabled={isGenerating || selectedTeacherIds.size === 0}
           >
             {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <Printer size={18} />}
-            {isGenerating ? 'Generating...' : `Generate PDF (${selectedStudentIds.size})`}
+            {isGenerating ? 'Generating...' : `Generate PDF (${selectedTeacherIds.size})`}
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-slate-600">Select Class</label>
-          <select 
-            className="input-field" 
-            style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.75rem', borderRadius: '0.5rem' }}
-            value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
-          >
-            <option value="all">All Classes</option>
-            {classes.map(c => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
-          </select>
-        </div>
-        
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-slate-600">Global Session / Valid Up To</label>
           <input 
@@ -232,13 +207,14 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
               <th style={{ padding: '1rem', borderBottom: '2px solid #e2e8f0', width: '40px' }}>
                 <input 
                   type="checkbox" 
-                  checked={selectedStudentIds.size === studentsList.length && studentsList.length > 0} 
+                  checked={selectedTeacherIds.size === teachersList.length && teachersList.length > 0} 
                   onChange={toggleSelectAll} 
                   style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                 />
               </th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0', width: '220px' }}>Student (Upload Photo)</th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Father's Name</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0', width: '220px' }}>Teacher (Upload Photo)</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Employee ID</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Designation</th>
               <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0', width: '120px' }}>D.O.B</th>
               <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0', width: '100px' }}>Blood G.</th>
               <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Contact</th>
@@ -246,13 +222,13 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
             </tr>
           </thead>
           <tbody>
-            {studentsList.map(s => (
-              <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9', background: selectedStudentIds.has(s.id) ? '#f0f9ff' : 'white' }}>
+            {teachersList.map(t => (
+              <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9', background: selectedTeacherIds.has(t.id) ? '#ecfdf5' : 'white' }}>
                 <td style={{ padding: '1rem' }}>
                   <input 
                     type="checkbox" 
-                    checked={selectedStudentIds.has(s.id)} 
-                    onChange={() => toggleStudent(s.id)}
+                    checked={selectedTeacherIds.has(t.id)} 
+                    onChange={() => toggleTeacher(t.id)}
                     style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                   />
                 </td>
@@ -260,51 +236,54 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
                   <div className="flex items-center gap-3">
                     <div style={{ position: 'relative' }}>
                       <img 
-                        src={s.picture_url ? `${s.picture_url}?t=${Date.now()}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=random`} 
-                        alt={s.name} 
+                        src={t.picture_url ? `${t.picture_url}?t=${Date.now()}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(t.name)}&background=random`} 
+                        alt={t.name} 
                         style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
                       />
                       <button 
-                        onClick={() => fileInputRefs.current[s.id]?.click()}
+                        onClick={() => fileInputRefs.current[t.id]?.click()}
                         style={{ position: 'absolute', bottom: -5, right: -5, background: 'white', border: '1px solid #cbd5e1', borderRadius: '50%', padding: '2px', cursor: 'pointer', zIndex: 5 }}
                         title="Upload new photo"
                       >
-                        {uploadingPhotoId === s.id ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} color="#3b82f6" />}
+                        {uploadingPhotoId === t.id ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} color="#10b981" />}
                       </button>
                       <input 
                         type="file" 
                         accept="image/*" 
-                        ref={el => fileInputRefs.current[s.id] = el}
+                        ref={el => fileInputRefs.current[t.id] = el}
                         style={{ display: 'none' }}
-                        onChange={(e) => handlePhotoUpload(s.id, e)}
+                        onChange={(e) => handlePhotoUpload(t.id, e)}
                       />
                     </div>
                     <div>
-                      <div style={{ fontWeight: 600, color: '#1e293b' }}>{s.name}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{getClassName(s.class_id)} • R:{s.roll_no} • {s.uid}</div>
+                      <div style={{ fontWeight: 600, color: '#1e293b' }}>{t.name}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{t.email}</div>
                     </div>
                   </div>
                 </td>
                 <td style={{ padding: '0.5rem' }}>
-                  <input type="text" className="input-field" style={{ padding: '0.4rem', fontSize: '0.875rem' }} placeholder="Father's Name" value={s.father_name || ''} onChange={(e) => handleFieldChange(s.id, 'father_name', e.target.value)} onBlur={() => saveStudentDetails(s.id)} />
+                  <input type="text" className="input-field" style={{ padding: '0.4rem', fontSize: '0.875rem' }} placeholder="Emp ID" value={t.employee_id || ''} onChange={(e) => handleFieldChange(t.id, 'employee_id', e.target.value)} onBlur={() => saveTeacherDetails(t.id)} />
                 </td>
                 <td style={{ padding: '0.5rem' }}>
-                  <input type="text" className="input-field" style={{ padding: '0.4rem', fontSize: '0.875rem' }} placeholder="DD/MM/YYYY" value={s.dob || ''} onChange={(e) => handleFieldChange(s.id, 'dob', e.target.value)} onBlur={() => saveStudentDetails(s.id)} />
+                  <input type="text" className="input-field" style={{ padding: '0.4rem', fontSize: '0.875rem' }} placeholder="Designation" value={t.designation || ''} onChange={(e) => handleFieldChange(t.id, 'designation', e.target.value)} onBlur={() => saveTeacherDetails(t.id)} />
                 </td>
                 <td style={{ padding: '0.5rem' }}>
-                  <input type="text" className="input-field" style={{ padding: '0.4rem', fontSize: '0.875rem' }} placeholder="O+" value={s.blood_group || ''} onChange={(e) => handleFieldChange(s.id, 'blood_group', e.target.value)} onBlur={() => saveStudentDetails(s.id)} />
+                  <input type="text" className="input-field" style={{ padding: '0.4rem', fontSize: '0.875rem' }} placeholder="DD/MM/YYYY" value={t.dob || ''} onChange={(e) => handleFieldChange(t.id, 'dob', e.target.value)} onBlur={() => saveTeacherDetails(t.id)} />
                 </td>
                 <td style={{ padding: '0.5rem' }}>
-                  <input type="text" className="input-field" style={{ padding: '0.4rem', fontSize: '0.875rem' }} placeholder="Phone No." value={s.contact_number || ''} onChange={(e) => handleFieldChange(s.id, 'contact_number', e.target.value)} onBlur={() => saveStudentDetails(s.id)} />
+                  <input type="text" className="input-field" style={{ padding: '0.4rem', fontSize: '0.875rem' }} placeholder="O+" value={t.blood_group || ''} onChange={(e) => handleFieldChange(t.id, 'blood_group', e.target.value)} onBlur={() => saveTeacherDetails(t.id)} />
                 </td>
                 <td style={{ padding: '0.5rem' }}>
-                  <input type="text" className="input-field" style={{ padding: '0.4rem', fontSize: '0.875rem' }} placeholder="Address" value={s.address || ''} onChange={(e) => handleFieldChange(s.id, 'address', e.target.value)} onBlur={() => saveStudentDetails(s.id)} />
+                  <input type="text" className="input-field" style={{ padding: '0.4rem', fontSize: '0.875rem' }} placeholder="Phone No." value={t.contact_number || ''} onChange={(e) => handleFieldChange(t.id, 'contact_number', e.target.value)} onBlur={() => saveTeacherDetails(t.id)} />
+                </td>
+                <td style={{ padding: '0.5rem' }}>
+                  <input type="text" className="input-field" style={{ padding: '0.4rem', fontSize: '0.875rem' }} placeholder="Address" value={t.address || ''} onChange={(e) => handleFieldChange(t.id, 'address', e.target.value)} onBlur={() => saveTeacherDetails(t.id)} />
                 </td>
               </tr>
             ))}
-            {studentsList.length === 0 && (
+            {teachersList.length === 0 && (
               <tr>
-                <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No students found.</td>
+                <td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No teachers found.</td>
               </tr>
             )}
           </tbody>
@@ -312,81 +291,76 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
       </div>
 
       <div style={{ marginTop: '1rem', fontSize: '0.85rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <Save size={14} /> Note: Click the blue upload icon next to a student's face to quickly fix bad photos!
+        <Save size={14} /> Note: Fields like Designation, Employee ID, etc., will be auto-saved to the database. If columns are missing, an SQL migration is required.
       </div>
 
       {/* Hidden Print Container for PDF Generation - Strict Absolute Positioning to guarantee NO blank pages and NO overlaps */}
-      <div id="id-card-print-container" style={{ display: 'none', background: 'white' }}>
-        {selectedStudents.map((student, index) => (
-          <React.Fragment key={student.id}>
-            <div id={`id-card-${student.id}`} style={{ 
+      <div id="teacher-id-card-print-container" style={{ display: 'none', background: 'white' }}>
+        {selectedTeachers.map((teacher, index) => (
+          <React.Fragment key={teacher.id}>
+            <div id={`teacher-id-card-${teacher.id}`} style={{ 
               position: 'relative',
               width: '54mm', 
               height: '86mm',
               backgroundColor: '#ffffff',
               overflow: 'hidden'
             }}>
-              {/* 1. Top Blue Gradient Background */}
-              <div style={{ position: 'absolute', top: 0, left: 0, width: '54mm', height: '19.5mm', background: 'linear-gradient(135deg, #1e3a8a, #3b82f6)' }}></div>
+              {/* 1. Top Gradient Background - using a greenish theme for teachers */}
+              <div style={{ position: 'absolute', top: 0, left: 0, width: '54mm', height: '19.5mm', background: 'linear-gradient(135deg, #065f46, #10b981)' }}></div>
               
               {/* 2. Header Content Area */}
               <div style={{ position: 'absolute', top: '1mm', left: 0, width: '54mm', textAlign: 'center' }}>
                 <img src={customLogoUrl || "/logo.png"} alt="Logo" style={{ width: '10mm', height: '10mm', objectFit: 'contain', margin: '0 auto' }} onError={(e) => { e.target.style.display = 'none'; }} />
                 <div style={{ fontSize: '6pt', fontWeight: 800, color: '#ffffff', marginTop: '0.2mm', letterSpacing: '0.2px' }}>GYANODAY NIKETAN</div>
-                <div style={{ fontSize: '4pt', color: '#ffffff', fontWeight: 700, marginTop: '1mm', letterSpacing: '0.5px' }}>STUDENT IDENTITY CARD</div>
+                <div style={{ fontSize: '4pt', color: '#ffffff', fontWeight: 700, marginTop: '1mm', letterSpacing: '0.5px' }}>STAFF IDENTITY CARD</div>
               </div>
 
-              {/* 3. Student Photo */}
+              {/* 3. Teacher Photo */}
               <div style={{ position: 'absolute', top: '20mm', left: '19mm', width: '16mm', height: '19mm', padding: '0.5mm', background: 'white', borderRadius: '1mm', boxShadow: '0 2px 4px rgba(0,0,0,0.15)' }}>
                 <div style={{ width: '100%', height: '100%', borderRadius: '0.5mm', backgroundColor: '#f1f5f9', overflow: 'hidden' }}>
                   <img 
-                    src={student.picture_url ? `${student.picture_url}?t=${Date.now()}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name)}&background=random`} 
+                    src={teacher.picture_url ? `${teacher.picture_url}?t=${Date.now()}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(teacher.name)}&background=random`} 
                     alt="Photo" 
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 </div>
               </div>
 
-              {/* 4. Student Details Section */}
+              {/* 4. Teacher Details Section */}
               <div style={{ position: 'absolute', top: '39.5mm', left: '2mm', width: '50mm' }}>
                 <div style={{ fontSize: '7.5pt', fontWeight: 800, color: '#0f172a', textAlign: 'center', marginBottom: '1.2mm' }}>
-                  {student.name}
+                  {teacher.name}
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5mm', fontSize: '4.5pt', lineHeight: '1.1' }}>
                   <div style={{ display: 'flex', width: '100%' }}>
-                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Class & Sec :</div>
-                    <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{getClassName(student.class_id)}</div>
+                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Designation :</div>
+                    <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{teacher.designation || 'Teacher'}</div>
                   </div>
                   
                   <div style={{ display: 'flex', width: '100%' }}>
-                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Admission No :</div>
-                    <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{student.uid || 'N/A'}</div>
+                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Employee ID :</div>
+                    <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{teacher.employee_id || 'N/A'}</div>
                   </div>
                   
                   <div style={{ display: 'flex', width: '100%' }}>
                     <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>D.O.B :</div>
-                    <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{student.dob || 'N/A'}</div>
+                    <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{teacher.dob || 'N/A'}</div>
                   </div>
 
                   <div style={{ display: 'flex', width: '100%' }}>
                     <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Blood Group :</div>
-                    <div style={{ flex: 1, color: '#ef4444', fontWeight: 700 }}>{student.blood_group || 'N/A'}</div>
+                    <div style={{ flex: 1, color: '#ef4444', fontWeight: 700 }}>{teacher.blood_group || 'N/A'}</div>
                   </div>
                   
                   <div style={{ display: 'flex', width: '100%' }}>
-                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Guardian :</div>
-                    <div style={{ flex: 1, color: '#0f172a', fontWeight: 700, whiteSpace: 'normal', wordBreak: 'break-word' }}>{student.father_name || 'N/A'}</div>
-                  </div>
-
-                  <div style={{ display: 'flex', width: '100%' }}>
                     <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Contact :</div>
-                    <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{student.contact_number || 'N/A'}</div>
+                    <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{teacher.contact_number || 'N/A'}</div>
                   </div>
                   
                   <div style={{ display: 'flex', width: '100%' }}>
                     <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Address :</div>
-                    <div style={{ flex: 1, color: '#0f172a', fontWeight: 700, whiteSpace: 'normal', wordBreak: 'break-word' }}>{student.address || 'N/A'}</div>
+                    <div style={{ flex: 1, color: '#0f172a', fontWeight: 700, whiteSpace: 'normal', wordBreak: 'break-word' }}>{teacher.address || 'N/A'}</div>
                   </div>
                   
                   <div style={{ display: 'flex', width: '100%' }}>
@@ -400,7 +374,7 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
               <div style={{ position: 'absolute', top: '70.5mm', left: '0', width: '54mm', height: '11.5mm', borderTop: '0.5px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '1mm 3mm', boxSizing: 'border-box' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div style={{ padding: '0.3mm', background: 'white', borderRadius: '0.5mm', border: '0.5px solid #cbd5e1', display: 'flex' }}>
-                    <QRCode value={generateQRData(student)} size={24} level="L" />
+                    <QRCode value={generateQRData(teacher)} size={24} level="L" />
                   </div>
                   <span style={{ fontSize: '3pt', color: '#64748b', marginTop: '0.5mm' }}>Scan ID</span>
                 </div>
@@ -418,7 +392,7 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
               </div>
               
               {/* 6. Bottom Session Strip */}
-              <div style={{ position: 'absolute', top: '82mm', left: '0', width: '54mm', height: '3.4mm', background: '#1e3a8a', display: 'flex', justifyContent: 'center', alignItems: 'center', paddingBottom: '0.5mm', boxSizing: 'border-box' }}>
+              <div style={{ position: 'absolute', top: '82mm', left: '0', width: '54mm', height: '3.4mm', background: '#065f46', display: 'flex', justifyContent: 'center', alignItems: 'center', paddingBottom: '0.5mm', boxSizing: 'border-box' }}>
                  <span style={{ fontSize: '3pt', color: 'white', fontWeight: 500, letterSpacing: '0.5px' }}>Session: {sessionText}</span>
               </div>
             </div>
@@ -429,4 +403,4 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
   );
 };
 
-export default IDCardGenerator;
+export default TeacherIDCardGenerator;

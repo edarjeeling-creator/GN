@@ -21,6 +21,7 @@ import StudentSearch from './pages/StudentSearch';
 import Attendance from './pages/Attendance';
 import AttendanceReports from './pages/AttendanceReports';
 import WeeklyTests from './pages/WeeklyTests';
+import QRAttendanceScanner from './pages/QRAttendanceScanner';
 import PythonTeacher from './pages/PythonTeacher';
 import PythonStudent from './pages/PythonStudent';
 import PublicLayout from './components/PublicLayout';
@@ -49,6 +50,9 @@ function App() {
           <Route path="/pay-fees" element={<ParentPortal />} />
           <Route path="/result" element={<ResultPortal />} />
           
+          {/* Standalone Protected Kiosk Routes (No Layout) */}
+          <Route path="/kiosk/attendance" element={<TeacherRoute><QRAttendanceScanner /></TeacherRoute>} />
+
           {/* Protected Dashboard Routes */}
           <Route element={<ProtectedRoute />}>
             {/* Common Authenticated Routes */}
