@@ -1554,6 +1554,14 @@ export default function WebsiteCMS() {
                 <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Secondary Btn Color</label>
                 <input type="color" style={{ width: '100%', height: '40px', cursor: 'pointer' }} value={heroStyle.btnSecondaryColor} onChange={e => setHeroStyle({...heroStyle, btnSecondaryColor: e.target.value})} />
               </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Overlay Color</label>
+                <input type="color" style={{ width: '100%', height: '40px', cursor: 'pointer' }} value={heroStyle.overlayColor || '#0f172a'} onChange={e => setHeroStyle({...heroStyle, overlayColor: e.target.value})} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Overlay Opacity ({heroStyle.overlayOpacity ?? 0.8})</label>
+                <input type="range" min="0" max="1" step="0.1" style={{ width: '100%', cursor: 'pointer' }} value={heroStyle.overlayOpacity ?? 0.8} onChange={e => setHeroStyle({...heroStyle, overlayOpacity: parseFloat(e.target.value)})} />
+              </div>
             </div>
 
 
