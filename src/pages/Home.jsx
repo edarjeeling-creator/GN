@@ -228,7 +228,11 @@ const Home = () => {
             <Award className="w-4 h-4 text-amber-400" /> A TRADITION OF EXCELLENCE
           </div>
           
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 leading-tight">
+          <p className="text-lg md:text-xl font-semibold tracking-wider mb-2 uppercase" style={{ color: heroStyle.subtitleColor }}>
+            {heroStyle.subtitle}
+          </p>
+
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-8 leading-tight">
             {heroStyle.title.includes('Future-Readiness') ? heroStyle.title.split('Future-Readiness').map((part, i, arr) => 
               <React.Fragment key={i}>
                 <span style={{ color: heroStyle.titleColor }}>{part}</span>
@@ -238,10 +242,6 @@ const Home = () => {
               <span style={{ color: heroStyle.titleColor }}>{heroStyle.title}</span>
             )}
           </h1>
-          
-          <p className="text-lg md:text-xl max-w-2xl mx-auto mb-10" style={{ color: heroStyle.subtitleColor }}>
-            {heroStyle.subtitle}
-          </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link to={heroStyle.btnPrimaryLink}>
