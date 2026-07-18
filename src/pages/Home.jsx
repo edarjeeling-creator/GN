@@ -294,7 +294,7 @@ const Home = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center bg-white rounded-3xl p-8 md:p-12 shadow-sm border border-slate-100">
           <div className="relative">
             <div className="aspect-square md:aspect-[4/3] rounded-2xl overflow-hidden shadow-lg bg-slate-100">
-              {leadershipMessage.imageUrl && <img src={leadershipMessage.imageUrl} alt={leadershipMessage.name} className="w-full h-full object-cover" />}
+              {leadershipMessage.imageUrl && <img loading="lazy" src={leadershipMessage.imageUrl} alt={leadershipMessage.name} className="w-full h-full object-cover" />}
             </div>
             <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-xl shadow-xl flex items-center gap-3">
               <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-amber-600">
@@ -390,13 +390,13 @@ const Home = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[400px] md:h-[500px]">
             {gallery.length > 0 && (
               <div className="h-full rounded-2xl overflow-hidden group">
-                <img src={gallery[0].url} alt="Campus Life" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                <img loading="lazy" src={gallery[0].url} alt="Campus Life" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
               </div>
             )}
             <div className="grid grid-cols-2 gap-4 h-full">
               {gallery.slice(1, 5).map((img, idx) => (
                 <div key={idx} className="rounded-2xl overflow-hidden group">
-                  <img src={img.url} alt={`Gallery ${idx+2}`} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <img loading="lazy" src={img.url} alt={`Gallery ${idx+2}`} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 </div>
               ))}
             </div>
@@ -412,7 +412,7 @@ const Home = () => {
               <Link to="/news" className="text-sm font-semibold text-blue-600">View All</Link>
             </div>
             <div className="space-y-4">
-              {news.map(item => (
+              {news.length > 0 ? news.map(item => (
                 <div key={item.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
                   <div className="flex gap-4">
                     <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
@@ -424,7 +424,9 @@ const Home = () => {
                     </div>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm text-center text-slate-500">No news available at the moment.</div>
+              )}
             </div>
           </div>
 
@@ -435,7 +437,7 @@ const Home = () => {
               <Link to="/events" className="text-sm font-semibold text-blue-600">View All</Link>
             </div>
             <div className="space-y-4">
-              {events.map(event => (
+              {events.length > 0 ? events.map(event => (
                 <div key={event.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow flex items-center justify-between">
                   <div className="flex gap-4 items-center">
                     <div className="w-14 h-14 rounded-xl bg-[#0f172a] text-white flex flex-col items-center justify-center flex-shrink-0">
@@ -450,7 +452,9 @@ const Home = () => {
                     </div>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm text-center text-slate-500">No upcoming events scheduled.</div>
+              )}
             </div>
           </div>
         </div>
@@ -458,6 +462,7 @@ const Home = () => {
       </div>
 
       {/* 8. Voices of Our Community (Testimonials) */}
+      {testimonials.length > 0 && (
       <div className="bg-[#0f172a] py-24 relative overflow-hidden">
         {/* Background decorative elements */}
         <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none text-white">
@@ -508,6 +513,7 @@ const Home = () => {
           )}
         </div>
       </div>
+      )}
 
       {/* 9. CTA */}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 -mt-16 mb-20 relative z-20">
