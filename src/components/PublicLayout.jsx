@@ -35,15 +35,15 @@ const PublicLayout = ({ children }) => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             {/* Logo Area */}
             <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <img src={siteBranding.logoUrl} alt="Logo" style={{ height: '3.5rem', width: '3.5rem', objectFit: 'contain' }} />
+              <img src={siteBranding.logoUrl} alt="Logo" className="h-10 w-10 md:h-14 md:w-14 object-contain" />
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontWeight: '800', fontSize: '1.2rem', letterSpacing: '0.05em', color: 'white' }}>{siteBranding.siteName}</span>
-                {siteBranding.siteMotto && <span style={{ fontSize: '0.75rem', fontWeight: '500', color: 'rgba(255,255,255,0.8)', letterSpacing: '0.025em' }}>{siteBranding.siteMotto}</span>}
+                <span className="font-extrabold text-base md:text-xl tracking-wide text-white">{siteBranding.siteName}</span>
+                {siteBranding.siteMotto && <span className="text-xs md:text-sm font-medium text-white/80 tracking-wide">{siteBranding.siteMotto}</span>}
               </div>
             </Link>
 
             {/* Desktop Navigation */}
-            <div style={{ display: 'none', alignItems: 'center', gap: '1.5rem' }} className="md-flex">
+            <div className="hidden md:flex items-center gap-6">
               {mainMenu?.filter(item => item.isActive).map((link) => (
                 <div key={link.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}
                   onMouseEnter={() => {
@@ -105,9 +105,9 @@ const PublicLayout = ({ children }) => {
             </div>
 
             {/* Mobile menu button */}
-            <div style={{ display: 'flex', alignItems: 'center' }} className="md-hidden">
+            <div className="flex items-center md:hidden">
               <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} style={{ padding: '0.5rem', background: 'transparent', border: 'none', cursor: 'pointer' }}>
-                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                {isMobileMenuOpen ? <X size={24} color="white" /> : <Menu size={24} color="white" />}
               </button>
             </div>
           </div>
