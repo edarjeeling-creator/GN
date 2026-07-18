@@ -415,7 +415,7 @@ export default function WebsiteCMS() {
   const fetchHeroStyling = async () => {
     const { data } = await supabase.from('site_settings').select('value').eq('key', 'hero_styling').single();
     if (data && data.value) {
-      setHeroStyle(JSON.parse(data.value));
+      setHeroStyle(prev => ({...prev, ...JSON.parse(data.value)}));
     }
   };
 
