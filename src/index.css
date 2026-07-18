@@ -174,3 +174,9 @@
     }
   }
 }
+
+/* Force options to have dark text */
+select option {
+  color: #1e293b !important;
+  background-color: #ffffff !important;
+}
