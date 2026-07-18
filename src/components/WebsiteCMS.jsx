@@ -765,7 +765,7 @@ export default function WebsiteCMS() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', marginTop: '2rem' }}>
       
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: '#f8fafc', color: '#0f172a', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
         <label style={{ fontWeight: 'bold', color: '#475569' }}>Select CMS Section:</label>
         <select 
           className="input-field" 
@@ -816,7 +816,7 @@ export default function WebsiteCMS() {
               className="input-field w-full"
               value={popupConfig.category}
               onChange={e => setPopupConfig({ ...popupConfig, category: e.target.value })}
-              style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+              style={{ background: '#f8fafc', color: '#0f172a', border: '1px solid #e2e8f0' }}
             >
               <option value="admission">🎓 Admissions / Enrollment Notice</option>
               <option value="emergency">🚨 High-Priority Emergency Notice (Bypasses Session Suppression!)</option>
@@ -881,7 +881,7 @@ export default function WebsiteCMS() {
                   }
                 }}
                 className="input-field w-full"
-                style={{ padding: '0.42rem', background: '#f8fafc' }}
+                style={{ padding: '0.42rem', background: '#f8fafc', color: '#0f172a' }}
                 disabled={uploadingPopupVideo}
               />
               {uploadingPopupVideo && <Loader2 className="animate-spin" size={20} color="#3b82f6" />}
@@ -974,7 +974,7 @@ export default function WebsiteCMS() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
             {divisions.map((card, index) => (
-              <div key={card.id} style={{ border: '1px solid #e2e8f0', padding: '1.5rem', borderRadius: '0.75rem', background: '#f8fafc', position: 'relative' }}>
+              <div key={card.id} style={{ border: '1px solid #e2e8f0', padding: '1.5rem', borderRadius: '0.75rem', background: '#f8fafc', color: '#0f172a', position: 'relative' }}>
                 <button 
                   type="button"
                   onClick={() => {
@@ -1141,7 +1141,7 @@ export default function WebsiteCMS() {
         <form onSubmit={saveFacilities} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
             {facilities.map((fac, index) => (
-              <div key={fac.id} style={{ border: '1px solid #e2e8f0', padding: '1.5rem', borderRadius: '0.75rem', background: '#f8fafc', position: 'relative' }}>
+              <div key={fac.id} style={{ border: '1px solid #e2e8f0', padding: '1.5rem', borderRadius: '0.75rem', background: '#f8fafc', color: '#0f172a', position: 'relative' }}>
                 <button 
                   type="button"
                   onClick={() => handleDeleteFacility(fac.id)}
@@ -1186,7 +1186,7 @@ export default function WebsiteCMS() {
                       accept="image/*" 
                       onChange={e => setFacilityFiles({...facilityFiles, [fac.id]: e.target.files[0]})}
                       className="input-field w-full"
-                      style={{ padding: '0.42rem', background: '#f8fafc' }}
+                      style={{ padding: '0.42rem', background: '#f8fafc', color: '#0f172a' }}
                     />
                     {facilityFiles[fac.id] && (
                       <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: '600', display: 'block', marginTop: '0.25rem' }}>
@@ -1216,7 +1216,7 @@ export default function WebsiteCMS() {
         </h3>
         <form onSubmit={saveAcademicExcellence} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
           {academicExcellence.map((item, index) => (
-            <div key={item.id} style={{ border: '1px solid #e2e8f0', padding: '1.5rem', borderRadius: '0.5rem', background: '#f8fafc' }}>
+            <div key={item.id} style={{ border: '1px solid #e2e8f0', padding: '1.5rem', borderRadius: '0.5rem', background: '#f8fafc', color: '#0f172a' }}>
               <h4 style={{ fontWeight: 'bold', marginBottom: '1rem', color: 'var(--text-secondary)' }}>Card {index + 1}</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
@@ -1268,7 +1268,7 @@ export default function WebsiteCMS() {
         
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
           {/* Add New Form */}
-          <form onSubmit={saveNewDisclosure} style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <form onSubmit={saveNewDisclosure} style={{ background: '#f8fafc', color: '#0f172a', padding: '1.5rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <h4 style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>Add New Document</h4>
             <div>
               <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Title</label>
@@ -1382,7 +1382,7 @@ export default function WebsiteCMS() {
                   </button>
                 </div>
               )) : (
-                 <div style={{ gridColumn: '1 / -1', padding: '2rem', textAlign: 'center', background: '#f8fafc', borderRadius: '0.5rem', color: '#94a3b8' }}>
+                 <div style={{ gridColumn: '1 / -1', padding: '2rem', textAlign: 'center', background: '#f8fafc', color: '#0f172a', borderRadius: '0.5rem', color: '#94a3b8' }}>
                    No custom slides added. Default graphic is shown.
                  </div>
               )}
@@ -1405,15 +1405,15 @@ export default function WebsiteCMS() {
             <h4 style={{ fontWeight: 'bold', color: 'var(--text-secondary)', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>Text Content</h4>
             <div>
               <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Subtitle</label>
-              <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc' }} value={heroStyle.subtitle} onChange={e => setHeroStyle({...heroStyle, subtitle: e.target.value})} />
+              <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc', color: '#0f172a' }} value={heroStyle.subtitle} onChange={e => setHeroStyle({...heroStyle, subtitle: e.target.value})} />
             </div>
             <div>
               <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Main Title</label>
-              <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc' }} value={heroStyle.title} onChange={e => setHeroStyle({...heroStyle, title: e.target.value})} />
+              <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc', color: '#0f172a' }} value={heroStyle.title} onChange={e => setHeroStyle({...heroStyle, title: e.target.value})} />
             </div>
             <div>
               <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Description</label>
-              <textarea rows="2" className="input-field" style={{ width: '100%', background: '#f8fafc' }} value={heroStyle.description} onChange={e => setHeroStyle({...heroStyle, description: e.target.value})}></textarea>
+              <textarea rows="2" className="input-field" style={{ width: '100%', background: '#f8fafc', color: '#0f172a' }} value={heroStyle.description} onChange={e => setHeroStyle({...heroStyle, description: e.target.value})}></textarea>
             </div>
           </div>
 
@@ -1423,21 +1423,21 @@ export default function WebsiteCMS() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
               <div>
                 <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Primary Text</label>
-                <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc' }} value={heroStyle.btnPrimaryText} onChange={e => setHeroStyle({...heroStyle, btnPrimaryText: e.target.value})} />
+                <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc', color: '#0f172a' }} value={heroStyle.btnPrimaryText} onChange={e => setHeroStyle({...heroStyle, btnPrimaryText: e.target.value})} />
               </div>
               <div>
                 <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Primary Link</label>
-                <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc' }} value={heroStyle.btnPrimaryLink} onChange={e => setHeroStyle({...heroStyle, btnPrimaryLink: e.target.value})} />
+                <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc', color: '#0f172a' }} value={heroStyle.btnPrimaryLink} onChange={e => setHeroStyle({...heroStyle, btnPrimaryLink: e.target.value})} />
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
               <div>
                 <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Secondary Text</label>
-                <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc' }} value={heroStyle.btnSecondaryText} onChange={e => setHeroStyle({...heroStyle, btnSecondaryText: e.target.value})} />
+                <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc', color: '#0f172a' }} value={heroStyle.btnSecondaryText} onChange={e => setHeroStyle({...heroStyle, btnSecondaryText: e.target.value})} />
               </div>
               <div>
                 <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Secondary Link</label>
-                <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc' }} value={heroStyle.btnSecondaryLink} onChange={e => setHeroStyle({...heroStyle, btnSecondaryLink: e.target.value})} />
+                <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc', color: '#0f172a' }} value={heroStyle.btnSecondaryLink} onChange={e => setHeroStyle({...heroStyle, btnSecondaryLink: e.target.value})} />
               </div>
             </div>
           </div>
@@ -1467,7 +1467,7 @@ export default function WebsiteCMS() {
 
             <div>
               <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Button Shape</label>
-              <select className="input-field" style={{ width: '100%', background: '#f8fafc' }} value={heroStyle.btnShape} onChange={e => setHeroStyle({...heroStyle, btnShape: e.target.value})}>
+              <select className="input-field" style={{ width: '100%', background: '#f8fafc', color: '#0f172a' }} value={heroStyle.btnShape} onChange={e => setHeroStyle({...heroStyle, btnShape: e.target.value})}>
                 <option value="0px">Square (0px)</option>
                 <option value="8px">Rounded (8px)</option>
                 <option value="2rem">Pill (Fully Rounded)</option>
@@ -1573,7 +1573,7 @@ export default function WebsiteCMS() {
         </h3>
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           <button onClick={() => applyPreset('School Green')} className="btn-sm" style={{ background: '#166534', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.25rem', cursor: 'pointer' }}>School Green</button>
-          <button onClick={() => applyPreset('Classic White')} className="btn-sm" style={{ background: '#f8fafc', color: '#0f172a', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '0.25rem', cursor: 'pointer' }}>Classic White</button>
+          <button onClick={() => applyPreset('Classic White')} className="btn-sm" style={{ background: '#f8fafc', color: '#0f172a', color: '#0f172a', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '0.25rem', cursor: 'pointer' }}>Classic White</button>
           <button onClick={() => applyPreset('Modern Dark')} className="btn-sm" style={{ background: '#0f172a', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.25rem', cursor: 'pointer' }}>Modern Dark</button>
           <button onClick={() => applyPreset('Elegant Gold')} className="btn-sm" style={{ background: '#b45309', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.25rem', cursor: 'pointer' }}>Elegant Gold</button>
         </div>
@@ -1752,7 +1752,7 @@ export default function WebsiteCMS() {
           {mainMenu.map((item, index) => (
             <div key={item.id} style={{ border: '1px solid #e2e8f0', borderRadius: '0.5rem', background: '#fff', overflow: 'hidden' }}>
               {/* Parent Item */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: '#f8fafc', borderBottom: item.children?.length > 0 ? '1px solid #e2e8f0' : 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: '#f8fafc', color: '#0f172a', borderBottom: item.children?.length > 0 ? '1px solid #e2e8f0' : 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <button type="button" onClick={() => moveMenuItem(index, 'up')} disabled={index === 0} style={{ padding: 0, border: 'none', background: 'transparent', cursor: index === 0 ? 'not-allowed' : 'pointer', color: index === 0 ? '#cbd5e1' : '#64748b' }}><ArrowUp size={14} /></button>
@@ -1792,7 +1792,7 @@ export default function WebsiteCMS() {
               {item.children && item.children.length > 0 && (
                 <div style={{ padding: '0.5rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', background: '#fff' }}>
                   {item.children.map((child, childIndex) => (
-                    <div key={child.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', borderLeft: '2px solid #e2e8f0', marginLeft: '2rem', background: '#f8fafc', borderRadius: '0 0.5rem 0.5rem 0' }}>
+                    <div key={child.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', borderLeft: '2px solid #e2e8f0', marginLeft: '2rem', background: '#f8fafc', color: '#0f172a', borderRadius: '0 0.5rem 0.5rem 0' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                           <button type="button" onClick={() => moveMenuItem(childIndex, 'up', item.id)} disabled={childIndex === 0} style={{ padding: 0, border: 'none', background: 'transparent', cursor: childIndex === 0 ? 'not-allowed' : 'pointer', color: childIndex === 0 ? '#cbd5e1' : '#64748b' }}><ArrowUp size={12} /></button>
@@ -1837,13 +1837,13 @@ export default function WebsiteCMS() {
           <Users size={20} color="#8b5cf6" /> Faculty Manager
         </h3>
         <form onSubmit={handleAddFaculty} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
-          <input type="text" placeholder="Name" className="input-field" style={{ width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0' }} value={newFaculty.name} onChange={e => setNewFaculty({...newFaculty, name: e.target.value})} required />
+          <input type="text" placeholder="Name" className="input-field" style={{ width: '100%', background: '#f8fafc', color: '#0f172a', border: '1px solid #e2e8f0' }} value={newFaculty.name} onChange={e => setNewFaculty({...newFaculty, name: e.target.value})} required />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <input type="text" placeholder="Designation" className="input-field" style={{ width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0' }} value={newFaculty.designation} onChange={e => setNewFaculty({...newFaculty, designation: e.target.value})} required />
-            <input type="text" placeholder="Department" className="input-field" style={{ width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0' }} value={newFaculty.department} onChange={e => setNewFaculty({...newFaculty, department: e.target.value})} />
+            <input type="text" placeholder="Designation" className="input-field" style={{ width: '100%', background: '#f8fafc', color: '#0f172a', border: '1px solid #e2e8f0' }} value={newFaculty.designation} onChange={e => setNewFaculty({...newFaculty, designation: e.target.value})} required />
+            <input type="text" placeholder="Department" className="input-field" style={{ width: '100%', background: '#f8fafc', color: '#0f172a', border: '1px solid #e2e8f0' }} value={newFaculty.department} onChange={e => setNewFaculty({...newFaculty, department: e.target.value})} />
           </div>
           
-          <div style={{ border: '1px dashed var(--border-color)', padding: '1rem', borderRadius: '0.5rem', background: '#f8fafc' }}>
+          <div style={{ border: '1px dashed var(--border-color)', padding: '1rem', borderRadius: '0.5rem', background: '#f8fafc', color: '#0f172a' }}>
             <label style={{ fontSize: '0.875rem', fontWeight: 'bold', display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Profile Photo (Optional)</label>
             <input 
               type="file" 
@@ -1854,7 +1854,7 @@ export default function WebsiteCMS() {
             />
           </div>
 
-          <textarea placeholder="Short Bio" rows="2" className="input-field" style={{ width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0' }} value={newFaculty.bio} onChange={e => setNewFaculty({...newFaculty, bio: e.target.value})}></textarea>
+          <textarea placeholder="Short Bio" rows="2" className="input-field" style={{ width: '100%', background: '#f8fafc', color: '#0f172a', border: '1px solid #e2e8f0' }} value={newFaculty.bio} onChange={e => setNewFaculty({...newFaculty, bio: e.target.value})}></textarea>
           
           <button type="submit" className="btn-hero-primary" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', background: '#8b5cf6', color: 'white', border: 'none', padding: '0.75rem', width: '100%' }} disabled={uploadingFaculty}>
             {uploadingFaculty ? <><Loader2 size={16} className="animate-spin" /> Uploading...</> : <><Plus size={16} /> Add Faculty</>}
@@ -1863,7 +1863,7 @@ export default function WebsiteCMS() {
 
         <div style={{ overflowY: 'auto', maxHeight: '300px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {faculty.map(f => (
-            <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: '#f8fafc', borderRadius: '0.5rem', border: '1px solid #f1f5f9' }}>
+            <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: '#f8fafc', color: '#0f172a', borderRadius: '0.5rem', border: '1px solid #f1f5f9' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 {f.image_url ? <img src={f.image_url} alt="" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} /> : <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#e2e8f0' }}></div>}
                 <div>
@@ -1886,8 +1886,8 @@ export default function WebsiteCMS() {
         </h3>
         <form onSubmit={handleAddPhotos} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <input type="text" placeholder="Category (e.g. Sports, Academics)" className="input-field" style={{ width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0' }} value={galleryCategory} onChange={e => setGalleryCategory(e.target.value)} required />
-            <input type="text" placeholder="Year (e.g. 2026)" className="input-field" style={{ width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0' }} value={galleryYear} onChange={e => setGalleryYear(e.target.value)} required />
+            <input type="text" placeholder="Category (e.g. Sports, Academics)" className="input-field" style={{ width: '100%', background: '#f8fafc', color: '#0f172a', border: '1px solid #e2e8f0' }} value={galleryCategory} onChange={e => setGalleryCategory(e.target.value)} required />
+            <input type="text" placeholder="Year (e.g. 2026)" className="input-field" style={{ width: '100%', background: '#f8fafc', color: '#0f172a', border: '1px solid #e2e8f0' }} value={galleryYear} onChange={e => setGalleryYear(e.target.value)} required />
           </div>
           
           <div style={{ border: '2px dashed #10b981', padding: '1.5rem', borderRadius: '0.5rem', background: 'rgba(16, 185, 129, 0.05)', textAlign: 'center' }}>
@@ -1912,7 +1912,7 @@ export default function WebsiteCMS() {
 
         <div style={{ overflowY: 'auto', maxHeight: '300px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {gallery.map(p => (
-            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: '#f8fafc', borderRadius: '0.5rem', border: '1px solid #f1f5f9' }}>
+            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: '#f8fafc', color: '#0f172a', borderRadius: '0.5rem', border: '1px solid #f1f5f9' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <img src={p.image_url} alt="" style={{ width: '60px', height: '40px', borderRadius: '4px', objectFit: 'cover' }} />
                 <div>
@@ -1938,7 +1938,7 @@ export default function WebsiteCMS() {
             type="text" 
             placeholder="Announcement text (e.g., ADMISSIONS OPEN...)" 
             className="input-field w-full" 
-            style={{ background: '#f8fafc', border: '1px solid #e2e8f0', flex: 1 }}
+            style={{ background: '#f8fafc', color: '#0f172a', border: '1px solid #e2e8f0', flex: 1 }}
             value={newNewsContent}
             onChange={e => setNewNewsContent(e.target.value)}
             required
@@ -1948,7 +1948,7 @@ export default function WebsiteCMS() {
 
         <div style={{ maxHeight: '350px', overflowY: 'auto', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
           <table className="data-table" style={{ width: '100%' }}>
-            <thead style={{ background: '#f8fafc', position: 'sticky', top: 0, zIndex: 1 }}>
+            <thead style={{ background: '#f8fafc', color: '#0f172a', position: 'sticky', top: 0, zIndex: 1 }}>
               <tr>
                 <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Announcement</th>
                 <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Status</th>
