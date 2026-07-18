@@ -1,5 +1,5 @@
 // Minimal service worker for PWA install capability
-const CACHE_NAME = 'gyanoday-v1';
+const CACHE_NAME = 'gyanoday-v2';
 const ASSETS = [
   '/',
   '/index.html',
