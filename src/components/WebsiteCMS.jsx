@@ -1496,6 +1496,10 @@ export default function WebsiteCMS() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <h4 style={{ fontWeight: 'bold', color: 'var(--text-secondary)', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>Text Content</h4>
             <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Top Badge Text</label>
+              <input type="text" className="input-field" placeholder="e.g. A TRADITION OF EXCELLENCE" style={{ width: '100%', background: '#f8fafc', color: '#0f172a' }} value={heroStyle.badge !== undefined ? heroStyle.badge : 'A TRADITION OF EXCELLENCE'} onChange={e => setHeroStyle({...heroStyle, badge: e.target.value})} />
+            </div>
+            <div>
               <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Subtitle</label>
               <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc', color: '#0f172a' }} value={heroStyle.subtitle} onChange={e => setHeroStyle({...heroStyle, subtitle: e.target.value})} />
             </div>

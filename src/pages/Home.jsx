@@ -225,7 +225,7 @@ const Home = () => {
         {/* Hero Content */}
         <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-white/90 text-sm font-medium mb-8 backdrop-blur-md">
-            <Award className="w-4 h-4 text-amber-400" /> A TRADITION OF EXCELLENCE
+            <Award className="w-4 h-4 text-amber-400" /> {heroStyle.badge || 'A TRADITION OF EXCELLENCE'}
           </div>
           
           <p className="text-lg md:text-xl font-semibold tracking-wider mb-2 uppercase" style={{ color: heroStyle.subtitleColor }}>
