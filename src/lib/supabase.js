@@ -27,7 +27,7 @@ supabase.from = (table) => {
   // List of tables that require school_id isolation
   const tenantTables = [
     'classes', 'subjects', 'students', 'teacher_subjects', 'marks', 
-    'profiles', 'attendance', 'news', 'faculty', 'gallery', 
+    'profiles', 'attendance', 'news', 'faculty', 'gallery', 'hero_slides',
     'site_settings', 'python_lessons', 'python_assignments', 'python_submissions'
   ];
   
