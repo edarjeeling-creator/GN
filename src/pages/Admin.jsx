@@ -654,7 +654,7 @@ const Admin = () => {
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)' }}>
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', overflowX: 'auto', whiteSpace: 'nowrap', WebkitOverflowScrolling: 'touch', paddingBottom: '2px' }}>
         <button 
           onClick={() => setActiveTab('dashboard')} 
           style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'dashboard' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'dashboard' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: activeTab === 'dashboard' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '1rem' }}
@@ -687,7 +687,7 @@ const Admin = () => {
 
       {activeTab === 'id_cards' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem', overflowX: 'auto', whiteSpace: 'nowrap', WebkitOverflowScrolling: 'touch' }}>
             <button
               onClick={() => setIdCardTab('student')}
               style={{
@@ -727,7 +727,7 @@ const Admin = () => {
 
       {activeTab === 'dashboard' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', marginBottom: '2rem' }}>
             <label style={{ fontWeight: 'bold', color: '#475569' }}>Select School Management Section:</label>
             <select 
               className="input-field" 

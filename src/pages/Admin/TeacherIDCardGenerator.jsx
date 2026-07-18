@@ -200,7 +200,7 @@ const TeacherIDCardGenerator = ({ teachers: globalTeachers, fetchStats }) => {
         </div>
       </div>
 
-      <div style={{ maxHeight: '400px', overflowY: 'auto', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+      <div style={{ maxHeight: '400px', overflowY: 'auto', overflowX: 'auto', borderRadius: '0.5rem', border: '1px solid #e2e8f0', WebkitOverflowScrolling: 'touch' }}>
         <table className="data-table" style={{ width: '100%', minWidth: '1000px' }}>
           <thead style={{ background: '#f8fafc', position: 'sticky', top: 0, zIndex: 10 }}>
             <tr>
