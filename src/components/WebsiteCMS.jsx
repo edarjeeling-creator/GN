@@ -658,7 +658,8 @@ export default function WebsiteCMS() {
       for (let i = 0; i < heroFiles.length; i++) {
         const file = heroFiles[i];
         const imageUrl = await uploadFileToSupabase(file, 'hero');
-        await supabase.from('hero_slides').insert([{ media_url: imageUrl }]);
+        const { error: insertError } = await supabase.from('hero_slides').insert([{ media_url: imageUrl }]);
+        if (insertError) throw insertError;
       }
       setHeroFiles([]);
       if (heroFileRef.current) heroFileRef.current.value = '';
@@ -735,12 +736,13 @@ export default function WebsiteCMS() {
         // Use filename as title, minus extension
         const title = file.name.split('.').slice(0, -1).join('.');
 
-        await supabase.from('gallery').insert([{
+        const { error: insertError } = await supabase.from('gallery').insert([{
           title: title,
           category: galleryCategory,
           year: galleryYear,
           image_url: imageUrl
         }]);
+        if (insertError) throw insertError;
 
         setGalleryUploadProgress({ current: i + 1, total: galleryFiles.length });
       }
