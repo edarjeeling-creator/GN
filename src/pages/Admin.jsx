@@ -28,6 +28,7 @@ const Admin = () => {
   const { academicYear, classes, subjects, students, updateStudentName, updateStudentLanguages, updateStudentPictureUrl, updateSubjectName, removeStudent, loadingData } = useData();
   const [stats, setStats] = useState({ classes: 0, students: 0, subjects: 0, teachers: 0 });
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [idCardTab, setIdCardTab] = useState('student');
   
   const [teachers, setTeachers] = useState([]);
   const [newTeacher, setNewTeacher] = useState({ name: '', email: '', password: '' });
@@ -676,13 +677,7 @@ const Admin = () => {
           onClick={() => setActiveTab('id_cards')} 
           style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'id_cards' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'id_cards' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: activeTab === 'id_cards' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '1rem' }}
         >
-          Student ID Cards
-        </button>
-        <button 
-          onClick={() => setActiveTab('teacher_id_cards')} 
-          style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'teacher_id_cards' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'teacher_id_cards' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: activeTab === 'teacher_id_cards' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '1rem' }}
-        >
-          Teacher ID Cards
+          ID Cards
         </button>
       </div>
 
@@ -691,11 +686,43 @@ const Admin = () => {
       )}
 
       {activeTab === 'id_cards' && (
-        <IDCardGenerator classes={classes} students={students} fetchStats={fetchStats} />
-      )}
-
-      {activeTab === 'teacher_id_cards' && (
-        <TeacherIDCardGenerator teachers={teachers} fetchStats={fetchStats} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
+            <button
+              onClick={() => setIdCardTab('student')}
+              style={{
+                padding: '0.5rem 1rem',
+                background: idCardTab === 'student' ? 'var(--primary-color)' : 'transparent',
+                color: idCardTab === 'student' ? 'white' : '#64748b',
+                border: 'none',
+                borderRadius: '0.5rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Student ID Cards
+            </button>
+            <button
+              onClick={() => setIdCardTab('teacher')}
+              style={{
+                padding: '0.5rem 1rem',
+                background: idCardTab === 'teacher' ? 'var(--primary-color)' : 'transparent',
+                color: idCardTab === 'teacher' ? 'white' : '#64748b',
+                border: 'none',
+                borderRadius: '0.5rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Teacher ID Cards
+            </button>
+          </div>
+          {idCardTab === 'student' ? (
+            <IDCardGenerator classes={classes} students={students} fetchStats={fetchStats} />
+          ) : (
+            <TeacherIDCardGenerator teachers={teachers} fetchStats={fetchStats} />
+          )}
+        </div>
       )}
 
       {activeTab === 'dashboard' && (

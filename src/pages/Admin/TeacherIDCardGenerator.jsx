@@ -192,7 +192,7 @@ const TeacherIDCardGenerator = ({ teachers: globalTeachers, fetchStats }) => {
           <input 
             type="text"
             className="input-field" 
-            style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.75rem', borderRadius: '0.5rem' }}
+            style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.75rem', borderRadius: '0.5rem', color: '#1e293b' }}
             value={sessionText}
             onChange={(e) => setSessionText(e.target.value)}
             placeholder="e.g. 2026-2027 or 31/03/2027"
