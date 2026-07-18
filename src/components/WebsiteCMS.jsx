@@ -143,11 +143,32 @@ export default function WebsiteCMS() {
 
 
   // New CMS States for Redesign
-  const [welcomeSection, setWelcomeSection] = useState({ badge: '', title: '', description: '', linkText: '', linkUrl: '' });
-  const [leadershipMessage, setLeadershipMessage] = useState({ badge: '', title: '', message: '', name: '', imageUrl: '', btnText: '', btnUrl: '' });
+  const [welcomeSection, setWelcomeSection] = useState({ 
+    badge: 'A TRADITION OF EXCELLENCE', 
+    title: 'Welcome to Gyanoday Niketan', 
+    description: 'Welcome to a community of learners, thinkers, and innovators. At Gyanoday Niketan, we are committed to providing a holistic educational experience that nurtures the intellectual, social, and emotional growth of every student.', 
+    linkText: 'Read More', 
+    linkUrl: '/about' 
+  });
+  const [leadershipMessage, setLeadershipMessage] = useState({ 
+    badge: 'LEADERSHIP', 
+    title: 'Message from the Principal', 
+    message: 'Education is not just about academic excellence; it is about character building, compassion, and continuous growth. Our mission is to empower every student to reach their highest potential in a rapidly changing world.', 
+    name: 'Dr. John Doe', 
+    imageUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80', 
+    btnText: 'Read Full Message', 
+    btnUrl: '/principal-desk' 
+  });
   const [whyChooseUs, setWhyChooseUs] = useState([]);
   const [testimonials, setTestimonials] = useState([]);
-  const [ctaSection, setCtaSection] = useState({ title: '', description: '', btn1Text: '', btn1Url: '', btn2Text: '', btn2Url: '' });
+  const [ctaSection, setCtaSection] = useState({ 
+    title: 'Ready to Join Our Community?', 
+    description: 'Take the first step towards a brighter future. Admissions for the upcoming academic year are now open.', 
+    btn1Text: 'Apply Now', 
+    btn1Url: '/admissions', 
+    btn2Text: 'Contact Us', 
+    btn2Url: '/contact' 
+  });
   const [events, setEvents] = useState([]);
   const [newEvent, setNewEvent] = useState({ title: '', date: '', location: '' });
   const [savingWelcome, setSavingWelcome] = useState(false);
