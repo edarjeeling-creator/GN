@@ -47,7 +47,13 @@ export default function WebsiteCMS() {
     btnSecondaryText: 'EXPLORE ACADEMICS',
     btnSecondaryLink: '/academics',
     btnSecondaryColor: '#166534',
-    btnShape: '2rem' // rounded-full default
+    btnShape: '2rem', // rounded-full default
+    stats: [
+      { label: 'Years of Legacy', value: '30+' },
+      { label: 'Pass Rate', value: '100%' },
+      { label: 'Students', value: '2500+' },
+      { label: 'Faculty Members', value: '150+' }
+    ]
   });
   const [savingHeroStyle, setSavingHeroStyle] = useState(false);
 
@@ -1535,6 +1541,51 @@ export default function WebsiteCMS() {
                 <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Secondary Link</label>
                 <input type="text" className="input-field" style={{ width: '100%', background: '#f8fafc', color: '#0f172a' }} value={heroStyle.btnSecondaryLink} onChange={e => setHeroStyle({...heroStyle, btnSecondaryLink: e.target.value})} />
               </div>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem', marginBottom: '1rem' }}>
+            <h4 style={{ fontWeight: 'bold', color: 'var(--text-secondary)', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>Hero Statistics (The 4 numbers at the bottom)</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              {[0, 1, 2, 3].map((index) => (
+                <div key={index} style={{ background: '#f8fafc', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Stat {index + 1} Value (e.g. 30+)</label>
+                  <input 
+                    type="text" 
+                    className="input-field"
+                    style={{ width: '100%', background: '#fff', color: '#0f172a', marginBottom: '0.5rem' }} 
+                    value={(heroStyle.stats && heroStyle.stats[index]) ? heroStyle.stats[index].value : ''} 
+                    onChange={e => {
+                      const newStats = [...(heroStyle.stats || [
+                        { label: 'Years of Legacy', value: '30+' },
+                        { label: 'Pass Rate', value: '100%' },
+                        { label: 'Students', value: '2500+' },
+                        { label: 'Faculty Members', value: '150+' }
+                      ])];
+                      newStats[index] = { ...newStats[index], value: e.target.value };
+                      setHeroStyle({...heroStyle, stats: newStats});
+                    }} 
+                  />
+                  <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Stat {index + 1} Label (e.g. Years of Legacy)</label>
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    style={{ width: '100%', background: '#fff', color: '#0f172a' }} 
+                    value={(heroStyle.stats && heroStyle.stats[index]) ? heroStyle.stats[index].label : ''} 
+                    onChange={e => {
+                      const newStats = [...(heroStyle.stats || [
+                        { label: 'Years of Legacy', value: '30+' },
+                        { label: 'Pass Rate', value: '100%' },
+                        { label: 'Students', value: '2500+' },
+                        { label: 'Faculty Members', value: '150+' }
+                      ])];
+                      newStats[index] = { ...newStats[index], label: e.target.value };
+                      setHeroStyle({...heroStyle, stats: newStats});
+                    }} 
+                  />
+                </div>
+              ))}
             </div>
           </div>
 
