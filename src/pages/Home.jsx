@@ -27,6 +27,8 @@ const Home = () => {
     btnSecondaryLink: '/contact',
     btnSecondaryColor: 'transparent',
     btnShape: '9999px', // Fully rounded by default
+    overlayColor: '#0f172a',
+    overlayOpacity: 0.8,
     stats: [
       { label: 'Years of Legacy', value: '30+' },
       { label: 'Pass Rate', value: '100%' },
@@ -217,7 +219,7 @@ const Home = () => {
             )) : null}
           </AnimatePresence>
           {/* Dark blue overlay for text readability */}
-          <div className="absolute inset-0 bg-[#0f172a]/80 backdrop-blur-sm"></div>
+          <div className="absolute inset-0 backdrop-blur-sm" style={{ backgroundColor: heroStyle.overlayColor || '#0f172a', opacity: heroStyle.overlayOpacity ?? 0.8 }}></div>
         </div>
 
         {/* Hero Content */}
@@ -227,13 +229,14 @@ const Home = () => {
           </div>
           
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 leading-tight">
-            {heroStyle.title.split('Future-Readiness').map((part, i, arr) => 
+            {heroStyle.title.includes('Future-Readiness') ? heroStyle.title.split('Future-Readiness').map((part, i, arr) => 
               <React.Fragment key={i}>
                 <span style={{ color: heroStyle.titleColor }}>{part}</span>
                 {i < arr.length - 1 && <span className="text-amber-400">Future-Readiness</span>}
               </React.Fragment>
+            ) : (
+              <span style={{ color: heroStyle.titleColor }}>{heroStyle.title}</span>
             )}
-            {!heroStyle.title.includes('Future-Readiness') && <span style={{ color: heroStyle.titleColor }}>{heroStyle.title}</span>}
           </h1>
           
           <p className="text-lg md:text-xl max-w-2xl mx-auto mb-10" style={{ color: heroStyle.subtitleColor }}>
