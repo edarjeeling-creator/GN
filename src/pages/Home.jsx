@@ -220,7 +220,7 @@ const Home = () => {
     <div className="bg-slate-50 min-h-screen">
       
       {/* 1. Hero Section */}
-      <div className="relative bg-slate-900 min-h-[80vh] flex flex-col items-center justify-center pt-20 pb-32">
+      <div className="relative bg-slate-900 min-h-[80vh] flex flex-col items-center justify-center pt-40 md:pt-32 pb-32">
         {/* Background Slider */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <AnimatePresence mode="sync">

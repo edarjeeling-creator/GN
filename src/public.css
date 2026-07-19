@@ -287,6 +287,10 @@ html.dark .bento-card {
   color: var(--text-public);
 }
 
+.home-main-content {
+  padding-top: 0 !important;
+}
+
 @media (max-width: 768px) {
   .public-main-content {
     padding-top: 10rem;

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../context/ThemeProvider';
 import { Menu, X, ChevronDown, Moon, Sun, Phone, Mail, Clock, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const PublicLayout = ({ children }) => {
+  const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -159,7 +160,7 @@ const PublicLayout = ({ children }) => {
       </nav>
 
       {/* Main Content Area */}
-      <main className="public-main-content">
+      <main className={`public-main-content ${location.pathname === '/' ? 'home-main-content' : ''}`}>
         {children}
       </main>
 
