@@ -947,8 +947,6 @@ export default function WebsiteCMS() {
 
         const { error: insertError } = await supabase.from('gallery').insert([{
           title: title,
-          category: galleryCategory,
-          year: galleryYear,
           image_url: imageUrl
         }]);
         if (insertError) throw insertError;
