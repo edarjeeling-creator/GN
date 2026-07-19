@@ -101,11 +101,15 @@ const Home = () => {
     { id: '5', url: 'https://images.unsplash.com/photo-1546410531-bea5aad14e00?auto=format&fit=crop&q=80&w=600' }
   ]);
 
+  const [gallerySectionTitle, setGallerySectionTitle] = useState("Life at Gyanoday Niketan");
+  const [gallerySectionSubtitle, setGallerySectionSubtitle] = useState("Glimpses of our vibrant campus life");
+
   useEffect(() => {
     fetchNews();
     fetchEvents();
     fetchHeroSlides();
     fetchSettings();
+    fetchGallery();
   }, []);
 
   const fetchSettings = async () => {
@@ -123,7 +127,10 @@ const Home = () => {
               case 'why_choose_us': setWhyChooseUs(val); break;
               case 'testimonials': setTestimonials(val); break;
               case 'cta_section': setCtaSection(val); break;
-              case 'gallery': setGallery(val.slice(0, 5)); break;
+              case 'gallery_section_text':
+                if (val.title) setGallerySectionTitle(val.title);
+                if (val.subtitle) setGallerySectionSubtitle(val.subtitle);
+                break;
               default: break;
             }
           }
@@ -140,6 +147,17 @@ const Home = () => {
       if (!error && data) setHeroSlides(data);
     } catch (e) {
       console.log('Hero slides fetch error:', e);
+    }
+  };
+
+  const fetchGallery = async () => {
+    try {
+      const { data, error } = await supabase.from('gallery').select('*').order('created_at', { ascending: false }).limit(5);
+      if (!error && data && data.length > 0) {
+        setGallery(data);
+      }
+    } catch (e) {
+      console.log('Gallery fetch error:', e);
     }
   };
 
@@ -399,8 +417,8 @@ const Home = () => {
         <div className="space-y-8">
           <div className="flex flex-col sm:flex-row justify-between items-end gap-4">
             <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">Life at Gyanoday Niketan</h2>
-              <p className="text-slate-600 text-lg">Glimpses of our vibrant campus life</p>
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">{gallerySectionTitle}</h2>
+              <p className="text-slate-600 text-lg">{gallerySectionSubtitle}</p>
             </div>
             <Link to="/gallery" className="inline-flex items-center font-semibold text-blue-700 hover:text-blue-800">
               View Gallery <ArrowRight className="w-4 h-4 ml-2" />

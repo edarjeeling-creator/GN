@@ -22,6 +22,8 @@ export default function WebsiteCMS() {
   const facultyFileRef = useRef(null);
 
   // Gallery State
+  const [gallerySectionTitle, setGallerySectionTitle] = useState("Life at Gyanoday Niketan");
+  const [gallerySectionSubtitle, setGallerySectionSubtitle] = useState("Glimpses of our vibrant campus life");
   const [galleryCategory, setGalleryCategory] = useState('');
   const [galleryYear, setGalleryYear] = useState(new Date().getFullYear().toString());
   const [galleryFiles, setGalleryFiles] = useState([]);
@@ -206,6 +208,7 @@ export default function WebsiteCMS() {
     fetchEvents();
     fetchFaculty();
     fetchGallery();
+    fetchGallerySectionText();
     fetchHeroSlides();
     fetchHeroStyling();
     fetchSiteBranding();
@@ -813,6 +816,29 @@ export default function WebsiteCMS() {
   const fetchGallery = async () => {
     const { data } = await supabase.from('gallery').select('*').order('created_at', { ascending: false });
     if (data) setGallery(data);
+  };
+
+  const fetchGallerySectionText = async () => {
+    const { data } = await supabase.from('site_settings').select('value').eq('key', 'gallery_section_text').single();
+    if (data && data.value) {
+      const parsed = JSON.parse(data.value);
+      if (parsed.title) setGallerySectionTitle(parsed.title);
+      if (parsed.subtitle) setGallerySectionSubtitle(parsed.subtitle);
+    }
+  };
+
+  const saveGallerySectionText = async () => {
+    if (isReadOnly) return alert('Cannot modify data in read-only mode.');
+    const value = JSON.stringify({ title: gallerySectionTitle, subtitle: gallerySectionSubtitle });
+    
+    // Check if exists
+    const { data: existing } = await supabase.from('site_settings').select('id').eq('key', 'gallery_section_text').single();
+    if (existing) {
+      await supabase.from('site_settings').update({ value }).eq('key', 'gallery_section_text');
+    } else {
+      await supabase.from('site_settings').insert([{ key: 'gallery_section_text', value }]);
+    }
+    alert('Gallery section title and subtitle saved!');
   };
 
   const uploadFileToSupabase = async (file, folder) => {
@@ -2127,6 +2153,18 @@ export default function WebsiteCMS() {
         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <ImageIcon size={20} color="#10b981" /> Bulk Photo Gallery Manager
         </h3>
+
+        <div style={{ marginBottom: '2rem', padding: '1.5rem', background: '#f8fafc', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+          <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', color: '#0f172a' }}>Gallery Section Title & Subtitle</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginBottom: '1rem' }}>
+            <input type="text" placeholder="Title (e.g. Life at Gyanoday Niketan)" className="input-field" style={{ width: '100%', background: 'white', color: '#0f172a', border: '1px solid #cbd5e1' }} value={gallerySectionTitle} onChange={e => setGallerySectionTitle(e.target.value)} />
+            <input type="text" placeholder="Subtitle (e.g. Glimpses of our vibrant campus life)" className="input-field" style={{ width: '100%', background: 'white', color: '#0f172a', border: '1px solid #cbd5e1' }} value={gallerySectionSubtitle} onChange={e => setGallerySectionSubtitle(e.target.value)} />
+          </div>
+          <button onClick={saveGallerySectionText} className="btn-hero-primary" style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.5rem 1rem' }}>
+            Save Title & Subtitle
+          </button>
+        </div>
+
         <form onSubmit={handleAddPhotos} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <input type="text" placeholder="Category (e.g. Sports, Academics)" className="input-field" style={{ width: '100%', background: '#f8fafc', color: '#0f172a', border: '1px solid #e2e8f0' }} value={galleryCategory} onChange={e => setGalleryCategory(e.target.value)} required />
