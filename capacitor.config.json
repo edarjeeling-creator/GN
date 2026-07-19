@@ -1,0 +1,9 @@
+{
+  "appId": "cloud.gyanodayniketan.results",
+  "appName": "Gyanoday",
+  "webDir": "dist",
+  "server": {
+    "url": "https://results.gyanodayniketan.cloud",
+    "cleartext": true
+  }
+}
