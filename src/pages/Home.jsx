@@ -426,15 +426,15 @@ const Home = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[400px] md:h-[500px]">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-auto lg:h-[500px]">
             {gallery.length > 0 && (
-              <div className="h-full rounded-2xl overflow-hidden group">
+              <div className="h-[300px] lg:h-full rounded-2xl overflow-hidden group">
                 <img loading="lazy" src={gallery[0].url} alt="Campus Life" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
               </div>
             )}
-            <div className="grid grid-cols-2 gap-4 h-full">
+            <div className="grid grid-cols-2 grid-rows-2 gap-4 h-[400px] lg:h-full">
               {gallery.slice(1, 5).map((img, idx) => (
-                <div key={idx} className="rounded-2xl overflow-hidden group">
+                <div key={idx} className="rounded-2xl overflow-hidden group h-full">
                   <img loading="lazy" src={img.url} alt={`Gallery ${idx+2}`} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 </div>
               ))}
