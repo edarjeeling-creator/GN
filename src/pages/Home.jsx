@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, MapPin, Users, Phone, ArrowRight, FileText, CheckCircle, ChevronRight, Award, ImageIcon, Trophy, ChevronLeft, Shield, Megaphone, Bell, Calendar, Quote } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import SchoolPopup from '../components/SchoolPopup';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
@@ -55,6 +56,9 @@ const Home = () => {
     btnUrl: '/about'
   });
 
+  const [divisionsTitle, setDivisionsTitle] = useState("Academic Journey");
+  const [divisionsSubtitle, setDivisionsSubtitle] = useState("Nurturing growth through every phase of your child's education.");
+  const [divisionsEnabled, setDivisionsEnabled] = useState(true);
   const [divisions, setDivisions] = useState([
     { id: '1', title: 'Pre-Primary', description: 'Nurturing curiosity and foundational learning in a safe, play-based environment.', icon: 'Users', link: '/academics' },
     { id: '2', title: 'Primary', description: 'Building strong core academic skills and encouraging creative expression.', icon: 'BookOpen', link: '/academics' },
@@ -63,6 +67,9 @@ const Home = () => {
     { id: '5', title: 'Senior Secondary', description: 'Career readiness, specialized streams, and leadership development.', icon: 'Trophy', link: '/academics' }
   ]);
   
+  const [whyChooseUsTitle, setWhyChooseUsTitle] = useState("Why Choose Us");
+  const [whyChooseUsSubtitle, setWhyChooseUsSubtitle] = useState("A holistic approach to education that prepares your child for the future.");
+  const [whyChooseUsEnabled, setWhyChooseUsEnabled] = useState(true);
   const [whyChooseUs, setWhyChooseUs] = useState([
     { id: '1', title: 'Holistic Education', description: 'Focusing on academic, physical, and emotional development.', icon: 'Award' },
     { id: '2', title: 'Modern Infrastructure', description: 'State-of-the-art labs, libraries, and sports facilities.', icon: 'Shield' },
@@ -332,51 +339,61 @@ const Home = () => {
         </div>
 
         {/* 4. Academic Journey */}
+        {divisionsEnabled && (
         <div className="space-y-12">
           <div className="text-center space-y-4 max-w-2xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900">Academic Journey</h2>
-            <p className="text-slate-600 text-lg">Nurturing growth through every phase of your child's education.</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900">{divisionsTitle}</h2>
+            <p className="text-slate-600 text-lg">{divisionsSubtitle}</p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
-            {divisions.map((div, idx) => (
+            {divisions.filter(d => d.isActive !== false).map((div, idx) => {
+              const IconComp = LucideIcons[div.icon] || LucideIcons.BookOpen;
+              return (
               <Card key={idx} className="border border-slate-100 shadow-sm hover:shadow-md transition-shadow h-full flex flex-col bg-white">
                 <CardContent className="p-6 flex flex-col h-full items-start">
                   <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-6">
-                    {iconMap[div.icon] || <BookOpen />}
+                    <IconComp className="w-6 h-6" />
                   </div>
                   <h3 className="font-bold text-lg mb-3 text-slate-900">{div.title}</h3>
                   <p className="text-sm text-slate-600 flex-grow mb-6">{div.description}</p>
                   <Link to={div.link || '/academics'} className="inline-flex items-center text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors mt-auto">
-                    Learn More <ChevronRight className="w-4 h-4 ml-1" />
+                    {div.btnText || 'Learn More'} <ChevronRight className="w-4 h-4 ml-1" />
                   </Link>
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
         </div>
+        )}
 
         {/* 5. Why Choose Us */}
+        {whyChooseUsEnabled && (
         <div className="space-y-12">
           <div className="text-center space-y-4 max-w-2xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900">Why Choose Us</h2>
-            <p className="text-slate-600 text-lg">A holistic approach to education that prepares your child for the future.</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900">{whyChooseUsTitle}</h2>
+            <p className="text-slate-600 text-lg">{whyChooseUsSubtitle}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {whyChooseUs.map((item, idx) => (
-              <div key={idx} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex gap-4 items-start">
+            {whyChooseUs.filter(w => w.isActive !== false).map((item, idx) => {
+              const IconComp = LucideIcons[item.icon] || LucideIcons.CheckCircle;
+              return (
+              <div key={idx} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex gap-4 items-start hover:shadow-md transition-shadow">
                 <div className="w-12 h-12 rounded-xl bg-slate-50 text-blue-600 flex items-center justify-center flex-shrink-0">
-                  {iconMap[item.icon] || <CheckCircle />}
+                  <IconComp className="w-6 h-6" />
                 </div>
                 <div>
                   <h4 className="font-bold text-slate-900 mb-2">{item.title}</h4>
                   <p className="text-sm text-slate-600 leading-relaxed">{item.description}</p>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
+        )}
 
         {/* 6. Life at Gyanoday Niketan (Gallery snippet) */}
         <div className="space-y-8">
