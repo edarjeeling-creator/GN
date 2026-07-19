@@ -154,7 +154,7 @@ const Home = () => {
     try {
       const { data, error } = await supabase.from('gallery').select('*').order('created_at', { ascending: false }).limit(5);
       if (!error && data && data.length > 0) {
-        setGallery(data);
+        setGallery(data.map(item => ({ ...item, url: item.image_url || item.url })));
       }
     } catch (e) {
       console.log('Gallery fetch error:', e);
