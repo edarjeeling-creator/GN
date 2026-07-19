@@ -287,7 +287,10 @@ export default function WebsiteCMS() {
       setWhyChooseUs([
         { title: 'Holistic Education', description: 'Focusing on academic, physical, and emotional development.', icon: 'Award', color: '#3b82f6', isActive: true },
         { title: 'Modern Infrastructure', description: 'State-of-the-art labs, libraries, and sports facilities.', icon: 'Shield', color: '#10b981', isActive: true },
-        { title: 'Global Curriculum', description: 'Internationally recognized ICSE framework for future readiness.', icon: 'Globe', color: '#8b5cf6', isActive: true }
+        { title: 'Global Curriculum', description: 'Internationally recognized ICSE framework for future readiness.', icon: 'Globe', color: '#8b5cf6', isActive: true },
+        { title: 'Safe Environment', description: 'Secure campus with 24/7 CCTV surveillance and trained staff.', icon: 'CheckCircle', color: '#f59e0b', isActive: true },
+        { title: 'Expert Faculty', description: 'Highly qualified and experienced educators dedicated to student success.', icon: 'Users', color: '#ec4899', isActive: true },
+        { title: 'Extra-curriculars', description: 'Wide range of sports, arts, and clubs for all-round development.', icon: 'Trophy', color: '#0ea5e9', isActive: true }
       ]);
     }
   };
