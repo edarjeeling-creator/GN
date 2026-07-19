@@ -304,8 +304,8 @@ const Home = () => {
                 <Quote size={20} />
               </div>
               <div>
-                <p className="font-bold text-slate-900">Principal's Photo</p>
-                <p className="text-xs text-slate-500">A Tradition of Excellence</p>
+                <p className="font-bold text-slate-900">{leadershipMessage.photoBadgeTitle || "Principal's Photo"}</p>
+                <p className="text-xs text-slate-500">{leadershipMessage.photoBadgeSubtitle || "A Tradition of Excellence"}</p>
               </div>
             </div>
           </div>
