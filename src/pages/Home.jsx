@@ -249,15 +249,16 @@ const Home = () => {
 
         {/* Hero Content */}
         <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-white/90 text-sm font-medium mb-8 backdrop-blur-md">
-            <Award className="w-4 h-4 text-amber-400" /> {heroStyle.badge || 'A TRADITION OF EXCELLENCE'}
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-white/10 border border-white/20 text-white/90 text-xs md:text-sm font-medium mb-6 md:mb-8 backdrop-blur-md whitespace-normal text-center">
+            <Award className="w-4 h-4 text-amber-400 shrink-0" /> 
+            <span>{heroStyle.badge || 'A TRADITION OF EXCELLENCE'}</span>
           </div>
           
-          <p className="text-lg md:text-xl font-semibold tracking-wider mb-2 uppercase" style={{ color: heroStyle.subtitleColor }}>
+          <p className="text-base md:text-lg lg:text-xl font-semibold tracking-wider mb-2 uppercase px-2" style={{ color: heroStyle.subtitleColor }}>
             {heroStyle.subtitle}
           </p>
 
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-8 leading-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-8 leading-tight px-2">
             {heroStyle.title.includes('Future-Readiness') ? heroStyle.title.split('Future-Readiness').map((part, i, arr) => 
               <React.Fragment key={i}>
                 <span style={{ color: heroStyle.titleColor }}>{part}</span>
@@ -268,14 +269,14 @@ const Home = () => {
             )}
           </h1>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to={heroStyle.btnPrimaryLink}>
-              <Button className="h-14 px-8 text-base shadow-xl border-0 hover:bg-slate-200 transition-colors" style={{ backgroundColor: heroStyle.btnPrimaryColor, color: heroStyle.btnPrimaryTextColor, borderRadius: heroStyle.btnShape }}>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4 px-4">
+            <Link to={heroStyle.btnPrimaryLink} className="w-full sm:w-auto">
+              <Button className="w-full sm:w-auto h-auto min-h-[3.5rem] py-3 px-6 md:px-8 text-sm md:text-base shadow-xl border-0 hover:bg-slate-200 transition-colors whitespace-normal text-center" style={{ backgroundColor: heroStyle.btnPrimaryColor, color: heroStyle.btnPrimaryTextColor, borderRadius: heroStyle.btnShape }}>
                 {heroStyle.btnPrimaryText}
               </Button>
             </Link>
-            <Link to={heroStyle.btnSecondaryLink}>
-              <Button variant="outline" className="h-14 px-8 text-base bg-transparent border-white/30 text-white hover:bg-white/10 transition-colors" style={{ borderRadius: heroStyle.btnShape }}>
+            <Link to={heroStyle.btnSecondaryLink} className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full sm:w-auto h-auto min-h-[3.5rem] py-3 px-6 md:px-8 text-sm md:text-base bg-transparent border-white/30 text-white hover:bg-white/10 transition-colors whitespace-normal text-center" style={{ borderRadius: heroStyle.btnShape }}>
                 {heroStyle.btnSecondaryText}
               </Button>
             </Link>
