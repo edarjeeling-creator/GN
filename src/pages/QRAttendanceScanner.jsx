@@ -30,6 +30,7 @@ const QRAttendanceScanner = () => {
   
   const [cameras, setCameras] = useState([]);
   const [isScanning, setIsScanning] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
   
   const [scanHistory, setScanHistory] = useState([]);
   const [showSettings, setShowSettings] = useState(false);
@@ -130,6 +131,7 @@ const QRAttendanceScanner = () => {
     Html5Qrcode.getCameras().then(devices => {
       if (devices && devices.length) {
         setCameras(devices);
+        setCameraError(null);
         let camToUse = settings.preferredCameraId;
         if (!camToUse || !devices.find(d => d.id === camToUse)) {
            // Default to back camera if possible
@@ -138,9 +140,12 @@ const QRAttendanceScanner = () => {
            setSettings(s => ({ ...s, preferredCameraId: camToUse }));
         }
         startScanner(camToUse);
+      } else {
+        setCameraError("No cameras found. Please connect a camera to this device.");
       }
     }).catch(err => {
       console.error("Error getting cameras", err);
+      setCameraError("Camera permission denied. Please allow camera access in your browser site settings and reload the page.");
     });
 
     return () => {
@@ -172,7 +177,10 @@ const QRAttendanceScanner = () => {
            const fallbackConfig = { fps: 10, qrbox: { width: 300, height: 300 } };
            html5QrCodeRef.current.start(cameraId, fallbackConfig, onScanSuccess, onScanFailure)
              .then(() => setIsScanning(true))
-             .catch(e => console.error("Scanner fallback failed", e));
+             .catch(e => {
+                console.error("Scanner fallback failed", e);
+                setCameraError("Could not start the camera. It may be in use by another application.");
+             });
         });
     }, 100);
   };
@@ -322,6 +330,31 @@ const QRAttendanceScanner = () => {
       const { data: teacher, error: tchError } = await supabase.from('profiles').select('name').eq('id', personId).single();
       if (tchError || !teacher) throw new Error("Teacher not found");
       personName = teacher.name;
+
+      // Update teacher_attendance table
+      const { data: existingTAtt } = await supabase.from('teacher_attendance')
+        .select('id, check_in_time')
+        .eq('teacher_id', personId)
+        .eq('attendance_date', today)
+        .single();
+        
+      if (!existingTAtt) {
+         await supabase.from('teacher_attendance').insert({
+            teacher_id: personId, 
+            attendance_date: today, 
+            status: status, 
+            check_in_time: timeStr
+         });
+      } else if (!existingTAtt.check_in_time) {
+         await supabase.from('teacher_attendance').update({
+             check_in_time: timeStr, 
+             status: status
+         }).eq('id', existingTAtt.id);
+      } else {
+         await supabase.from('teacher_attendance').update({
+             check_out_time: timeStr
+         }).eq('id', existingTAtt.id);
+      }
     } else {
       throw new Error("Invalid Person Type");
     }
@@ -398,8 +431,9 @@ const QRAttendanceScanner = () => {
       playTone('error');
       setScanResult({
         status: 'error',
-        message: error.message || 'Invalid QR or Processing Error',
+        message: `${error.message || 'Error'} (Read: ${decodedText.substring(0, 20)}...)`,
         name: 'Invalid Scan',
+        time: new Date().toLocaleTimeString()
       });
     }
 
@@ -565,6 +599,18 @@ const QRAttendanceScanner = () => {
              {/* HTML5 Qrcode Mount Point */}
              <div id="qr-reader-video" className="w-full h-full object-cover"></div>
              
+             {/* Camera Error State */}
+             {cameraError && (
+               <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-sm z-40 p-6 text-center border border-red-500/20">
+                 <Camera size={48} className="text-red-500 mb-4 opacity-80" />
+                 <h3 className="text-xl font-bold text-white mb-2">Camera Issue</h3>
+                 <p className="text-slate-300 max-w-sm">{cameraError}</p>
+                 <button onClick={() => window.location.reload()} className="mt-6 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium transition-colors shadow-lg">
+                   Reload Page
+                 </button>
+               </div>
+             )}
+             
              {/* Camera Selector Overlay */}
              {cameras.length > 1 && (
                <div className="absolute top-4 right-4 z-40">
@@ -601,10 +647,16 @@ const QRAttendanceScanner = () => {
                  )}
                  
                  <div className="mt-6 flex items-center gap-3 bg-black/20 px-6 py-3 rounded-2xl backdrop-blur-sm border border-white/10">
-                   {scanResult.status === 'duplicate' ? <AlertTriangle size={24} className="text-white" /> : <Clock size={24} className="text-white" />}
-                   <span className="text-2xl font-bold text-white tracking-wide">
-                     {scanResult.status === 'duplicate' ? scanResult.message : `${attendanceStatus} at ${scanResult.time || new Date().toLocaleTimeString()}`}
-                   </span>
+                    {scanResult.status === 'duplicate' && <AlertTriangle size={24} className="text-white" />}
+                    {scanResult.status === 'error' && <XCircle size={24} className="text-white" />}
+                    {scanResult.status === 'success' && <Clock size={24} className="text-white" />}
+                    
+                    <span className="text-2xl font-bold text-white tracking-wide text-center">
+                      {scanResult.status === 'success' 
+                        ? `${attendanceStatus} at ${scanResult.time || new Date().toLocaleTimeString()}`
+                        : `${scanResult.message}${scanResult.decodedText ? `: ${scanResult.decodedText}` : ''}`
+                      }
+                    </span>
                  </div>
                </div>
              )}
