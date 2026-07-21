@@ -399,12 +399,27 @@ const QRAttendanceScanner = () => {
       let payload;
       try {
         payload = JSON.parse(decodedText);
+        if (!payload.signature || !payload.id || !payload.type) {
+          throw new Error("Invalid QR Code Format");
+        }
       } catch (e) {
-        throw new Error("Invalid JSON Payload");
-      }
-      
-      if (!payload.signature || !payload.id || !payload.type) {
-        throw new Error("Invalid QR Code Format");
+        // Fallback for legacy QR codes (raw ID strings)
+        if (decodedText.length > 5 && !decodedText.startsWith("{")) {
+           // Attempt to figure out if it's a student or teacher ID
+           const { data: stu } = await supabase.from('students').select('id').eq('id', decodedText).maybeSingle();
+           if (stu) {
+              payload = { type: 'student', id: decodedText, signature: 'legacy' };
+           } else {
+              const { data: tch } = await supabase.from('profiles').select('id').eq('id', decodedText).maybeSingle();
+              if (tch) {
+                 payload = { type: 'teacher', id: decodedText, signature: 'legacy' };
+              } else {
+                 throw new Error("ID not found in database");
+              }
+           }
+        } else {
+           throw new Error(e.message || "Invalid JSON Payload");
+        }
       }
 
       const scanTime = new Date().toISOString();
