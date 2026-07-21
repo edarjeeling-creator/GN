@@ -175,10 +175,7 @@ const Home = () => {
       if (!error && data && data.length > 0) {
         setNews(data);
       } else {
-        setNews([
-          { id: 1, content: "Admissions open for 2026-2027 academic year. Apply now!", created_at: new Date().toISOString() },
-          { id: 2, content: "Annual Sports Meet scheduled for next month. Check details.", created_at: new Date().toISOString() },
-        ]);
+        setNews([]);
       }
     } catch (err) {
       console.log("News fetch error", err);
@@ -191,11 +188,7 @@ const Home = () => {
       if (!error && data && data.length > 0) {
         setEvents(data);
       } else {
-        setEvents([
-          { id: 1, title: "Parent-Teacher Meeting", date: "2026-08-15", location: "Main Hall" },
-          { id: 2, title: "Science Exhibition", date: "2026-09-05", location: "Science Block" },
-          { id: 3, title: "Inter-School Debate", date: "2026-09-20", location: "Auditorium" },
-        ]);
+        setEvents([]);
       }
     } catch (err) {
       console.log("Events fetch error", err);
