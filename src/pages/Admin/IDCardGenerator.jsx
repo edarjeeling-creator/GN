@@ -325,7 +325,8 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
               height: '86mm',
               backgroundColor: '#ffffff',
               overflow: 'hidden'
-                          {/* 1. Header (Deep Blue) */}
+            }}>
+              {/* 1. Header (Deep Blue) */}
               <div style={{ position: 'absolute', top: 0, left: 0, width: '54mm', height: '24mm', background: 'linear-gradient(135deg, #0f172a, #1d4ed8)', zIndex: 1 }}></div>
               <div style={{ position: 'absolute', top: '24mm', left: 0, width: '54mm', height: '0.8mm', background: '#f59e0b', zIndex: 1 }}></div>
 
