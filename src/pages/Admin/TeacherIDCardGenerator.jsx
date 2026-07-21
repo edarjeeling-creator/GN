@@ -379,7 +379,7 @@ const TeacherIDCardGenerator = ({ teachers: globalTeachers, fetchStats }) => {
               <div style={{ position: 'absolute', top: '70mm', left: '0', width: '54mm', height: '13mm', background: '#f8fafc', borderTop: '0.5px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1mm 4mm 2mm 4mm', boxSizing: 'border-box', zIndex: 2, fontFamily: "'Inter', sans-serif" }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div style={{ padding: '0.5mm', background: 'white', borderRadius: '0.5mm', border: '0.5px solid #cbd5e1', display: 'flex', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                    <QRCode value={generateQRData(teacher)} size={22} level="L" />
+                    <QRCode value={generateQRData(teacher)} size={128} style={{ width: '100%', height: '100%' }} level="L" />
                   </div>
                 </div>
                 
