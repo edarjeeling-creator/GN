@@ -376,14 +376,14 @@ const TeacherIDCardGenerator = ({ teachers: globalTeachers, fetchStats }) => {
               </div>
 
               {/* 5. Footer Area (QR Code & Signature) */}
-              <div style={{ position: 'absolute', top: '70mm', left: '0', width: '54mm', height: '13mm', background: '#f8fafc', borderTop: '0.5px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4mm', boxSizing: 'border-box', zIndex: 2, fontFamily: "'Inter', sans-serif" }}>
+              <div style={{ position: 'absolute', top: '70mm', left: '0', width: '54mm', height: '13mm', background: '#f8fafc', borderTop: '0.5px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1mm 4mm 2mm 4mm', boxSizing: 'border-box', zIndex: 2, fontFamily: "'Inter', sans-serif" }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div style={{ padding: '0.5mm', background: 'white', borderRadius: '0.5mm', border: '0.5px solid #cbd5e1', display: 'flex', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
                     <QRCode value={generateQRData(teacher)} size={22} level="L" />
                   </div>
                 </div>
                 
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end' }}>
                   <div style={{ width: '18mm', height: '7mm', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', marginBottom: '0.5mm' }}>
                     {signatureUrl ? (
                        <img src={signatureUrl} alt="Principal Signature" style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
