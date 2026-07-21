@@ -2497,6 +2497,73 @@ export default function WebsiteCMS() {
             </form>
           </div>
 
+          {/* Testimonials Manager */}
+          <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Testimonials Manager</h3>
+            <div style={{ display: 'grid', gap: '1rem', marginBottom: '2rem' }}>
+              {testimonials.map((testim, index) => (
+                <div key={testim.id || index} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <textarea 
+                    className="input-field" 
+                    style={{ width: '100%', background: 'white', color: '#0f172a' }} 
+                    value={testim.quote} 
+                    onChange={e => {
+                      const newTestimonials = [...testimonials];
+                      newTestimonials[index].quote = e.target.value;
+                      setTestimonials(newTestimonials);
+                    }} 
+                    rows="2"
+                    placeholder="Testimonial Quote"
+                  />
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      style={{ flex: 1, background: 'white', color: '#0f172a' }} 
+                      value={testim.author} 
+                      onChange={e => {
+                        const newTestimonials = [...testimonials];
+                        newTestimonials[index].author = e.target.value;
+                        setTestimonials(newTestimonials);
+                      }}
+                      placeholder="Author (e.g. Parent of Class VIII student)"
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const newTestimonials = testimonials.filter((_, i) => i !== index);
+                        setTestimonials(newTestimonials);
+                      }} 
+                      style={{ color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {testimonials.length === 0 && <p style={{ color: '#64748b', fontSize: '0.875rem', textAlign: 'center' }}>No testimonials found.</p>}
+            </div>
+            
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <button 
+                type="button"
+                onClick={() => setTestimonials([...testimonials, { id: Date.now().toString(), quote: '', author: '' }])}
+                style={{ background: '#f1f5f9', color: '#334155', padding: '0.75rem', border: '1px solid #cbd5e1', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer' }}
+              >
+                + Add Testimonial
+              </button>
+              
+              <button 
+                type="button" 
+                onClick={saveTestimonials}
+                style={{ background: '#3b82f6', color: 'white', padding: '0.75rem 1.5rem', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer' }} 
+                disabled={savingTestimonials}
+              >
+                {savingTestimonials ? 'Saving...' : 'Save Testimonials'}
+              </button>
+            </div>
+          </div>
+
           {/* Events Manager */}
           <div className="bento-card" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Events Manager</h3>
