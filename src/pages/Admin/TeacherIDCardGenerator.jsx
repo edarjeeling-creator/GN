@@ -306,21 +306,21 @@ const TeacherIDCardGenerator = ({ teachers: globalTeachers, fetchStats }) => {
               overflow: 'hidden'
             }}>
               {/* 1. Header (Deep Green) */}
-              <div style={{ position: 'absolute', top: 0, left: 0, width: '54mm', height: '22mm', background: 'linear-gradient(135deg, #064e3b, #059669)', zIndex: 1 }}></div>
-              <div style={{ position: 'absolute', top: '22mm', left: 0, width: '54mm', height: '0.8mm', background: '#f59e0b', zIndex: 1 }}></div>
+              <div style={{ position: 'absolute', top: 0, left: 0, width: '54mm', height: '24mm', background: 'linear-gradient(135deg, #064e3b, #059669)', zIndex: 1 }}></div>
+              <div style={{ position: 'absolute', top: '24mm', left: 0, width: '54mm', height: '0.8mm', background: '#f59e0b', zIndex: 1 }}></div>
 
               {/* Background Watermark */}
-              <div style={{ position: 'absolute', top: '30mm', left: '9mm', width: '36mm', height: '36mm', opacity: 0.06, backgroundImage: `url(${customLogoUrl || "/logo.png"})`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', zIndex: 0 }}></div>
+              <div style={{ position: 'absolute', top: '32mm', left: '9mm', width: '36mm', height: '36mm', opacity: 0.05, backgroundImage: `url(${customLogoUrl || "/logo.png"})`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', zIndex: 0 }}></div>
 
               {/* 2. Header Content Area */}
-              <div style={{ position: 'absolute', top: '1.5mm', left: 0, width: '54mm', textAlign: 'center', zIndex: 2 }}>
+              <div style={{ position: 'absolute', top: '1mm', left: 0, width: '54mm', textAlign: 'center', zIndex: 2 }}>
                 <img src={customLogoUrl || "/logo.png"} alt="Logo" style={{ width: '9mm', height: '9mm', objectFit: 'contain', margin: '0 auto', filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.3))' }} onError={(e) => { e.target.style.display = 'none'; }} />
-                <div style={{ fontSize: '6.5pt', fontFamily: "'Inter', sans-serif", fontWeight: 800, color: '#ffffff', marginTop: '0.5mm', letterSpacing: '0.2px', textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>GYANODAY NIKETAN</div>
-                <div style={{ fontSize: '3.5pt', fontFamily: "'Inter', sans-serif", color: '#fbbf24', fontWeight: 700, marginTop: '0.5mm', letterSpacing: '0.5px' }}>STAFF IDENTITY CARD</div>
+                <div style={{ fontSize: '6pt', fontFamily: "'Inter', sans-serif", fontWeight: 800, color: '#ffffff', marginTop: 0, letterSpacing: '0.2px', textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>GYANODAY NIKETAN</div>
+                <div style={{ fontSize: '3.5pt', fontFamily: "'Inter', sans-serif", color: '#fbbf24', fontWeight: 700, marginTop: 0, letterSpacing: '0.5px' }}>STAFF IDENTITY CARD</div>
               </div>
 
               {/* 3. Teacher Photo (Overlapping Header) */}
-              <div style={{ position: 'absolute', top: '17mm', left: '19mm', width: '16mm', height: '19mm', padding: '0.5mm', background: 'white', borderRadius: '1.5mm', boxShadow: '0 4px 6px rgba(0,0,0,0.15)', border: '0.3mm solid #f59e0b', zIndex: 3 }}>
+              <div style={{ position: 'absolute', top: '19mm', left: '19mm', width: '16mm', height: '19mm', padding: '0.5mm', background: 'white', borderRadius: '1.5mm', boxShadow: '0 4px 6px rgba(0,0,0,0.15)', border: '0.3mm solid #f59e0b', zIndex: 3 }}>
                 <div style={{ width: '100%', height: '100%', borderRadius: '1mm', backgroundColor: '#f1f5f9', overflow: 'hidden' }}>
                   <img 
                     src={teacher.picture_url ? `${teacher.picture_url}?t=${Date.now()}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(teacher.name)}&background=random`} 
@@ -331,7 +331,7 @@ const TeacherIDCardGenerator = ({ teachers: globalTeachers, fetchStats }) => {
               </div>
 
               {/* 4. Teacher Details Section */}
-              <div style={{ position: 'absolute', top: '38mm', left: '2mm', width: '50mm', zIndex: 2, fontFamily: "'Inter', sans-serif" }}>
+              <div style={{ position: 'absolute', top: '40mm', left: '2mm', width: '50mm', zIndex: 2, fontFamily: "'Inter', sans-serif" }}>
                 <div style={{ fontSize: '7.5pt', fontWeight: 800, color: '#0f172a', textAlign: 'center', marginBottom: '1.5mm', textTransform: 'uppercase', letterSpacing: '-0.1px' }}>
                   {teacher.name}
                 </div>
