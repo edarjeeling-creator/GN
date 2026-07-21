@@ -306,8 +306,8 @@ const TeacherIDCardGenerator = ({ teachers: globalTeachers, fetchStats }) => {
               overflow: 'hidden'
             }}>
               {/* 1. Header (Deep Green) */}
-              <div style={{ position: 'absolute', top: 0, left: 0, width: '54mm', height: '20mm', background: 'linear-gradient(135deg, #064e3b, #059669)', zIndex: 1 }}></div>
-              <div style={{ position: 'absolute', top: '20mm', left: 0, width: '54mm', height: '0.8mm', background: '#f59e0b', zIndex: 1 }}></div>
+              <div style={{ position: 'absolute', top: 0, left: 0, width: '54mm', height: '22mm', background: 'linear-gradient(135deg, #064e3b, #059669)', zIndex: 1 }}></div>
+              <div style={{ position: 'absolute', top: '22mm', left: 0, width: '54mm', height: '0.8mm', background: '#f59e0b', zIndex: 1 }}></div>
 
               {/* Background Watermark */}
               <div style={{ position: 'absolute', top: '30mm', left: '9mm', width: '36mm', height: '36mm', opacity: 0.06, backgroundImage: `url(${customLogoUrl || "/logo.png"})`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', zIndex: 0 }}></div>
@@ -320,7 +320,7 @@ const TeacherIDCardGenerator = ({ teachers: globalTeachers, fetchStats }) => {
               </div>
 
               {/* 3. Teacher Photo (Overlapping Header) */}
-              <div style={{ position: 'absolute', top: '15mm', left: '19mm', width: '16mm', height: '19mm', padding: '0.5mm', background: 'white', borderRadius: '1.5mm', boxShadow: '0 4px 6px rgba(0,0,0,0.15)', border: '0.3mm solid #f59e0b', zIndex: 3 }}>
+              <div style={{ position: 'absolute', top: '17mm', left: '19mm', width: '16mm', height: '19mm', padding: '0.5mm', background: 'white', borderRadius: '1.5mm', boxShadow: '0 4px 6px rgba(0,0,0,0.15)', border: '0.3mm solid #f59e0b', zIndex: 3 }}>
                 <div style={{ width: '100%', height: '100%', borderRadius: '1mm', backgroundColor: '#f1f5f9', overflow: 'hidden' }}>
                   <img 
                     src={teacher.picture_url ? `${teacher.picture_url}?t=${Date.now()}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(teacher.name)}&background=random`} 
@@ -331,7 +331,7 @@ const TeacherIDCardGenerator = ({ teachers: globalTeachers, fetchStats }) => {
               </div>
 
               {/* 4. Teacher Details Section */}
-              <div style={{ position: 'absolute', top: '36mm', left: '2mm', width: '50mm', zIndex: 2, fontFamily: "'Inter', sans-serif" }}>
+              <div style={{ position: 'absolute', top: '38mm', left: '2mm', width: '50mm', zIndex: 2, fontFamily: "'Inter', sans-serif" }}>
                 <div style={{ fontSize: '7.5pt', fontWeight: 800, color: '#0f172a', textAlign: 'center', marginBottom: '1.5mm', textTransform: 'uppercase', letterSpacing: '-0.1px' }}>
                   {teacher.name}
                 </div>
