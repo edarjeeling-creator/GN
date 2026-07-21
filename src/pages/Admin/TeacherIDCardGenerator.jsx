@@ -305,19 +305,23 @@ const TeacherIDCardGenerator = ({ teachers: globalTeachers, fetchStats }) => {
               backgroundColor: '#ffffff',
               overflow: 'hidden'
             }}>
-              {/* 1. Top Gradient Background - using a greenish theme for teachers */}
-              <div style={{ position: 'absolute', top: 0, left: 0, width: '54mm', height: '19.5mm', background: 'linear-gradient(135deg, #065f46, #10b981)' }}></div>
-              
+              {/* 1. Header (Deep Green) */}
+              <div style={{ position: 'absolute', top: 0, left: 0, width: '54mm', height: '20mm', background: 'linear-gradient(135deg, #064e3b, #059669)', zIndex: 1 }}></div>
+              <div style={{ position: 'absolute', top: '20mm', left: 0, width: '54mm', height: '0.8mm', background: '#f59e0b', zIndex: 1 }}></div>
+
+              {/* Background Watermark */}
+              <div style={{ position: 'absolute', top: '30mm', left: '9mm', width: '36mm', height: '36mm', opacity: 0.06, backgroundImage: `url(${customLogoUrl || "/logo.png"})`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', zIndex: 0 }}></div>
+
               {/* 2. Header Content Area */}
-              <div style={{ position: 'absolute', top: '1mm', left: 0, width: '54mm', textAlign: 'center' }}>
-                <img src={customLogoUrl || "/logo.png"} alt="Logo" style={{ width: '10mm', height: '10mm', objectFit: 'contain', margin: '0 auto' }} onError={(e) => { e.target.style.display = 'none'; }} />
-                <div style={{ fontSize: '6pt', fontWeight: 800, color: '#ffffff', marginTop: '0.2mm', letterSpacing: '0.2px' }}>GYANODAY NIKETAN</div>
-                <div style={{ fontSize: '4pt', color: '#ffffff', fontWeight: 700, marginTop: '1mm', letterSpacing: '0.5px' }}>STAFF IDENTITY CARD</div>
+              <div style={{ position: 'absolute', top: '1.5mm', left: 0, width: '54mm', textAlign: 'center', zIndex: 2 }}>
+                <img src={customLogoUrl || "/logo.png"} alt="Logo" style={{ width: '9mm', height: '9mm', objectFit: 'contain', margin: '0 auto', filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.3))' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                <div style={{ fontSize: '6.5pt', fontFamily: "'Inter', sans-serif", fontWeight: 800, color: '#ffffff', marginTop: '0.5mm', letterSpacing: '0.2px', textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>GYANODAY NIKETAN</div>
+                <div style={{ fontSize: '3.5pt', fontFamily: "'Inter', sans-serif", color: '#fbbf24', fontWeight: 700, marginTop: '0.5mm', letterSpacing: '0.5px' }}>STAFF IDENTITY CARD</div>
               </div>
 
-              {/* 3. Teacher Photo */}
-              <div style={{ position: 'absolute', top: '20mm', left: '19mm', width: '16mm', height: '19mm', padding: '0.5mm', background: 'white', borderRadius: '1mm', boxShadow: '0 2px 4px rgba(0,0,0,0.15)' }}>
-                <div style={{ width: '100%', height: '100%', borderRadius: '0.5mm', backgroundColor: '#f1f5f9', overflow: 'hidden' }}>
+              {/* 3. Teacher Photo (Overlapping Header) */}
+              <div style={{ position: 'absolute', top: '15mm', left: '19mm', width: '16mm', height: '19mm', padding: '0.5mm', background: 'white', borderRadius: '1.5mm', boxShadow: '0 4px 6px rgba(0,0,0,0.15)', border: '0.3mm solid #f59e0b', zIndex: 3 }}>
+                <div style={{ width: '100%', height: '100%', borderRadius: '1mm', backgroundColor: '#f1f5f9', overflow: 'hidden' }}>
                   <img 
                     src={teacher.picture_url ? `${teacher.picture_url}?t=${Date.now()}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(teacher.name)}&background=random`} 
                     alt="Photo" 
@@ -327,73 +331,74 @@ const TeacherIDCardGenerator = ({ teachers: globalTeachers, fetchStats }) => {
               </div>
 
               {/* 4. Teacher Details Section */}
-              <div style={{ position: 'absolute', top: '39.5mm', left: '2mm', width: '50mm' }}>
-                <div style={{ fontSize: '7.5pt', fontWeight: 800, color: '#0f172a', textAlign: 'center', marginBottom: '1.2mm' }}>
+              <div style={{ position: 'absolute', top: '36mm', left: '2mm', width: '50mm', zIndex: 2, fontFamily: "'Inter', sans-serif" }}>
+                <div style={{ fontSize: '7.5pt', fontWeight: 800, color: '#0f172a', textAlign: 'center', marginBottom: '1.5mm', textTransform: 'uppercase', letterSpacing: '-0.1px' }}>
                   {teacher.name}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5mm', fontSize: '4.5pt', lineHeight: '1.1' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8mm', fontSize: '4.5pt', lineHeight: '1.2' }}>
                   <div style={{ display: 'flex', width: '100%' }}>
-                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Designation :</div>
+                    <div style={{ width: '16mm', color: '#475569', fontWeight: 600 }}>Designation</div>
+                    <div style={{ width: '2mm', color: '#475569' }}>:</div>
                     <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{teacher.designation || 'Teacher'}</div>
                   </div>
                   
                   <div style={{ display: 'flex', width: '100%' }}>
-                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Employee ID :</div>
+                    <div style={{ width: '16mm', color: '#475569', fontWeight: 600 }}>Employee ID</div>
+                    <div style={{ width: '2mm', color: '#475569' }}>:</div>
                     <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{teacher.employee_id || 'N/A'}</div>
                   </div>
                   
                   <div style={{ display: 'flex', width: '100%' }}>
-                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>D.O.B :</div>
+                    <div style={{ width: '16mm', color: '#475569', fontWeight: 600 }}>D.O.B</div>
+                    <div style={{ width: '2mm', color: '#475569' }}>:</div>
                     <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{teacher.dob || 'N/A'}</div>
                   </div>
 
                   <div style={{ display: 'flex', width: '100%' }}>
-                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Blood Group :</div>
-                    <div style={{ flex: 1, color: '#ef4444', fontWeight: 700 }}>{teacher.blood_group || 'N/A'}</div>
+                    <div style={{ width: '16mm', color: '#475569', fontWeight: 600 }}>Blood Group</div>
+                    <div style={{ width: '2mm', color: '#475569' }}>:</div>
+                    <div style={{ flex: 1, color: '#dc2626', fontWeight: 800 }}>{teacher.blood_group || 'N/A'}</div>
                   </div>
                   
                   <div style={{ display: 'flex', width: '100%' }}>
-                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Contact :</div>
+                    <div style={{ width: '16mm', color: '#475569', fontWeight: 600 }}>Contact</div>
+                    <div style={{ width: '2mm', color: '#475569' }}>:</div>
                     <div style={{ flex: 1, color: '#0f172a', fontWeight: 700 }}>{teacher.contact_number || 'N/A'}</div>
                   </div>
                   
                   <div style={{ display: 'flex', width: '100%' }}>
-                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Address :</div>
+                    <div style={{ width: '16mm', color: '#475569', fontWeight: 600 }}>Address</div>
+                    <div style={{ width: '2mm', color: '#475569' }}>:</div>
                     <div style={{ flex: 1, color: '#0f172a', fontWeight: 700, whiteSpace: 'normal', wordBreak: 'break-word' }}>{teacher.address || 'N/A'}</div>
-                  </div>
-                  
-                  <div style={{ display: 'flex', width: '100%' }}>
-                    <div style={{ width: '17mm', color: '#475569', fontWeight: 600 }}>Valid Upto :</div>
-                    <div style={{ flex: 1, color: '#ef4444', fontWeight: 700 }}>31/03/{sessionText.includes('-') ? sessionText.split('-')[1] : '2027'}</div>
                   </div>
                 </div>
               </div>
 
               {/* 5. Footer Area (QR Code & Signature) */}
-              <div style={{ position: 'absolute', top: '70.5mm', left: '0', width: '54mm', height: '11.5mm', borderTop: '0.5px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '1mm 3mm', boxSizing: 'border-box' }}>
+              <div style={{ position: 'absolute', top: '70mm', left: '0', width: '54mm', height: '13mm', background: '#f8fafc', borderTop: '0.5px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4mm', boxSizing: 'border-box', zIndex: 2, fontFamily: "'Inter', sans-serif" }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <div style={{ padding: '0.3mm', background: 'white', borderRadius: '0.5mm', border: '0.5px solid #cbd5e1', display: 'flex' }}>
-                    <QRCode value={generateQRData(teacher)} size={24} level="L" />
+                  <div style={{ padding: '0.5mm', background: 'white', borderRadius: '0.5mm', border: '0.5px solid #cbd5e1', display: 'flex', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                    <QRCode value={generateQRData(teacher)} size={22} level="L" />
                   </div>
-                  <span style={{ fontSize: '3pt', color: '#64748b', marginTop: '0.5mm' }}>Scan ID</span>
                 </div>
                 
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <div style={{ width: '20mm', borderBottom: signatureUrl ? 'none' : '0.5px dotted #64748b', marginBottom: '1mm', height: '6mm', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+                  <div style={{ width: '18mm', height: '7mm', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', marginBottom: '0.5mm' }}>
                     {signatureUrl ? (
                        <img src={signatureUrl} alt="Principal Signature" style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
                     ) : (
-                       <span style={{ fontFamily: 'cursive', fontSize: '3.5pt', color: '#0f172a' }}>Principal</span>
+                       <span style={{ fontFamily: "'Dancing Script', cursive", fontSize: '4pt', color: '#0f172a' }}>Principal</span>
                     )}
                   </div>
-                  <span style={{ fontSize: '3.5pt', color: '#64748b', fontWeight: 600 }}>Principal</span>
+                  <span style={{ fontSize: '3.5pt', color: '#1e293b', fontWeight: 700, borderTop: '0.5px solid #94a3b8', width: '100%', textAlign: 'center', paddingTop: '0.5mm' }}>Principal</span>
                 </div>
               </div>
               
               {/* 6. Bottom Session Strip */}
-              <div style={{ position: 'absolute', top: '82mm', left: '0', width: '54mm', height: '3.4mm', background: '#065f46', display: 'flex', justifyContent: 'center', alignItems: 'center', paddingBottom: '0.5mm', boxSizing: 'border-box' }}>
-                 <span style={{ fontSize: '3pt', color: 'white', fontWeight: 500, letterSpacing: '0.5px' }}>Session: {sessionText}</span>
+              <div style={{ position: 'absolute', top: '83mm', left: '0', width: '54mm', height: '3mm', background: '#064e3b', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4mm', boxSizing: 'border-box', zIndex: 2, fontFamily: "'Inter', sans-serif" }}>
+                 <span style={{ fontSize: '2.5pt', color: '#cbd5e1', fontWeight: 600 }}>Valid Upto: 31/03/{sessionText.includes('-') ? sessionText.split('-')[1] : '2027'}</span>
+                 <span style={{ fontSize: '2.5pt', color: '#fbbf24', fontWeight: 700, letterSpacing: '0.5px' }}>SESSION: {sessionText}</span>
               </div>
             </div>
           </React.Fragment>
