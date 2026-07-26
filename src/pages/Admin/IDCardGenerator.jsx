@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import QRCode from 'react-qr-code';
 import html2pdf from 'html2pdf.js';
-import { Users, Printer, Loader2, Save, Upload, Image as ImageIcon } from 'lucide-react';
+import { Users, Printer, Loader2, Save, Upload, Image as ImageIcon, Send, Copy, RefreshCw, ExternalLink, Trash2, MoreVertical, Circle } from 'lucide-react';
 
 const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
   const [selectedClass, setSelectedClass] = useState('all');
@@ -13,6 +13,8 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
   const [signatureUrl, setSignatureUrl] = useState(null);
   const [uploadingPhotoId, setUploadingPhotoId] = useState(null);
   const [customLogoUrl, setCustomLogoUrl] = useState(null);
+  const [generatingLinkId, setGeneratingLinkId] = useState(null);
+  const [actionMenuOpen, setActionMenuOpen] = useState(null);
   const fileInputRefs = useRef({});
 
   useEffect(() => {
@@ -100,15 +102,66 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
       
       const { data: { publicUrl } } = supabase.storage.from('student-profiles').getPublicUrl(fileName);
       
-      const { error: updateError } = await supabase.from('students').update({ picture_url: publicUrl }).eq('id', studentId);
-      if (updateError) throw updateError;
+      await supabase.from('students').update({ picture_url: publicUrl }).eq('id', studentId);
+      handleFieldChange(studentId, 'picture_url', publicUrl);
       
-      setStudentsList(prev => prev.map(s => s.id === studentId ? { ...s, picture_url: publicUrl } : s));
-      alert("Student photo updated successfully! It will now appear perfectly on the ID card.");
+      if (fetchStats) fetchStats();
+      
     } catch (err) {
-      alert('Error uploading photo: ' + err.message);
+      console.error(err);
+      alert("Error uploading photo!");
     } finally {
       setUploadingPhotoId(null);
+    }
+  };
+
+  const generateWhatsAppMessage = (name, link) => {
+    return encodeURIComponent(`Dear ${name},\n\nGyanoday Niketan School requests you to complete your ID Card information.\n\nPlease click the secure link below:\n${link}\n\nPlease upload a recent passport-size photograph.\n\nThank you.`);
+  };
+
+  const handleGenerateLink = async (studentId, studentName, regenerate = false) => {
+    setGeneratingLinkId(studentId);
+    setActionMenuOpen(null);
+    try {
+      const { data: token, error } = await supabase.rpc('generate_form_token', {
+        p_user_id: studentId,
+        p_role: 'student'
+      });
+
+      if (error) throw error;
+
+      const link = `https://results.gyanodayniketan.cloud/id-form/student/${studentId}?token=${token}`;
+      
+      // Update local state for status
+      handleFieldChange(studentId, 'id_details_status', 'Link Sent');
+      
+      if (!regenerate) {
+        window.open(`https://wa.me/?text=${generateWhatsAppMessage(studentName, link)}`, '_blank');
+      } else {
+        alert("New secure link generated successfully!");
+      }
+    } catch (err) {
+      console.error(err);
+      if (err.message?.includes('function generate_form_token does not exist')) {
+        alert("Database Error: The required SQL Migration hasn't been applied yet. Please run the provided SQL in your Supabase SQL Editor first.");
+      } else {
+        alert("Error generating link: " + err.message);
+      }
+    } finally {
+      setGeneratingLinkId(null);
+    }
+  };
+
+  const handleCopyLink = async (studentId) => {
+    setActionMenuOpen(null);
+    try {
+      const { data: token, error } = await supabase.rpc('generate_form_token', { p_user_id: studentId, p_role: 'student' });
+      if (error) throw error;
+      const link = `https://results.gyanodayniketan.cloud/id-form/student/${studentId}?token=${token}`;
+      await navigator.clipboard.writeText(link);
+      alert("Link copied to clipboard!");
+    } catch (err) {
+      alert("Error copying link.");
     }
   };
 
@@ -243,6 +296,7 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
               <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0', width: '100px' }}>Blood G.</th>
               <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Contact</th>
               <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Address</th>
+              <th style={{ padding: '1rem', textAlign: 'center', fontWeight: 600, borderBottom: '2px solid #e2e8f0', width: '140px' }}>Status / Action</th>
             </tr>
           </thead>
           <tbody>
@@ -299,6 +353,50 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
                 </td>
                 <td style={{ padding: '0.5rem' }}>
                   <input type="text" className="input-field" style={{ padding: '0.4rem', fontSize: '0.875rem' }} placeholder="Address" value={s.address || ''} onChange={(e) => handleFieldChange(s.id, 'address', e.target.value)} onBlur={() => saveStudentDetails(s.id)} />
+                </td>
+                <td style={{ padding: '0.5rem', textAlign: 'center', position: 'relative' }}>
+                  <div className="flex items-center justify-center gap-2">
+                    {/* Status Badge */}
+                    <div title={s.id_details_status || 'Not Sent'} className={`w-3 h-3 rounded-full flex-shrink-0 ${s.id_details_status === 'Completed' ? 'bg-green-500' : s.id_details_status === 'Link Sent' ? 'bg-yellow-400' : s.id_details_status === 'Needs Photo' ? 'bg-blue-500' : 'bg-red-500'}`} />
+                    
+                    {/* Main Action Button */}
+                    {s.id_details_status === 'Completed' ? (
+                      <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">Done</span>
+                    ) : (
+                      <button 
+                        onClick={() => handleGenerateLink(s.id, s.name)}
+                        disabled={generatingLinkId === s.id}
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        title="Send WhatsApp Link"
+                      >
+                        {generatingLinkId === s.id ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                      </button>
+                    )}
+
+                    {/* Context Menu */}
+                    <div className="relative">
+                      <button 
+                        onClick={() => setActionMenuOpen(actionMenuOpen === s.id ? null : s.id)}
+                        className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded"
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+                      
+                      {actionMenuOpen === s.id && (
+                        <>
+                          <div className="fixed inset-0 z-10" onClick={() => setActionMenuOpen(null)} />
+                          <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-slate-200 py-1 z-20 text-left">
+                            <button onClick={() => handleGenerateLink(s.id, s.name, true)} className="w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                              <RefreshCw size={14} /> Regenerate Link
+                            </button>
+                            <button onClick={() => handleCopyLink(s.id)} className="w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                              <Copy size={14} /> Copy Link
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </td>
               </tr>
             ))}

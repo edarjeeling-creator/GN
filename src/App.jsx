@@ -28,6 +28,7 @@ import PublicLayout from './components/PublicLayout';
 import Home from './pages/Home';
 import { About, Academics, Admissions, Faculty, Contact, Gallery } from './pages/PublicPages';
 import MandatoryDisclosures from './pages/MandatoryDisclosures';
+import PublicIDForm from './pages/PublicIDForm';
 
 function App() {
   return (
@@ -49,6 +50,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/pay-fees" element={<ParentPortal />} />
           <Route path="/result" element={<ResultPortal />} />
+          <Route path="/id-form/:role/:id" element={<PublicIDForm />} />
           
           {/* Standalone Protected Kiosk Routes (No Layout) */}
           <Route path="/kiosk/attendance" element={<TeacherRoute><QRAttendanceScanner /></TeacherRoute>} />
