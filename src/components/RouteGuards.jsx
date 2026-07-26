@@ -26,7 +26,8 @@ export const LibrarianRoute = ({ children }) => {
 export const TeacherRoute = ({ children }) => {
   const { profile, loading } = useAuth();
   if (loading) return <div>Loading...</div>;
-  if (!profile || (profile.role !== 'teacher' && profile.role !== 'admin')) return <Navigate to="/dashboard" />;
+  const isTeachingPrincipal = profile?.role === 'principal' && (!profile.designation || ['Principal', 'Headmaster'].includes(profile.designation));
+  if (!profile || (profile.role !== 'teacher' && profile.role !== 'admin' && !isTeachingPrincipal)) return <Navigate to={profile?.role === 'principal' ? "/principal" : "/dashboard"} />;
   return children;
 };
 
@@ -70,7 +71,8 @@ export const FeatureRoute = ({ featureName, userType, children }) => {
   };
 
   if (featureAccess && Array.isArray(featureAccess)) {
-    if (profile.role === 'teacher') {
+    const isTeachingPrincipal = profile.role === 'principal' && (!profile.designation || ['Principal', 'Headmaster'].includes(profile.designation));
+    if (profile.role === 'teacher' || isTeachingPrincipal) {
       const teacherRule = featureAccess.find(f => 
         f.feature_name === featureName && 
         f.user_type === 'teacher' && 

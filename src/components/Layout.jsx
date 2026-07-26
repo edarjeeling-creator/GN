@@ -381,54 +381,62 @@ const Layout = ({ children }) => {
         <nav className="sidebar-nav" style={{ padding: '1rem' }}>
           <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', fontWeight: 600, padding: '0 0.5rem 0.5rem' }}>Menu</p>
           
-          {profile?.role === 'student' && (
-            <NavLink to="/student-portal" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <LayoutDashboard size={18} /> Student Portal
-              </div>
-              {unreadNotifications > 0 && (
-                <span style={{ background: '#ef4444', color: 'white', fontSize: '0.65rem', fontWeight: 'bold', padding: '0.1rem 0.4rem', borderRadius: '9999px' }}>
-                  {unreadNotifications}
-                </span>
-              )}
-            </NavLink>
-          )}
+          {(() => {
+            const isTeachingPrincipal = profile?.role === 'principal' && (!profile.designation || ['Principal', 'Headmaster'].includes(profile.designation));
+            const isTeacherOrAdminOrTeachingPrincipal = profile?.role === 'teacher' || profile?.role === 'admin' || isTeachingPrincipal;
+            return (
+              <>
+                {profile?.role === 'student' && (
+                  <NavLink to="/student-portal" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <LayoutDashboard size={18} /> Student Portal
+                    </div>
+                    {unreadNotifications > 0 && (
+                      <span style={{ background: '#ef4444', color: 'white', fontSize: '0.65rem', fontWeight: 'bold', padding: '0.1rem 0.4rem', borderRadius: '9999px' }}>
+                        {unreadNotifications}
+                      </span>
+                    )}
+                  </NavLink>
+                )}
 
-          {(profile?.role === 'teacher' || profile?.role === 'admin' || profile?.role === 'principal') && (
-            <NavLink to="/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
-              <LayoutDashboard size={18} /> Dashboard
-            </NavLink>
-          )}
+                {isTeacherOrAdminOrTeachingPrincipal && (
+                  <NavLink to="/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                    <LayoutDashboard size={18} /> Dashboard
+                  </NavLink>
+                )}
 
-          {(profile?.role === 'student' || profile?.role === 'teacher' || profile?.role === 'admin') && (
-            <>
-              <NavLink to="/study-materials" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
-                <BookOpen size={18} /> Study Materials
-              </NavLink>
-              <NavLink to="/assignments" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
-                <FileText size={18} /> Assignments
-              </NavLink>
-              {isPythonEnabled && (
-                <NavLink to={profile?.role === 'teacher' || profile?.role === 'admin' ? "/python-teacher" : "/python-student"} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem', background: 'rgba(234, 179, 8, 0.1)', color: '#ca8a04', border: '1px solid rgba(234, 179, 8, 0.2)' }}>
-                  <span style={{ fontSize: '1.2rem', marginRight: '0.5rem' }}>🐍</span> Python Patshala
-                </NavLink>
-              )}
-            </>
-          )}
+                {(profile?.role === 'student' || isTeacherOrAdminOrTeachingPrincipal) && (
+                  <>
+                    <NavLink to="/study-materials" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                      <BookOpen size={18} /> Study Materials
+                    </NavLink>
+                    <NavLink to="/assignments" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                      <FileText size={18} /> Assignments
+                    </NavLink>
+                    {isPythonEnabled && (
+                      <NavLink to={isTeacherOrAdminOrTeachingPrincipal ? "/python-teacher" : "/python-student"} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem', background: 'rgba(234, 179, 8, 0.1)', color: '#ca8a04', border: '1px solid rgba(234, 179, 8, 0.2)' }}>
+                        <span style={{ fontSize: '1.2rem', marginRight: '0.5rem' }}>🐍</span> Python Patshala
+                      </NavLink>
+                    )}
+                  </>
+                )}
 
-          {(profile?.role === 'teacher' || profile?.role === 'admin') && (
-            <>
-              <NavLink to="/classes" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
-                <Users size={18} /> My Classes
-              </NavLink>
-              <NavLink to="/attendance" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
-                <CalendarCheck size={18} /> Attendance
-              </NavLink>
-              <NavLink to="/weekly-tests" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
-                <FileText size={18} /> Weekly Tests
-              </NavLink>
-            </>
-          )}
+                {isTeacherOrAdminOrTeachingPrincipal && (
+                  <>
+                    <NavLink to="/classes" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                      <Users size={18} /> My Classes
+                    </NavLink>
+                    <NavLink to="/attendance" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                      <CalendarCheck size={18} /> Attendance
+                    </NavLink>
+                    <NavLink to="/weekly-tests" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                      <FileText size={18} /> Weekly Tests
+                    </NavLink>
+                  </>
+                )}
+              </>
+            );
+          })()}
 
           {(profile?.role === 'principal' || profile?.role === 'admin') && (
             <>

@@ -244,16 +244,19 @@ const PrincipalPortal = () => {
 
       <div className="flex overflow-x-auto custom-scrollbar border-b border-slate-200 hide-scrollbar pb-2">
         <div className="flex gap-2 sm:gap-6 min-w-max">
-          {[
-            { id: 'overview', label: 'Overview' },
-            { id: 'staff_attendance', label: 'Staff Attendance' },
-            { id: 'attendance', label: 'Attendance Reports' },
-            { id: 'academic_reports', label: 'Academic Reports' },
-            { id: 'search', label: 'User Search' },
-            { id: 'notices', label: 'Notices & Announcements' },
-            { id: 'leadership_message', label: 'Leadership Message' },
-            { id: 'settings', label: 'Settings' }
-          ].map(tab => (
+          {(() => {
+            const isPrincipal = !profile?.designation || profile?.designation === 'Principal';
+            return [
+              { id: 'overview', label: 'Overview' },
+              { id: 'staff_attendance', label: 'Staff Attendance' },
+              { id: 'attendance', label: 'Attendance Reports' },
+              { id: 'academic_reports', label: 'Academic Reports' },
+              { id: 'search', label: 'User Search' },
+              { id: 'notices', label: 'Notices & Announcements' },
+              ...(isPrincipal ? [{ id: 'leadership_message', label: 'Leadership Message' }] : []),
+              { id: 'settings', label: 'Settings' }
+            ];
+          })().map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
