@@ -70,16 +70,20 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('studentProfile');
         
         // --- BYPASS GOTRUE FOR ACCOUNTANT TESTING ---
-        if (trimmedName.toLowerCase() === 'accountant@gyanodayniketan.cloud' && uid === 'Gyanoday@2026') {
-          const accountantProfile = {
-            id: 'accountant-test-id',
-            name: 'School Accountant',
-            role: 'accountant',
-          };
-          setProfile(accountantProfile);
-          setSession({ user: accountantProfile }); // Mock session
-          setLoading(false);
-          return { success: true };
+        if (trimmedName.toLowerCase() === 'accountant@gyanodayniketan.cloud') {
+          if (uid === 'Gyanoday@2026') {
+            const accountantProfile = {
+              id: 'accountant-test-id',
+              name: 'School Accountant',
+              role: 'accountant',
+            };
+            setProfile(accountantProfile);
+            setSession({ user: accountantProfile }); // Mock session
+            setLoading(false);
+            return { success: true };
+          } else {
+            return { error: { message: 'Invalid login credentials' } };
+          }
         }
         // --------------------------------------------
 

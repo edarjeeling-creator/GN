@@ -67,7 +67,10 @@ const Login = () => {
     setError('');
     
     const { error } = await unifiedLogin(name, uid);
-    if (error) setError(error.message);
+    if (error) {
+      const msg = error.message && error.message !== '{}' ? error.message : 'Invalid login credentials';
+      setError(typeof error === 'string' ? error : msg);
+    }
     setLoading(false);
   };
 
