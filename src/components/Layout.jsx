@@ -441,7 +441,7 @@ const Layout = ({ children }) => {
           {(profile?.role === 'principal' || profile?.role === 'admin') && (
             <>
               <NavLink to="/principal" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
-                <Shield size={18} /> Principal Portal
+                <Shield size={18} /> {profile?.designation && profile.role === 'principal' ? `${profile.designation} Portal` : 'Principal Portal'}
               </NavLink>
               <NavLink to="/analytics" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
                 <BarChart3 size={18} /> Analytics
