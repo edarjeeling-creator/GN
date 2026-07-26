@@ -130,7 +130,8 @@ const TeacherIDCardGenerator = ({ teachers: globalTeachers, fetchStats }) => {
       if (!regenerate) {
         window.open(`https://wa.me/?text=${generateWhatsAppMessage(teacherName, link)}`, '_blank');
       } else {
-        alert("New secure link generated successfully!");
+        await navigator.clipboard.writeText(link);
+        alert("New secure link generated and copied to clipboard successfully!");
       }
     } catch (err) {
       console.error(err);
