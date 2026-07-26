@@ -12,6 +12,9 @@ const StudyMaterials = () => {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   
+  const isTeachingPrincipal = profile?.role === 'principal' && (!profile.designation || ['Principal', 'Headmaster'].includes(profile.designation));
+  const isTeacher = profile?.role === 'teacher' || isTeachingPrincipal;
+
   const [formData, setFormData] = useState({
     class: '',
     section: '',
@@ -30,7 +33,7 @@ const StudyMaterials = () => {
     setLoading(true);
     let query = supabase.from('study_materials').select('*').order('created_at', { ascending: false });
     
-    if (profile.role === 'teacher') {
+    if (isTeacher) {
       query = query.eq('teacher_uid', profile.id);
     } else if (profile.role === 'student') {
       const studentClass = profile.class || (profile.className ? profile.className.split(' ')[0] : '');
@@ -95,7 +98,7 @@ const StudyMaterials = () => {
         <h1 className="text-2xl font-bold">Study Materials</h1>
       </div>
 
-      {profile?.role === 'teacher' && (
+      {isTeacher && (
         <div className="card p-6 bg-white shadow-sm rounded-lg mb-8">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Upload size={20} /> Upload New Material</h2>
           <form onSubmit={handleUpload} className="grid md:grid-cols-2 gap-4">
@@ -141,7 +144,7 @@ const StudyMaterials = () => {
               <div key={mat.id} className="border p-4 rounded-lg bg-gray-50 flex flex-col">
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="font-bold text-lg text-primary">{mat.title}</h3>
-                  {profile?.role === 'teacher' && (
+                  {isTeacher && (
                     <button onClick={() => handleDelete(mat.id, mat.file_url)} className="text-red-500 hover:text-red-700">
                       <Trash2 size={18} />
                     </button>

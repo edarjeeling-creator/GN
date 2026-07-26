@@ -464,7 +464,7 @@ const Layout = ({ children }) => {
              </NavLink>
           )}
 
-          {(profile?.role === 'admin' || profile?.role === 'librarian' || profile?.role === 'principal') && (
+          {(profile?.role === 'admin' || profile?.role === 'librarian') && (
              <NavLink to="/library" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
                <BookOpen size={18} /> Library Management
              </NavLink>

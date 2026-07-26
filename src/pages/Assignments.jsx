@@ -10,6 +10,9 @@ const Assignments = () => {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   
+  const isTeachingPrincipal = profile?.role === 'principal' && (!profile.designation || ['Principal', 'Headmaster'].includes(profile.designation));
+  const isTeacher = profile?.role === 'teacher' || isTeachingPrincipal;
+
   // Student Upload State
   const [uploading, setUploading] = useState(false);
   const [studentForm, setStudentForm] = useState({
@@ -37,7 +40,7 @@ const Assignments = () => {
     setLoading(true);
     let query = supabase.from('assignments').select('*, profiles!student_uid(name, class, section, roll_no)').order('submitted_at', { ascending: false });
     
-    if (profile.role === 'teacher') {
+    if (isTeacher) {
       // Teachers see all assignments submitted to them OR we can just show all assignments for subjects they teach
       // For simplicity in this demo, teachers see all assignments since there isn't a direct mapping in the DB schema for teacher_uid initially.
       // Wait, schema has teacher_uid which can be null initially, let's just fetch all assignments for teachers for now, or match by subject.
@@ -163,7 +166,7 @@ const Assignments = () => {
                   <div>
                     <h3 className="font-bold text-lg text-primary">{assign.title}</h3>
                     <p className="text-sm font-bold text-gray-500">{assign.subject}</p>
-                    {profile?.role === 'teacher' && assign.profiles && (
+                    {isTeacher && assign.profiles && (
                        <p className="text-sm mt-1 text-gray-700">
                          <strong>Student:</strong> {assign.profiles.name} ({assign.profiles.class}-{assign.profiles.section}, Roll {assign.profiles.roll_no})
                        </p>
@@ -193,7 +196,7 @@ const Assignments = () => {
                       </a>
                     )}
                   </div>
-                ) : profile?.role === 'teacher' ? (
+                ) : isTeacher ? (
                   <div className="mt-4 pt-4 border-t">
                     {reviewingId === assign.id ? (
                       <form onSubmit={(e) => handleTeacherReview(e, assign.id)} className="bg-white p-4 rounded border shadow-sm">
