@@ -222,7 +222,7 @@ const PublicLayout = ({ children }) => {
           
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem', paddingBottom: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', textAlign: 'center' }}>
             <p style={{ fontWeight: '600', color: 'white' }}>{footerSettings?.legal?.affiliation || 'Affiliated to CISCE, New Delhi (WB046)'}</p>
-            <p style={{ color: 'white' }}>{footerSettings?.legal?.copyright || '© 2026 SmartGrades School. All rights reserved.'}</p>
+            <p style={{ color: 'white' }}>{footerSettings?.legal?.copyright || '© 2026 Gyanoday Niketan. All rights reserved.'}</p>
           </div>
         </div>
       </footer>

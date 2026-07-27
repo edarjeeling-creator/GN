@@ -157,7 +157,7 @@ export const Admissions = () => {
               </div>
               <h2 style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--text-public)', marginBottom: '1rem' }}>Application Received!</h2>
               <p style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-                Thank you for applying to SmartGrades. We have successfully received your application.
+                Thank you for applying to Gyanoday Niketan. We have successfully received your application.
               </p>
               <div style={{ background: 'var(--bg-public)', padding: '1.5rem', borderRadius: '1rem', display: 'inline-block', border: '1px solid var(--border-color)' }}>
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Your Application Reference ID</p>
@@ -446,7 +446,7 @@ export const Contact = () => {
                 <Mail style={{ color: '#e11d48' }} />
                 <div>
                   <p style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>Email</p>
-                  <p style={{ color: '#9ca3af', fontSize: '0.9rem' }}>contact@smartgrades.edu</p>
+                  <p style={{ color: '#9ca3af', fontSize: '0.9rem' }}>contact@gyanodayniketan.edu</p>
                 </div>
               </div>
               

@@ -54,6 +54,16 @@ const PublicIDForm = () => {
         else if (data.outcome === 'DUPLICATE_SUBMISSION') setError("Your ID details have already been submitted successfully.");
         else setError("This secure link is invalid or tampered with.");
       } else {
+        if (role === 'student' && data.class_id) {
+           try {
+             const { data: classData, error: classError } = await supabase.from('classes').select('name, section').eq('id', data.class_id).single();
+             if (classData && !classError) {
+               data.class_name = `${classData.name} ${classData.section || ''}`.trim();
+             }
+           } catch (e) {
+             console.error("Failed to fetch class details", e);
+           }
+        }
         setValidationData(data);
       }
     } catch (err) {
@@ -162,7 +172,7 @@ const PublicIDForm = () => {
       if (!formData.contact_number.trim() || formData.contact_number.length < 10) return alert("Valid Contact Number is required.");
       if (!formData.address.trim()) return alert("Address is required.");
     }
-    if (currentStep === 3) {
+    if (currentStep === 3 && role !== 'student') {
       if (!photoFile) return alert("Please upload a passport size photograph.");
     }
     setCurrentStep(prev => prev + 1);
@@ -171,31 +181,39 @@ const PublicIDForm = () => {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      // 1. Upload Photo to Storage
-      const bucket = role === 'student' ? 'student-profiles' : 'teacher-profiles';
-      const fileExt = 'jpg';
-      const fileName = `${token}.${fileExt}`;
-      const filePath = `${id}/${fileName}`;
-      
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(filePath, photoFile, {
-          cacheControl: '3600',
-          upsert: true
-        });
-        
-      if (uploadError) throw uploadError;
+      let picturePath = null;
+      let photoMetaPayload = {};
 
-      const picturePath = supabase.storage.from(bucket).getPublicUrl(filePath).data.publicUrl;
+      if (role !== 'student') {
+        if (!photoFile) throw new Error("Photo is required for teachers");
+        const bucket = 'teacher-profiles';
+        const fileExt = 'jpg';
+        const fileName = `${token}.${fileExt}`;
+        const filePath = `${id}/${fileName}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from(bucket)
+          .upload(filePath, photoFile, {
+            cacheControl: '3600',
+            upsert: true
+          });
+          
+        if (uploadError) throw uploadError;
+
+        picturePath = supabase.storage.from(bucket).getPublicUrl(filePath).data.publicUrl;
+        photoMetaPayload = {
+          photo_width: photoMeta?.width,
+          photo_height: photoMeta?.height,
+          photo_size_bytes: photoMeta?.size,
+          photo_mime_type: photoMeta?.mimeType
+        };
+      }
 
       // 2. Submit Data via RPC
       const payload = {
         ...formData,
-        picture_path: picturePath,
-        photo_width: photoMeta.width,
-        photo_height: photoMeta.height,
-        photo_size_bytes: photoMeta.size,
-        photo_mime_type: photoMeta.mimeType
+        ...(picturePath && { picture_path: picturePath }),
+        ...photoMetaPayload
       };
 
       const { data: rpcData, error: submitError } = await supabase.rpc('submit_id_form', {
@@ -270,11 +288,14 @@ const PublicIDForm = () => {
         </div>
 
         <div className="flex px-6 pt-6 gap-2">
-          {[1, 2, 3, 4].map(step => (
-            <div key={step} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
-              currentStep >= step ? 'bg-blue-500' : 'bg-slate-800'
-            }`} />
-          ))}
+          {Array.from({ length: role === 'student' ? 3 : 4 }).map((_, idx) => {
+            const step = idx + 1;
+            return (
+              <div key={step} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
+                currentStep >= step ? 'bg-blue-500' : 'bg-slate-800'
+              }`} />
+            );
+          })}
         </div>
 
         <div className="p-6 flex-1 overflow-y-auto">
@@ -286,7 +307,7 @@ const PublicIDForm = () => {
               <div className="text-white font-semibold">{validationData.name}</div>
               <div className="text-sm text-blue-300 font-medium">
                 {role === 'student' 
-                  ? `Class: ${validationData.class_id} • Adm No: ${validationData.admission_no}`
+                  ? `Class: ${validationData.class_name || 'N/A'} • Adm No: ${validationData.admission_no}`
                   : `${validationData.designation} • ID: ${validationData.employee_id}`
                 }
               </div>
@@ -372,7 +393,7 @@ const PublicIDForm = () => {
             </div>
           )}
 
-          {currentStep === 3 && (
+          {currentStep === 3 && role !== 'student' && (
             <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
               <h2 className="text-lg font-bold text-white mb-2">③ Photograph</h2>
               
@@ -438,9 +459,11 @@ const PublicIDForm = () => {
             </div>
           )}
 
-          {currentStep === 4 && (
+          {currentStep === (role === 'student' ? 3 : 4) && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <h2 className="text-lg font-bold text-white mb-2">④ Review Details</h2>
+              <h2 className="text-lg font-bold text-white mb-2">
+                {role === 'student' ? '③ Review Details' : '④ Review Details'}
+              </h2>
               <p className="text-slate-400 text-sm mb-4">Please verify your information before submitting.</p>
               
               <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-800/50">
@@ -466,10 +489,12 @@ const PublicIDForm = () => {
                   <span className="text-xs font-semibold text-slate-500 uppercase">Address</span>
                   <span className="text-white">{formData.address}</span>
                 </div>
-                <div className="p-4 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-500 uppercase">Photograph</span>
-                  <img src={photoPreview} alt="Preview thumbnail" className="w-12 h-16 object-cover rounded border border-slate-700" />
-                </div>
+                {role !== 'student' && (
+                  <div className="p-4 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-500 uppercase">Photograph</span>
+                    <img src={photoPreview} alt="Preview thumbnail" className="w-12 h-16 object-cover rounded border border-slate-700" />
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -487,7 +512,7 @@ const PublicIDForm = () => {
             </button>
           )}
           
-          {currentStep < 4 ? (
+          {currentStep < (role === 'student' ? 3 : 4) ? (
             <button
               onClick={handleNext}
               className="flex-[2] py-3.5 px-4 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-500 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20"

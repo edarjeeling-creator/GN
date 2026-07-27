@@ -62,7 +62,7 @@ export default function WebsiteCMS() {
 
   // Site Branding State (v2)
   const [siteBranding, setSiteBranding] = useState({
-    siteName: 'SMARTGRADES ICSE SCHOOL',
+    siteName: 'GYANODAY NIKETAN',
     siteMotto: '',
     logoUrl: '/logo.png',
     faviconUrl: '/vite.svg'
@@ -87,7 +87,7 @@ export default function WebsiteCMS() {
 
   // Footer Settings State
   const [footerSettings, setFooterSettings] = useState({
-    contact: { phone: '+91 XXXXX XXXXX', alternatePhone: '', email: 'info@smartgrades.edu.in', admissionContact: '', officeHours: 'Mon–Fri: 8:00 AM – 4:00 PM' },
+    contact: { phone: '+91 XXXXX XXXXX', alternatePhone: '', email: 'info@gyanodayniketan.edu.in', admissionContact: '', officeHours: 'Mon–Fri: 8:00 AM – 4:00 PM' },
     quickLinks: [
       { id: '1', label: 'Home', url: '/', active: true },
       { id: '2', label: 'About Us', url: '/about', active: true },
@@ -97,8 +97,8 @@ export default function WebsiteCMS() {
       { id: '6', label: 'Contact Us', url: '/contact', active: true }
     ],
     socialMedia: { facebook: '', instagram: '', youtube: '', linkedin: '', twitter: '' },
-    findUs: { address: 'SmartGrades ICSE School\nDarjeeling / West Bengal', landmark: '', pinCode: '', stats: '1200+ Students | 75+ Teachers | 98% Results | 25 Years of Excellence' },
-    legal: { affiliation: 'Affiliated to CISCE, New Delhi (WB046)', copyright: '© 2026 SmartGrades School. All rights reserved.' }
+    findUs: { address: 'Gyanoday Niketan\nDarjeeling / West Bengal', landmark: '', pinCode: '', stats: '1200+ Students | 75+ Teachers | 98% Results | 25 Years of Excellence' },
+    legal: { affiliation: 'Affiliated to CISCE, New Delhi (WB046)', copyright: '© 2026 Gyanoday Niketan. All rights reserved.' }
   });
   const [savingFooterSettings, setSavingFooterSettings] = useState(false);
 
@@ -781,7 +781,7 @@ export default function WebsiteCMS() {
 
   const resetBranding = async () => {
     if (!window.confirm("Are you sure you want to reset branding to default?")) return;
-    setSiteBranding({ siteName: 'SMARTGRADES ICSE SCHOOL', siteMotto: '', logoUrl: '/logo.png', faviconUrl: '/vite.svg' });
+    setSiteBranding({ siteName: 'GYANODAY NIKETAN', siteMotto: '', logoUrl: '/logo.png', faviconUrl: '/vite.svg' });
   };
 
   const applyPreset = (preset) => {

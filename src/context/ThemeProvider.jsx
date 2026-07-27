@@ -7,7 +7,7 @@ export const useTheme = () => useContext(ThemeContext);
 
 export const ThemeProvider = ({ children }) => {
   const [siteBranding, setSiteBranding] = useState({
-    siteName: 'SMARTGRADES ICSE SCHOOL',
+    siteName: 'GYANODAY NIKETAN',
     siteMotto: '',
     logoUrl: '/logo.png',
     faviconUrl: '/vite.svg',
@@ -27,7 +27,7 @@ export const ThemeProvider = ({ children }) => {
     contact: {
       phone: '+91 XXXXX XXXXX',
       alternatePhone: '',
-      email: 'info@smartgrades.edu.in',
+      email: 'info@gyanodayniketan.edu.in',
       admissionContact: '',
       officeHours: 'Mon–Fri: 8:00 AM – 4:00 PM'
     },
@@ -47,14 +47,14 @@ export const ThemeProvider = ({ children }) => {
       twitter: ''
     },
     findUs: {
-      address: 'SmartGrades ICSE School\nDarjeeling / West Bengal',
+      address: 'Gyanoday Niketan\nDarjeeling / West Bengal',
       landmark: '',
       pinCode: '',
       stats: '1200+ Students | 75+ Teachers | 98% Results | 25 Years of Excellence'
     },
     legal: {
       affiliation: 'Affiliated to CISCE, New Delhi (WB046)',
-      copyright: '© 2026 SmartGrades School. All rights reserved.'
+      copyright: '© 2026 Gyanoday Niketan. All rights reserved.'
     }
   });
 
