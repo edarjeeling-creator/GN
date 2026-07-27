@@ -158,6 +158,40 @@ const TeacherIDCardGenerator = ({ teachers: globalTeachers, fetchStats }) => {
     }
   };
 
+  const handleResetData = async (teacherId) => {
+    const confirm = window.confirm("Are you sure you want to clear all ID card data for this teacher? This action cannot be undone.");
+    if (!confirm) return;
+    
+    setActionMenuOpen(null);
+    try {
+      const { error } = await supabase.from('profiles').update({
+        designation: null,
+        dob: null,
+        blood_group: null,
+        contact_number: null,
+        address: null,
+        picture_url: null,
+        employee_id: null,
+        id_details_status: 'Not Sent'
+      }).eq('id', teacherId);
+      
+      if (error) throw error;
+      
+      handleFieldChange(teacherId, 'designation', '');
+      handleFieldChange(teacherId, 'dob', '');
+      handleFieldChange(teacherId, 'blood_group', '');
+      handleFieldChange(teacherId, 'contact_number', '');
+      handleFieldChange(teacherId, 'address', '');
+      handleFieldChange(teacherId, 'employee_id', '');
+      handleFieldChange(teacherId, 'picture_url', null);
+      handleFieldChange(teacherId, 'id_details_status', 'Not Sent');
+      
+      alert("Teacher data has been reset successfully.");
+    } catch (err) {
+      alert("Error resetting data: " + err.message);
+    }
+  };
+
   const generatePDF = async () => {
     const selectedTeachers = teachersList.filter(t => selectedTeacherIds.has(t.id));
     if (selectedTeachers.length === 0) return alert("Please select at least one teacher!");
@@ -370,6 +404,9 @@ const TeacherIDCardGenerator = ({ teachers: globalTeachers, fetchStats }) => {
                             </button>
                             <button onClick={() => handleCopyLink(t.id)} className="w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
                               <Copy size={14} /> Copy Link
+                            </button>
+                            <button onClick={() => handleResetData(t.id)} className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
+                              <Trash2 size={14} /> Reset Data
                             </button>
                           </div>
                         </>

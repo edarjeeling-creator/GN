@@ -166,6 +166,38 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
     }
   };
 
+  const handleResetData = async (studentId) => {
+    const confirm = window.confirm("Are you sure you want to clear all ID card data for this student? This action cannot be undone.");
+    if (!confirm) return;
+    
+    setActionMenuOpen(null);
+    try {
+      const { error } = await supabase.from('students').update({
+        father_name: null,
+        dob: null,
+        blood_group: null,
+        contact_number: null,
+        address: null,
+        picture_url: null,
+        id_details_status: 'Not Sent'
+      }).eq('id', studentId);
+      
+      if (error) throw error;
+      
+      handleFieldChange(studentId, 'father_name', '');
+      handleFieldChange(studentId, 'dob', '');
+      handleFieldChange(studentId, 'blood_group', '');
+      handleFieldChange(studentId, 'contact_number', '');
+      handleFieldChange(studentId, 'address', '');
+      handleFieldChange(studentId, 'picture_url', null);
+      handleFieldChange(studentId, 'id_details_status', 'Not Sent');
+      
+      alert("Student data has been reset successfully.");
+    } catch (err) {
+      alert("Error resetting data: " + err.message);
+    }
+  };
+
   const handleCopyAllLinks = async () => {
     if (selectedClass === 'all') return alert("Please select a specific class first to generate bulk links.");
     
@@ -449,6 +481,9 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
                             </button>
                             <button onClick={() => handleCopyLink(s.id)} className="w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
                               <Copy size={14} /> Copy Link
+                            </button>
+                            <button onClick={() => handleResetData(s.id)} className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
+                              <Trash2 size={14} /> Reset Data
                             </button>
                           </div>
                         </>
