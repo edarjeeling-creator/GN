@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import QRCode from 'react-qr-code';
 import html2pdf from 'html2pdf.js';
-import { Users, Printer, Loader2, Save, Upload, Image as ImageIcon, Send, Copy, RefreshCw, ExternalLink, Trash2, MoreVertical, Circle } from 'lucide-react';
+import { Users, Printer, Loader2, Save, Upload, Image as ImageIcon, Send, Copy, RefreshCw, ExternalLink, Trash2, MoreVertical, Circle, MessageSquare } from 'lucide-react';
 
 const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
   const [selectedClass, setSelectedClass] = useState('all');
@@ -166,6 +166,53 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
     }
   };
 
+  const handleCopyAllLinks = async () => {
+    if (selectedClass === 'all') return alert("Please select a specific class first to generate bulk links.");
+    
+    const studentsInClass = studentsList.filter(s => s.class_id === selectedClass);
+    if (studentsInClass.length === 0) return alert("No students found in this class.");
+    
+    const confirm = window.confirm(`This will generate secure links for ${studentsInClass.length} students. It may take a few seconds. Proceed?`);
+    if (!confirm) return;
+
+    setIsGenerating(true);
+    
+    try {
+      let textToCopy = `*ID Card Form Links for ${getClassName(selectedClass)}*\n\n`;
+      textToCopy += `Dear Parents, please click on the secure link corresponding to your child's name to submit their ID Card details.\n\n`;
+
+      for (let i = 0; i < studentsInClass.length; i++) {
+        const student = studentsInClass[i];
+        
+        const { data: token, error } = await supabase.rpc('generate_form_token', {
+          p_user_id: student.id,
+          p_role: 'student'
+        });
+
+        if (error) throw error;
+        
+        const link = `https://results.gyanodayniketan.cloud/id-form/student/${student.id}?token=${token}`;
+        
+        handleFieldChange(student.id, 'id_details_status', 'Link Sent');
+
+        textToCopy += `*${i + 1}. ${student.name}*\n`;
+        textToCopy += `Link: ${link}\n\n`;
+      }
+
+      await navigator.clipboard.writeText(textToCopy);
+      alert("All links generated and copied to clipboard successfully! You can now paste this directly into your WhatsApp class group.");
+    } catch (err) {
+      console.error(err);
+      if (err.message?.includes('function generate_form_token does not exist')) {
+        alert("Database Error: The required SQL Migration hasn't been applied yet.");
+      } else {
+        alert("Error generating bulk links: " + err.message);
+      }
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const generatePDF = async () => {
     const selectedStudents = studentsList.filter(s => selectedStudentIds.has(s.id));
     if (selectedStudents.length === 0) return alert("Please select at least one student!");
@@ -241,8 +288,18 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
             <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleCustomLogoUpload} />
           </label>
           <button 
+            className="flex items-center gap-2" 
+            style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontWeight: 600, cursor: isGenerating ? 'not-allowed' : 'pointer', opacity: isGenerating ? 0.7 : 1 }}
+            onClick={handleCopyAllLinks}
+            disabled={isGenerating || selectedClass === 'all'}
+            title="Generate and copy links for the whole class"
+          >
+            {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
+            Copy Class Links
+          </button>
+          <button 
             className="btn-hero-primary flex items-center gap-2" 
-            style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.5rem 1.5rem', borderRadius: '0.5rem', fontWeight: 600 }}
+            style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.5rem 1.5rem', borderRadius: '0.5rem', fontWeight: 600, cursor: isGenerating || selectedStudentIds.size === 0 ? 'not-allowed' : 'pointer', opacity: isGenerating || selectedStudentIds.size === 0 ? 0.7 : 1 }}
             onClick={generatePDF}
             disabled={isGenerating || selectedStudentIds.size === 0}
           >
