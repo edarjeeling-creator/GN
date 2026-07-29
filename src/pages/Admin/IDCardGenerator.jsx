@@ -23,6 +23,18 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
       if (data) setSignatureUrl(data.setting_value);
     };
     fetchSignature();
+
+    const subscription = supabase
+      .channel('public:students_id_updates')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'students' }, payload => {
+        const updatedStudent = payload.new;
+        setStudentsList(prev => prev.map(s => s.id === updatedStudent.id ? { ...s, ...updatedStudent } : s));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
   }, []);
 
   useEffect(() => {
@@ -258,23 +270,43 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
       margin:       0,
       filename:     `ID_Cards_${selectedClass === 'all' ? 'All' : 'Class'}.pdf`,
       image:        { type: 'jpeg', quality: 1.0 },
-      html2canvas:  { scale: 3, useCORS: true, logging: false },
+      html2canvas:  { scale: 5, useCORS: true, logging: false },
       jsPDF:        { unit: 'mm', format: [54, 86], orientation: 'portrait' }
     };
 
     try {
       let worker = html2pdf().set(opt);
+      let isFirstPage = true;
       
+      // 1. Generate All Fronts
       for (let i = 0; i < selectedStudents.length; i++) {
         const student = selectedStudents[i];
-        const cardElement = document.getElementById(`id-card-${student.id}`);
-        
-        if (i === 0) {
-          worker = worker.from(cardElement).toPdf();
+        const frontElement = document.getElementById(`id-card-front-${student.id}`);
+        if (!frontElement) continue;
+
+        if (isFirstPage) {
+          worker = worker.from(frontElement).toPdf();
+          isFirstPage = false;
         } else {
           worker = worker.get('pdf').then(pdf => {
             pdf.addPage();
-          }).from(cardElement).toContainer().toCanvas().toPdf();
+          }).from(frontElement).toContainer().toCanvas().toPdf();
+        }
+      }
+
+      // 2. Generate All Backs
+      for (let i = 0; i < selectedStudents.length; i++) {
+        const student = selectedStudents[i];
+        const backElement = document.getElementById(`id-card-back-${student.id}`);
+        if (!backElement) continue;
+
+        if (isFirstPage) {
+           worker = worker.from(backElement).toPdf();
+           isFirstPage = false;
+        } else {
+           worker = worker.get('pdf').then(pdf => {
+             pdf.addPage();
+           }).from(backElement).toContainer().toCanvas().toPdf();
         }
       }
       
@@ -510,7 +542,7 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
       <div id="id-card-print-container" style={{ display: 'none', background: 'white' }}>
         {selectedStudents.map((student, index) => (
           <React.Fragment key={student.id}>
-            <div id={`id-card-${student.id}`} style={{ 
+            <div id={`id-card-front-${student.id}`} style={{ 
               position: 'relative',
               width: '54mm', 
               height: '86mm',
@@ -593,23 +625,17 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
                 </div>
               </div>
 
-              {/* 5. Footer Area (QR Code & Signature) */}
-              <div style={{ position: 'absolute', top: '70mm', left: '0', width: '54mm', height: '13mm', background: '#f8fafc', borderTop: '0.5px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1mm 4mm 2mm 4mm', boxSizing: 'border-box', zIndex: 2, fontFamily: "'Inter', sans-serif" }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <div style={{ padding: '0.5mm', background: 'white', borderRadius: '0.5mm', border: '0.5px solid #cbd5e1', display: 'flex', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', width: '10mm', height: '10mm' }}>
-                    <QRCode value={generateQRData(student)} size={256} style={{ width: '100%', height: '100%' }} level="M" />
-                  </div>
-                </div>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '10mm', width: '20mm', paddingBottom: '1mm' }}>
-                  <div style={{ width: '18mm', height: '7mm', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+              {/* 5. Footer Area (Signature only) */}
+              <div style={{ position: 'absolute', top: '68mm', left: '0', width: '54mm', height: '15mm', background: '#f8fafc', borderTop: '0.5px solid #e2e8f0', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1mm 4mm 1mm 4mm', boxSizing: 'border-box', zIndex: 2, fontFamily: "'Inter', sans-serif" }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '13mm', width: '30mm', paddingBottom: '0.5mm' }}>
+                  <div style={{ width: '25mm', height: '9mm', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
                     {signatureUrl ? (
                        <img src={signatureUrl} alt="Principal Signature" style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
                     ) : (
                        <span style={{ fontFamily: "'Dancing Script', cursive", fontSize: '4pt', color: '#0f172a' }}>Principal</span>
                     )}
                   </div>
-                  <div style={{ fontSize: '3.5pt', color: '#1e293b', fontWeight: 700, borderTop: '0.5px solid #94a3b8', width: '18mm', textAlign: 'center', paddingTop: '0.5mm', marginTop: '0.5mm' }}>Principal</div>
+                  <div style={{ fontSize: '3.5pt', color: '#1e293b', fontWeight: 700, borderTop: '0.5px solid #94a3b8', width: '25mm', textAlign: 'center', paddingTop: '0.5mm', marginTop: '0.5mm' }}>Principal</div>
                 </div>
               </div>
               
@@ -618,6 +644,29 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
                  <span style={{ fontSize: '2.5pt', color: '#cbd5e1', fontWeight: 600 }}>Valid Upto: 31/03/{sessionText.includes('-') ? sessionText.split('-')[1] : '2027'}</span>
                  <span style={{ fontSize: '2.5pt', color: '#fbbf24', fontWeight: 700, letterSpacing: '0.5px' }}>SESSION: {sessionText}</span>
               </div>
+            </div>
+
+            {/* Back Side */}
+            <div id={`id-card-back-${student.id}`} style={{ position: 'relative', width: '54mm', height: '86mm', background: '#ffffff', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: "'Inter', sans-serif", border: '1px solid #f1f5f9' }}>
+                {/* Logo or School Name on Back */}
+                <div style={{ position: 'absolute', top: '6mm', left: '0', width: '100%', textAlign: 'center', fontSize: '6.5pt', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  GYANODAY NIKETAN
+                </div>
+                
+                {/* Large QR Code */}
+                <div style={{ padding: '2mm', background: 'white', borderRadius: '1mm', border: '1px solid #cbd5e1', display: 'flex', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', width: '30mm', height: '30mm', marginTop: '2mm' }}>
+                  <QRCode value={generateQRData(student)} size={256} style={{ width: '100%', height: '100%' }} level="M" fgColor="#000000" bgColor="#FFFFFF" />
+                </div>
+                
+                <div style={{ fontSize: '4.5pt', color: '#475569', fontWeight: 600, marginTop: '3mm', letterSpacing: '0.2px' }}>Scan for Attendance</div>
+
+                {/* Return Instructions */}
+                <div style={{ position: 'absolute', bottom: '6mm', left: '0', width: '100%', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.8mm' }}>
+                  <div style={{ fontSize: '4pt', color: '#64748b' }}>If found please return to:</div>
+                  <div style={{ fontSize: '5pt', color: '#0f172a', fontWeight: 800 }}>Gyanoday Niketan School</div>
+                  <div style={{ fontSize: '4pt', color: '#64748b' }}>Darjeeling</div>
+                  <div style={{ fontSize: '4.5pt', color: '#3b82f6', marginTop: '1.5mm', fontWeight: 600 }}>www.gyanodayniketan.com</div>
+                </div>
             </div>
           </React.Fragment>
         ))}
