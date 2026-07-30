@@ -1055,7 +1055,6 @@ const Admin = () => {
                 type="text" 
                 placeholder="Class Name" 
                 className="input-field w-full" 
-                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
                 value={newClass.name}
                 onChange={e => setNewClass({...newClass, name: e.target.value})}
                 required
@@ -1064,7 +1063,7 @@ const Admin = () => {
                 type="text" 
                 placeholder="Sec" 
                 className="input-field" 
-                style={{ width: '80px', background: '#f8fafc', border: '1px solid #e2e8f0' }}
+                style={{ width: '80px' }}
                 value={newClass.section}
                 onChange={e => setNewClass({...newClass, section: e.target.value})}
               />
@@ -1123,7 +1122,6 @@ const Admin = () => {
                 type="text" 
                 placeholder="Subject Name" 
                 className="input-field w-full" 
-                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
                 value={newSubject}
                 onChange={e => setNewSubject(e.target.value)}
                 required
@@ -1212,7 +1210,6 @@ const Admin = () => {
             <form onSubmit={handleAssignTeacher} className="flex flex-col gap-3">
               <select 
                 className="input-field" 
-                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
                 value={assignment.teacher_id} 
                 onChange={e => setAssignment({...assignment, teacher_id: e.target.value})}
                 required
@@ -1223,7 +1220,6 @@ const Admin = () => {
               
               <select 
                 className="input-field" 
-                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
                 value={assignment.class_id} 
                 onChange={e => setAssignment({...assignment, class_id: e.target.value})}
                 required
@@ -1234,7 +1230,6 @@ const Admin = () => {
 
               <select 
                 className="input-field" 
-                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
                 value={assignment.subject_id} 
                 onChange={e => setAssignment({...assignment, subject_id: e.target.value})}
                 required
@@ -1254,7 +1249,6 @@ const Admin = () => {
                 type="text" 
                 placeholder="Full Name" 
                 className="input-field" 
-                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
                 value={newTeacher.name}
                 onChange={e => setNewTeacher({...newTeacher, name: e.target.value})}
               />
@@ -1262,7 +1256,6 @@ const Admin = () => {
                 type="email" 
                 placeholder="Email Address (Login ID)" 
                 className="input-field" 
-                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
                 value={newTeacher.email}
                 onChange={e => setNewTeacher({...newTeacher, email: e.target.value})}
               />
@@ -1270,7 +1263,6 @@ const Admin = () => {
                 type="password" 
                 placeholder="Secure Password" 
                 className="input-field" 
-                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
                 value={newTeacher.password}
                 onChange={e => setNewTeacher({...newTeacher, password: e.target.value})}
               />
