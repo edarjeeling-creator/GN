@@ -377,10 +377,14 @@ const Admin = () => {
         fetchStats();
         setTeacherMessage({ type: 'success', text: 'Teacher successfully added!' });
       } else {
-        setTeacherMessage({ type: 'error', text: 'Error adding teacher: ' + error.message });
+        let msg = error.message;
+        if (msg === '{}' || !msg || msg === '[object Object]') {
+          msg = "Server Error (500) - Database trigger failed or backend constraint violated.";
+        }
+        setTeacherMessage({ type: 'error', text: 'Error adding teacher: ' + msg });
       }
     } catch (err) {
-      setTeacherMessage({ type: 'error', text: 'Unexpected error: ' + err.message });
+      setTeacherMessage({ type: 'error', text: 'Unexpected error: ' + (err.message || 'Unknown error occurred') });
     }
   };
 
