@@ -730,13 +730,13 @@ const Admin = () => {
 
       {activeTab === 'dashboard' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', marginBottom: '2rem' }}>
-            <label style={{ fontWeight: 'bold', color: '#475569' }}>Select School Management Section:</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1rem', background: 'var(--surface-color)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', marginBottom: '2rem' }}>
+            <label style={{ fontWeight: 'bold', color: 'var(--text-secondary)' }}>Select School Management Section:</label>
             <select 
               className="input-field" 
               value={managementSection} 
               onChange={e => setManagementSection(e.target.value)}
-              style={{ minWidth: '250px', background: 'white', flex: 1, maxWidth: '400px' }}
+              style={{ minWidth: '250px', flex: 1, maxWidth: '400px' }}
             >
               <option value="overview">Overview & Analytics</option>
               <option value="users">Manage Users & Teachers</option>
@@ -1360,23 +1360,23 @@ const Admin = () => {
           <div className="card" style={{ width: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 className="mb-4 text-xl font-bold">Edit Teacher: {editingTeacher.name}</h3>
             
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="mb-6 p-4 rounded-lg border" style={{ background: 'var(--bg-color)', borderColor: 'var(--border-color)' }}>
               <label className="block mb-2 font-semibold">Teacher Name</label>
               <div className="flex gap-2">
-                <input type="text" className="input-field flex-1" style={{ background: 'white', border: '1px solid #e2e8f0' }} value={editTeacherName} onChange={e => setEditTeacherName(e.target.value)} />
-                <button className="btn btn-primary" style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.375rem' }} onClick={handleUpdateTeacherName}>Save Name</button>
+                <input type="text" className="input-field flex-1" value={editTeacherName} onChange={e => setEditTeacherName(e.target.value)} />
+                <button className="btn btn-primary" onClick={handleUpdateTeacherName}>Save Name</button>
               </div>
             </div>
 
             <div className="mb-4">
               <h4 className="font-semibold mb-2">Current Assignments</h4>
-              <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }}>
+              <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '0.375rem' }}>
                 <table className="data-table" style={{ width: '100%' }}>
-                  <thead style={{ background: '#f8fafc', position: 'sticky', top: 0 }}>
+                  <thead style={{ background: 'var(--bg-color)', position: 'sticky', top: 0 }}>
                     <tr>
-                      <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontSize: '0.875rem' }}>Class</th>
-                      <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontSize: '0.875rem' }}>Subject</th>
-                      <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontSize: '0.875rem' }}>Action</th>
+                      <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '1px solid var(--border-color)', fontSize: '0.875rem' }}>Class</th>
+                      <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '1px solid var(--border-color)', fontSize: '0.875rem' }}>Subject</th>
+                      <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '1px solid var(--border-color)', fontSize: '0.875rem' }}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1384,7 +1384,7 @@ const Admin = () => {
                       const cls = classes.find(c => c.id === a.class_id);
                       const sub = subjects.find(s => s.id === a.subject_id);
                       return (
-                        <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <tr key={a.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                           <td style={{ padding: '0.5rem', fontSize: '0.875rem' }}>{cls ? `${cls.name} ${cls.section}` : 'Unknown'}</td>
                           <td style={{ padding: '0.5rem', fontSize: '0.875rem' }}>{sub ? sub.name : 'Unknown'}</td>
                           <td style={{ padding: '0.5rem' }}>
@@ -1399,23 +1399,23 @@ const Admin = () => {
               </div>
             </div>
 
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="mb-6 p-4 rounded-lg border" style={{ background: 'var(--bg-color)', borderColor: 'var(--border-color)' }}>
               <h4 className="font-semibold mb-2">Assign New Class & Subject</h4>
               <div className="flex gap-2">
-                <select className="input-field flex-1" style={{ background: 'white', border: '1px solid #e2e8f0' }} value={modalAssignmentClass} onChange={e => setModalAssignmentClass(e.target.value)}>
+                <select className="input-field flex-1" value={modalAssignmentClass} onChange={e => setModalAssignmentClass(e.target.value)}>
                   <option value="">Select Class</option>
                   {classes.map(c => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
                 </select>
-                <select className="input-field flex-1" style={{ background: 'white', border: '1px solid #e2e8f0' }} value={modalAssignmentSubject} onChange={e => setModalAssignmentSubject(e.target.value)}>
+                <select className="input-field flex-1" value={modalAssignmentSubject} onChange={e => setModalAssignmentSubject(e.target.value)}>
                   <option value="">Select Subject</option>
                   {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
-                <button className="btn btn-primary" style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.375rem' }} onClick={handleModalAssignTeacher}>Assign</button>
+                <button className="btn btn-primary" style={{ background: '#10b981', color: 'white', border: 'none' }} onClick={handleModalAssignTeacher}>Assign</button>
               </div>
             </div>
 
             <div className="flex justify-end">
-              <button className="btn btn-outline" style={{ border: '1px solid #e2e8f0', padding: '0.5rem 1.5rem', borderRadius: '0.375rem' }} onClick={() => setEditingTeacher(null)}>Close</button>
+              <button className="btn btn-secondary" onClick={() => setEditingTeacher(null)}>Close</button>
             </div>
           </div>
         </div>
