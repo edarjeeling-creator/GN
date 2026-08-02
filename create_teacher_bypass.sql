@@ -1,7 +1,7 @@
 -- Run this in your Supabase SQL Editor
 -- This creates a secure function to create teachers directly, bypassing the email sending error.
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pgcrypto SCHEMA extensions;
 
 CREATE OR REPLACE FUNCTION public.create_teacher_bypass(
   p_email TEXT,
@@ -35,7 +35,7 @@ BEGIN
     'authenticated',
     'authenticated',
     p_email,
-    crypt(p_password, gen_salt('bf')),
+    extensions.crypt(p_password, extensions.gen_salt('bf')),
     now(),
     now(),
     now(),
@@ -56,4 +56,4 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
   RETURN json_build_object('success', false, 'error', SQLERRM);
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth, extensions;
