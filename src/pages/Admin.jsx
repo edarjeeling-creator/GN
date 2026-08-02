@@ -359,18 +359,17 @@ const Admin = () => {
         { auth: { persistSession: false, autoRefreshToken: false } }
       );
 
-      const { data, error } = await secondarySupabase.auth.signUp({
-        email: newTeacher.email,
-        password: newTeacher.password,
-        options: {
-          data: {
-            name: newTeacher.name,
-            full_name: newTeacher.name,
-            role: 'teacher',
-            school_id: getClientSchoolId()
-          }
-        }
+      // We use the custom RPC to bypass GoTrue email sending, since SMTP is failing
+      const { data, error } = await secondarySupabase.rpc('create_teacher_bypass', {
+        p_email: newTeacher.email,
+        p_password: newTeacher.password,
+        p_name: newTeacher.name,
+        p_school_id: getClientSchoolId()
       });
+
+      if (data && data.success === false) {
+        throw new Error(data.error || "Unknown RPC Error");
+      }
 
       if (!error) {
         setNewTeacher({ name: '', email: '', password: '' });
