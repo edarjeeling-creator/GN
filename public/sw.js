@@ -32,6 +32,16 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Only intercept GET requests
+  if (event.request.method !== 'GET') {
+    return;
+  }
+  
+  // Only intercept same-origin requests (don't cache Supabase API calls)
+  if (!event.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+
   // Simple network-first fallback strategy
   event.respondWith(
     fetch(event.request).catch(() => {
