@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText, AlertTriangle, Lock, Menu, X, Wallet } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText, AlertTriangle, Lock, Menu, X, Wallet, MessageSquare } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeProvider';
 import { useSubscription } from '../context/SubscriptionContext';
+import { useChat } from '../context/ChatContext';
 import { supabase } from '../lib/supabase';
 
 const Layout = ({ children }) => {
@@ -17,7 +18,8 @@ const Layout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
-
+  const { unreadCounts } = useChat();
+  const totalChatUnread = Object.values(unreadCounts || {}).reduce((a, b) => a + b, 0);
 
   useEffect(() => {
     // Add dark class on mount to ensure premium dark theme default
@@ -407,6 +409,16 @@ const Layout = ({ children }) => {
 
                 {(profile?.role === 'student' || isTeacherOrAdminOrTeachingPrincipal) && (
                   <>
+                    <NavLink to="/hub" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <MessageSquare size={18} /> Comm Hub
+                      </div>
+                      {totalChatUnread > 0 && (
+                        <span style={{ background: '#3b82f6', color: 'white', fontSize: '0.65rem', fontWeight: 'bold', padding: '0.1rem 0.4rem', borderRadius: '9999px' }}>
+                          {totalChatUnread}
+                        </span>
+                      )}
+                    </NavLink>
                     <NavLink to="/study-materials" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
                       <BookOpen size={18} /> Study Materials
                     </NavLink>

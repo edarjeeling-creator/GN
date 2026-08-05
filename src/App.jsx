@@ -17,6 +17,7 @@ import Assignments from './pages/Assignments';
 import Admin from './pages/Admin';
 import FeesDashboard from './pages/FeesDashboard';
 import LibraryDashboard from './pages/LibraryDashboard';
+import CommunicationHub from './pages/CommunicationHub';
 import StudentSearch from './pages/StudentSearch';
 import Attendance from './pages/Attendance';
 import AttendanceReports from './pages/AttendanceReports';
@@ -61,6 +62,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/study-materials" element={<StudyMaterials />} />
             <Route path="/assignments" element={<Assignments />} />
+            <Route path="/hub" element={<CommunicationHub />} />
             
             {/* Student Only Routes */}
             <Route path="/student-portal" element={<StudentRoute><StudentPortal /></StudentRoute>} />

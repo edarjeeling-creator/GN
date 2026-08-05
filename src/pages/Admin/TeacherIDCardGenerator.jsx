@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import QRCode from 'react-qr-code';
 import html2pdf from 'html2pdf.js';
-import { Users, Printer, Loader2, Save, Upload, Image as ImageIcon, Send, Copy, RefreshCw, ExternalLink, Trash2, MoreVertical, Circle } from 'lucide-react';
+import { Users, Printer, Loader2, Save, Upload, Image as ImageIcon, Send, Copy, RefreshCw, ExternalLink, Trash2, MoreVertical, Circle, MessageSquare } from 'lucide-react';
 
 const TeacherIDCardGenerator = ({ teachers: globalTeachers, fetchStats }) => {
   const [sessionText, setSessionText] = useState('2026-2027');
@@ -206,6 +206,51 @@ const TeacherIDCardGenerator = ({ teachers: globalTeachers, fetchStats }) => {
     }
   };
 
+  const handleCopyAllLinks = async () => {
+    const teachersToGenerate = teachersList.filter(t => selectedTeacherIds.has(t.id));
+    if (teachersToGenerate.length === 0) return alert("Please select at least one teacher.");
+    
+    const confirm = window.confirm(`This will generate secure links for ${teachersToGenerate.length} teachers. It may take a few seconds. Proceed?`);
+    if (!confirm) return;
+
+    setIsGenerating(true);
+    
+    try {
+      let textToCopy = `*ID Card Form Links for Teachers*\n\n`;
+      textToCopy += `Dear Teachers, please click on the secure link corresponding to your name to submit your ID Card details.\n\n`;
+
+      for (let i = 0; i < teachersToGenerate.length; i++) {
+        const teacher = teachersToGenerate[i];
+        
+        const { data: token, error } = await supabase.rpc('generate_form_token', {
+          p_user_id: teacher.id,
+          p_role: 'teacher'
+        });
+
+        if (error) throw error;
+        
+        const link = `https://results.gyanodayniketan.cloud/id-form/teacher/${teacher.id}?token=${token}`;
+        
+        handleFieldChange(teacher.id, 'id_details_status', 'Link Sent');
+
+        textToCopy += `*${i + 1}. ${teacher.name}*\n`;
+        textToCopy += `Link: ${link}\n\n`;
+      }
+
+      await navigator.clipboard.writeText(textToCopy);
+      alert("All links generated and copied to clipboard successfully! You can now paste this directly into your staff WhatsApp group.");
+    } catch (err) {
+      console.error(err);
+      if (err.message?.includes('function generate_form_token does not exist')) {
+        alert("Database Error: The required SQL Migration hasn't been applied yet.");
+      } else {
+        alert("Error generating bulk links: " + err.message);
+      }
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const generatePDF = async () => {
     const selectedTeachers = teachersList.filter(t => selectedTeacherIds.has(t.id));
     if (selectedTeachers.length === 0) return alert("Please select at least one teacher!");
@@ -295,6 +340,16 @@ const TeacherIDCardGenerator = ({ teachers: globalTeachers, fetchStats }) => {
             {customLogoUrl ? 'Logo Selected' : 'Replace Logo'}
             <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleCustomLogoUpload} />
           </label>
+          <button 
+            className="flex items-center gap-2" 
+            style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontWeight: 600, cursor: isGenerating || selectedTeacherIds.size === 0 ? 'not-allowed' : 'pointer', opacity: isGenerating || selectedTeacherIds.size === 0 ? 0.7 : 1 }}
+            onClick={handleCopyAllLinks}
+            disabled={isGenerating || selectedTeacherIds.size === 0}
+            title="Generate and copy links for selected teachers"
+          >
+            {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
+            Copy Links
+          </button>
           <button 
             className="btn-hero-primary flex items-center gap-2" 
             style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.5rem 1.5rem', borderRadius: '0.5rem', fontWeight: 600 }}
