@@ -21,6 +21,7 @@ import ImportHistory from './Admin/ImportHistory';
 import ReportCardCMS from './Admin/ReportCardCMS';
 import AuditLog from './Admin/AuditLog';
 import ResultStatusManager from './Admin/ResultStatusManager';
+import DiscussionPanel from '../components/chat/DiscussionPanel';
 
 const Admin = () => {
   const { logout, profile } = useAuth();
@@ -33,6 +34,7 @@ const Admin = () => {
   const [teachers, setTeachers] = useState([]);
   const [newTeacher, setNewTeacher] = useState({ name: '', email: '', password: '' });
   const [teacherMessage, setTeacherMessage] = useState({ type: '', text: '' });
+  const [teacherSearchQuery, setTeacherSearchQuery] = useState('');
   
   // State for Language Edit Modal
   const [editingLangStudent, setEditingLangStudent] = useState(null);
@@ -1278,6 +1280,16 @@ const Admin = () => {
             </div>
 
             <div style={{ maxHeight: '200px', overflowY: 'auto', borderRadius: '0.5rem', border: '1px solid #e2e8f0', marginTop: '2rem' }}>
+              <div style={{ padding: '1rem', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                <input 
+                  type="text" 
+                  placeholder="Search teacher by name..." 
+                  className="input-field" 
+                  value={teacherSearchQuery}
+                  onChange={e => setTeacherSearchQuery(e.target.value)}
+                  style={{ width: '100%', maxWidth: '400px' }}
+                />
+              </div>
               <table className="data-table" style={{ width: '100%' }}>
                 <thead style={{ background: '#f8fafc' }}>
                   <tr>
@@ -1287,7 +1299,9 @@ const Admin = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {teachers.map(t => (
+                  {teachers
+                    .filter(t => t.name.toLowerCase().includes(teacherSearchQuery.toLowerCase()))
+                    .map(t => (
                     <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                       <td style={{ padding: '1rem', fontWeight: 500 }}>{t.name}</td>
                       <td style={{ padding: '1rem', color: '#64748b' }}>{t.email}</td>
@@ -1347,9 +1361,18 @@ const Admin = () => {
               <label className="block mb-1">6th Subject (e.g. Computer App, Home Science)</label>
               <input type="text" className="input-field w-full" value={editSixthSubject} onChange={e => setEditSixthSubject(e.target.value)} />
             </div>
-            <div className="flex gap-2 justify-end">
+            <div className="flex gap-2 justify-end mb-4">
               <button className="btn btn-outline" onClick={() => setEditingLangStudent(null)}>Cancel</button>
               <button className="btn btn-primary" onClick={handleSaveLanguages}>Save</button>
+            </div>
+            
+            <div className="mt-4 border-t pt-4 border-gray-200">
+              <h4 className="font-bold text-sm text-gray-500 mb-2 uppercase">Internal Notes (Admins & Teachers)</h4>
+              <DiscussionPanel 
+                entityType="student" 
+                entityId={editingLangStudent.id} 
+                title={`Notes for ${editingLangStudent.name}`} 
+              />
             </div>
           </div>
         </div>
