@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText, AlertTriangle, Lock, Menu, X, Wallet, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Users, User, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText, AlertTriangle, Lock, Menu, X, Wallet, MessageSquare } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeProvider';
@@ -321,9 +321,9 @@ const Layout = ({ children }) => {
              {profile?.picture_url ? (
                <img src={profile.picture_url} alt={profile.name} style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid transparent', transition: 'border-color 0.2s' }} onMouseOver={e=>e.currentTarget.style.borderColor='var(--primary-color)'} onMouseOut={e=>e.currentTarget.style.borderColor='transparent'} />
              ) : (
-               <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary-color), #8b5cf6)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', border: '2px solid transparent', transition: 'border-color 0.2s' }} onMouseOver={e=>e.currentTarget.style.borderColor='var(--primary-color)'} onMouseOut={e=>e.currentTarget.style.borderColor='transparent'}>
-                 {(profile?.name || 'T')[0].toUpperCase()}
-               </div>
+                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary-color), #8b5cf6)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', border: '2px solid transparent', transition: 'border-color 0.2s' }} onMouseOver={e=>e.currentTarget.style.borderColor='var(--primary-color)'} onMouseOut={e=>e.currentTarget.style.borderColor='transparent'}>
+                  <User size={20} />
+                </div>
              )}
              <input 
                type="file" 
