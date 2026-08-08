@@ -12,7 +12,7 @@ import { useReactTable, getCoreRowModel, flexRender, getSortedRowModel, getFilte
 
 export const getConversionConstants = (className) => {
   if (!className) return { examConv: 75, testMax: 25 };
-  const isHigher = /(8|9|10|11|12|viii|ix|x|xi|xii)\b/i.test(className);
+  const isHigher = /(^|\b|[^a-z0-9])(8|9|10|11|12|viii|ix|x|xi|xii)(?![0-9])/i.test(className);
   return isHigher ? { examConv: 80, testMax: 20 } : { examConv: 75, testMax: 25 };
 };
 
