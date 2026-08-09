@@ -119,7 +119,7 @@ const StaffAttendance = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-        <h2 className="text-2xl font-bold text-slate-800">Staff Attendance</h2>
+        <h2 className="text-2xl font-bold text-[var(--text-primary)]">Staff Attendance</h2>
         <div className="flex gap-4">
           <input 
             type="date" 
@@ -138,37 +138,37 @@ const StaffAttendance = () => {
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="card text-center p-4">
-          <div className="text-slate-500 font-semibold mb-1">Total Staff</div>
-          <div className="text-3xl font-black text-slate-800">{totalStaff}</div>
+          <div className="text-[var(--text-secondary)] font-semibold mb-1">Total Staff</div>
+          <div className="text-3xl font-black text-[var(--text-primary)]">{totalStaff}</div>
         </div>
         <div className="card text-center p-4">
           <div className="text-green-500 font-semibold mb-1">Present</div>
-          <div className="text-3xl font-black text-slate-800">{presentCount}</div>
+          <div className="text-3xl font-black text-[var(--text-primary)]">{presentCount}</div>
         </div>
         <div className="card text-center p-4">
           <div className="text-amber-500 font-semibold mb-1">Late</div>
-          <div className="text-3xl font-black text-slate-800">{lateCount}</div>
+          <div className="text-3xl font-black text-[var(--text-primary)]">{lateCount}</div>
         </div>
         <div className="card text-center p-4">
           <div className="text-red-500 font-semibold mb-1">Absent</div>
-          <div className="text-3xl font-black text-slate-800">{absentCount}</div>
+          <div className="text-3xl font-black text-[var(--text-primary)]">{absentCount}</div>
         </div>
         <div className="card text-center p-4">
           <div className="text-purple-500 font-semibold mb-1">On Leave</div>
-          <div className="text-3xl font-black text-slate-800">{leaveCount}</div>
+          <div className="text-3xl font-black text-[var(--text-primary)]">{leaveCount}</div>
         </div>
       </div>
 
       {showSettings && (
         <div className="card border border-primary bg-primary/5 p-6 relative">
-          <h3 className="text-lg font-bold text-slate-800 mb-4">Attendance Rules Configuration</h3>
+          <h3 className="text-lg font-bold text-[var(--text-primary)] mb-4">Attendance Rules Configuration</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Reporting Time (HH:MM)</label>
+              <label className="block text-sm font-bold text-[var(--text-secondary)] mb-1">Reporting Time (HH:MM)</label>
               <input type="time" className="input-field" value={settings.reporting_time} onChange={e => setSettings({...settings, reporting_time: e.target.value})} />
             </div>
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Grace Period (Minutes)</label>
+              <label className="block text-sm font-bold text-[var(--text-secondary)] mb-1">Grace Period (Minutes)</label>
               <input type="number" min="0" className="input-field" value={settings.grace_mins} onChange={e => setSettings({...settings, grace_mins: parseInt(e.target.value) || 0})} />
             </div>
           </div>
@@ -181,11 +181,11 @@ const StaffAttendance = () => {
 
       {/* Late Arrivals Callout */}
       {lateCount > 0 && dateFilter === new Date().toISOString().split('T')[0] && (
-        <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl">
-          <h3 className="text-amber-800 font-bold flex items-center gap-2 mb-2"><AlertTriangle size={20} /> Late Arrival Monitoring</h3>
+        <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 p-4 rounded-xl">
+          <h3 className="text-amber-800 dark:text-amber-400 font-bold flex items-center gap-2 mb-2"><AlertTriangle size={20} /> Late Arrival Monitoring</h3>
           <div className="flex flex-wrap gap-2">
             {feed.filter(f => f.status === 'Late').map(f => (
-              <div key={f.teacher.id} className="bg-white border border-amber-200 px-3 py-1 rounded-full text-sm font-medium text-amber-700 shadow-sm">
+              <div key={f.teacher.id} className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-500/20 px-3 py-1 rounded-full text-sm font-medium text-amber-700 dark:text-amber-400 shadow-sm">
                 {f.teacher.name} – {f.record?.check_in_time ? new Date(f.record.check_in_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
               </div>
             ))}
@@ -193,36 +193,36 @@ const StaffAttendance = () => {
         </div>
       )}
 
-      <div className="card p-0 overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50 border-b border-slate-200">
+      <div className="table-container">
+        <table className="data-table">
+          <thead>
             <tr>
-              <th className="p-4 font-semibold text-slate-600">Teacher</th>
-              <th className="p-4 font-semibold text-slate-600">Status</th>
-              <th className="p-4 font-semibold text-slate-600">Check In</th>
-              <th className="p-4 font-semibold text-slate-600">Check Out</th>
-              <th className="p-4 font-semibold text-slate-600">Hours</th>
-              <th className="p-4 font-semibold text-slate-600">Actions</th>
+              <th>Teacher</th>
+              <th>Status</th>
+              <th>Check In</th>
+              <th>Check Out</th>
+              <th>Hours</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {feed.map(f => (
-              <tr key={f.teacher.id} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="p-4 font-medium text-slate-800">{f.teacher.name}</td>
-                <td className="p-4">
+              <tr key={f.teacher.id}>
+                <td className="font-medium text-[var(--text-primary)]">{f.teacher.name}</td>
+                <td>
                   <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold uppercase
-                    ${f.status.includes('Present') ? 'bg-green-100 text-green-800' : 
-                      f.status === 'Late' ? 'bg-amber-100 text-amber-800' : 
-                      f.status === 'Absent' ? 'bg-red-100 text-red-800' : 
-                      'bg-purple-100 text-purple-800'}`}>
+                    ${f.status.includes('Present') ? 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400' : 
+                      f.status === 'Late' ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400' : 
+                      f.status === 'Absent' ? 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400' : 
+                      'bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-400'}`}>
                     {f.status}
                   </span>
                 </td>
-                <td className="p-4 text-slate-600">{f.record?.check_in_time ? new Date(f.record.check_in_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
-                <td className="p-4 text-slate-600">{f.record?.check_out_time ? new Date(f.record.check_out_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
-                <td className="p-4 text-slate-600 font-mono">{f.record?.working_hours || '-'}</td>
-                <td className="p-4">
-                  <button onClick={() => { setEditingRecord(f); setNewStatus(f.status); setCorrectionReason(''); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-full transition-colors">
+                <td className="text-[var(--text-secondary)]">{f.record?.check_in_time ? new Date(f.record.check_in_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
+                <td className="text-[var(--text-secondary)]">{f.record?.check_out_time ? new Date(f.record.check_out_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
+                <td className="text-[var(--text-secondary)] font-mono">{f.record?.working_hours || '-'}</td>
+                <td>
+                  <button onClick={() => { setEditingRecord(f); setNewStatus(f.status); setCorrectionReason(''); }} className="text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 p-2 rounded-full transition-colors">
                     <Edit size={16} />
                   </button>
                 </td>
