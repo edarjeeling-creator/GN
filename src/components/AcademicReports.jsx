@@ -106,10 +106,19 @@ const AcademicReports = () => {
 
       {reportData && (
         <>
+          <style>{`
+            @media print {
+              @page {
+                margin: 10mm;
+              }
+            }
+          `}</style>
           <div className="hidden print:block text-center mb-6 pt-4">
-            <h2 className="text-2xl font-bold text-black border-b pb-2 inline-block border-slate-300">Academic Performance Report</h2>
+            <h2 className="text-2xl font-bold text-black border-b pb-2 inline-block border-slate-300">
+              {selectedTerm} Term Test Marks {academicYear}
+            </h2>
             <p className="text-lg mt-2 font-semibold text-black">
-              {selectedTerm} Term - Class: {selectedClass?.name} {selectedClass?.section}
+              Class: {selectedClass?.name} {selectedClass?.section}
               {selectedSubjectId && ` - ${subjects.find(s => s.id === selectedSubjectId)?.name || ''}`}
             </p>
           </div>
