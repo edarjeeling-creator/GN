@@ -234,15 +234,15 @@ const PrincipalPortal = () => {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6">
-      <div>
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6 print:space-y-0">
+      <div className="no-print">
         <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
           <Shield className="text-brand-600" size={32} /> {profile?.designation || 'Principal'} Dashboard
         </h1>
         <p className="text-slate-500 mt-1">School administration and oversight.</p>
       </div>
 
-      <div className="flex overflow-x-auto custom-scrollbar border-b border-slate-200 hide-scrollbar pb-2">
+      <div className="flex overflow-x-auto custom-scrollbar border-b border-slate-200 hide-scrollbar pb-2 no-print">
         <div className="flex gap-2 sm:gap-6 min-w-max">
           {(() => {
             const isPrincipal = !profile?.designation || profile?.designation === 'Principal';

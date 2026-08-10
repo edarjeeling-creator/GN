@@ -105,20 +105,28 @@ const AcademicReports = () => {
       </Card>
 
       {reportData && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:grid-cols-2 print:gap-4 print:mt-4 print:block">
-          <Card className="border-t-4 border-t-emerald-500 dark:bg-slate-900 print:shadow-none print:border print:break-inside-avoid print:mb-4">
-            <CardHeader className="bg-emerald-50 dark:bg-emerald-950/30 border-b border-emerald-100 dark:border-emerald-900 print:bg-emerald-50">
-              <CardTitle className="text-emerald-800 dark:text-emerald-400 print:text-emerald-800 flex items-center gap-2">
-                <Trophy size={20} className="text-emerald-600 dark:text-emerald-400 print:text-emerald-600" /> Top Scorers
-              </CardTitle>
+        <>
+          <div className="hidden print:block text-center mb-6 pt-4">
+            <h2 className="text-2xl font-bold text-black border-b pb-2 inline-block border-slate-300">Academic Performance Report</h2>
+            <p className="text-lg mt-2 font-semibold text-black">
+              {selectedTerm} Term - Class: {selectedClass?.name} {selectedClass?.section}
+              {selectedSubjectId && ` - ${subjects.find(s => s.id === selectedSubjectId)?.name || ''}`}
+            </p>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:block">
+            <Card className="border-t-4 border-t-emerald-500 dark:bg-slate-900 print:shadow-none print:border print:break-inside-avoid print:mb-8">
+              <CardHeader className="bg-emerald-50 dark:bg-emerald-950/30 border-b border-emerald-100 dark:border-emerald-900 print:bg-emerald-50">
+                <CardTitle className="text-emerald-800 dark:text-emerald-400 print:text-emerald-800 flex items-center gap-2">
+                  <Trophy size={20} className="text-emerald-600 dark:text-emerald-400 print:text-emerald-600" /> Top Scorers
+                </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {reportData.topScorers.length === 0 ? (
                 <div className="p-6 text-center text-slate-500 dark:text-slate-400 print:text-slate-500">No marks entered yet.</div>
               ) : (
-                <ul className="divide-y divide-slate-100 dark:divide-slate-800 print:divide-slate-100">
+                <ul className="divide-y divide-slate-100 dark:divide-slate-800 print:divide-slate-100 print:columns-2 print:gap-8">
                   {reportData.topScorers.map((scoreObj) => (
-                    <li key={scoreObj.student.id} className="flex justify-between items-center p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 print:hover:bg-transparent">
+                    <li key={scoreObj.student.id} className="flex justify-between items-center p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 print:hover:bg-transparent print:break-inside-avoid print:border-b">
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white shadow-sm ${scoreObj.rank === 1 ? 'bg-yellow-500' : scoreObj.rank === 2 ? 'bg-slate-400' : 'bg-amber-600'} print:shadow-none print:border print:border-slate-300 print:text-slate-800 print:bg-white`}>
                           {scoreObj.rank}
@@ -133,7 +141,7 @@ const AcademicReports = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-t-4 border-t-red-500 dark:bg-slate-900 print:shadow-none print:border print:break-inside-avoid print:mb-4">
+          <Card className="border-t-4 border-t-red-500 dark:bg-slate-900 print:shadow-none print:border print:break-inside-avoid print:mb-8">
             <CardHeader className="bg-red-50 dark:bg-red-950/30 border-b border-red-100 dark:border-red-900 print:bg-red-50">
               <CardTitle className="text-red-800 dark:text-red-400 print:text-red-800 flex items-center gap-2">
                 <AlertCircle size={20} className="text-red-600 dark:text-red-400 print:text-red-600" /> Requires Attention (Below 10)
@@ -145,9 +153,9 @@ const AcademicReports = () => {
                    No Failure
                 </div>
               ) : (
-                <ul className="divide-y divide-slate-100 dark:divide-slate-800 print:divide-slate-100 max-h-[300px] print:max-h-none overflow-auto custom-scrollbar">
+                <ul className="divide-y divide-slate-100 dark:divide-slate-800 print:divide-slate-100 max-h-[300px] print:max-h-none overflow-auto custom-scrollbar print:columns-2 print:gap-8">
                   {reportData.failures.map((scoreObj) => (
-                    <li key={scoreObj.student.id} className="flex justify-between items-center p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 print:hover:bg-transparent">
+                    <li key={scoreObj.student.id} className="flex justify-between items-center p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 print:hover:bg-transparent print:break-inside-avoid print:border-b">
                       <div className="flex items-center gap-3">
                         <Frown className="text-slate-400 dark:text-slate-500 print:text-slate-400" size={20} />
                         <span className="font-semibold text-[var(--text-primary)] print:text-black">{scoreObj.student.name}</span>
@@ -159,7 +167,8 @@ const AcademicReports = () => {
               )}
             </CardContent>
           </Card>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );
