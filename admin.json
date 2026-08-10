@@ -1,0 +1,63 @@
+{
+  "user": {
+    "instance_id": "00000000-0000-0000-0000-000000000000",
+    "id": "cbc39fa4-7118-4b4c-81ba-9c3e7ca4f7e3",
+    "aud": "authenticated",
+    "role": "authenticated",
+    "email": "admin@gyanodayniketan.cloud",
+    "encrypted_password": "$2a$10$.618kCZsN8oIohUIZTKt7OdCKsVnHkvVfby.hClUp/IFfbg2EsNR.",
+    "email_confirmed_at": "2026-07-03T14:47:12.494962+00:00",
+    "invited_at": null,
+    "confirmation_token": "",
+    "confirmation_sent_at": null,
+    "recovery_token": "",
+    "recovery_sent_at": null,
+    "email_change_token_new": "",
+    "email_change": "",
+    "email_change_sent_at": null,
+    "last_sign_in_at": "2026-07-29T18:01:44.687108+00:00",
+    "raw_app_meta_data": {
+      "provider": "email",
+      "providers": [
+        "email"
+      ]
+    },
+    "raw_user_meta_data": {
+      "full_name": "System Administrator",
+      "email_verified": true
+    },
+    "is_super_admin": null,
+    "created_at": "2026-07-03T14:47:12.489278+00:00",
+    "updated_at": "2026-08-04T05:56:17.452151+00:00",
+    "phone": null,
+    "phone_confirmed_at": null,
+    "phone_change": "",
+    "phone_change_token": "",
+    "phone_change_sent_at": null,
+    "confirmed_at": "2026-07-03T14:47:12.494962+00:00",
+    "email_change_token_current": "",
+    "email_change_confirm_status": 0,
+    "banned_until": null,
+    "reauthentication_token": "",
+    "reauthentication_sent_at": null,
+    "is_sso_user": false,
+    "deleted_at": null,
+    "is_anonymous": false
+  },
+  "identity": {
+    "provider_id": "cbc39fa4-7118-4b4c-81ba-9c3e7ca4f7e3",
+    "user_id": "cbc39fa4-7118-4b4c-81ba-9c3e7ca4f7e3",
+    "identity_data": {
+      "sub": "cbc39fa4-7118-4b4c-81ba-9c3e7ca4f7e3",
+      "email": "admin@gyanodayniketan.cloud",
+      "email_verified": false,
+      "phone_verified": false
+    },
+    "provider": "email",
+    "last_sign_in_at": "2026-07-03T14:47:12.492527+00:00",
+    "created_at": "2026-07-03T14:47:12.492577+00:00",
+    "updated_at": "2026-07-03T14:47:12.492577+00:00",
+    "email": "admin@gyanodayniketan.cloud",
+    "id": "790383a5-f52b-4151-8e9e-e4e19e11297e"
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "user": {
+    "instance_id": "00000000-0000-0000-0000-000000000000",
+    "id": "c50b872e-ca97-44f7-ad84-d18f8e2f2ea5",
+    "aud": "authenticated",
+    "role": "authenticated",
+    "email": "subodh@gyanodayniketan.cloud",
+    "encrypted_password": "$2a$06$BUULmZBGTie.63v5KC3xjuL/00MPO4vUYTIb73mcwcSQpBisEhjPa",
+    "email_confirmed_at": "2026-08-05T01:48:23.341468+00:00",
+    "invited_at": null,
+    "confirmation_token": null,
+    "confirmation_sent_at": null,
+    "recovery_token": null,
+    "recovery_sent_at": null,
+    "email_change_token_new": null,
+    "email_change": null,
+    "email_change_sent_at": null,
+    "last_sign_in_at": null,
+    "raw_app_meta_data": {
+      "provider": "email",
+      "providers": [
+        "email"
+      ]
+    },
+    "raw_user_meta_data": {
+      "name": "Subodh",
+      "role": "teacher",
+      "full_name": "Subodh",
+      "department": "Mathematics",
+      "employee_id": "EMP111"
+    },
+    "is_super_admin": false,
+    "created_at": "2026-08-05T01:48:23.341468+00:00",
+    "updated_at": "2026-08-05T01:48:23.341468+00:00",
+    "phone": null,
+    "phone_confirmed_at": null,
+    "phone_change": "",
+    "phone_change_token": "",
+    "phone_change_sent_at": null,
+    "confirmed_at": "2026-08-05T01:48:23.341468+00:00",
+    "email_change_token_current": "",
+    "email_change_confirm_status": 0,
+    "banned_until": null,
+    "reauthentication_token": "",
+    "reauthentication_sent_at": null,
+    "is_sso_user": false,
+    "deleted_at": null,
+    "is_anonymous": false
+  },
+  "identity": {
+    "provider_id": "c50b872e-ca97-44f7-ad84-d18f8e2f2ea5",
+    "user_id": "c50b872e-ca97-44f7-ad84-d18f8e2f2ea5",
+    "identity_data": {
+      "sub": "c50b872e-ca97-44f7-ad84-d18f8e2f2ea5",
+      "email": "subodh@gyanodayniketan.cloud",
+      "email_verified": true
+    },
+    "provider": "email",
+    "last_sign_in_at": "2026-08-05T01:48:23.341468+00:00",
+    "created_at": "2026-08-05T01:48:23.341468+00:00",
+    "updated_at": "2026-08-05T01:48:23.341468+00:00",
+    "email": "subodh@gyanodayniketan.cloud",
+    "id": "f510cd40-e328-49a1-803c-0c7d7432bfa2"
+  }
+}

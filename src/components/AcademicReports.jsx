@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
-import { Trophy, AlertCircle, Medal, Frown } from 'lucide-react';
+import { Trophy, AlertCircle, Medal, Frown, Printer } from 'lucide-react';
 import { getConversionConstants } from '../pages/SubjectMarks';
 
 const AcademicReports = () => {
@@ -71,30 +71,31 @@ const AcademicReports = () => {
   }, [selectedClassId, selectedSubjectId, selectedTerm, classStudents, marks, academicYear, examConv]);
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
+    <div className="space-y-6 print:space-y-4">
+      <Card className="no-print">
+        <CardHeader className="flex flex-row justify-between items-center pb-2">
           <CardTitle>Academic Performance Report</CardTitle>
+          <button onClick={() => window.print()} className="btn btn-primary"><Printer size={16} className="mr-2" /> Print Report</button>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Select Class</label>
-              <select className="h-10 px-3 rounded-lg border w-full border-slate-300 focus:ring-brand-500" value={selectedClassId} onChange={e => setSelectedClassId(e.target.value)}>
+              <label className="block text-sm font-semibold text-[var(--text-secondary)] mb-1">Select Class</label>
+              <select className="h-10 px-3 rounded-lg border w-full border-slate-300 dark:border-slate-700 focus:ring-brand-500 bg-[var(--bg-color)] text-[var(--text-primary)]" value={selectedClassId} onChange={e => setSelectedClassId(e.target.value)}>
                 <option value="">-- Choose Class --</option>
                 {classes.map(c => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Select Subject</label>
-              <select className="h-10 px-3 rounded-lg border w-full border-slate-300 focus:ring-brand-500" value={selectedSubjectId} onChange={e => setSelectedSubjectId(e.target.value)}>
+              <label className="block text-sm font-semibold text-[var(--text-secondary)] mb-1">Select Subject</label>
+              <select className="h-10 px-3 rounded-lg border w-full border-slate-300 dark:border-slate-700 focus:ring-brand-500 bg-[var(--bg-color)] text-[var(--text-primary)]" value={selectedSubjectId} onChange={e => setSelectedSubjectId(e.target.value)}>
                 <option value="">-- Choose Subject --</option>
                 {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Select Term</label>
-              <select className="h-10 px-3 rounded-lg border w-full border-slate-300 focus:ring-brand-500" value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>
+              <label className="block text-sm font-semibold text-[var(--text-secondary)] mb-1">Select Term</label>
+              <select className="h-10 px-3 rounded-lg border w-full border-slate-300 dark:border-slate-700 focus:ring-brand-500 bg-[var(--bg-color)] text-[var(--text-primary)]" value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>
                 <option value="Midterm">Mid-Term</option>
                 <option value="Finalterm">Final-Term</option>
               </select>
@@ -104,27 +105,27 @@ const AcademicReports = () => {
       </Card>
 
       {reportData && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="border-t-4 border-t-emerald-500">
-            <CardHeader className="bg-emerald-50 border-b border-emerald-100">
-              <CardTitle className="text-emerald-800 flex items-center gap-2">
-                <Trophy size={20} className="text-emerald-600" /> Top Scorers
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:grid-cols-2 print:gap-4 print:mt-4 print:block">
+          <Card className="border-t-4 border-t-emerald-500 dark:bg-slate-900 print:shadow-none print:border print:break-inside-avoid print:mb-4">
+            <CardHeader className="bg-emerald-50 dark:bg-emerald-950/30 border-b border-emerald-100 dark:border-emerald-900 print:bg-emerald-50">
+              <CardTitle className="text-emerald-800 dark:text-emerald-400 print:text-emerald-800 flex items-center gap-2">
+                <Trophy size={20} className="text-emerald-600 dark:text-emerald-400 print:text-emerald-600" /> Top Scorers
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {reportData.topScorers.length === 0 ? (
-                <div className="p-6 text-center text-slate-500">No marks entered yet.</div>
+                <div className="p-6 text-center text-slate-500 dark:text-slate-400 print:text-slate-500">No marks entered yet.</div>
               ) : (
-                <ul className="divide-y divide-slate-100">
+                <ul className="divide-y divide-slate-100 dark:divide-slate-800 print:divide-slate-100">
                   {reportData.topScorers.map((scoreObj) => (
-                    <li key={scoreObj.student.id} className="flex justify-between items-center p-4 hover:bg-slate-50">
+                    <li key={scoreObj.student.id} className="flex justify-between items-center p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 print:hover:bg-transparent">
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white shadow-sm ${scoreObj.rank === 1 ? 'bg-yellow-400' : scoreObj.rank === 2 ? 'bg-slate-300' : 'bg-amber-600'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white shadow-sm ${scoreObj.rank === 1 ? 'bg-yellow-500' : scoreObj.rank === 2 ? 'bg-slate-400' : 'bg-amber-600'} print:shadow-none print:border print:border-slate-300 print:text-slate-800 print:bg-white`}>
                           {scoreObj.rank}
                         </div>
-                        <span className="font-semibold text-slate-800">{scoreObj.student.name}</span>
+                        <span className="font-semibold text-[var(--text-primary)] print:text-black">{scoreObj.student.name}</span>
                       </div>
-                      <div className="font-black text-emerald-600 text-lg">{scoreObj.total}</div>
+                      <div className="font-black text-emerald-600 dark:text-emerald-400 print:text-emerald-700 text-lg">{scoreObj.total}</div>
                     </li>
                   ))}
                 </ul>
@@ -132,26 +133,26 @@ const AcademicReports = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-t-4 border-t-red-500">
-            <CardHeader className="bg-red-50 border-b border-red-100">
-              <CardTitle className="text-red-800 flex items-center gap-2">
-                <AlertCircle size={20} className="text-red-600" /> Requires Attention (Below 10)
+          <Card className="border-t-4 border-t-red-500 dark:bg-slate-900 print:shadow-none print:border print:break-inside-avoid print:mb-4">
+            <CardHeader className="bg-red-50 dark:bg-red-950/30 border-b border-red-100 dark:border-red-900 print:bg-red-50">
+              <CardTitle className="text-red-800 dark:text-red-400 print:text-red-800 flex items-center gap-2">
+                <AlertCircle size={20} className="text-red-600 dark:text-red-400 print:text-red-600" /> Requires Attention (Below 10)
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {reportData.failures.length === 0 ? (
-                <div className="p-6 text-center font-semibold text-emerald-600 bg-emerald-50 rounded-b-xl border border-emerald-100 m-4 flex items-center justify-center gap-2">
+                <div className="p-6 text-center font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 rounded-b-xl border border-emerald-100 dark:border-emerald-900 m-4 flex items-center justify-center gap-2 print:text-emerald-700 print:bg-emerald-50">
                    No Failure
                 </div>
               ) : (
-                <ul className="divide-y divide-slate-100 max-h-[300px] overflow-auto custom-scrollbar">
+                <ul className="divide-y divide-slate-100 dark:divide-slate-800 print:divide-slate-100 max-h-[300px] print:max-h-none overflow-auto custom-scrollbar">
                   {reportData.failures.map((scoreObj) => (
-                    <li key={scoreObj.student.id} className="flex justify-between items-center p-4 hover:bg-slate-50">
+                    <li key={scoreObj.student.id} className="flex justify-between items-center p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 print:hover:bg-transparent">
                       <div className="flex items-center gap-3">
-                        <Frown className="text-slate-400" size={20} />
-                        <span className="font-semibold text-slate-800">{scoreObj.student.name}</span>
+                        <Frown className="text-slate-400 dark:text-slate-500 print:text-slate-400" size={20} />
+                        <span className="font-semibold text-[var(--text-primary)] print:text-black">{scoreObj.student.name}</span>
                       </div>
-                      <div className="font-bold text-red-600 bg-red-100 px-3 py-1 rounded-full">{scoreObj.total}</div>
+                      <div className="font-bold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-950/50 px-3 py-1 rounded-full print:bg-red-100 print:text-red-700">{scoreObj.total}</div>
                     </li>
                   ))}
                 </ul>

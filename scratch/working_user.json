@@ -1,0 +1,62 @@
+{
+  "user": {
+    "instance_id": "00000000-0000-0000-0000-000000000000",
+    "id": "15c8de98-9531-4fff-ac9b-1fac51a1d27a",
+    "aud": "authenticated",
+    "role": "authenticated",
+    "email": "test_admin_create_5@gyanodayniketan.cloud",
+    "encrypted_password": "$2a$10$cFg.68J/R5sGyjXZfnrAnuzX8QTa1FukUMoAvo1udVuf9OFmv0QP2",
+    "email_confirmed_at": "2026-08-03T18:42:15.268924+00:00",
+    "invited_at": null,
+    "confirmation_token": "",
+    "confirmation_sent_at": null,
+    "recovery_token": "",
+    "recovery_sent_at": null,
+    "email_change_token_new": "",
+    "email_change": "",
+    "email_change_sent_at": null,
+    "last_sign_in_at": "2026-08-03T18:43:29.118077+00:00",
+    "raw_app_meta_data": {
+      "provider": "email",
+      "providers": [
+        "email"
+      ]
+    },
+    "raw_user_meta_data": {
+      "email_verified": true
+    },
+    "is_super_admin": null,
+    "created_at": "2026-08-03T18:42:15.26537+00:00",
+    "updated_at": "2026-08-03T18:43:29.120264+00:00",
+    "phone": null,
+    "phone_confirmed_at": null,
+    "phone_change": "",
+    "phone_change_token": "",
+    "phone_change_sent_at": null,
+    "confirmed_at": "2026-08-03T18:42:15.268924+00:00",
+    "email_change_token_current": "",
+    "email_change_confirm_status": 0,
+    "banned_until": null,
+    "reauthentication_token": "",
+    "reauthentication_sent_at": null,
+    "is_sso_user": false,
+    "deleted_at": null,
+    "is_anonymous": false
+  },
+  "identity": {
+    "provider_id": "15c8de98-9531-4fff-ac9b-1fac51a1d27a",
+    "user_id": "15c8de98-9531-4fff-ac9b-1fac51a1d27a",
+    "identity_data": {
+      "sub": "15c8de98-9531-4fff-ac9b-1fac51a1d27a",
+      "email": "test_admin_create_5@gyanodayniketan.cloud",
+      "email_verified": false,
+      "phone_verified": false
+    },
+    "provider": "email",
+    "last_sign_in_at": "2026-08-03T18:42:15.267219+00:00",
+    "created_at": "2026-08-03T18:42:15.26728+00:00",
+    "updated_at": "2026-08-03T18:42:15.26728+00:00",
+    "email": "test_admin_create_5@gyanodayniketan.cloud",
+    "id": "f3f3c6bc-5637-47be-a4fc-ab4d59f9c366"
+  }
+}
