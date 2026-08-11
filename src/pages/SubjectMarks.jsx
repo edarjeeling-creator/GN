@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
-import { ArrowLeft, Save, AlertCircle, CheckCircle2, Upload, Search, ChevronDown, ChevronUp, User } from 'lucide-react';
+import { ArrowLeft, Save, AlertCircle, CheckCircle2, Upload, Search, ChevronDown, ChevronUp, User, Printer } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
@@ -280,6 +280,9 @@ const SubjectMarks = () => {
           </AnimatePresence>
           
           <input type="file" accept=".xlsx, .xls, .csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" disabled={isLocked} />
+          <Button variant="outline" onClick={() => navigate(`/classes/${classId}/subjects/${subjectId}/report?term=${selectedTerm}`)} className="shrink-0 bg-white shadow-sm text-brand-600 hover:bg-brand-50 hover:text-brand-700">
+            <Printer size={18} className="mr-2" /> Print Report
+          </Button>
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="shrink-0 bg-white shadow-sm" disabled={isLocked}>
             <Upload size={18} className="mr-2" /> Import Excel
           </Button>

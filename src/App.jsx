@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Classes from './pages/Classes';
 import SubjectMarks from './pages/SubjectMarks';
+import SubjectAcademicReport from './pages/SubjectAcademicReport';
 import Flowsheet from './pages/Flowsheet';
 import ReportCards from './pages/ReportCards';
 import ResultPortal from './pages/ResultPortal';
@@ -75,6 +76,7 @@ function App() {
             <Route path="/classes" element={<TeacherRoute><Classes /></TeacherRoute>} />
             <Route path="/python-teacher" element={<FeatureRoute featureName="python_portal" userType="teacher"><PythonTeacher /></FeatureRoute>} />
             <Route path="/classes/:classId/subjects/:subjectId" element={<TeacherRoute><SubjectMarks /></TeacherRoute>} />
+            <Route path="/classes/:classId/subjects/:subjectId/report" element={<TeacherRoute><SubjectAcademicReport /></TeacherRoute>} />
             <Route path="/classes/:classId/flowsheet" element={<TeacherRoute><Flowsheet /></TeacherRoute>} />
             <Route path="/classes/:classId/reports" element={<TeacherRoute><ReportCards /></TeacherRoute>} />
             <Route path="/attendance" element={<TeacherRoute><Attendance /></TeacherRoute>} />

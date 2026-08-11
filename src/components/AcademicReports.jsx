@@ -5,11 +5,18 @@ import { Trophy, AlertCircle, Medal, Frown, Printer } from 'lucide-react';
 import { getConversionConstants } from '../pages/SubjectMarks';
 import { getStudentHouse } from '../utils/houseData';
 
-const AcademicReports = () => {
+const AcademicReports = ({ preselectedClassId, preselectedSubjectId, preselectedTerm, hideControls }) => {
   const { classes, subjects, students, marks, academicYear } = useData();
-  const [selectedClassId, setSelectedClassId] = useState('');
-  const [selectedSubjectId, setSelectedSubjectId] = useState('');
-  const [selectedTerm, setSelectedTerm] = useState('Midterm');
+  const [selectedClassId, setSelectedClassId] = useState(preselectedClassId || '');
+  const [selectedSubjectId, setSelectedSubjectId] = useState(preselectedSubjectId || '');
+  const [selectedTerm, setSelectedTerm] = useState(preselectedTerm || 'Midterm');
+
+  // Sync state if props change (useful when used in a page that dynamically updates)
+  React.useEffect(() => {
+    if (preselectedClassId) setSelectedClassId(preselectedClassId);
+    if (preselectedSubjectId) setSelectedSubjectId(preselectedSubjectId);
+    if (preselectedTerm) setSelectedTerm(preselectedTerm);
+  }, [preselectedClassId, preselectedSubjectId, preselectedTerm]);
 
   const selectedClass = classes.find(c => c.id === selectedClassId);
   const classStudents = students.filter(s => s.class_id === selectedClassId || s.classId === selectedClassId);
@@ -73,37 +80,49 @@ const AcademicReports = () => {
 
   return (
     <div className="space-y-6 print:space-y-4">
-      <Card className="no-print">
-        <CardHeader className="flex flex-row justify-between items-center pb-2">
-          <CardTitle>Academic Performance Report</CardTitle>
-          <button onClick={() => window.print()} className="btn btn-primary"><Printer size={16} className="mr-2" /> Print Report</button>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-[var(--text-secondary)] mb-1">Select Class</label>
-              <select className="h-10 px-3 rounded-lg border w-full border-slate-300 dark:border-slate-700 focus:ring-brand-500 bg-[var(--bg-color)] text-[var(--text-primary)]" value={selectedClassId} onChange={e => setSelectedClassId(e.target.value)}>
-                <option value="">-- Choose Class --</option>
-                {classes.map(c => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
-              </select>
+      {!hideControls && (
+        <Card className="no-print">
+          <CardHeader className="flex flex-row justify-between items-center pb-2">
+            <CardTitle>Academic Performance Report</CardTitle>
+            <button onClick={() => window.print()} className="btn btn-primary"><Printer size={16} className="mr-2" /> Print Report</button>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-[var(--text-secondary)] mb-1">Select Class</label>
+                <select className="h-10 px-3 rounded-lg border w-full border-slate-300 dark:border-slate-700 focus:ring-brand-500 bg-[var(--bg-color)] text-[var(--text-primary)]" value={selectedClassId} onChange={e => setSelectedClassId(e.target.value)}>
+                  <option value="">-- Choose Class --</option>
+                  {classes.map(c => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-[var(--text-secondary)] mb-1">Select Subject</label>
+                <select className="h-10 px-3 rounded-lg border w-full border-slate-300 dark:border-slate-700 focus:ring-brand-500 bg-[var(--bg-color)] text-[var(--text-primary)]" value={selectedSubjectId} onChange={e => setSelectedSubjectId(e.target.value)}>
+                  <option value="">-- Choose Subject --</option>
+                  {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-[var(--text-secondary)] mb-1">Select Term</label>
+                <select className="h-10 px-3 rounded-lg border w-full border-slate-300 dark:border-slate-700 focus:ring-brand-500 bg-[var(--bg-color)] text-[var(--text-primary)]" value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>
+                  <option value="Midterm">Mid-Term</option>
+                  <option value="Finalterm">Final-Term</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-[var(--text-secondary)] mb-1">Select Subject</label>
-              <select className="h-10 px-3 rounded-lg border w-full border-slate-300 dark:border-slate-700 focus:ring-brand-500 bg-[var(--bg-color)] text-[var(--text-primary)]" value={selectedSubjectId} onChange={e => setSelectedSubjectId(e.target.value)}>
-                <option value="">-- Choose Subject --</option>
-                {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-[var(--text-secondary)] mb-1">Select Term</label>
-              <select className="h-10 px-3 rounded-lg border w-full border-slate-300 dark:border-slate-700 focus:ring-brand-500 bg-[var(--bg-color)] text-[var(--text-primary)]" value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>
-                <option value="Midterm">Mid-Term</option>
-                <option value="Finalterm">Final-Term</option>
-              </select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
+
+      {hideControls && (
+        <div className="no-print flex justify-between items-center bg-white p-4 rounded-lg shadow-sm mb-4 border border-slate-200">
+           <div>
+              <h2 className="text-xl font-bold text-slate-800">Academic Report</h2>
+              <p className="text-sm text-slate-500">Print the report for {selectedClass?.name} {selectedClass?.section}</p>
+           </div>
+           <button onClick={() => window.print()} className="btn btn-primary"><Printer size={16} className="mr-2" /> Print Report</button>
+        </div>
+      )}
 
       {reportData && (
         <>
