@@ -31,8 +31,10 @@ import Home from './pages/Home';
 import { About, Academics, Admissions, Faculty, Contact, Gallery } from './pages/PublicPages';
 import MandatoryDisclosures from './pages/MandatoryDisclosures';
 import PublicIDForm from './pages/PublicIDForm';
+import ClassTeacherPortal from './pages/ClassTeacherPortal';
 
 function App() {
+  const { profile } = useAuth();
   return (
     <ThemeProvider>
       <Router>
@@ -74,6 +76,7 @@ function App() {
 
             {/* Teacher & Admin Routes */}
             <Route path="/classes" element={<TeacherRoute><Classes /></TeacherRoute>} />
+            <Route path="/class-teacher-portal/:classId" element={<TeacherRoute><ClassTeacherPortal /></TeacherRoute>} />
             <Route path="/python-teacher" element={<FeatureRoute featureName="python_portal" userType="teacher"><PythonTeacher /></FeatureRoute>} />
             <Route path="/classes/:classId/subjects/:subjectId" element={<TeacherRoute><SubjectMarks /></TeacherRoute>} />
             <Route path="/classes/:classId/subjects/:subjectId/report" element={<TeacherRoute><SubjectAcademicReport /></TeacherRoute>} />

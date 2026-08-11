@@ -4,7 +4,7 @@ import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { ArrowLeft, Printer, User } from 'lucide-react';
 import { getConversionConstants } from './SubjectMarks';
-import { getGroupsForClass, getDynamicSubjectName, calculateAttendancePercentage } from '../utils/reportUtils';
+import { getGroupsForClass, getDynamicSubjectName, calculateAttendancePercentage, getGrade, getGradeColor } from '../utils/reportUtils';
 
 const ReportCards = () => {
   const { classId } = useParams();
@@ -64,23 +64,7 @@ const ReportCards = () => {
   // Group definitions
   const groupsToUse = getGroupsForClass(cls?.name);
 
-  const getGrade = (percentage) => {
-    if (percentage >= 90) return 'A+';
-    if (percentage >= 80) return 'A';
-    if (percentage >= 70) return 'B+';
-    if (percentage >= 60) return 'B';
-    if (percentage >= 50) return 'C';
-    if (percentage >= 40) return 'D';
-    return 'F';
-  };
 
-  const getGradeColor = (grade) => {
-    if (grade === 'A+' || grade === 'A') return '#16a34a';
-    if (grade === 'B+' || grade === 'B') return '#2563eb';
-    if (grade === 'C') return '#ca8a04';
-    if (grade === 'D') return '#ea580c';
-    return '#dc2626';
-  };
 
   // 1. Calculate totals for each student
   const rawData = classStudents.map(student => {

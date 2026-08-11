@@ -54,3 +54,21 @@ export const calculateAttendancePercentage = (attendanceData, studentId, academi
   
   return ((effectivePresent / totalWorkingDays) * 100).toFixed(1);
 };
+
+export const getGrade = (percentage) => {
+  if (percentage >= 90) return 'A+';
+  if (percentage >= 80) return 'A';
+  if (percentage >= 70) return 'B+';
+  if (percentage >= 60) return 'B';
+  if (percentage >= 50) return 'C';
+  if (percentage >= 40) return 'D';
+  return 'F';
+};
+
+export const getGradeColor = (grade) => {
+  if (grade === 'A+' || grade === 'A') return '#16a34a';
+  if (grade === 'B+' || grade === 'B') return '#2563eb';
+  if (grade === 'C') return '#ca8a04';
+  if (grade === 'D') return '#ea580c';
+  return '#dc2626';
+};

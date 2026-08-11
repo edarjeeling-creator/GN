@@ -10,7 +10,7 @@ import { supabase } from '../lib/supabase';
 
 const Layout = ({ children }) => {
   const { profile, logout, loading } = useAuth();
-  const { academicYear, setAcademicYear, students, featureAccess } = useData();
+  const { academicYear, setAcademicYear, students, featureAccess, classes } = useData();
   const { siteBranding } = useTheme();
   const { school, isReadOnly, isSuspended, hasWarning } = useSubscription();
   const navigate = useNavigate();
@@ -435,6 +435,11 @@ const Layout = ({ children }) => {
 
                 {isTeacherOrAdminOrTeachingPrincipal && (
                   <>
+                    {classes?.filter(c => c.class_teacher_id === profile?.id).map(c => (
+                      <NavLink key={`ct-${c.id}`} to={`/class-teacher-portal/${c.id}`} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem', background: 'var(--bg-color)', borderLeft: '3px solid var(--primary-color)' }}>
+                        <Users size={18} /> Class Teacher ({c.name} {c.section})
+                      </NavLink>
+                    ))}
                     <NavLink to="/classes" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
                       <Users size={18} /> My Classes
                     </NavLink>
