@@ -127,7 +127,7 @@ const Assignments = () => {
       </div>
 
       {profile?.role === 'student' && (
-        <div className="card p-6 bg-white shadow-sm rounded-lg mb-8">
+        <div className="card p-6 shadow-sm rounded-lg mb-8">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Upload size={20} /> Submit Assignment</h2>
           <form onSubmit={handleStudentUpload} className="grid md:grid-cols-2 gap-4">
             <div>
@@ -156,12 +156,12 @@ const Assignments = () => {
         </div>
       )}
 
-      <div className="card p-6 bg-white shadow-sm rounded-lg">
+      <div className="card p-6 shadow-sm rounded-lg">
         <h2 className="text-xl font-bold mb-4">Assignment History</h2>
         {loading ? <Loader2 className="animate-spin mx-auto text-primary" /> : assignments.length === 0 ? <p className="text-gray-500">No assignments found.</p> : (
           <div className="flex flex-col gap-4">
             {assignments.map(assign => (
-              <div key={assign.id} className="border p-4 rounded-lg bg-gray-50">
+              <div key={assign.id} className="border border-slate-200 dark:border-slate-700 p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50">
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <h3 className="font-bold text-lg text-primary">{assign.title}</h3>
@@ -178,7 +178,7 @@ const Assignments = () => {
                   </div>
                 </div>
                 
-                {assign.message && <p className="text-sm text-gray-600 mb-3 bg-white p-2 border rounded"><strong>Message:</strong> {assign.message}</p>}
+                {assign.message && <p className="text-sm text-slate-600 dark:text-slate-300 mb-3 bg-[var(--surface-color)] p-2 border border-slate-200 dark:border-slate-700 rounded"><strong>Message:</strong> {assign.message}</p>}
                 
                 <a href={assign.file_url} target="_blank" rel="noopener noreferrer" className="text-primary font-bold text-sm flex items-center gap-1 hover:underline mb-4">
                   <LinkIcon size={14} /> View Student Submission
@@ -199,7 +199,7 @@ const Assignments = () => {
                 ) : isTeacher ? (
                   <div className="mt-4 pt-4 border-t">
                     {reviewingId === assign.id ? (
-                      <form onSubmit={(e) => handleTeacherReview(e, assign.id)} className="bg-white p-4 rounded border shadow-sm">
+                      <form onSubmit={(e) => handleTeacherReview(e, assign.id)} className="bg-[var(--surface-color)] p-4 rounded border border-slate-200 dark:border-slate-700 shadow-sm">
                         <h4 className="font-bold mb-3">Submit Review</h4>
                         <div className="grid gap-3 mb-3">
                           <div>
