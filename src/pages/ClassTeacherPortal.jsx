@@ -237,25 +237,6 @@ const ClassTeacherPortal = () => {
         </Card>
       </div>
 
-      {portalData.studentsWithMissingMarks.length > 0 && (
-        <Card className="border-l-4 border-l-amber-500 bg-amber-50/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-amber-800 flex items-center gap-2 text-lg">
-              <AlertCircle size={20} /> Missing Marks Attention
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-amber-700 text-sm mb-3">The following students have missing marks for {selectedTerm} which affects their final calculations:</p>
-            <ul className="list-disc pl-5 text-sm text-amber-800 space-y-1">
-              {portalData.studentsWithMissingMarks.map((sm, i) => (
-                <li key={i}>
-                  <strong>{sm.name}</strong>: {sm.missing.join(', ')}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="flex flex-col sm:flex-row gap-4 items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200">
         <div className="flex items-center gap-2">
@@ -323,9 +304,6 @@ const ClassTeacherPortal = () => {
                   <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-medium">{student.roll_no}</td>
                   <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">
                     {student.name}
-                    {student.missingSubjects.length > 0 && (
-                      <span className="block text-[10px] text-amber-500 font-normal">Incomplete</span>
-                    )}
                   </td>
                   {classSubjects
                     .filter(sub => selectedSubject === 'All' || sub.id === selectedSubject)
