@@ -99,7 +99,7 @@ const StudyMaterials = () => {
       </div>
 
       {isTeacher && (
-        <div className="card p-6 bg-white shadow-sm rounded-lg mb-8">
+        <div className="card p-6 shadow-sm rounded-lg mb-8">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Upload size={20} /> Upload New Material</h2>
           <form onSubmit={handleUpload} className="grid md:grid-cols-2 gap-4">
             <div>
@@ -136,12 +136,12 @@ const StudyMaterials = () => {
         </div>
       )}
 
-      <div className="card p-6 bg-white shadow-sm rounded-lg">
+      <div className="card p-6 shadow-sm rounded-lg">
         <h2 className="text-xl font-bold mb-4">Available Materials</h2>
         {loading ? <Loader2 className="animate-spin mx-auto text-primary" /> : materials.length === 0 ? <p className="text-gray-500">No materials found.</p> : (
           <div className="grid md:grid-cols-2 gap-4">
             {materials.map(mat => (
-              <div key={mat.id} className="border p-4 rounded-lg bg-gray-50 flex flex-col">
+              <div key={mat.id} className="border border-slate-200 dark:border-slate-700 p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 flex flex-col">
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="font-bold text-lg text-primary">{mat.title}</h3>
                   {isTeacher && (
