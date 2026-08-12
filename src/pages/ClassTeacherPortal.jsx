@@ -297,7 +297,7 @@ const ClassTeacherPortal = () => {
             </div>
           ) : (
             <table className="w-full text-sm text-left">
-            <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
+            <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
               <tr>
                 <th className="px-4 py-3 font-semibold w-16">Roll</th>
                 <th className="px-4 py-3 font-semibold min-w-[150px]">Student Name</th>
@@ -310,10 +310,10 @@ const ClassTeacherPortal = () => {
                 ))}
                 {selectedSubject === 'All' && (
                   <>
-                    <th className="px-4 py-3 font-semibold text-center bg-brand-50/50 text-brand-700">Total</th>
-                    <th className="px-4 py-3 font-semibold text-center bg-brand-50/50 text-brand-700">%</th>
-                    <th className="px-4 py-3 font-semibold text-center bg-brand-50/50 text-brand-700">Grade</th>
-                    <th className="px-4 py-3 font-semibold text-center bg-amber-50/50 text-amber-700">Rank</th>
+                    <th className="px-4 py-3 font-semibold text-center bg-brand-50/50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400">Total</th>
+                    <th className="px-4 py-3 font-semibold text-center bg-brand-50/50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400">%</th>
+                    <th className="px-4 py-3 font-semibold text-center bg-brand-50/50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400">Grade</th>
+                    <th className="px-4 py-3 font-semibold text-center bg-amber-50/50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400">Rank</th>
                   </>
                 )}
               </tr>
@@ -321,8 +321,8 @@ const ClassTeacherPortal = () => {
             <tbody className="divide-y divide-slate-100">
               {portalData.studentScores.map((student) => (
                 <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="px-4 py-3 text-slate-500 font-medium">{student.roll_no}</td>
-                  <td className="px-4 py-3 font-semibold text-slate-700">
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-medium">{student.roll_no}</td>
+                  <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">
                     {student.name}
                     {student.missingSubjects.length > 0 && (
                       <span className="block text-[10px] text-amber-500 font-normal">Incomplete</span>
@@ -338,10 +338,10 @@ const ClassTeacherPortal = () => {
                         key={sub.id}
                         className={`px-4 py-3 text-center ${
                           scoreObj?.total === null
-                            ? 'text-slate-300 font-normal'
+                            ? 'text-slate-300 dark:text-slate-600 font-normal'
                             : isFailing
-                            ? 'text-red-500 font-bold bg-red-50/30'
-                            : 'text-slate-700 font-medium'
+                            ? 'text-red-500 font-bold bg-red-50/30 dark:bg-red-900/30'
+                            : 'text-slate-700 dark:text-slate-200 font-medium'
                         }`}
                       >
                         {scoreObj?.total !== null ? scoreObj.total : '-'}
@@ -350,15 +350,15 @@ const ClassTeacherPortal = () => {
                   })}
                   {selectedSubject === 'All' && (
                     <>
-                      <td className="px-4 py-3 text-center font-bold text-brand-700 bg-brand-50/20">{student.grandMtTotal}</td>
-                      <td className="px-4 py-3 text-center font-bold text-brand-700 bg-brand-50/20">{student.percentage}%</td>
+                      <td className="px-4 py-3 text-center font-bold text-brand-700 dark:text-brand-400 bg-brand-50/20">{student.grandMtTotal}</td>
+                      <td className="px-4 py-3 text-center font-bold text-brand-700 dark:text-brand-400 bg-brand-50/20">{student.percentage}%</td>
                       <td
                         className="px-4 py-3 text-center font-bold"
                         style={{ color: getGradeColor(student.grade) }}
                       >
                         {student.grade}
                       </td>
-                      <td className="px-4 py-3 text-center font-bold text-amber-600 bg-amber-50/20">
+                      <td className="px-4 py-3 text-center font-bold text-amber-600 dark:text-amber-400 bg-amber-50/20">
                         {student.rank}
                         {student.rank === 1 ? 'st' : student.rank === 2 ? 'nd' : student.rank === 3 ? 'rd' : 'th'}
                       </td>
