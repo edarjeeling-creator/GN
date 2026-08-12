@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,9 @@ const ClassTeacherPortal = () => {
   const { classId } = useParams();
   const { profile } = useAuth();
   const { classes, subjects, students, marks, academicYear } = useData();
+
+  const [selectedTerm, setSelectedTerm] = useState('Midterm');
+  const [selectedSubject, setSelectedSubject] = useState('All');
 
   const cls = classes.find((c) => c.id === classId);
   const classStudents = students.filter((s) => s.class_id === classId);
@@ -44,6 +47,7 @@ const ClassTeacherPortal = () => {
     let highestPercentage = 0;
     let lowestPercentage = 100;
     let studentsWithMissingMarks = [];
+    let classHasAnyMarksForTerm = false;
 
     // Identify all optional subjects dynamically based on what students in this class have selected
     const optionalSubjectsInClass = new Set();
@@ -96,22 +100,25 @@ const ClassTeacherPortal = () => {
           return val !== undefined && val !== '' ? Number(val) : null;
         };
 
-        // We assume Midterm for the consolidated view, or we could add a term selector.
-        // For simplicity, let's stick to Midterm as it's the default in ReportCards.
-        const mtExam = getVal('Midterm_Exam');
-        const mtTest = getVal('Midterm_Test');
+        // Use dynamic term based on selectedTerm
+        const termExam = getVal(`${selectedTerm}_Exam`);
+        const termTest = getVal(`${selectedTerm}_Test`);
 
         const isEnrolled = isStudentEnrolledIn(student, sub.name);
 
-        if (mtExam === null && mtTest === null) {
+        if (termExam !== null || termTest !== null) {
+          classHasAnyMarksForTerm = true;
+        }
+
+        if (termExam === null && termTest === null) {
           if (isEnrolled) {
             missingSubjects.push(sub.name);
           }
           return { subjectId: sub.id, total: null };
         }
 
-        const mtConv = (mtExam || 0) * (examConv / 100);
-        const mtTotal = Math.round(mtConv + (mtTest || 0));
+        const mtConv = (termExam || 0) * (examConv / 100);
+        const mtTotal = Math.round(mtConv + (termTest || 0));
 
         grandMtTotal += mtTotal;
         maxPossibleTotal += 100;
@@ -146,6 +153,10 @@ const ClassTeacherPortal = () => {
       };
     });
 
+    if (!classHasAnyMarksForTerm) {
+      studentsWithMissingMarks = [];
+    }
+
     // Rank Calculation
     studentScores.sort((a, b) => b.grandMtTotal - a.grandMtTotal);
 
@@ -173,8 +184,9 @@ const ClassTeacherPortal = () => {
       lowestPercentage: lowestPercentage === 100 ? 0 : lowestPercentage.toFixed(1),
       studentsWithMissingMarks,
       topScorers,
+      hasMarks: classHasAnyMarksForTerm,
     };
-  }, [classStudents, classSubjects, marks, academicYear, examConv]);
+  }, [classStudents, classSubjects, marks, academicYear, examConv, selectedTerm]);
 
   if (!portalData) {
     return <div className="p-8 text-center text-slate-500">No data available for this class.</div>;
@@ -233,7 +245,7 @@ const ClassTeacherPortal = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-amber-700 text-sm mb-3">The following students have missing marks which affects their final calculations:</p>
+            <p className="text-amber-700 text-sm mb-3">The following students have missing marks for {selectedTerm} which affects their final calculations:</p>
             <ul className="list-disc pl-5 text-sm text-amber-800 space-y-1">
               {portalData.studentsWithMissingMarks.map((sm, i) => (
                 <li key={i}>
@@ -245,25 +257,65 @@ const ClassTeacherPortal = () => {
         </Card>
       )}
 
+      <div className="flex flex-col sm:flex-row gap-4 items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-semibold text-slate-700 whitespace-nowrap">Term:</label>
+          <select 
+            value={selectedTerm} 
+            onChange={(e) => setSelectedTerm(e.target.value)}
+            className="input-field py-1.5 px-3 rounded-lg text-sm bg-slate-50 border-slate-200"
+          >
+            <option value="Midterm">Midterm</option>
+            <option value="Finalterm">Finalterm</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-semibold text-slate-700 whitespace-nowrap">Subject:</label>
+          <select 
+            value={selectedSubject} 
+            onChange={(e) => setSelectedSubject(e.target.value)}
+            className="input-field py-1.5 px-3 rounded-lg text-sm bg-slate-50 border-slate-200"
+          >
+            <option value="All">All Subjects (Consolidated)</option>
+            {classSubjects.map(sub => (
+              <option key={sub.id} value={sub.id}>{sub.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Consolidated Marksheet (Mid-Term)</CardTitle>
+          <CardTitle>
+            {selectedSubject === 'All' ? `Consolidated Marksheet (${selectedTerm})` : `${classSubjects.find(s => s.id === selectedSubject)?.name} Marksheet (${selectedTerm})`}
+          </CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto p-0">
-          <table className="w-full text-sm text-left">
+          {!portalData.hasMarks ? (
+            <div className="p-8 text-center text-slate-500 font-medium">
+              No marks have been entered for {selectedTerm} yet.
+            </div>
+          ) : (
+            <table className="w-full text-sm text-left">
             <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="px-4 py-3 font-semibold w-16">Roll</th>
                 <th className="px-4 py-3 font-semibold min-w-[150px]">Student Name</th>
-                {classSubjects.map((sub) => (
+                {classSubjects
+                  .filter(sub => selectedSubject === 'All' || sub.id === selectedSubject)
+                  .map((sub) => (
                   <th key={sub.id} className="px-4 py-3 font-semibold text-center whitespace-nowrap">
                     {sub.name}
                   </th>
                 ))}
-                <th className="px-4 py-3 font-semibold text-center bg-brand-50/50 text-brand-700">Total</th>
-                <th className="px-4 py-3 font-semibold text-center bg-brand-50/50 text-brand-700">%</th>
-                <th className="px-4 py-3 font-semibold text-center bg-brand-50/50 text-brand-700">Grade</th>
-                <th className="px-4 py-3 font-semibold text-center bg-amber-50/50 text-amber-700">Rank</th>
+                {selectedSubject === 'All' && (
+                  <>
+                    <th className="px-4 py-3 font-semibold text-center bg-brand-50/50 text-brand-700">Total</th>
+                    <th className="px-4 py-3 font-semibold text-center bg-brand-50/50 text-brand-700">%</th>
+                    <th className="px-4 py-3 font-semibold text-center bg-brand-50/50 text-brand-700">Grade</th>
+                    <th className="px-4 py-3 font-semibold text-center bg-amber-50/50 text-amber-700">Rank</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -276,7 +328,9 @@ const ClassTeacherPortal = () => {
                       <span className="block text-[10px] text-amber-500 font-normal">Incomplete</span>
                     )}
                   </td>
-                  {classSubjects.map((sub) => {
+                  {classSubjects
+                    .filter(sub => selectedSubject === 'All' || sub.id === selectedSubject)
+                    .map((sub) => {
                     const scoreObj = student.subjectScores.find((s) => s.subjectId === sub.id);
                     const isFailing = scoreObj && scoreObj.total !== null && scoreObj.total < 40; // Assuming 40 is pass mark
                     return (
@@ -294,22 +348,27 @@ const ClassTeacherPortal = () => {
                       </td>
                     );
                   })}
-                  <td className="px-4 py-3 text-center font-bold text-brand-700 bg-brand-50/20">{student.grandMtTotal}</td>
-                  <td className="px-4 py-3 text-center font-bold text-brand-700 bg-brand-50/20">{student.percentage}%</td>
-                  <td
-                    className="px-4 py-3 text-center font-bold"
-                    style={{ color: getGradeColor(student.grade) }}
-                  >
-                    {student.grade}
-                  </td>
-                  <td className="px-4 py-3 text-center font-bold text-amber-600 bg-amber-50/20">
-                    {student.rank}
-                    {student.rank === 1 ? 'st' : student.rank === 2 ? 'nd' : student.rank === 3 ? 'rd' : 'th'}
-                  </td>
+                  {selectedSubject === 'All' && (
+                    <>
+                      <td className="px-4 py-3 text-center font-bold text-brand-700 bg-brand-50/20">{student.grandMtTotal}</td>
+                      <td className="px-4 py-3 text-center font-bold text-brand-700 bg-brand-50/20">{student.percentage}%</td>
+                      <td
+                        className="px-4 py-3 text-center font-bold"
+                        style={{ color: getGradeColor(student.grade) }}
+                      >
+                        {student.grade}
+                      </td>
+                      <td className="px-4 py-3 text-center font-bold text-amber-600 bg-amber-50/20">
+                        {student.rank}
+                        {student.rank === 1 ? 'st' : student.rank === 2 ? 'nd' : student.rank === 3 ? 'rd' : 'th'}
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          )}
         </CardContent>
       </Card>
     </div>
