@@ -45,6 +45,44 @@ const ClassTeacherPortal = () => {
     let lowestPercentage = 100;
     let studentsWithMissingMarks = [];
 
+    // Identify all optional subjects dynamically based on what students in this class have selected
+    const optionalSubjectsInClass = new Set();
+    classStudents.forEach(s => {
+      if (s.second_language) optionalSubjectsInClass.add(s.second_language.toLowerCase().trim());
+      if (s.third_language) optionalSubjectsInClass.add(s.third_language.toLowerCase().trim());
+      if (s.elective_subject) optionalSubjectsInClass.add(s.elective_subject.toLowerCase().trim());
+      if (s.sixth_subject) optionalSubjectsInClass.add(s.sixth_subject.toLowerCase().trim());
+    });
+
+    const isStudentEnrolledIn = (student, subjectName) => {
+      const subNameLower = subjectName.toLowerCase().trim();
+      
+      // If the subject matches a specific optional subject chosen by ANY student in the class
+      if (optionalSubjectsInClass.has(subNameLower)) {
+        // The student MUST explicitly have it selected
+        const matches = 
+          (student.second_language?.toLowerCase().trim() === subNameLower) ||
+          (student.third_language?.toLowerCase().trim() === subNameLower) ||
+          (student.elective_subject?.toLowerCase().trim() === subNameLower) ||
+          (student.sixth_subject?.toLowerCase().trim() === subNameLower);
+          
+        if (!matches) return false;
+      }
+      
+      // Check legacy generic names like "2nd Language", "Elective", etc.
+      const isSec = subNameLower.includes('2nd') || subNameLower.includes('second');
+      const isThird = subNameLower.includes('3rd') || subNameLower.includes('third');
+      const isElective = subNameLower.includes('elective') || subNameLower.includes('evs/math') || subNameLower.includes('maths/evs') || subNameLower.includes('math/evs');
+      const isSixth = subNameLower.includes('6th') || subNameLower.includes('sixth');
+      
+      if (isSec) return student.second_language ? subNameLower.includes(student.second_language.toLowerCase().trim()) : true;
+      if (isThird) return student.third_language ? subNameLower.includes(student.third_language.toLowerCase().trim()) : true;
+      if (isElective) return student.elective_subject ? subNameLower.includes(student.elective_subject.toLowerCase().trim()) : true;
+      if (isSixth) return student.sixth_subject ? subNameLower.includes(student.sixth_subject.toLowerCase().trim()) : true;
+      
+      return true; // Assume enrolled for core subjects
+    };
+
     const studentScores = classStudents.map((student) => {
       let grandMtTotal = 0;
       let maxPossibleTotal = 0;
@@ -63,8 +101,12 @@ const ClassTeacherPortal = () => {
         const mtExam = getVal('Midterm_Exam');
         const mtTest = getVal('Midterm_Test');
 
+        const isEnrolled = isStudentEnrolledIn(student, sub.name);
+
         if (mtExam === null && mtTest === null) {
-          missingSubjects.push(sub.name);
+          if (isEnrolled) {
+            missingSubjects.push(sub.name);
+          }
           return { subjectId: sub.id, total: null };
         }
 
