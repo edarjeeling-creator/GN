@@ -252,13 +252,13 @@ const Home = () => {
           </p>
 
           <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-8 leading-tight px-2">
-            {heroStyle.title.includes('Future-Readiness') ? heroStyle.title.split('Future-Readiness').map((part, i, arr) => 
+            {(heroStyle?.title || '').includes('Future-Readiness') ? (heroStyle?.title || '').split('Future-Readiness').map((part, i, arr) => 
               <React.Fragment key={i}>
                 <span style={{ color: heroStyle.titleColor }}>{part}</span>
                 {i < arr.length - 1 && <span className="text-amber-400">Future-Readiness</span>}
               </React.Fragment>
             ) : (
-              <span style={{ color: heroStyle.titleColor }}>{heroStyle.title}</span>
+              <span style={{ color: heroStyle.titleColor }}>{heroStyle?.title}</span>
             )}
           </h1>
 

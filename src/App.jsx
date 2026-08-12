@@ -34,7 +34,6 @@ import PublicIDForm from './pages/PublicIDForm';
 import ClassTeacherPortal from './pages/ClassTeacherPortal';
 
 function App() {
-  const { profile } = useAuth();
   return (
     <ThemeProvider>
       <Router>
