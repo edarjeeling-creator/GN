@@ -263,7 +263,7 @@ const ClassTeacherPortal = () => {
           <select 
             value={selectedTerm} 
             onChange={(e) => setSelectedTerm(e.target.value)}
-            className="input-field py-1.5 px-3 rounded-lg text-sm bg-slate-50 border-slate-200"
+            className="input-field py-1.5 px-3 rounded-lg text-sm bg-slate-50 border-slate-200 text-slate-900"
           >
             <option value="Midterm">Midterm</option>
             <option value="Finalterm">Finalterm</option>
@@ -274,7 +274,7 @@ const ClassTeacherPortal = () => {
           <select 
             value={selectedSubject} 
             onChange={(e) => setSelectedSubject(e.target.value)}
-            className="input-field py-1.5 px-3 rounded-lg text-sm bg-slate-50 border-slate-200"
+            className="input-field py-1.5 px-3 rounded-lg text-sm bg-slate-50 border-slate-200 text-slate-900"
           >
             <option value="All">All Subjects (Consolidated)</option>
             {classSubjects.map(sub => (
