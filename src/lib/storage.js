@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 
-const BUCKET_NAME = 'portal-files';
+const BUCKET_NAME = 'student-profiles';
 
 export const uploadFile = async (file, path) => {
   try {

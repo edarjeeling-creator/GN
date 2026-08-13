@@ -83,7 +83,7 @@ const StudyMaterials = () => {
     if (!confirm('Are you sure you want to delete this material?')) return;
     
     // Attempt to delete file from storage
-    const filePath = fileUrl.split('portal-files/')[1];
+    const filePath = fileUrl.split('student-profiles/')[1];
     if (filePath) await deleteFile(filePath);
 
     // Delete from DB
