@@ -112,12 +112,36 @@ export const ChatProvider = ({ children }) => {
   // 3. Actions
   const createConversation = async (otherUserId, title = null) => {
     try {
+      // First check if a direct conversation already exists in our loaded state
+      // (This is a simplified check. A robust check would query the DB, 
+      // but this prevents the most common duplicates)
+      const { data: existingConvs } = await supabase
+        .from('conversation_members')
+        .select('conversation_id')
+        .eq('profile_id', user.id);
+        
+      if (existingConvs && existingConvs.length > 0) {
+        const { data: sharedConvs } = await supabase
+          .from('conversation_members')
+          .select('conversation_id, conversations!inner(type)')
+          .eq('profile_id', otherUserId)
+          .in('conversation_id', existingConvs.map(c => c.conversation_id))
+          .eq('conversations.type', 'direct');
+
+        if (sharedConvs && sharedConvs.length > 0) {
+          const existingConvId = sharedConvs[0].conversation_id;
+          const existingConv = conversations.find(c => c.id === existingConvId) || { id: existingConvId, type: 'direct' };
+          setActiveConversation(existingConv);
+          return existingConv;
+        }
+      }
+
       const { data: conv, error: convError } = await supabase
         .from('conversations')
         .insert({
           type: 'direct',
           title: title,
-          school_id: profile?.school_id || 'default',
+          school_id: profile?.school_id || '00000000-0000-0000-0000-000000000000',
           created_by: user.id
         })
         .select()
