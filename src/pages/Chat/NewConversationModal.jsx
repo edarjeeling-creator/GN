@@ -41,7 +41,9 @@ const NewConversationModal = ({ isOpen, onClose }) => {
       await createConversation(otherUser.id, otherUser.name);
       onClose();
     } catch (err) {
-      alert(`Failed to start conversation. Error: ${err?.message || String(err)} | JSON: ${JSON.stringify(err)}`);
+      const props = Object.getOwnPropertyNames(err).map(k => `${k}:${err[k]}`).join(', ');
+      const proto = Object.getPrototypeOf(err)?.constructor?.name;
+      alert(`Failed to start conversation. Type: ${proto}. Props: ${props} | JSON: ${JSON.stringify(err)}`);
     }
   };
 

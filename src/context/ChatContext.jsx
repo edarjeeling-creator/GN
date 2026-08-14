@@ -150,7 +150,7 @@ const generateUUID = () => {
 
       const newConvId = generateUUID();
 
-      const { error: convError } = await supabase
+      const { data: conv, error: convError } = await supabase
         .from('conversations')
         .insert({
           id: newConvId,
@@ -158,9 +158,14 @@ const generateUUID = () => {
           title: title,
           school_id: profile?.school_id || '00000000-0000-0000-0000-000000000000',
           created_by: profile.id
-        });
+        })
+        .select()
+        .single();
 
-      if (convError) throw convError;
+      if (convError) {
+        console.error("Conversation insert error:", convError);
+        throw new Error(convError.message || 'Failed to insert conversation');
+      }
 
       const members = [
         { conversation_id: newConvId, profile_id: profile.id, role: 'admin' },
@@ -171,7 +176,10 @@ const generateUUID = () => {
         .from('conversation_members')
         .insert(members);
 
-      if (membersError) throw membersError;
+      if (membersError) {
+        console.error("Members insert error:", membersError);
+        throw new Error(membersError.message || 'Failed to insert conversation members');
+      }
       
       const newConv = { 
         id: newConvId, 
