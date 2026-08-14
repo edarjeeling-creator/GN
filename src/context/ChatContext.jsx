@@ -136,22 +136,23 @@ export const ChatProvider = ({ children }) => {
         }
       }
 
-      const { data: conv, error: convError } = await supabase
+      const newConvId = crypto.randomUUID();
+
+      const { error: convError } = await supabase
         .from('conversations')
         .insert({
+          id: newConvId,
           type: 'direct',
           title: title,
           school_id: profile?.school_id || '00000000-0000-0000-0000-000000000000',
           created_by: user.id
-        })
-        .select()
-        .single();
+        });
 
       if (convError) throw convError;
 
       const members = [
-        { conversation_id: conv.id, profile_id: user.id, role: 'admin' },
-        { conversation_id: conv.id, profile_id: otherUserId, role: 'member' }
+        { conversation_id: newConvId, profile_id: user.id, role: 'admin' },
+        { conversation_id: newConvId, profile_id: otherUserId, role: 'member' }
       ];
 
       const { error: membersError } = await supabase
@@ -160,7 +161,14 @@ export const ChatProvider = ({ children }) => {
 
       if (membersError) throw membersError;
       
-      const newConv = { ...conv };
+      const newConv = { 
+        id: newConvId, 
+        type: 'direct', 
+        title: title, 
+        created_by: user.id,
+        school_id: profile?.school_id || '00000000-0000-0000-0000-000000000000',
+        created_at: new Date().toISOString()
+      };
       setActiveConversation(newConv);
       
       return newConv;

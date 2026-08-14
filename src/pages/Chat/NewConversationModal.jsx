@@ -41,7 +41,7 @@ const NewConversationModal = ({ isOpen, onClose }) => {
       await createConversation(otherUser.id, otherUser.name);
       onClose();
     } catch (err) {
-      alert('Failed to start conversation. Please try again.');
+      alert(`Failed to start conversation. Error: ${err.message || JSON.stringify(err)}`);
     }
   };
 
