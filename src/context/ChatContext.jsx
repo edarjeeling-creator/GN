@@ -6,7 +6,7 @@ import { deleteChatAttachment } from '../lib/chat_storage';
 const ChatContext = createContext({});
 
 export const ChatProvider = ({ children }) => {
-  const { user, profile } = useAuth();
+  const { profile } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [messages, setMessages] = useState({});
@@ -16,7 +16,7 @@ export const ChatProvider = ({ children }) => {
 
   // 1. Fetch Conversations
   useEffect(() => {
-    if (!user) return;
+    if (!profile) return;
 
     const fetchConversations = async () => {
       const { data, error } = await supabase
@@ -27,7 +27,7 @@ export const ChatProvider = ({ children }) => {
           last_read_message_id,
           conversations (*)
         `)
-        .eq('profile_id', user.id)
+        .eq('profile_id', profile.id)
         .order('conversations(last_message_at)', { ascending: false });
 
       if (!error && data) {
@@ -36,11 +36,11 @@ export const ChatProvider = ({ children }) => {
     };
 
     fetchConversations();
-  }, [user]);
+  }, [profile]);
 
   // 2. Setup Realtime for Messages and Presence
   useEffect(() => {
-    if (!user) return;
+    if (!profile) return;
 
     // Messages Subscription
     const messageSub = supabase
@@ -71,7 +71,7 @@ export const ChatProvider = ({ children }) => {
         });
 
         // Handle Unread Counts
-        if (newMessage.sender_id !== user.id && (!activeConversation || activeConversation.id !== newMessage.conversation_id)) {
+        if (newMessage.sender_id !== profile.id && (!activeConversation || activeConversation.id !== newMessage.conversation_id)) {
           setUnreadCounts(prev => ({
             ...prev,
             [newMessage.conversation_id]: (prev[newMessage.conversation_id] || 0) + 1
@@ -96,7 +96,7 @@ export const ChatProvider = ({ children }) => {
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           await presenceChannel.track({
-            profile_id: user.id,
+            profile_id: profile.id,
             online_at: new Date().toISOString(),
             typingIn: null
           });
@@ -107,7 +107,7 @@ export const ChatProvider = ({ children }) => {
       supabase.removeChannel(messageSub);
       supabase.removeChannel(presenceChannel);
     };
-  }, [user, activeConversation]);
+  }, [profile, activeConversation]);
 
   // 3. Actions
   const createConversation = async (otherUserId, title = null) => {
@@ -118,7 +118,7 @@ export const ChatProvider = ({ children }) => {
       const { data: existingConvs } = await supabase
         .from('conversation_members')
         .select('conversation_id')
-        .eq('profile_id', user.id);
+        .eq('profile_id', profile.id);
         
       if (existingConvs && existingConvs.length > 0) {
         const { data: sharedConvs } = await supabase
@@ -145,13 +145,13 @@ export const ChatProvider = ({ children }) => {
           type: 'direct',
           title: title,
           school_id: profile?.school_id || '00000000-0000-0000-0000-000000000000',
-          created_by: user.id
+          created_by: profile.id
         });
 
       if (convError) throw convError;
 
       const members = [
-        { conversation_id: newConvId, profile_id: user.id, role: 'admin' },
+        { conversation_id: newConvId, profile_id: profile.id, role: 'admin' },
         { conversation_id: newConvId, profile_id: otherUserId, role: 'member' }
       ];
 
@@ -165,7 +165,7 @@ export const ChatProvider = ({ children }) => {
         id: newConvId, 
         type: 'direct', 
         title: title, 
-        created_by: user.id,
+        created_by: profile.id,
         school_id: profile?.school_id || '00000000-0000-0000-0000-000000000000',
         created_at: new Date().toISOString()
       };
@@ -183,7 +183,7 @@ export const ChatProvider = ({ children }) => {
       .from('messages')
       .insert({
         conversation_id: conversationId,
-        sender_id: user.id,
+        sender_id: profile.id,
         content,
         message_type: type,
         metadata
@@ -200,7 +200,7 @@ export const ChatProvider = ({ children }) => {
       .from('conversation_members')
       .update({ last_read_message_id: messageId })
       .eq('conversation_id', conversationId)
-      .eq('profile_id', user.id);
+      .eq('profile_id', profile.id);
       
     setUnreadCounts(prev => ({ ...prev, [conversationId]: 0 }));
   };
@@ -217,7 +217,7 @@ export const ChatProvider = ({ children }) => {
         .from('messages')
         .delete()
         .eq('id', message.id)
-        .eq('sender_id', user.id); // Ensure user is sender
+        .eq('sender_id', profile.id); // Ensure user is sender
 
       if (error) throw error;
       
