@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import { deleteChatAttachment } from '../lib/chat_storage';
 
 const ChatContext = createContext({});
 
@@ -136,6 +137,37 @@ export const ChatProvider = ({ children }) => {
     setUnreadCounts(prev => ({ ...prev, [conversationId]: 0 }));
   };
 
+  const deleteMessage = async (message) => {
+    try {
+      // 1. If it's a file, delete from storage first
+      if (message.message_type === 'file' && message.metadata?.file_path) {
+        await deleteChatAttachment(message.metadata.file_path);
+      }
+
+      // 2. Delete from database
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .eq('id', message.id)
+        .eq('sender_id', user.id); // Ensure user is sender
+
+      if (error) throw error;
+      
+      // Update local state by removing message
+      setMessages(prev => {
+        const convMessages = prev[message.conversation_id] || [];
+        return {
+          ...prev,
+          [message.conversation_id]: convMessages.filter(m => m.id !== message.id)
+        };
+      });
+      
+    } catch (error) {
+      console.error('Failed to delete message:', error);
+      throw error;
+    }
+  };
+
   return (
     <ChatContext.Provider value={{
       conversations,
@@ -146,7 +178,8 @@ export const ChatProvider = ({ children }) => {
       typing,
       unreadCounts,
       sendMessage,
-      markAsRead
+      markAsRead,
+      deleteMessage
     }}>
       {children}
     </ChatContext.Provider>
