@@ -150,7 +150,7 @@ const generateUUID = () => {
 
       const newConvId = generateUUID();
 
-      const { data: conv, error: convError } = await supabase
+      const { error: convError } = await supabase
         .from('conversations')
         .insert({
           id: newConvId,
@@ -158,9 +158,7 @@ const generateUUID = () => {
           title: title,
           school_id: profile?.school_id || '00000000-0000-0000-0000-000000000000',
           created_by: profile.id
-        })
-        .select()
-        .single();
+        });
 
       if (convError) {
         console.error("Conversation insert error:", convError);
@@ -197,6 +195,7 @@ const generateUUID = () => {
         created_at: new Date().toISOString()
       };
       setActiveConversation(newConv);
+      setConversations(prev => [newConv, ...prev]);
       
       return newConv;
     } catch (error) {
