@@ -10,12 +10,9 @@ const supabaseKey = env.VITE_SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function test() {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: 'sagar@gyanodayniketan.cloud',
-    password: 'password123'
-  });
+  const { data, error } = await supabase.from('students').select('*').limit(3);
   console.log("Error:", error);
-  console.log("Data:", !!data.user ? "Success" : "Failed");
+  console.log("Students:", data);
 }
 
 test();

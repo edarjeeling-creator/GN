@@ -10,12 +10,18 @@ const supabaseKey = env.VITE_SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function test() {
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
     email: 'sagar@gyanodayniketan.cloud',
     password: 'password123'
   });
+  if (authErr) throw authErr;
+  
+  const { data, error } = await supabase.rpc('create_direct_conversation', {
+    p_other_user_id: authData.user.id, // using self just for testing
+    p_title: null
+  });
   console.log("Error:", error);
-  console.log("Data:", !!data.user ? "Success" : "Failed");
+  console.log("Data:", data);
 }
 
 test();

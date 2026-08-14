@@ -11,8 +11,8 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function test() {
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: 'sagar@gyanodayniketan.cloud',
-    password: 'password123'
+    email: 'subodh@gyanodayniketan.cloud',
+    password: 'Subodh@123'
   });
   console.log("Error:", error);
   console.log("Data:", !!data.user ? "Success" : "Failed");
