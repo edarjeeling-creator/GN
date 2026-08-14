@@ -164,7 +164,14 @@ const generateUUID = () => {
 
       if (convError) {
         console.error("Conversation insert error:", convError);
-        throw new Error(convError.message || 'Failed to insert conversation');
+        const errDump = { 
+          message: convError.message, 
+          code: convError.code, 
+          details: convError.details, 
+          hint: convError.hint,
+          raw: JSON.stringify(convError)
+        };
+        throw new Error(`Failed to insert conversation: ${JSON.stringify(errDump)}`);
       }
 
       const members = [
@@ -178,7 +185,7 @@ const generateUUID = () => {
 
       if (membersError) {
         console.error("Members insert error:", membersError);
-        throw new Error(membersError.message || 'Failed to insert conversation members');
+        throw new Error(`Failed to insert conversation members: ${JSON.stringify(membersError)}`);
       }
       
       const newConv = { 
