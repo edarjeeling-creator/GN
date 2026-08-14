@@ -6,7 +6,7 @@ import { deleteChatAttachment } from '../lib/chat_storage';
 const ChatContext = createContext({});
 
 export const ChatProvider = ({ children }) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [messages, setMessages] = useState({});
@@ -110,6 +110,42 @@ export const ChatProvider = ({ children }) => {
   }, [user, activeConversation]);
 
   // 3. Actions
+  const createConversation = async (otherUserId, title = null) => {
+    try {
+      const { data: conv, error: convError } = await supabase
+        .from('conversations')
+        .insert({
+          type: 'direct',
+          title: title,
+          school_id: profile?.school_id || 'default',
+          created_by: user.id
+        })
+        .select()
+        .single();
+
+      if (convError) throw convError;
+
+      const members = [
+        { conversation_id: conv.id, profile_id: user.id, role: 'admin' },
+        { conversation_id: conv.id, profile_id: otherUserId, role: 'member' }
+      ];
+
+      const { error: membersError } = await supabase
+        .from('conversation_members')
+        .insert(members);
+
+      if (membersError) throw membersError;
+      
+      const newConv = { ...conv };
+      setActiveConversation(newConv);
+      
+      return newConv;
+    } catch (error) {
+      console.error('Failed to create conversation:', error);
+      throw error;
+    }
+  };
+
   const sendMessage = async (conversationId, content, type = 'text', metadata = {}) => {
     const { data, error } = await supabase
       .from('messages')
@@ -177,6 +213,7 @@ export const ChatProvider = ({ children }) => {
       presence,
       typing,
       unreadCounts,
+      createConversation,
       sendMessage,
       markAsRead,
       deleteMessage

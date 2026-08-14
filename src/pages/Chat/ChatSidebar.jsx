@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ArrowLeft, Search, Users, MessageSquare, Plus } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
+import NewConversationModal from './NewConversationModal';
 
 const ChatSidebar = ({ onBack }) => {
   const { conversations, activeConversation, setActiveConversation, unreadCounts } = useChat();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
     <div className="flex flex-col h-full bg-white border-r border-gray-100">
@@ -14,7 +16,10 @@ const ChatSidebar = ({ onBack }) => {
           </button>
           <h2 className="text-xl font-bold text-gray-800">Messages</h2>
         </div>
-        <button className="text-blue-600 hover:bg-blue-50 p-2 rounded-full transition-colors">
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="text-blue-600 hover:bg-blue-50 p-2 rounded-full transition-colors"
+        >
           <Plus size={20} />
         </button>
       </div>
@@ -69,6 +74,11 @@ const ChatSidebar = ({ onBack }) => {
           </div>
         )}
       </div>
+
+      <NewConversationModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+      />
     </div>
   );
 };
