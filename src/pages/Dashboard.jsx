@@ -193,7 +193,16 @@ const Dashboard = () => {
       {/* Page Header */}
       <div>
         <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
-        <p className="text-slate-500 mt-1">Welcome back, <strong className="text-brand-600">{profile?.name || 'Teacher'}</strong>. Here's your overview for {academicYear}.</p>
+        <div className="text-slate-500 mt-1 flex flex-wrap items-center gap-2">
+          <span>Welcome back, <strong className="text-brand-600">{profile?.name || 'Teacher'}</strong>.</span>
+          {classes.filter(c => c.class_teacher_id === profile?.id).map(c => (
+            <Badge key={c.id} variant="secondary" className="bg-brand-100 text-brand-800 hover:bg-brand-200 border-brand-200 flex items-center gap-1.5">
+              <BookOpen size={12} />
+              Class Teacher ({c.name} {c.section})
+            </Badge>
+          ))}
+          <span className="block w-full sm:w-auto">Here's your overview for {academicYear}.</span>
+        </div>
       </div>
       
       {/* Teacher Attendance Check-In Widget */}
@@ -434,6 +443,20 @@ const Dashboard = () => {
 
             {!isLibrarian && (
               <>
+                {classes.filter(c => c.class_teacher_id === profile?.id).map(c => (
+                  <Card key={`ct-card-${c.id}`} hoverable className="cursor-pointer group border-brand-200 bg-brand-50" onClick={() => window.location.href=`/class-teacher-portal/${c.id}`}>
+                     <CardContent className="p-5 flex items-center gap-4">
+                       <div className="w-14 h-14 rounded-2xl bg-white text-brand-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+                         <BookOpen size={28} />
+                       </div>
+                       <div>
+                         <strong className="block text-lg font-bold text-brand-800 group-hover:text-brand-600 transition-colors">Class Teacher ({c.name} {c.section})</strong>
+                         <span className="text-sm text-brand-600 font-medium">Manage your class</span>
+                       </div>
+                     </CardContent>
+                  </Card>
+                ))}
+
                 <Card hoverable className="cursor-pointer group" onClick={() => window.location.href='/classes'}>
                    <CardContent className="p-5 flex items-center gap-4">
                      <div className="w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center group-hover:scale-110 transition-transform">
