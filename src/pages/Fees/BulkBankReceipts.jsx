@@ -14,7 +14,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 
 const BulkBankReceipts = () => {
-  const { user } = useAuth();
+  const { profile: user } = useAuth();
   
   // -- STATE: Step Management --
   // 1: Batch Metadata, 2: Spreadsheet Grid, 3: Summary & Posting

@@ -36,70 +36,72 @@ import ClassTeacherPortal from './pages/ClassTeacherPortal';
 function App() {
   return (
     <ThemeProvider>
-      <Router>
-        <Routes>
-          {/* Public Routes with PublicLayout */}
-          <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
-          <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
-          <Route path="/academics" element={<PublicLayout><Academics /></PublicLayout>} />
-          <Route path="/admissions" element={<PublicLayout><Admissions /></PublicLayout>} />
-          <Route path="/faculty" element={<PublicLayout><Faculty /></PublicLayout>} />
-          <Route path="/gallery" element={<PublicLayout><Gallery /></PublicLayout>} />
-          <Route path="/contact" element={<PublicLayout><Contact /></PublicLayout>} />
-          <Route path="/mandatory-disclosures" element={<PublicLayout><MandatoryDisclosures /></PublicLayout>} />
-          <Route path="/notices" element={<PublicLayout><MandatoryDisclosures /></PublicLayout>} />
-          
-          {/* Standalone Public Pages */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/pay-fees" element={<ParentPortal />} />
-          <Route path="/result" element={<ResultPortal />} />
-          <Route path="/id-form/:role/:id" element={<PublicIDForm />} />
-          
-          {/* Standalone Protected Kiosk Routes (No Layout) */}
-          <Route path="/kiosk/attendance" element={<TeacherRoute><QRAttendanceScanner /></TeacherRoute>} />
-
-          {/* Protected Dashboard Routes */}
-          <Route element={<ProtectedRoute />}>
-            {/* Common Authenticated Routes */}
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/study-materials" element={<StudyMaterials />} />
-            <Route path="/assignments" element={<Assignments />} />
-            <Route path="/hub" element={<CommunicationHub />} />
+      <>
+        <Router>
+          <Routes>
+            {/* Public Routes with PublicLayout */}
+            <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
+            <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
+            <Route path="/academics" element={<PublicLayout><Academics /></PublicLayout>} />
+            <Route path="/admissions" element={<PublicLayout><Admissions /></PublicLayout>} />
+            <Route path="/faculty" element={<PublicLayout><Faculty /></PublicLayout>} />
+            <Route path="/gallery" element={<PublicLayout><Gallery /></PublicLayout>} />
+            <Route path="/contact" element={<PublicLayout><Contact /></PublicLayout>} />
+            <Route path="/mandatory-disclosures" element={<PublicLayout><MandatoryDisclosures /></PublicLayout>} />
+            <Route path="/notices" element={<PublicLayout><MandatoryDisclosures /></PublicLayout>} />
             
-            {/* Student Only Routes */}
-            <Route path="/student-portal" element={<StudentRoute><StudentPortal /></StudentRoute>} />
-            <Route path="/python-student" element={<FeatureRoute featureName="python_portal" userType="class"><PythonStudent /></FeatureRoute>} />
-
-            {/* Parent Only Routes */}
-            <Route path="/parent-portal" element={<ParentRoute><ParentPortal /></ParentRoute>} />
-
-            {/* Teacher & Admin Routes */}
-            <Route path="/classes" element={<TeacherRoute><Classes /></TeacherRoute>} />
-            <Route path="/class-teacher-portal/:classId" element={<TeacherRoute><ClassTeacherPortal /></TeacherRoute>} />
-            <Route path="/python-teacher" element={<FeatureRoute featureName="python_portal" userType="teacher"><PythonTeacher /></FeatureRoute>} />
-            <Route path="/classes/:classId/subjects/:subjectId" element={<TeacherRoute><SubjectMarks /></TeacherRoute>} />
-            <Route path="/classes/:classId/subjects/:subjectId/report" element={<TeacherRoute><SubjectAcademicReport /></TeacherRoute>} />
-            <Route path="/classes/:classId/flowsheet" element={<TeacherRoute><Flowsheet /></TeacherRoute>} />
-            <Route path="/classes/:classId/reports" element={<TeacherRoute><ReportCards /></TeacherRoute>} />
-            <Route path="/attendance" element={<TeacherRoute><Attendance /></TeacherRoute>} />
-            <Route path="/weekly-tests" element={<TeacherRoute><WeeklyTests /></TeacherRoute>} />
-
-            {/* Principal & Admin Routes */}
-            <Route path="/principal" element={<PrincipalRoute><PrincipalPortal /></PrincipalRoute>} />
-            <Route path="/analytics" element={<PrincipalRoute><AttendanceReports /></PrincipalRoute>} />
-            <Route path="/search" element={<PrincipalRoute><StudentSearch /></PrincipalRoute>} />
+            {/* Standalone Public Pages */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/pay-fees" element={<ParentPortal />} />
+            <Route path="/result" element={<ResultPortal />} />
+            <Route path="/id-form/:role/:id" element={<PublicIDForm />} />
             
-            {/* Admin Only Routes */}
-            <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
-            
-            {/* Accountant & Admin Routes */}
-            <Route path="/fees" element={<AccountantRoute><FeesDashboard /></AccountantRoute>} />
-            
-            {/* Library Routes */}
-            <Route path="/library" element={<LibrarianRoute><LibraryDashboard /></LibrarianRoute>} />
-          </Route>
-        </Routes>
-      </Router>
+            {/* Standalone Protected Kiosk Routes (No Layout) */}
+            <Route path="/kiosk/attendance" element={<TeacherRoute><QRAttendanceScanner /></TeacherRoute>} />
+
+            {/* Protected Dashboard Routes */}
+            <Route element={<ProtectedRoute />}>
+              {/* Common Authenticated Routes */}
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/study-materials" element={<StudyMaterials />} />
+              <Route path="/assignments" element={<Assignments />} />
+              <Route path="/hub" element={<CommunicationHub />} />
+              
+              {/* Student Only Routes */}
+              <Route path="/student-portal" element={<StudentRoute><StudentPortal /></StudentRoute>} />
+              <Route path="/python-student" element={<FeatureRoute featureName="python_portal" userType="class"><PythonStudent /></FeatureRoute>} />
+
+              {/* Parent Only Routes */}
+              <Route path="/parent-portal" element={<ParentRoute><ParentPortal /></ParentRoute>} />
+
+              {/* Teacher & Admin Routes */}
+              <Route path="/classes" element={<TeacherRoute><Classes /></TeacherRoute>} />
+              <Route path="/class-teacher-portal/:classId" element={<TeacherRoute><ClassTeacherPortal /></TeacherRoute>} />
+              <Route path="/python-teacher" element={<FeatureRoute featureName="python_portal" userType="teacher"><PythonTeacher /></FeatureRoute>} />
+              <Route path="/classes/:classId/subjects/:subjectId" element={<TeacherRoute><SubjectMarks /></TeacherRoute>} />
+              <Route path="/classes/:classId/subjects/:subjectId/report" element={<TeacherRoute><SubjectAcademicReport /></TeacherRoute>} />
+              <Route path="/classes/:classId/flowsheet" element={<TeacherRoute><Flowsheet /></TeacherRoute>} />
+              <Route path="/classes/:classId/reports" element={<TeacherRoute><ReportCards /></TeacherRoute>} />
+              <Route path="/attendance" element={<TeacherRoute><Attendance /></TeacherRoute>} />
+              <Route path="/weekly-tests" element={<TeacherRoute><WeeklyTests /></TeacherRoute>} />
+
+              {/* Principal & Admin Routes */}
+              <Route path="/principal" element={<PrincipalRoute><PrincipalPortal /></PrincipalRoute>} />
+              <Route path="/analytics" element={<PrincipalRoute><AttendanceReports /></PrincipalRoute>} />
+              <Route path="/search" element={<PrincipalRoute><StudentSearch /></PrincipalRoute>} />
+              
+              {/* Admin Only Routes */}
+              <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+              
+              {/* Accountant & Admin Routes */}
+              <Route path="/fees" element={<AccountantRoute><FeesDashboard /></AccountantRoute>} />
+              
+              {/* Library Routes */}
+              <Route path="/library" element={<LibrarianRoute><LibraryDashboard /></LibrarianRoute>} />
+            </Route>
+          </Routes>
+        </Router>
+      </>
     </ThemeProvider>
   );
 }

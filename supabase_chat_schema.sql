@@ -104,18 +104,8 @@ CREATE TABLE IF NOT EXISTS public.message_reactions (
     UNIQUE(message_id, profile_id, emoji)
 );
 
--- 8. Notifications
-CREATE TABLE IF NOT EXISTS public.notifications (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-    type TEXT NOT NULL,
-    title TEXT NOT NULL,
-    body TEXT,
-    link_url TEXT,
-    is_read BOOLEAN DEFAULT false,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    school_id UUID
-);
+-- 8. Notifications (already exists in the database)
+-- We will not recreate the notifications table or its policies here to avoid conflicts.
 
 -- 9. Conversation Links (ERP Discussion Engine)
 CREATE TABLE IF NOT EXISTS public.conversation_links (
@@ -182,7 +172,7 @@ ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.message_reads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.message_attachments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.message_reactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.conversation_links ENABLE ROW LEVEL SECURITY;
 
 
@@ -260,15 +250,15 @@ CREATE POLICY "Users can read attachments" ON public.message_attachments FOR SEL
 CREATE POLICY "Users can insert attachments" ON public.message_attachments FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Users can read links" ON public.conversation_links FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Users can insert links" ON public.conversation_links FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Users can read own notifications" ON public.notifications FOR SELECT TO authenticated USING (profile_id = auth.uid());
-CREATE POLICY "Users can insert notifications" ON public.notifications FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Users can update own notifications" ON public.notifications FOR UPDATE TO authenticated USING (profile_id = auth.uid());
+-- CREATE POLICY "Users can read own notifications" ON public.notifications FOR SELECT TO authenticated USING (profile_id = auth.uid());
+-- CREATE POLICY "Users can insert notifications" ON public.notifications FOR INSERT TO authenticated WITH CHECK (true);
+-- CREATE POLICY "Users can update own notifications" ON public.notifications FOR UPDATE TO authenticated USING (profile_id = auth.uid());
 
 -- Realtime Setup
 ALTER PUBLICATION supabase_realtime ADD TABLE public.conversations;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.conversation_members;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
 
 -- Create storage bucket for chat attachments
 INSERT INTO storage.buckets (id, name, public) 

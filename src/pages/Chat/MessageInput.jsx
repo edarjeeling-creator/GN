@@ -96,7 +96,7 @@ const MessageInput = ({ conversationId }) => {
   return (
     <div className="flex flex-col bg-white border-t border-gray-100">
       {error && (
-        <div className="px-4 py-2 bg-red-50 text-red-600 text-sm">
+        <div className="px-4 py-2 mx-4 mt-2 text-sm text-red-600 bg-red-50 rounded-lg border border-red-100">
           {error}
         </div>
       )}
@@ -145,7 +145,7 @@ const MessageInput = ({ conversationId }) => {
             onChange={(e) => setText(e.target.value)}
             disabled={isSending}
             placeholder={file ? "Add an optional message..." : "Type a message..."} 
-            className="w-full pl-4 pr-10 py-3 bg-gray-50 border-none rounded-full focus:ring-2 focus:ring-blue-500 outline-none text-sm disabled:opacity-70"
+            className="w-full pl-4 pr-10 py-3 bg-gray-50 border-none rounded-full focus:ring-2 focus:ring-blue-500 outline-none text-sm text-gray-900 placeholder-gray-400 disabled:opacity-70"
           />
           <button type="button" disabled={isSending} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50">
             <Smile size={18} />

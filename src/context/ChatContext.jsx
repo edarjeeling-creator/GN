@@ -25,13 +25,32 @@ export const ChatProvider = ({ children }) => {
           conversation_id,
           role,
           last_read_message_id,
-          conversations (*)
+          conversations (
+            *,
+            members:conversation_members (
+              profile:profiles!conversation_members_profile_id_fkey(id, name)
+            )
+          )
         `)
-        .eq('profile_id', profile.id)
-        .order('conversations(last_message_at)', { ascending: false });
+        .eq('profile_id', profile.id);
 
       if (!error && data) {
-        setConversations(data.map(m => m.conversations));
+        // Filter out nulls which can happen if RLS blocks reading the conversation row
+        const validConversations = data.map(m => {
+          const conv = m.conversations;
+          if (conv && conv.type === 'direct' && conv.members) {
+            const otherMember = conv.members.find(member => member.profile?.id !== profile.id);
+            if (otherMember && otherMember.profile) {
+              conv.title = otherMember.profile.name;
+            }
+          }
+          return conv;
+        }).filter(Boolean);
+        
+        // Sort manually by last_message_at
+        validConversations.sort((a, b) => new Date(b.last_message_at || 0) - new Date(a.last_message_at || 0));
+        
+        setConversations(validConversations);
       }
     };
 
@@ -52,11 +71,15 @@ export const ChatProvider = ({ children }) => {
       }, payload => {
         const newMessage = payload.new;
         
-        // Add to messages state if we have the conversation loaded
-        setMessages(prev => ({
-          ...prev,
-          [newMessage.conversation_id]: [...(prev[newMessage.conversation_id] || []), newMessage]
-        }));
+        // Add to messages state if we have the conversation loaded and it's not a duplicate
+        setMessages(prev => {
+          const current = prev[newMessage.conversation_id] || [];
+          if (current.some(m => m.id === newMessage.id)) return prev;
+          return {
+            ...prev,
+            [newMessage.conversation_id]: [...current, newMessage]
+          };
+        });
 
         // Re-order conversations list based on last message
         setConversations(prev => {
@@ -218,6 +241,29 @@ const generateUUID = () => {
       .single();
 
     if (error) throw error;
+    
+    // Optimistically update the UI so the user doesn't have to wait for the realtime subscription
+    setMessages(prev => {
+      const current = prev[conversationId] || [];
+      if (current.some(m => m.id === data.id)) return prev;
+      return {
+        ...prev,
+        [conversationId]: [...current, data]
+      };
+    });
+
+    // Re-order conversations list based on this sent message
+    setConversations(prev => {
+      const convIndex = prev.findIndex(c => c.id === conversationId);
+      if (convIndex > -1) {
+        const updated = [...prev];
+        updated[convIndex].last_message_at = data.created_at;
+        updated[convIndex].last_message_id = data.id;
+        return updated.sort((a, b) => new Date(b.last_message_at) - new Date(a.last_message_at));
+      }
+      return prev;
+    });
+
     return data;
   };
 
@@ -268,6 +314,7 @@ const generateUUID = () => {
       activeConversation,
       setActiveConversation,
       messages,
+      setMessages,
       presence,
       typing,
       unreadCounts,

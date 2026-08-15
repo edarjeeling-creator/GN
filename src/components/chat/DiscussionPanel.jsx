@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useChat } from '../../context/ChatContext';
 
 const DiscussionPanel = ({ entityType, entityId, schoolId, title = "Internal Discussion", onClose }) => {
-  const { user } = useAuth();
+  const { profile: user } = useAuth();
   const { sendMessage } = useChat();
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -66,7 +66,7 @@ const DiscussionPanel = ({ entityType, entityId, schoolId, title = "Internal Dis
         // Fetch messages
         const { data: msgs } = await supabase
           .from('messages')
-          .select('*, profiles(name)')
+          .select('*, profiles!messages_sender_id_fkey(name)')
           .eq('conversation_id', convId)
           .order('created_at', { ascending: true });
         
@@ -102,7 +102,7 @@ const DiscussionPanel = ({ entityType, entityId, schoolId, title = "Internal Dis
           content: tempText,
           message_type: 'system'
         })
-        .select('*, profiles(name)')
+        .select('*, profiles!messages_sender_id_fkey(name)')
         .single();
         
       if (data) {

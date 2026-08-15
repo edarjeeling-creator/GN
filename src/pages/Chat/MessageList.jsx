@@ -6,8 +6,8 @@ import ChatFileAttachment from './ChatFileAttachment';
 import { Trash2 } from 'lucide-react';
 
 const MessageList = ({ conversation }) => {
-  const { messages, markAsRead, deleteMessage } = useChat();
-  const { user } = useAuth();
+  const { messages, setMessages, markAsRead, deleteMessage } = useChat();
+  const { profile: user } = useAuth();
   const bottomRef = useRef(null);
   const [deletingId, setDeletingId] = useState(null);
 
@@ -21,19 +21,21 @@ const MessageList = ({ conversation }) => {
           .from('messages')
           .select(`
             *,
-            profiles(name)
+            profiles!messages_sender_id_fkey(name)
           `)
           .eq('conversation_id', conversation.id)
           .order('created_at', { ascending: true })
           .limit(50);
           
         if (!error && data) {
-          // This is a bit hacky to mutate state indirectly but serves MVP
-          // In real app, dispatch an action to context
+          setMessages(prev => ({
+            ...prev,
+            [conversation.id]: data
+          }));
         }
       }
     };
-    // fetchHistory();
+    fetchHistory();
   }, [conversation.id]);
 
   // Scroll to bottom

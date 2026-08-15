@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Plus, Edit, FileText, CheckCircle, Clock } from 'lucide-react';
 
 export default function WeeklyTests() {
-  const { user } = useAuth();
+  const { profile: user } = useAuth();
   const [tests, setTests] = useState([]);
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);

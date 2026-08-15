@@ -1,0 +1,33 @@
+const fs = require('fs');
+const envFile = fs.readFileSync('.env.local', 'utf8');
+const env = Object.fromEntries(envFile.split('\n').filter(line => line.includes('=')).map(line => line.split('=')));
+
+async function run() {
+  const anonKey = env.VITE_SUPABASE_KEY;
+  const url = env.VITE_SUPABASE_URL;
+
+  const authRes = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { 'apikey': anonKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'sagar@gyanodayniketan.cloud', password: 'password123' })
+  });
+  const authData = await authRes.json();
+  const token = authData.access_token;
+  const userId = authData.user.id;
+
+  const profRes = await fetch(`${url}/rest/v1/profiles?id=eq.${userId}&select=*`, {
+    headers: { 'apikey': anonKey, 'Authorization': `Bearer ${token}` }
+  });
+  const profile = (await profRes.json())[0];
+
+  const convRes = await fetch(`${url}/rest/v1/conversation_members?profile_id=eq.${profile.id}&select=conversation_id,role,last_read_message_id,conversations(*)`, {
+    headers: {
+      'apikey': anonKey,
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  
+  console.log("Status:", convRes.status);
+  console.log("Body:", await convRes.text());
+}
+run();
