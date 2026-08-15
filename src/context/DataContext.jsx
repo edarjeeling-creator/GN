@@ -29,20 +29,38 @@ export const DataProvider = ({ children }) => {
   useEffect(() => {
     if (!session && !profile) return;
 
+    const fetchAll = async (queryBuilder) => {
+      let allData = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+      while (hasMore) {
+        const { data, error } = await queryBuilder.range(page * pageSize, (page + 1) * pageSize - 1);
+        if (error || !data || data.length === 0) {
+          hasMore = false;
+        } else {
+          allData = allData.concat(data);
+          if (data.length < pageSize) hasMore = false;
+          else page++;
+        }
+      }
+      return { data: allData };
+    };
+
     const fetchData = async () => {
       setLoadingData(true);
       
       const queries = [
         supabase.from('classes').select('*'),
         supabase.from('subjects').select('*'),
-        supabase.from('students').select('*'),
+        fetchAll(supabase.from('students').select('*')),
         supabase.from('feature_access').select('*')
       ];
 
       if (session) {
         queries.push(supabase.from('teacher_subjects').select('*').eq('teacher_id', session.user.id));
-        queries.push(supabase.from('marks').select('*').is('deleted_at', null));
-        queries.push(supabase.from('attendance').select('*'));
+        queries.push(fetchAll(supabase.from('marks').select('*').is('deleted_at', null)));
+        queries.push(fetchAll(supabase.from('attendance').select('*')));
       }
 
       const results = await Promise.all(queries);
