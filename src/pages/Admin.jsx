@@ -167,7 +167,7 @@ const Admin = () => {
 
   const handleUpdateTeacherName = async () => {
     if (!editingTeacher || !editTeacherName.trim()) return;
-    const { error } = await supabase.from('profiles').update({ name: editTeacherName.trim(), full_name: editTeacherName.trim() }).eq('id', editingTeacher.id);
+    const { error } = await supabase.from('profiles').update({ name: editTeacherName.trim() }).eq('id', editingTeacher.id);
     if (!error) {
       setTeachers(prev => prev.map(t => t.id === editingTeacher.id ? { ...t, name: editTeacherName.trim() } : t));
       alert("Teacher name updated successfully!");
