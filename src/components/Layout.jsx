@@ -10,7 +10,7 @@ import { supabase } from '../lib/supabase';
 
 const Layout = ({ children }) => {
   const { profile, logout, loading } = useAuth();
-  const { academicYear, setAcademicYear, students, featureAccess, classes } = useData();
+  const { academicYear, setAcademicYear, students, featureAccess, classes, classTeacherOf } = useData();
   const { siteBranding } = useTheme();
   const { school, isReadOnly, isSuspended, hasWarning } = useSubscription();
   const navigate = useNavigate();
@@ -357,6 +357,8 @@ const Layout = ({ children }) => {
                       <span style={{ fontSize: '0.7rem', color: '#8b5cf6', fontWeight: 600 }}>Administrator</span>
                     ) : profile?.role === 'student' ? (
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Student</span>
+                    ) : classTeacherOf ? (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--primary-color)', fontWeight: 600 }}>Class Teacher ({classTeacherOf.name} {classTeacherOf.section})</span>
                     ) : (
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Faculty Member</span>
                     )}
