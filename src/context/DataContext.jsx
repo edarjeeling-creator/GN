@@ -129,13 +129,14 @@ export const DataProvider = ({ children }) => {
       return;
     }
 
+    const parsedScore = score === '' ? null : score;
     const fullTerm = term.startsWith('202') ? term : `${academicYear}_${term}`;
     const oldScore = marks[`${studentId}_${subjectId}_${fullTerm}`];
 
     // Optimistic UI update
     setMarks(prev => ({
       ...prev,
-      [`${studentId}_${subjectId}_${fullTerm}`]: score
+      [`${studentId}_${subjectId}_${fullTerm}`]: parsedScore
     }));
 
     // Upsert to Supabase
@@ -143,7 +144,7 @@ export const DataProvider = ({ children }) => {
       student_id: studentId,
       subject_id: subjectId,
       term: fullTerm,
-      score: score
+      score: parsedScore
     }, { onConflict: 'student_id,subject_id,term' }).select();
     
     if (error) {

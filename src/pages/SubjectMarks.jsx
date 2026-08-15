@@ -70,7 +70,7 @@ const SubjectMarks = () => {
       ['Midterm_Exam', 'Midterm_Test', 'Finalterm_Exam', 'Finalterm_Test'].forEach(term => {
         const fullTerm = `${academicYear}_${term}`;
         const key = `${student.id}_${subjectId}_${fullTerm}`;
-        initialMarks[key] = marks[key] || '';
+        initialMarks[key] = marks[key] !== undefined && marks[key] !== null ? marks[key] : '';
       });
     });
     setLocalMarks(initialMarks);
@@ -108,7 +108,7 @@ const SubjectMarks = () => {
     if (value !== marks[key]) {
       setSaveStatus('saving');
       setTimeout(() => {
-        updateMark(studentId, subjectId, term, value === '' ? '' : Number(value));
+        updateMark(studentId, subjectId, term, value === '' ? null : Number(value));
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2000);
       }, 400);
@@ -116,7 +116,7 @@ const SubjectMarks = () => {
   };
 
   const calculateConverted = (val) => {
-    if (val === '' || val === undefined) return 0;
+    if (val === '' || val === undefined || val === null) return 0;
     return (Number(val) * (examConv / 100));
   };
 
@@ -293,7 +293,7 @@ const SubjectMarks = () => {
                 const studentId = parts[0];
                 const subjId = parts[1];
                 const term = parts.slice(3).join('_');
-                updateMark(studentId, subjId, term, val === '' ? '' : Number(val));
+                updateMark(studentId, subjId, term, val === '' ? null : Number(val));
               }
             });
             setSaveStatus('saved'); setTimeout(() => setSaveStatus('idle'), 2000);
