@@ -38,7 +38,7 @@ const Assignments = () => {
   const fetchAssignments = async () => {
     if (!profile) return;
     setLoading(true);
-    let query = supabase.from('assignments').select('*, profiles!student_uid(name, class, section, roll_no)').order('submitted_at', { ascending: false });
+    let query = supabase.from('assignments').select('*').order('submitted_at', { ascending: false });
     
     if (isTeacher) {
       // Teachers see all assignments
