@@ -41,12 +41,11 @@ const Assignments = () => {
     let query = supabase.from('assignments').select('*, profiles!student_uid(name, class, section, roll_no)').order('submitted_at', { ascending: false });
     
     if (isTeacher) {
-      // Teachers see all assignments submitted to them OR we can just show all assignments for subjects they teach
-      // For simplicity in this demo, teachers see all assignments since there isn't a direct mapping in the DB schema for teacher_uid initially.
-      // Wait, schema has teacher_uid which can be null initially, let's just fetch all assignments for teachers for now, or match by subject.
-      // We will just fetch all for now and they can filter.
+      // Teachers see all assignments
     } else if (profile.role === 'student') {
-      query = query.eq('student_uid', profile.id);
+      // Because students are not in auth.users, they insert with student_uid=null
+      // and encode their ID inside the message.
+      query = query.ilike('message', `%${profile.id}%`);
     }
 
     const { data } = await query;
@@ -67,11 +66,23 @@ const Assignments = () => {
       return;
     }
 
+    // Encode student details in the message to bypass foreign key constraint
+    const encodedMessage = JSON.stringify({
+      text: studentForm.message,
+      student: {
+        id: profile.id,
+        name: profile.name,
+        class: profile.class,
+        section: profile.section,
+        roll_no: profile.roll_no
+      }
+    });
+
     const { error: dbError } = await supabase.from('assignments').insert([{
-      student_uid: profile.id,
+      student_uid: null,
       subject: studentForm.subject,
       title: studentForm.title,
-      message: studentForm.message,
+      message: encodedMessage,
       file_url: url
     }]);
 
@@ -160,15 +171,28 @@ const Assignments = () => {
         <h2 className="text-xl font-bold mb-4">Assignment History</h2>
         {loading ? <Loader2 className="animate-spin mx-auto text-primary" /> : assignments.length === 0 ? <p className="text-gray-500">No assignments found.</p> : (
           <div className="flex flex-col gap-4">
-            {assignments.map(assign => (
+            {assignments.map(assign => {
+              let parsedMessage = assign.message;
+              let parsedStudent = assign.profiles;
+              try {
+                if (assign.message && assign.message.startsWith('{')) {
+                  const parsed = JSON.parse(assign.message);
+                  if (parsed.student) {
+                    parsedMessage = parsed.text;
+                    parsedStudent = parsed.student;
+                  }
+                }
+              } catch(e) {}
+
+              return (
               <div key={assign.id} className="border border-slate-200 dark:border-slate-700 p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50">
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <h3 className="font-bold text-lg text-primary">{assign.title}</h3>
                     <p className="text-sm font-bold text-gray-500">{assign.subject}</p>
-                    {isTeacher && assign.profiles && (
+                    {isTeacher && parsedStudent && (
                        <p className="text-sm mt-1 text-gray-700">
-                         <strong>Student:</strong> {assign.profiles.name} ({assign.profiles.class}-{assign.profiles.section}, Roll {assign.profiles.roll_no})
+                         <strong>Student:</strong> {parsedStudent.name} ({parsedStudent.class}-{parsedStudent.section}, Roll {parsedStudent.roll_no})
                        </p>
                     )}
                   </div>
@@ -178,7 +202,7 @@ const Assignments = () => {
                   </div>
                 </div>
                 
-                {assign.message && <p className="text-sm text-slate-600 dark:text-slate-300 mb-3 bg-[var(--surface-color)] p-2 border border-slate-200 dark:border-slate-700 rounded"><strong>Message:</strong> {assign.message}</p>}
+                {parsedMessage && <p className="text-sm text-slate-600 dark:text-slate-300 mb-3 bg-[var(--surface-color)] p-2 border border-slate-200 dark:border-slate-700 rounded"><strong>Message:</strong> {parsedMessage}</p>}
                 
                 <a href={assign.file_url} target="_blank" rel="noopener noreferrer" className="text-primary font-bold text-sm flex items-center gap-1 hover:underline mb-4">
                   <LinkIcon size={14} /> View Student Submission
@@ -232,7 +256,8 @@ const Assignments = () => {
                   </div>
                 ) : null}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -22,15 +22,7 @@ const ClassTeacherPortal = () => {
   const isClassTeacher = cls?.class_teacher_id === profile?.id;
   const isAdminOrPrincipal = profile?.role === 'admin' || profile?.role === 'principal';
 
-  if (!cls) {
-    return <div className="p-8 text-center text-slate-500">Class not found.</div>;
-  }
-
-  if (!isClassTeacher && !isAdminOrPrincipal) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  const { examConv } = getConversionConstants(cls?.name);
+  const { examConv } = getConversionConstants(cls?.name || '');
 
   // Find all subjects that are assigned/have marks for this class
   const classSubjects = subjects.filter((sub) => {
@@ -40,7 +32,7 @@ const ClassTeacherPortal = () => {
   });
 
   const portalData = useMemo(() => {
-    if (classStudents.length === 0) return null;
+    if (!cls || classStudents.length === 0) return null;
 
     let classTotalPercentage = 0;
     let totalMarksCounted = 0;
@@ -186,7 +178,15 @@ const ClassTeacherPortal = () => {
       topScorers,
       hasMarks: classHasAnyMarksForTerm,
     };
-  }, [classStudents, classSubjects, marks, academicYear, examConv, selectedTerm]);
+  }, [classStudents, classSubjects, marks, academicYear, examConv, selectedTerm, cls]);
+
+  if (!cls) {
+    return <div className="p-8 text-center text-slate-500">Class not found.</div>;
+  }
+
+  if (!isClassTeacher && !isAdminOrPrincipal) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   if (!portalData) {
     return <div className="p-8 text-center text-slate-500">No data available for this class.</div>;
