@@ -40,16 +40,16 @@ const ResultPortal = () => {
       }
 
       // Check if results are published
-      const fullTerm = `${academicYear}_${selectedTerm}_Exam`;
+      const statusTerm = selectedTerm.includes('_Test') ? `${academicYear}_${selectedTerm.split('_')[0]}_Exam` : `${academicYear}_${selectedTerm}_Exam`;
       const { data: statusData } = await supabase
         .from('marks_status')
         .select('status')
         .eq('class_id', data.class.id)
-        .eq('term', fullTerm)
+        .eq('term', statusTerm)
         .single();
 
       if (!statusData || statusData.status !== 'Published') {
-        setError(`Results for ${selectedTerm} are not yet published for your class.`);
+        setError(`Results for ${selectedTerm.replace('_Test', ' Weekly Test')} are not yet published for your class.`);
         return;
       }
       
@@ -58,7 +58,7 @@ const ResultPortal = () => {
         .from('generated_reports')
         .select('template_snapshot')
         .eq('class_id', data.class.id)
-        .eq('term', fullTerm)
+        .eq('term', statusTerm)
         .eq('academic_year', academicYear)
         .maybeSingle();
 
@@ -141,6 +141,8 @@ const ResultPortal = () => {
       let subjectTotal = 0;
       if (selectedTerm === 'Midterm') subjectTotal = mtTotal;
       else if (selectedTerm === 'Finalterm') subjectTotal = ftTotal;
+      else if (selectedTerm === 'Midterm_Test') subjectTotal = mtTest;
+      else if (selectedTerm === 'Finalterm_Test') subjectTotal = ftTest;
       else subjectTotal = mtTotal + ftTotal;
 
       return { 
@@ -320,14 +322,19 @@ const ResultPortal = () => {
     const getTermLabel = () => {
       if (selectedTerm === 'Midterm') return 'MID-TERM';
       if (selectedTerm === 'Finalterm') return 'FINAL-TERM';
+      if (selectedTerm === 'Midterm_Test') return 'MID-TERM WEEKLY TEST';
+      if (selectedTerm === 'Finalterm_Test') return 'FINAL-TERM WEEKLY TEST';
       return 'COMBINED';
     };
 
-    const getOutOFAmount = () => selectedTerm === 'Combined' ? 200 : 100;
+    const getOutOFAmount = () => {
+      if (selectedTerm.includes('_Test')) return 100 - examConv;
+      return selectedTerm === 'Combined' ? 200 : 100;
+    };
 
     // Calculate Attendance
     const attendancePercentage = calculateAttendancePercentage(attendance, student.id, academicYear);
-    const colCount = selectedTerm === 'Combined' ? 6 : 4;
+    const colCount = selectedTerm === 'Combined' ? 6 : (selectedTerm.includes('_Test') ? 2 : 4);
 
     return (
       <div className="report-card-slip" style={{
@@ -411,6 +418,8 @@ const ResultPortal = () => {
                       <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{Math.round(score.ftConv)}</td>
                     </>
                   )}
+                  {selectedTerm === 'Midterm_Test' && null}
+                  {selectedTerm === 'Finalterm_Test' && null}
                   <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold' }}>
                     {score.total}
                   </td>
@@ -507,6 +516,8 @@ const ResultPortal = () => {
                     <option value="Midterm">Mid-Term Report</option>
                     <option value="Finalterm">Final-Term Report</option>
                     <option value="Combined">Combined (Annual)</option>
+                    <option value="Midterm_Test">Mid-Term Weekly test</option>
+                    <option value="Finalterm_Test">Final-Term Weekly test</option>
                   </select>
                 </div>
 
