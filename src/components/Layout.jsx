@@ -409,18 +409,21 @@ const Layout = ({ children }) => {
                   </NavLink>
                 )}
 
+                {isTeacherOrAdminOrTeachingPrincipal && (
+                  <NavLink to="/hub" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <MessageSquare size={18} /> Comm Hub
+                    </div>
+                    {totalChatUnread > 0 && (
+                      <span style={{ background: '#3b82f6', color: 'white', fontSize: '0.65rem', fontWeight: 'bold', padding: '0.1rem 0.4rem', borderRadius: '9999px' }}>
+                        {totalChatUnread}
+                      </span>
+                    )}
+                  </NavLink>
+                )}
+
                 {(profile?.role === 'student' || isTeacherOrAdminOrTeachingPrincipal) && (
                   <>
-                    <NavLink to="/hub" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <MessageSquare size={18} /> Comm Hub
-                      </div>
-                      {totalChatUnread > 0 && (
-                        <span style={{ background: '#3b82f6', color: 'white', fontSize: '0.65rem', fontWeight: 'bold', padding: '0.1rem 0.4rem', borderRadius: '9999px' }}>
-                          {totalChatUnread}
-                        </span>
-                      )}
-                    </NavLink>
                     <NavLink to="/study-materials" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
                       <BookOpen size={18} /> Study Materials
                     </NavLink>

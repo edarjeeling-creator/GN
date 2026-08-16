@@ -65,7 +65,7 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/study-materials" element={<StudyMaterials />} />
               <Route path="/assignments" element={<Assignments />} />
-              <Route path="/hub" element={<CommunicationHub />} />
+              <Route path="/hub" element={<TeacherRoute><CommunicationHub /></TeacherRoute>} />
               
               {/* Student Only Routes */}
               <Route path="/student-portal" element={<StudentRoute><StudentPortal /></StudentRoute>} />

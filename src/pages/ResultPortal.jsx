@@ -143,7 +143,13 @@ const ResultPortal = () => {
       else if (selectedTerm === 'Finalterm') subjectTotal = ftTotal;
       else subjectTotal = mtTotal + ftTotal;
 
-      return { subjectId: sub.id, subjectName: getDynamicSubjectName(sub.name, student), total: subjectTotal };
+      return { 
+        subjectId: sub.id, 
+        subjectName: getDynamicSubjectName(sub.name, student), 
+        total: subjectTotal,
+        mtTest, mtConv, mtTotal,
+        ftTest, ftConv, ftTotal
+      };
     });
 
     let finalSubjectRows = [];
@@ -321,6 +327,7 @@ const ResultPortal = () => {
 
     // Calculate Attendance
     const attendancePercentage = calculateAttendancePercentage(attendance, student.id, academicYear);
+    const colCount = selectedTerm === 'Combined' ? 6 : 4;
 
     return (
       <div className="report-card-slip" style={{
@@ -336,7 +343,7 @@ const ResultPortal = () => {
           <tbody>
             {/* Header Row */}
             <tr>
-              <td colSpan="2" style={{ padding: '10px 12px', border: '1px solid black' }}>
+              <td colSpan={colCount} style={{ padding: '10px 12px', border: '1px solid black' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <span><span style={{ fontWeight: 'bold' }}>Student Name:</span> <span>{student.name}</span></span>
                 </div>
@@ -348,7 +355,7 @@ const ResultPortal = () => {
               </td>
             </tr>
             <tr>
-              <td colSpan="2" style={{ padding: '15px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1em', textTransform: 'uppercase' }}>
+              <td colSpan={colCount} style={{ padding: '15px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1em', textTransform: 'uppercase' }}>
                 {getTermLabel()} PROGRESS REPORT CARD - {academicYear}
               </td>
             </tr>
@@ -356,7 +363,27 @@ const ResultPortal = () => {
             {/* Column Headers */}
             <tr>
               <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold' }}>Subjects</td>
-              <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center', width: '150px' }}>Marks out of {getOutOFAmount()}</td>
+              {selectedTerm === 'Midterm' && (
+                <>
+                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Test (out of {100 - examConv})</td>
+                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Exam (out of {examConv})</td>
+                </>
+              )}
+              {selectedTerm === 'Finalterm' && (
+                <>
+                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Test (out of {100 - examConv})</td>
+                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Exam (out of {examConv})</td>
+                </>
+              )}
+              {selectedTerm === 'Combined' && (
+                <>
+                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Mid-Term Test</td>
+                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Mid-Term Exam</td>
+                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Final-Term Test</td>
+                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Final-Term Exam</td>
+                </>
+              )}
+              <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center', width: '150px' }}>Total out of {getOutOFAmount()}</td>
             </tr>
 
             {/* Subjects Rows */}
@@ -364,7 +391,27 @@ const ResultPortal = () => {
               return (
                 <tr key={score.subjectId}>
                   <td style={{ padding: '8px 12px', border: '1px solid black' }}>{score.subjectName}</td>
-                  <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>
+                  {selectedTerm === 'Midterm' && (
+                    <>
+                      <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{score.mtTest}</td>
+                      <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{Math.round(score.mtConv)}</td>
+                    </>
+                  )}
+                  {selectedTerm === 'Finalterm' && (
+                    <>
+                      <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{score.ftTest}</td>
+                      <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{Math.round(score.ftConv)}</td>
+                    </>
+                  )}
+                  {selectedTerm === 'Combined' && (
+                    <>
+                      <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{score.mtTest}</td>
+                      <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{Math.round(score.mtConv)}</td>
+                      <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{score.ftTest}</td>
+                      <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{Math.round(score.ftConv)}</td>
+                    </>
+                  )}
+                  <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold' }}>
                     {score.total}
                   </td>
                 </tr>
@@ -373,13 +420,13 @@ const ResultPortal = () => {
 
             {/* Total Row */}
             <tr>
-              <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textTransform: 'uppercase' }}>TOTAL</td>
+              <td colSpan={colCount - 1} style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'right' }}>TOTAL</td>
               <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold' }}>{grandTotal}</td>
             </tr>
 
             {/* Footer Details */}
             <tr>
-              <td colSpan="2" style={{ padding: '15px 12px', border: '1px solid black', lineHeight: '1.8' }}>
+              <td colSpan={colCount} style={{ padding: '15px 12px', border: '1px solid black', lineHeight: '1.8' }}>
                 {settings.showRank !== false && <div>RANK IN CLASS: <span>{rank}</span></div>}
                 {settings.showPercentage !== false && <div>PERCENTAGE: <span>{percentage}%</span></div>}
                 {settings.showAttendance !== false && <div>ATTENDANCE: <span>{attendancePercentage}%</span></div>}
@@ -438,7 +485,7 @@ const ResultPortal = () => {
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#374151' }}>Academic Year</label>
                   <select 
                     className="input-field w-full" 
-                    style={{ background: '#f9fafb', border: '1px solid #e5e7eb' }}
+                    style={{ background: '#f9fafb', border: '1px solid #e5e7eb', color: '#111827' }}
                     value={academicYear}
                     onChange={(e) => setAcademicYear(e.target.value)}
                   >
@@ -450,7 +497,7 @@ const ResultPortal = () => {
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#374151' }}>Term</label>
                   <select 
                     className="input-field w-full" 
-                    style={{ background: '#f9fafb', border: '1px solid #e5e7eb' }}
+                    style={{ background: '#f9fafb', border: '1px solid #e5e7eb', color: '#111827' }}
                     value={selectedTerm}
                     onChange={(e) => {
                       setSelectedTerm(e.target.value);
@@ -471,7 +518,7 @@ const ResultPortal = () => {
                       type="text"
                       placeholder="e.g. 849201"
                       className="input-field w-full"
-                      style={{ paddingLeft: '40px', fontSize: '1.2rem', letterSpacing: '2px', background: '#f9fafb', border: '1px solid #e5e7eb' }}
+                      style={{ paddingLeft: '40px', fontSize: '1.2rem', letterSpacing: '2px', background: '#f9fafb', border: '1px solid #e5e7eb', color: '#111827' }}
                       value={uid}
                       onChange={(e) => setUid(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
                       required
