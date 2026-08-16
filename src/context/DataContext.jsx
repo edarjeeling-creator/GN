@@ -274,6 +274,15 @@ export const DataProvider = ({ children }) => {
     setSubjects(prev => prev.map(s => s.id === subjectId ? { ...s, name: newName } : s));
   };
 
+  const addSubject = async (name) => {
+    const { data, error } = await supabase.from('subjects').insert([{ name }]).select();
+    if (!error && data) {
+      setSubjects(prev => [...prev, data[0]]);
+      return { success: true, data: data[0] };
+    }
+    return { success: false, error };
+  };
+
   // Filter classes by academic year
   const activeClasses = classes.filter(c => c.academic_year === academicYear || (!c.academic_year && academicYear === '2026'));
 
@@ -390,7 +399,7 @@ export const DataProvider = ({ children }) => {
       academicYear, setAcademicYear,
       classes: activeClasses, subjects, students, teacherSubjects, marks, attendance, featureAccess,
       loadingData,
-      updateMark, toggleTeacherSubject, addStudent, updateStudentName, updateStudentLanguages, updateStudentUid, updateStudentPictureUrl, updateSubjectName, removeStudent, grantFeatureAccess, revokeFeatureAccess
+      updateMark, toggleTeacherSubject, addStudent, updateStudentName, updateStudentLanguages, updateStudentUid, updateStudentPictureUrl, updateSubjectName, addSubject, removeStudent, grantFeatureAccess, revokeFeatureAccess
     }}>
       {children}
     </DataContext.Provider>

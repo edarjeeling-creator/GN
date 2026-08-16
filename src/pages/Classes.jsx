@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { Book, CheckCircle, Circle, Users, FileText, UserPlus } from 'lucide-react';
 
 const Classes = () => {
-  const { classes, subjects, students, teacherSubjects, toggleTeacherSubject, addStudent } = useData();
+  const { classes, subjects, students, teacherSubjects, toggleTeacherSubject, addStudent, addSubject } = useData();
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
   
@@ -13,6 +13,9 @@ const Classes = () => {
   
   // State for new student form
   const [newStudent, setNewStudent] = useState({ name: '', roll_no: '' });
+  
+  // State for new subject form
+  const [newSubject, setNewSubject] = useState('');
 
   const toggleExpand = (classId) => {
     if (expandedClass === classId) {
@@ -32,6 +35,19 @@ const Classes = () => {
       alert("Student added successfully!");
     } else {
       alert("Error adding student: " + res.error.message);
+    }
+  };
+
+  const handleAddSubject = async (e) => {
+    e.preventDefault();
+    if (!newSubject) return;
+    
+    const res = await addSubject(newSubject);
+    if (res.success) {
+      setNewSubject('');
+      alert("Subject added successfully!");
+    } else {
+      alert("Error adding subject: " + res?.error?.message || "Unknown error");
     }
   };
 
@@ -82,39 +98,52 @@ const Classes = () => {
                     </div>
                   </div>
 
-                  {isAdmin && (
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                      {subjects.map(subject => {
-                        const isSelected = selectedSubjects.includes(subject.id);
-                        return (
-                          <div 
-                            key={subject.id}
-                            onClick={(e) => { e.stopPropagation(); toggleTeacherSubject(cls.id, subject.id); }}
-                            style={{
-                              padding: '1rem',
-                              border: `1px solid ${isSelected ? 'var(--primary-color)' : 'var(--border-color)'}`,
-                              borderRadius: 'var(--radius-md)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              cursor: 'pointer',
-                              backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.05)' : 'var(--surface-color)',
-                              transition: 'all 0.2s'
-                            }}
-                          >
-                            <span style={{ fontWeight: isSelected ? '600' : '400', color: isSelected ? 'var(--primary-color)' : 'var(--text-primary)' }}>
-                              {subject.name}
-                            </span>
-                            {isSelected ? (
-                              <CheckCircle size={20} className="text-primary" />
-                            ) : (
-                              <Circle size={20} style={{ color: 'var(--border-color)' }} />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                    {subjects.map(subject => {
+                      const isSelected = selectedSubjects.includes(subject.id);
+                      return (
+                        <div 
+                          key={subject.id}
+                          onClick={(e) => { e.stopPropagation(); toggleTeacherSubject(cls.id, subject.id); }}
+                          style={{
+                            padding: '1rem',
+                            border: `1px solid ${isSelected ? 'var(--primary-color)' : 'var(--border-color)'}`,
+                            borderRadius: 'var(--radius-md)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            cursor: 'pointer',
+                            backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.05)' : 'var(--surface-color)',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <span style={{ fontWeight: isSelected ? '600' : '400', color: isSelected ? 'var(--primary-color)' : 'var(--text-primary)' }}>
+                            {subject.name}
+                          </span>
+                          {isSelected ? (
+                            <CheckCircle size={20} className="text-primary" />
+                          ) : (
+                            <Circle size={20} style={{ color: 'var(--border-color)' }} />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  <div className="mb-6">
+                    <form onSubmit={handleAddSubject} className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Create a new subject" 
+                        className="input-field" 
+                        value={newSubject}
+                        onChange={e => setNewSubject(e.target.value)}
+                        required
+                        style={{ maxWidth: '300px' }}
+                      />
+                      <button type="submit" className="btn btn-outline btn-sm">Create Subject</button>
+                    </form>
+                  </div>
 
                   {selectedSubjects.length > 0 && (
                     <div className="mb-6">
