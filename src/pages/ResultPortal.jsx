@@ -46,11 +46,19 @@ const ResultPortal = () => {
         .select('status')
         .eq('class_id', data.class.id)
         .eq('term', statusTerm)
-        .single();
+        .maybeSingle();
 
-      if (!statusData || statusData.status !== 'Published') {
+      const isTest = selectedTerm.includes('_Test');
+      if (!isTest && (!statusData || statusData.status !== 'Published')) {
         setError(`Results for ${selectedTerm.replace('_Test', ' Weekly Test')} are not yet published for your class.`);
         return;
+      }
+      
+      if (isTest && statusData && statusData.status !== 'Published') {
+         // If a status explicitly exists for the test and it's not published, block it.
+         // Otherwise, allow it through (defaulting to published).
+         setError(`Results for ${selectedTerm.replace('_Test', ' Weekly Test')} are not yet published for your class.`);
+         return;
       }
       
       // Fetch the generated report snapshot
