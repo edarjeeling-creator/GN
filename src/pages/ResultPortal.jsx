@@ -402,7 +402,7 @@ const ResultPortal = () => {
             </tr>
 
             {/* Subjects Rows */}
-            {subjectScores.map(score => {
+            {subjectScores.filter(score => !(selectedTerm.includes('_Test') && score.total === 0)).map(score => {
               return (
                 <tr key={score.subjectId}>
                   <td style={{ padding: '8px 12px', border: '1px solid black' }}>{score.subjectName}</td>
@@ -442,27 +442,31 @@ const ResultPortal = () => {
             </tr>
 
             {/* Footer Details */}
-            <tr>
-              <td colSpan={colCount} style={{ padding: '15px 12px', border: '1px solid black', lineHeight: '1.8' }}>
-                {settings.showRank !== false && <div>RANK IN CLASS: <span>{rank}</span></div>}
-                {settings.showPercentage !== false && <div>PERCENTAGE: <span>{percentage}%</span></div>}
-                {settings.showAttendance !== false && <div>ATTENDANCE: <span>{attendancePercentage}%</span></div>}
-                {settings.showRemarks !== false && <div>REMARKS: <span>Good</span></div>}
-              </td>
-            </tr>
+            {!selectedTerm.includes('_Test') && (
+              <tr>
+                <td colSpan={colCount} style={{ padding: '15px 12px', border: '1px solid black', lineHeight: '1.8' }}>
+                  {settings.showRank !== false && <div>RANK IN CLASS: <span>{rank}</span></div>}
+                  {settings.showPercentage !== false && <div>PERCENTAGE: <span>{percentage}%</span></div>}
+                  {settings.showAttendance !== false && <div>ATTENDANCE: <span>{attendancePercentage}%</span></div>}
+                  {settings.showRemarks !== false && <div>REMARKS: <span>Good</span></div>}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
         
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '60px' }}>
-           <div style={{ textAlign: 'center' }}>
-             {settings.classTeacherSignatureUrl && <img src={settings.classTeacherSignatureUrl} alt="Class Teacher Signature" style={{ height: '40px', display: 'block', margin: '0 auto 5px' }} />}
-             <div style={{ borderTop: '1px solid black', paddingTop: '5px', width: '150px' }}>Class Teacher</div>
-           </div>
-           <div style={{ textAlign: 'center' }}>
-             {settings.principalSignatureUrl && <img src={settings.principalSignatureUrl} alt="Principal Signature" style={{ height: '40px', display: 'block', margin: '0 auto 5px' }} />}
-             <div style={{ borderTop: '1px solid black', paddingTop: '5px', width: '150px' }}>Principal</div>
-           </div>
-        </div>
+        {!selectedTerm.includes('_Test') && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '60px' }}>
+             <div style={{ textAlign: 'center' }}>
+               {settings.classTeacherSignatureUrl && <img src={settings.classTeacherSignatureUrl} alt="Class Teacher Signature" style={{ height: '40px', display: 'block', margin: '0 auto 5px' }} />}
+               <div style={{ borderTop: '1px solid black', paddingTop: '5px', width: '150px' }}>Class Teacher</div>
+             </div>
+             <div style={{ textAlign: 'center' }}>
+               {settings.principalSignatureUrl && <img src={settings.principalSignatureUrl} alt="Principal Signature" style={{ height: '40px', display: 'block', margin: '0 auto 5px' }} />}
+               <div style={{ borderTop: '1px solid black', paddingTop: '5px', width: '150px' }}>Principal</div>
+             </div>
+          </div>
+        )}
         
         <div style={{ marginTop: '1rem', textAlign: 'center', display: 'flex', gap: '1rem', justifyContent: 'center' }} className="no-print">
            <button className="btn" style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={() => { setUid(''); setResultData(null); window.history.replaceState({}, document.title, window.location.pathname); }}>
