@@ -11,7 +11,9 @@ const ResultStatusManager = ({ classes, academicYear, profile }) => {
   const [loading, setLoading] = useState(true);
 
   const TERMS = [
+    { id: 'Midterm_Test', name: 'Mid-Term Weekly Test' },
     { id: 'Midterm_Exam', name: 'Mid-Term Exam' },
+    { id: 'Finalterm_Test', name: 'Final-Term Weekly Test' },
     { id: 'Finalterm_Exam', name: 'Final-Term Exam' }
   ];
 

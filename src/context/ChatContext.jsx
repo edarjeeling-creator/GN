@@ -160,53 +160,14 @@ export const ChatProvider = ({ children }) => {
       }
 
       
-// Fallback UUID generator
-const generateUUID = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-};
+      const { data: newConvId, error: rpcError } = await supabase.rpc('create_direct_conversation', {
+        p_other_user_id: otherUserId,
+        p_title: title
+      });
 
-      const newConvId = generateUUID();
-
-      const { error: convError } = await supabase
-        .from('conversations')
-        .insert({
-          id: newConvId,
-          type: 'direct',
-          title: title,
-          school_id: profile?.school_id || '00000000-0000-0000-0000-000000000000',
-          created_by: profile.id
-        });
-
-      if (convError) {
-        console.error("Conversation insert error:", convError);
-        const errDump = { 
-          message: convError.message, 
-          code: convError.code, 
-          details: convError.details, 
-          hint: convError.hint,
-          raw: JSON.stringify(convError)
-        };
-        throw new Error(`Failed to insert conversation: ${JSON.stringify(errDump)}`);
-      }
-
-      const members = [
-        { conversation_id: newConvId, profile_id: profile.id, role: 'admin' },
-        { conversation_id: newConvId, profile_id: otherUserId, role: 'member' }
-      ];
-
-      const { error: membersError } = await supabase
-        .from('conversation_members')
-        .insert(members);
-
-      if (membersError) {
-        console.error("Members insert error:", membersError);
-        throw new Error(`Failed to insert conversation members: ${JSON.stringify(membersError)}`);
+      if (rpcError) {
+        console.error("Conversation RPC error:", rpcError);
+        throw new Error(`Failed to insert conversation: ${rpcError.message || JSON.stringify(rpcError)}`);
       }
       
       const newConv = { 

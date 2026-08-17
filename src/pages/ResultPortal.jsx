@@ -40,7 +40,7 @@ const ResultPortal = () => {
       }
 
       // Check if results are published
-      const statusTerm = selectedTerm.includes('_Test') ? `${academicYear}_${selectedTerm.split('_')[0]}_Exam` : `${academicYear}_${selectedTerm}_Exam`;
+      const statusTerm = selectedTerm.includes('_Test') ? `${academicYear}_${selectedTerm}` : `${academicYear}_${selectedTerm}_Exam`;
       const { data: statusData } = await supabase
         .from('marks_status')
         .select('status')
@@ -470,7 +470,7 @@ const ResultPortal = () => {
     <div style={{ minHeight: '100vh', background: 'var(--bg-color)' }}>
       {/* If result is NOT loaded yet, show the hero-search view */}
       {!resultData && (
-        <div className="hero-section" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', background: 'linear-gradient(to bottom right, #4338ca, #312e81)' }}>
+        <div className="hero-section" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', background: 'linear-gradient(to bottom right, #0f172a, #1e293b)' }}>
           <div className="hero-particles">
             <motion.div animate={{ y: [0, -20, 0], opacity: [0.3, 0.6, 0.3] }} transition={{ repeat: Infinity, duration: 4 }} className="hero-orb-1" />
             <motion.div animate={{ y: [0, 30, 0], opacity: [0.3, 0.6, 0.3] }} transition={{ repeat: Infinity, duration: 5, delay: 1 }} className="hero-orb-2" />
