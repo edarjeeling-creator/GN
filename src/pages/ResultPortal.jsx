@@ -146,12 +146,22 @@ const ResultPortal = () => {
       const ftConv = ftExam * (examConv / 100);
       const ftTotal = Math.round(ftConv + ftTest);
 
+      const isClass5To8 = ['5', '6', '7', '8'].some(grade => cls?.name?.includes(grade));
+
       let subjectTotal = 0;
-      if (selectedTerm === 'Midterm') subjectTotal = mtExam;
-      else if (selectedTerm === 'Finalterm') subjectTotal = ftExam;
-      else if (selectedTerm === 'Midterm_Test') subjectTotal = mtTest;
-      else if (selectedTerm === 'Finalterm_Test') subjectTotal = ftTest;
-      else subjectTotal = mtExam + ftExam;
+      if (isClass5To8) {
+        if (selectedTerm === 'Midterm') subjectTotal = mtExam;
+        else if (selectedTerm === 'Finalterm') subjectTotal = ftExam;
+        else if (selectedTerm === 'Midterm_Test') subjectTotal = mtTest;
+        else if (selectedTerm === 'Finalterm_Test') subjectTotal = ftTest;
+        else subjectTotal = mtExam + ftExam;
+      } else {
+        if (selectedTerm === 'Midterm') subjectTotal = mtTotal;
+        else if (selectedTerm === 'Finalterm') subjectTotal = ftTotal;
+        else if (selectedTerm === 'Midterm_Test') subjectTotal = mtTest;
+        else if (selectedTerm === 'Finalterm_Test') subjectTotal = ftTest;
+        else subjectTotal = mtTotal + ftTotal;
+      }
 
       return { 
         subjectId: sub.id, 
@@ -265,12 +275,22 @@ const ResultPortal = () => {
             const ftConv = ftExam * (examConv / 100);
             const ftTotal = Math.round(ftConv + ftTest);
 
+            const isClass5To8 = ['5', '6', '7', '8'].some(grade => cls?.name?.includes(grade));
+
             let subTot = 0;
-            if (selectedTerm === 'Midterm') subTot = mtExam;
-            else if (selectedTerm === 'Finalterm') subTot = ftExam;
-            else if (selectedTerm === 'Midterm_Test') subTot = mtTest;
-            else if (selectedTerm === 'Finalterm_Test') subTot = ftTest;
-            else subTot = mtExam + ftExam;
+            if (isClass5To8) {
+              if (selectedTerm === 'Midterm') subTot = mtExam;
+              else if (selectedTerm === 'Finalterm') subTot = ftExam;
+              else if (selectedTerm === 'Midterm_Test') subTot = mtTest;
+              else if (selectedTerm === 'Finalterm_Test') subTot = ftTest;
+              else subTot = mtExam + ftExam;
+            } else {
+              if (selectedTerm === 'Midterm') subTot = mtTotal;
+              else if (selectedTerm === 'Finalterm') subTot = ftTotal;
+              else if (selectedTerm === 'Midterm_Test') subTot = mtTest;
+              else if (selectedTerm === 'Finalterm_Test') subTot = ftTest;
+              else subTot = mtTotal + ftTotal;
+            }
 
             if (subTot > 0 || Object.keys(sMarks).length > 0) {
                 sidSubjectScores.push({ subjectName: sub.name, total: subTot });
@@ -414,8 +434,8 @@ const ResultPortal = () => {
       );
     };
 
-    // Weekly Test Layout (Old Format)
-    const renderWeeklyTestReport = () => {
+    // Standard / Weekly Test Layout (Old Format)
+    const renderStandardReport = () => {
       return (
         <div className="report-card-slip" style={{
           width: '100%',
@@ -543,9 +563,11 @@ const ResultPortal = () => {
       );
     };
 
+    const isClass5To8 = ['5', '6', '7', '8'].some(grade => cls?.name?.includes(grade));
+
     return (
       <div>
-        {selectedTerm.includes('_Test') ? renderWeeklyTestReport() : renderMainReport()}
+        {(!selectedTerm.includes('_Test') && isClass5To8) ? renderMainReport() : renderStandardReport()}
         <div style={{ marginTop: '1rem', textAlign: 'center', display: 'flex', gap: '1rem', justifyContent: 'center' }} className="no-print">
            <button className="btn" style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={() => { setUid(''); setResultData(null); window.history.replaceState({}, document.title, window.location.pathname); }}>
              <RefreshCw size={18} /> Search Another
