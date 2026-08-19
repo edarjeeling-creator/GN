@@ -431,8 +431,8 @@ const ResultPortal = () => {
           </table>
 
           <div style={{ marginTop: '20px', lineHeight: '1.8', fontSize: '16px' }}>
-            {settings.showPercentage !== false && <div>PERCENTAGE: <span>{percentage}%</span></div>}
-            {settings.showRank !== false && <div>RANK IN CLASS: <span>{getOrdinalSuffix(rank)}</span></div>}
+            <div>PERCENTAGE: <span>{percentage}%</span></div>
+            <div>RANK IN CLASS: <span>{getOrdinalSuffix(rank)}</span></div>
           </div>
         </div>
       );

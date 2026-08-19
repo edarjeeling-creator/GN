@@ -521,9 +521,10 @@ const Admin = () => {
           if (!student) return;
 
           const subjectClusters = [
-            ['english 1', 'english paper 1', 'eng1', 'eng 1', 'english i', 'english-1'],
-            ['english 2', 'english paper 2', 'eng2', 'eng 2', 'english ii', 'english-2'],
-            ['second language', 'geng', '2nd lang', 'second lang', 'general english', '2nd language'],
+            ['english 1', 'english paper 1', 'eng1', 'eng 1', 'english i', 'english-1', 'english language'],
+            ['english 2', 'english paper 2', 'eng2', 'eng 2', 'english ii', 'english-2', 'english literature'],
+            ['second language', 'geng', '2nd lang', 'second lang', 'general english', '2nd language', '2ndl', '2l', 'secondl'],
+            ['third language', '3rd lang', 'third lang', '3rd language', '3rdl', '3l', 'thirdl', 'tl'],
             ['nepali', 'nep', 'nepal'],
             ['hindi', 'hin'],
             ['mathematics', 'math', 'maths'],
@@ -535,7 +536,9 @@ const Admin = () => {
             ['history', 'hist', 'his'],
             ['geography', 'geog', 'geo'],
             ['political science', 'pol sc', 'pol. sc.', 'pol science', 'polsc'],
-            ['sociology', 'soc', 'socio']
+            ['sociology', 'soc', 'socio'],
+            ['general knowledge', 'gk', 'general'],
+            ['computer application', 'computer', 'comp', 'computer science', 'cs']
           ];
 
           subjects.forEach(sub => {
