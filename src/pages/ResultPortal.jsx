@@ -117,9 +117,10 @@ const ResultPortal = () => {
 
     // Sort subjects to match the specified order
     const subjectOrder = [
-      'english language', 'english literature', '2nd language', 'physics', 
-      'chemistry', 'biology', 'maths', 'history', 'geography', 
-      'computer', 'general knowledge', '3rd language'
+      'english language', 'eng1', 'english literature', 'eng2', '2nd language', 
+      'biology', 'bio', 'physics', 'phy', 'chemistry', 'chem', 'maths', 'math', 'mathematics',
+      'history', 'hist', 'geography', 'geog', 'computer application', 'computer', 'comp', 
+      'general knowledge', 'gk', '3rd language', 'tl', 'third language'
     ];
     studentSubjects.sort((a, b) => {
       const idxA = subjectOrder.indexOf(a.name.toLowerCase().trim());
@@ -241,6 +242,16 @@ const ResultPortal = () => {
       grandTotal = subjectScores.reduce((acc, curr) => acc + curr.total, 0);
       maxPossibleTotal = subjectScores.length * (selectedTerm === 'Combined' ? 200 : 100);
     }
+
+    const getOrdinalSuffix = (i) => {
+      if (typeof i !== 'number' || isNaN(i)) return i;
+      const j = i % 10,
+            k = i % 100;
+      if (j === 1 && k !== 11) return i + "st";
+      if (j === 2 && k !== 12) return i + "nd";
+      if (j === 3 && k !== 13) return i + "rd";
+      return i + "th";
+    };
 
     // 2. Calculate Grand Totals for ALL students in the class to find Rank
     let rank = '-';
@@ -392,7 +403,7 @@ const ResultPortal = () => {
             <span>Roll No: {student.roll_no}</span>
           </div>
 
-          <div style={{ fontWeight: 'bold', fontSize: '18px', marginBottom: '15px', textTransform: 'uppercase' }}>
+          <div style={{ fontWeight: 'bold', fontSize: '18px', marginBottom: '15px', textTransform: 'uppercase', textAlign: 'center' }}>
             {getTermLabel()} PROGRESS REPORT CARD - {academicYear}
           </div>
 
@@ -420,15 +431,8 @@ const ResultPortal = () => {
           </table>
 
           <div style={{ marginTop: '20px', lineHeight: '1.8', fontSize: '16px' }}>
-            {settings.showRank !== false && <div>RANK IN CLASS: <span>{rank}</span> Out of {studentsCount}</div>}
             {settings.showPercentage !== false && <div>PERCENTAGE: <span>{percentage}%</span></div>}
-            {settings.showAttendance !== false && <div>ATTENDANCE: <span>{attendancePercentage > 0 ? 'Regular' : 'Irregular'}</span></div>}
-            {settings.showRemarks !== false && (
-              <>
-                <div>CONDUCT: Good/Satisfactory/Unsatisfactory</div>
-                <div>PERSONALITY & NEATNESS: Good/Satisfactory/Unsatisfactory</div>
-              </>
-            )}
+            {settings.showRank !== false && <div>RANK IN CLASS: <span>{getOrdinalSuffix(rank)}</span></div>}
           </div>
         </div>
       );
@@ -537,7 +541,7 @@ const ResultPortal = () => {
               {!selectedTerm.includes('_Test') && (
                 <tr>
                   <td colSpan={colCount} style={{ padding: '15px 12px', border: '1px solid black', lineHeight: '1.8' }}>
-                    {settings.showRank !== false && <div>RANK IN CLASS: <span>{rank}</span></div>}
+                    {settings.showRank !== false && <div>RANK IN CLASS: <span>{getOrdinalSuffix(rank)}</span></div>}
                     {settings.showPercentage !== false && <div>PERCENTAGE: <span>{percentage}%</span></div>}
                     {settings.showAttendance !== false && <div>ATTENDANCE: <span>{attendancePercentage}%</span></div>}
                     {settings.showRemarks !== false && <div>REMARKS: <span>Good</span></div>}
