@@ -228,8 +228,40 @@ const PrincipalPortal = () => {
     e.preventDefault();
     if (!searchQuery) return;
     setSearching(true);
-    const { data } = await supabase.from('profiles').select('*').or(`name.ilike.%${searchQuery}%,id.eq.${searchQuery}`);
-    if (data) setSearchResults(data);
+    
+    let combinedResults = [];
+
+    // Search profiles (teachers/admins)
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*')
+      .ilike('name', `%${searchQuery}%`);
+      
+    if (profileData) {
+      combinedResults = [...combinedResults, ...profileData.map(p => ({
+        ...p,
+        uid_display: p.id
+      }))];
+    }
+
+    // Search students (by name or UID)
+    const { data: studentData } = await supabase
+      .from('students')
+      .select('*, classes(name, section)')
+      .or(`name.ilike.%${searchQuery}%,uid.ilike.%${searchQuery}%`);
+      
+    if (studentData) {
+      combinedResults = [...combinedResults, ...studentData.map(s => ({
+        id: s.id,
+        name: s.name,
+        role: 'student',
+        class: s.classes?.name,
+        section: s.classes?.section,
+        uid_display: s.uid || s.id
+      }))];
+    }
+
+    setSearchResults(combinedResults);
     setSearching(false);
   };
 
@@ -611,7 +643,7 @@ const PrincipalPortal = () => {
                             <td className="p-4 font-semibold text-slate-800">{u.name}</td>
                             <td className="p-4"><Badge variant="secondary" className="uppercase">{u.role}</Badge></td>
                             <td className="p-4 text-slate-600">{u.class ? `${u.class} ${u.section || ''}` : (u.subject || '-')}</td>
-                            <td className="p-4 text-slate-400 font-mono text-sm">{u.id}</td>
+                            <td className="p-4 text-slate-400 font-mono text-sm">{u.uid_display || u.id}</td>
                           </tr>
                         ))}
                       </tbody>
