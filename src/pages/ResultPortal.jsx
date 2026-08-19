@@ -117,7 +117,7 @@ const ResultPortal = () => {
 
     // Sort subjects to match the specified order
     const subjectOrder = [
-      'english language', 'eng1', 'english literature', 'eng2', '2nd language', 
+      'english language', 'eng1', 'engi', 'english literature', 'eng2', '2nd language', 
       'biology', 'bio', 'physics', 'phy', 'chemistry', 'chem', 'maths', 'math', 'mathematics',
       'history', 'hist', 'geography', 'geog', 'computer application', 'computer', 'comp', 
       'general knowledge', 'gk', '3rd language', 'tl', 'third language'
