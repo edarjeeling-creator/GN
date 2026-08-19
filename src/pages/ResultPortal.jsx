@@ -147,11 +147,11 @@ const ResultPortal = () => {
       const ftTotal = Math.round(ftConv + ftTest);
 
       let subjectTotal = 0;
-      if (selectedTerm === 'Midterm') subjectTotal = mtTotal;
-      else if (selectedTerm === 'Finalterm') subjectTotal = ftTotal;
+      if (selectedTerm === 'Midterm') subjectTotal = mtExam;
+      else if (selectedTerm === 'Finalterm') subjectTotal = ftExam;
       else if (selectedTerm === 'Midterm_Test') subjectTotal = mtTest;
       else if (selectedTerm === 'Finalterm_Test') subjectTotal = ftTest;
-      else subjectTotal = mtTotal + ftTotal;
+      else subjectTotal = mtExam + ftExam;
 
       return { 
         subjectId: sub.id, 
@@ -266,9 +266,11 @@ const ResultPortal = () => {
             const ftTotal = Math.round(ftConv + ftTest);
 
             let subTot = 0;
-            if (selectedTerm === 'Midterm') subTot = mtTotal;
-            else if (selectedTerm === 'Finalterm') subTot = ftTotal;
-            else subTot = mtTotal + ftTotal;
+            if (selectedTerm === 'Midterm') subTot = mtExam;
+            else if (selectedTerm === 'Finalterm') subTot = ftExam;
+            else if (selectedTerm === 'Midterm_Test') subTot = mtTest;
+            else if (selectedTerm === 'Finalterm_Test') subTot = ftTest;
+            else subTot = mtExam + ftExam;
 
             if (subTot > 0 || Object.keys(sMarks).length > 0) {
                 sidSubjectScores.push({ subjectName: sub.name, total: subTot });
@@ -324,6 +326,8 @@ const ResultPortal = () => {
         const myCompareValue = isISCClass ? (maxPossibleTotal > 0 ? (grandTotal / maxPossibleTotal) * 100 : 0) : grandTotal;
         rank = allTotals.findIndex(v => Math.abs(v - myCompareValue) < 0.01) + 1;
     }
+    
+    const studentsCount = class_marks ? Array.from(new Set(class_marks.map(m => m.student_id))).length : 0;
 
     const percentage = maxPossibleTotal > 0 ? ((grandTotal / maxPossibleTotal) * 100).toFixed(1) : 0;
 
@@ -344,130 +348,204 @@ const ResultPortal = () => {
     const attendancePercentage = calculateAttendancePercentage(attendance, student.id, academicYear);
     const colCount = selectedTerm === 'Combined' ? 6 : (selectedTerm.includes('_Test') ? 2 : 4);
 
-    return (
-      <div className="report-card-slip" style={{
-        width: '100%',
-        maxWidth: '800px',
-        margin: '2rem auto',
-        padding: '1rem',
-        fontFamily: 'Arial, sans-serif',
-        background: '#fff',
-        color: '#000',
-      }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', border: '2px solid black', fontSize: '14px' }}>
-          <tbody>
-            {/* Header Row */}
-            <tr>
-              <td colSpan={colCount} style={{ padding: '10px 12px', border: '1px solid black' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span><span style={{ fontWeight: 'bold' }}>Student Name:</span> <span>{student.name}</span></span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span><span style={{ fontWeight: 'bold' }}>Class:</span> <span>{cls.name}</span></span>
-                  <span><span style={{ fontWeight: 'bold' }}>Section:</span> <span>{cls.section}</span></span>
-                  <span><span style={{ fontWeight: 'bold' }}>Roll No:</span> <span>{student.roll_no}</span></span>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td colSpan={colCount} style={{ padding: '15px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1em', textTransform: 'uppercase' }}>
-                {getTermLabel()} PROGRESS REPORT CARD - {academicYear}
-              </td>
-            </tr>
-            
-            {/* Column Headers */}
-            <tr>
-              <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold' }}>Subjects</td>
-              {selectedTerm === 'Midterm' && (
-                <>
-                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Test (out of {100 - examConv})</td>
-                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Exam (out of {examConv})</td>
-                </>
-              )}
-              {selectedTerm === 'Finalterm' && (
-                <>
-                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Test (out of {100 - examConv})</td>
-                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Exam (out of {examConv})</td>
-                </>
-              )}
-              {selectedTerm === 'Combined' && (
-                <>
-                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Mid-Term Test</td>
-                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Mid-Term Exam</td>
-                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Final-Term Test</td>
-                  <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Final-Term Exam</td>
-                </>
-              )}
-              <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center', width: '150px' }}>Total out of {getOutOFAmount()}</td>
-            </tr>
+    // Main Report Layout (Midterm, Finalterm, Combined)
+    const renderMainReport = () => {
+      return (
+        <div className="report-card-slip" style={{
+          width: '100%',
+          maxWidth: '800px',
+          margin: '0 auto',
+          padding: '2rem 1rem', // Give some space at the top
+          fontFamily: 'Arial, sans-serif',
+          background: '#fff',
+          color: '#000',
+        }}>
+          {/* Top text block matching the image */}
+          <div style={{ display: 'flex', fontWeight: 'bold', fontSize: '18px', marginBottom: '10px' }}>
+            <span style={{ width: '180px' }}>STUDENT NAME:</span> 
+            <span>{student.name}</span>
+          </div>
+          
+          <div style={{ display: 'flex', fontWeight: 'bold', fontSize: '18px', marginBottom: '10px' }}>
+            <span style={{ width: '120px' }}>Class: {cls.name}</span>
+            <span style={{ width: '160px' }}>Section: {cls.section}</span>
+            <span>Roll No: {student.roll_no}</span>
+          </div>
 
-            {/* Subjects Rows */}
-            {subjectScores.filter(score => !(selectedTerm.includes('_Test') && score.total === 0)).map(score => {
-              return (
+          <div style={{ fontWeight: 'bold', fontSize: '18px', marginBottom: '15px', textTransform: 'uppercase' }}>
+            {getTermLabel()} PROGRESS REPORT CARD - {academicYear}
+          </div>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', border: '2px solid black', fontSize: '16px' }}>
+            <thead>
+              <tr>
+                <th style={{ border: '1px solid black', padding: '6px 12px', textAlign: 'left' }}>Subjects</th>
+                <th style={{ border: '1px solid black', padding: '6px 12px', textAlign: 'center', width: '300px' }}>MARK OBTAINED OUT OF {getOutOFAmount()}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {subjectScores.map(score => (
                 <tr key={score.subjectId}>
-                  <td style={{ padding: '8px 12px', border: '1px solid black' }}>{score.subjectName}</td>
-                  {selectedTerm === 'Midterm' && (
-                    <>
-                      <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{score.mtTest}</td>
-                      <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{Math.round(score.mtConv)}</td>
-                    </>
-                  )}
-                  {selectedTerm === 'Finalterm' && (
-                    <>
-                      <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{score.ftTest}</td>
-                      <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{Math.round(score.ftConv)}</td>
-                    </>
-                  )}
-                  {selectedTerm === 'Combined' && (
-                    <>
-                      <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{score.mtTest}</td>
-                      <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{Math.round(score.mtConv)}</td>
-                      <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{score.ftTest}</td>
-                      <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{Math.round(score.ftConv)}</td>
-                    </>
-                  )}
-                  {selectedTerm === 'Midterm_Test' && null}
-                  {selectedTerm === 'Finalterm_Test' && null}
-                  <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold' }}>
+                  <td style={{ border: '1px solid black', padding: '6px 12px' }}>{score.subjectName}</td>
+                  <td style={{ border: '1px solid black', padding: '6px 12px', textAlign: 'center' }}>
                     {score.total}
                   </td>
                 </tr>
-              );
-            })}
-
-            {/* Total Row */}
-            <tr>
-              <td colSpan={colCount - 1} style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'right' }}>TOTAL</td>
-              <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold' }}>{grandTotal}</td>
-            </tr>
-
-            {/* Footer Details */}
-            {!selectedTerm.includes('_Test') && (
+              ))}
               <tr>
-                <td colSpan={colCount} style={{ padding: '15px 12px', border: '1px solid black', lineHeight: '1.8' }}>
-                  {settings.showRank !== false && <div>RANK IN CLASS: <span>{rank}</span></div>}
-                  {settings.showPercentage !== false && <div>PERCENTAGE: <span>{percentage}%</span></div>}
-                  {settings.showAttendance !== false && <div>ATTENDANCE: <span>{attendancePercentage}%</span></div>}
-                  {settings.showRemarks !== false && <div>REMARKS: <span>Good</span></div>}
+                <td style={{ border: '1px solid black', padding: '6px 12px', fontWeight: 'bold', textTransform: 'uppercase' }}>TOTAL</td>
+                <td style={{ border: '1px solid black', padding: '6px 12px', textAlign: 'center', fontWeight: 'bold' }}>{grandTotal}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style={{ marginTop: '20px', lineHeight: '1.8', fontSize: '16px' }}>
+            {settings.showRank !== false && <div>RANK IN CLASS: <span>{rank}</span> Out of {studentsCount}</div>}
+            {settings.showPercentage !== false && <div>PERCENTAGE: <span>{percentage}%</span></div>}
+            {settings.showAttendance !== false && <div>ATTENDANCE: <span>{attendancePercentage > 0 ? 'Regular' : 'Irregular'}</span></div>}
+            {settings.showRemarks !== false && (
+              <>
+                <div>CONDUCT: Good/Satisfactory/Unsatisfactory</div>
+                <div>PERSONALITY & NEATNESS: Good/Satisfactory/Unsatisfactory</div>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    // Weekly Test Layout (Old Format)
+    const renderWeeklyTestReport = () => {
+      return (
+        <div className="report-card-slip" style={{
+          width: '100%',
+          maxWidth: '800px',
+          margin: '2rem auto',
+          padding: '1rem',
+          fontFamily: 'Arial, sans-serif',
+          background: '#fff',
+          color: '#000',
+        }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', border: '2px solid black', fontSize: '14px' }}>
+            <tbody>
+              {/* Header Row */}
+              <tr>
+                <td colSpan={colCount} style={{ padding: '10px 12px', border: '1px solid black' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span><span style={{ fontWeight: 'bold' }}>Student Name:</span> <span>{student.name}</span></span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span><span style={{ fontWeight: 'bold' }}>Class:</span> <span>{cls.name}</span></span>
+                    <span><span style={{ fontWeight: 'bold' }}>Section:</span> <span>{cls.section}</span></span>
+                    <span><span style={{ fontWeight: 'bold' }}>Roll No:</span> <span>{student.roll_no}</span></span>
+                  </div>
                 </td>
               </tr>
-            )}
-          </tbody>
-        </table>
-        
-        {!selectedTerm.includes('_Test') && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '60px' }}>
-             <div style={{ textAlign: 'center' }}>
-               {settings.classTeacherSignatureUrl && <img src={settings.classTeacherSignatureUrl} alt="Class Teacher Signature" style={{ height: '40px', display: 'block', margin: '0 auto 5px' }} />}
-               <div style={{ borderTop: '1px solid black', paddingTop: '5px', width: '150px' }}>Class Teacher</div>
-             </div>
-             <div style={{ textAlign: 'center' }}>
-               {settings.principalSignatureUrl && <img src={settings.principalSignatureUrl} alt="Principal Signature" style={{ height: '40px', display: 'block', margin: '0 auto 5px' }} />}
-               <div style={{ borderTop: '1px solid black', paddingTop: '5px', width: '150px' }}>Principal</div>
-             </div>
-          </div>
-        )}
-        
+              <tr>
+                <td colSpan={colCount} style={{ padding: '15px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1em', textTransform: 'uppercase' }}>
+                  {getTermLabel()} PROGRESS REPORT CARD - {academicYear}
+                </td>
+              </tr>
+              
+              {/* Column Headers */}
+              <tr>
+                <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold' }}>Subjects</td>
+                {selectedTerm === 'Midterm' && (
+                  <>
+                    <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Test (out of {100 - examConv})</td>
+                    <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Exam (out of {examConv})</td>
+                  </>
+                )}
+                {selectedTerm === 'Finalterm' && (
+                  <>
+                    <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Test (out of {100 - examConv})</td>
+                    <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Exam (out of {examConv})</td>
+                  </>
+                )}
+                {selectedTerm === 'Combined' && (
+                  <>
+                    <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Mid-Term Test</td>
+                    <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Mid-Term Exam</td>
+                    <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Final-Term Test</td>
+                    <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center' }}>Final-Term Exam</td>
+                  </>
+                )}
+                <td style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textAlign: 'center', width: '150px' }}>Total out of {getOutOFAmount()}</td>
+              </tr>
+  
+              {/* Subjects Rows */}
+              {subjectScores.filter(score => !(selectedTerm.includes('_Test') && score.total === 0)).map(score => {
+                return (
+                  <tr key={score.subjectId}>
+                    <td style={{ padding: '8px 12px', border: '1px solid black' }}>{score.subjectName}</td>
+                    {selectedTerm === 'Midterm' && (
+                      <>
+                        <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{score.mtTest}</td>
+                        <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{Math.round(score.mtConv)}</td>
+                      </>
+                    )}
+                    {selectedTerm === 'Finalterm' && (
+                      <>
+                        <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{score.ftTest}</td>
+                        <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{Math.round(score.ftConv)}</td>
+                      </>
+                    )}
+                    {selectedTerm === 'Combined' && (
+                      <>
+                        <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{score.mtTest}</td>
+                        <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{Math.round(score.mtConv)}</td>
+                        <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{score.ftTest}</td>
+                        <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{Math.round(score.ftConv)}</td>
+                      </>
+                    )}
+                    {selectedTerm === 'Midterm_Test' && null}
+                    {selectedTerm === 'Finalterm_Test' && null}
+                    <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold' }}>
+                      {score.total}
+                    </td>
+                  </tr>
+                );
+              })}
+  
+              {/* Total Row */}
+              <tr>
+                <td colSpan={colCount - 1} style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'right' }}>TOTAL</td>
+                <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold' }}>{grandTotal}</td>
+              </tr>
+  
+              {/* Footer Details */}
+              {!selectedTerm.includes('_Test') && (
+                <tr>
+                  <td colSpan={colCount} style={{ padding: '15px 12px', border: '1px solid black', lineHeight: '1.8' }}>
+                    {settings.showRank !== false && <div>RANK IN CLASS: <span>{rank}</span></div>}
+                    {settings.showPercentage !== false && <div>PERCENTAGE: <span>{percentage}%</span></div>}
+                    {settings.showAttendance !== false && <div>ATTENDANCE: <span>{attendancePercentage}%</span></div>}
+                    {settings.showRemarks !== false && <div>REMARKS: <span>Good</span></div>}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          
+          {!selectedTerm.includes('_Test') && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '60px' }}>
+               <div style={{ textAlign: 'center' }}>
+                 {settings.classTeacherSignatureUrl && <img src={settings.classTeacherSignatureUrl} alt="Class Teacher Signature" style={{ height: '40px', display: 'block', margin: '0 auto 5px' }} />}
+                 <div style={{ borderTop: '1px solid black', paddingTop: '5px', width: '150px' }}>Class Teacher</div>
+               </div>
+               <div style={{ textAlign: 'center' }}>
+                 {settings.principalSignatureUrl && <img src={settings.principalSignatureUrl} alt="Principal Signature" style={{ height: '40px', display: 'block', margin: '0 auto 5px' }} />}
+                 <div style={{ borderTop: '1px solid black', paddingTop: '5px', width: '150px' }}>Principal</div>
+               </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    return (
+      <div>
+        {selectedTerm.includes('_Test') ? renderWeeklyTestReport() : renderMainReport()}
         <div style={{ marginTop: '1rem', textAlign: 'center', display: 'flex', gap: '1rem', justifyContent: 'center' }} className="no-print">
            <button className="btn" style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={() => { setUid(''); setResultData(null); window.history.replaceState({}, document.title, window.location.pathname); }}>
              <RefreshCw size={18} /> Search Another
