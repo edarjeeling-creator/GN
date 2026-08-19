@@ -76,16 +76,7 @@ const Dashboard = () => {
     try {
       const today = new Date().toISOString().split('T')[0];
       
-      const { data: settingsData } = await supabase.from('school_settings').select('*').in('setting_key', ['staff_reporting_time', 'staff_grace_period_mins']);
-      let rTime = '08:45';
-      let gMins = 10;
-      if (settingsData) {
-        settingsData.forEach(s => {
-          if (s.setting_key === 'staff_reporting_time') rTime = s.setting_value;
-          if (s.setting_key === 'staff_grace_period_mins') gMins = parseInt(s.setting_value) || 10;
-        });
-      }
-      setReportingTimeConfig({ time: rTime, grace: gMins });
+      setReportingTimeConfig({ time: 'Open', grace: 0 });
 
       const { data: myAtt } = await supabase.from('teacher_attendance').select('*').eq('teacher_id', profile.id).eq('attendance_date', today).maybeSingle();
       if (myAtt) setMyAttendanceToday(myAtt);
@@ -117,12 +108,24 @@ const Dashboard = () => {
 
   const handleCheckIn = async () => {
     setAttendanceActionLoading(true);
-    const { data, error } = await supabase.rpc('check_in_teacher', { p_device_info: navigator.userAgent.substring(0, 200) });
+    
+    const today = new Date().toISOString().split('T')[0];
+    const timeStr = new Date().toISOString();
+    
+    const { data, error } = await supabase.from('teacher_attendance').insert({
+        teacher_id: profile.id, 
+        attendance_date: today, 
+        status: 'Present', 
+        check_in_time: timeStr
+    }).select().single();
 
     if (error) {
-      alert("Failed to check in: " + error.message);
-    } else if (data && data.error) {
-      alert("Check-in Notice: " + data.error);
+      if (error.code === '23505') { // Unique constraint violation, already exists
+        const { data: myAtt } = await supabase.from('teacher_attendance').select('*').eq('teacher_id', profile.id).eq('attendance_date', today).maybeSingle();
+        if (myAtt) setMyAttendanceToday(myAtt);
+      } else {
+        alert("Failed to check in: " + error.message);
+      }
     } else {
       setMyAttendanceToday(data);
     }
@@ -133,12 +136,14 @@ const Dashboard = () => {
     if (!myAttendanceToday || !myAttendanceToday.check_in_time) return;
     setAttendanceActionLoading(true);
     
-    const { data, error } = await supabase.rpc('check_out_teacher');
+    const timeStr = new Date().toISOString();
+
+    const { data, error } = await supabase.from('teacher_attendance').update({
+        check_out_time: timeStr
+    }).eq('id', myAttendanceToday.id).select().single();
 
     if (error) {
       alert("Failed to check out: " + error.message);
-    } else if (data && data.error) {
-      alert("Check-out Notice: " + data.error);
     } else {
       setMyAttendanceToday(data);
     }
@@ -216,7 +221,7 @@ const Dashboard = () => {
             <div>
               <h2 className="text-xl sm:text-2xl font-bold mb-1">My Daily Attendance</h2>
               <p className="text-slate-400 text-sm">
-                Reporting Time: <strong className="text-slate-300">{reportingTimeConfig.time} AM</strong> (Grace: {reportingTimeConfig.grace} mins)
+                Reporting Time: <strong className="text-slate-300">{reportingTimeConfig.time}</strong>
               </p>
             </div>
           </div>
@@ -252,7 +257,7 @@ const Dashboard = () => {
                 <div className="bg-emerald-500/20 p-2 rounded-full"><CheckCircle className="text-emerald-400" size={24} /></div>
                 <div>
                   <h4 className="font-bold text-slate-200">Shift Completed</h4>
-                  <p className="text-sm text-slate-400">Total Hours: <strong className="text-white">{myAttendanceToday.working_hours}</strong></p>
+                  <p className="text-sm text-slate-400">Total Hours: <strong className="text-white">{myAttendanceToday.working_hours || (myAttendanceToday.check_in_time && myAttendanceToday.check_out_time ? ((new Date(myAttendanceToday.check_out_time) - new Date(myAttendanceToday.check_in_time)) / (1000 * 60 * 60)).toFixed(1) + ' hrs' : 'N/A')}</strong></p>
                 </div>
               </div>
             )}
