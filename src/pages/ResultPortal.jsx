@@ -571,7 +571,7 @@ const ResultPortal = () => {
              <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary-color)', textDecoration: 'none', fontWeight: 600 }}>
                <Home size={20} /> Campus Home
              </Link>
-             <button className="btn" style={{ background: 'white', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', borderRadius: '0.5rem' }} onClick={() => { setUid(''); setResultData(null); window.history.replaceState({}, document.title, window.location.pathname); }}>
+             <button className="btn" style={{ background: 'white', color: '#374151', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', borderRadius: '0.5rem' }} onClick={() => { setUid(''); setResultData(null); window.history.replaceState({}, document.title, window.location.pathname); }}>
                <RefreshCw size={18} /> Search Another
              </button>
            </div>
