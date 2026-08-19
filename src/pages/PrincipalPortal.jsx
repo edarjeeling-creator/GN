@@ -237,11 +237,30 @@ const PrincipalPortal = () => {
       .select('*')
       .ilike('name', `%${searchQuery}%`);
       
+    // Fetch classes and subjects to determine class teacher or subjects taught
+    const { data: allClasses } = await supabase.from('classes').select('name, section, class_teacher_id');
+    const { data: allTeacherSubjects } = await supabase.from('teacher_subjects').select('teacher_id, subjects(name)');
+      
     if (profileData) {
-      combinedResults = [...combinedResults, ...profileData.map(p => ({
-        ...p,
-        uid_display: p.id
-      }))];
+      combinedResults = [...combinedResults, ...profileData.map(p => {
+        let classOrSub = p.subject || '-';
+        if (p.role === 'teacher') {
+           const classTaught = allClasses?.find(c => c.class_teacher_id === p.id);
+           if (classTaught) {
+             classOrSub = `Class Teacher (${classTaught.name} ${classTaught.section})`;
+           } else {
+             const subjects = allTeacherSubjects?.filter(ts => ts.teacher_id === p.id).map(ts => ts.subjects?.name).filter(Boolean);
+             if (subjects && subjects.length > 0) {
+               classOrSub = [...new Set(subjects)].join(', ');
+             }
+           }
+        }
+        return {
+          ...p,
+          subject: classOrSub,
+          uid_display: p.id
+        };
+      })];
     }
 
     // Search students (by name or UID)
