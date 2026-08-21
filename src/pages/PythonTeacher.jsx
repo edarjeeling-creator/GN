@@ -40,6 +40,7 @@ const PythonTeacher = () => {
   const [visibilityType, setVisibilityType] = useState('global'); // 'global', 'class', 'student'
   const [selectedClasses, setSelectedClasses] = useState([]);
   const [selectedStudents, setSelectedStudents] = useState([]);
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
   
   // Review Mode
   const [reviewingSubmission, setReviewingSubmission] = useState(null);
@@ -124,20 +125,37 @@ const PythonTeacher = () => {
       )}
 
       {visibilityType === 'student' && (
-        <div className="max-h-40 overflow-y-auto border p-2 rounded bg-white">
-          {students.map(s => (
-            <label key={s.id} className="flex items-center gap-2 p-1 hover:bg-slate-100 cursor-pointer text-sm text-slate-800">
-              <input 
-                type="checkbox" 
-                checked={selectedStudents.includes(s.id)} 
-                onChange={(e) => {
-                  if (e.target.checked) setSelectedStudents([...selectedStudents, s.id]);
-                  else setSelectedStudents(selectedStudents.filter(id => id !== s.id));
-                }} 
-              />
-              {s.name} ({classes.find(c => c.id === s.class_id)?.name || 'Unknown'})
-            </label>
-          ))}
+        <div className="flex flex-col gap-2">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Search students..." 
+              className="w-full border border-slate-300 rounded-md py-1 pl-8 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              value={studentSearchQuery}
+              onChange={(e) => setStudentSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="max-h-40 overflow-y-auto border p-2 rounded bg-white">
+            {students
+              .filter(s => s.name.toLowerCase().includes(studentSearchQuery.toLowerCase()))
+              .map(s => (
+              <label key={s.id} className="flex items-center gap-2 p-1 hover:bg-slate-100 cursor-pointer text-sm text-slate-800">
+                <input 
+                  type="checkbox" 
+                  checked={selectedStudents.includes(s.id)} 
+                  onChange={(e) => {
+                    if (e.target.checked) setSelectedStudents([...selectedStudents, s.id]);
+                    else setSelectedStudents(selectedStudents.filter(id => id !== s.id));
+                  }} 
+                />
+                {s.name} ({classes.find(c => c.id === s.class_id)?.name || 'Unknown'})
+              </label>
+            ))}
+            {students.filter(s => s.name.toLowerCase().includes(studentSearchQuery.toLowerCase())).length === 0 && (
+              <p className="text-sm text-slate-500 p-2 text-center">No students found.</p>
+            )}
+          </div>
         </div>
       )}
     </div>
