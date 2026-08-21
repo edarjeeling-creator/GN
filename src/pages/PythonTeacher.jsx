@@ -32,8 +32,14 @@ const PythonTeacher = () => {
   const [tempUid, setTempUid] = useState('');
   
   // Forms
-  const [newLesson, setNewLesson] = useState({ title: '', module: MODULES[0], description: '', video_url: '', content: '' });
-  const [newAssignment, setNewAssignment] = useState({ title: '', module: MODULES[0], instructions: '', starter_code: '' });
+  const defaultVisibility = { isGlobal: true, classes: [], students: [] };
+  const [newLesson, setNewLesson] = useState({ title: '', module: MODULES[0], description: '', video_url: '', content: '', visibility: defaultVisibility });
+  const [newAssignment, setNewAssignment] = useState({ title: '', module: MODULES[0], instructions: '', starter_code: '', visibility: defaultVisibility });
+  
+  // Visibility State
+  const [visibilityType, setVisibilityType] = useState('global'); // 'global', 'class', 'student'
+  const [selectedClasses, setSelectedClasses] = useState([]);
+  const [selectedStudents, setSelectedStudents] = useState([]);
   
   // Review Mode
   const [reviewingSubmission, setReviewingSubmission] = useState(null);
@@ -73,11 +79,79 @@ const PythonTeacher = () => {
     if (error) console.error("Error fetching submissions", error);
   };
 
+  const getVisibilityObject = () => {
+    return {
+      isGlobal: visibilityType === 'global',
+      classes: visibilityType === 'class' ? selectedClasses : [],
+      students: visibilityType === 'student' ? selectedStudents : []
+    };
+  };
+
+  const renderVisibilitySelector = () => (
+    <div className="bg-slate-50 p-4 rounded-md border border-slate-200">
+      <label className="block text-sm font-bold text-slate-600 mb-2">Assign To:</label>
+      <div className="flex gap-4 mb-4">
+        <label className="flex items-center gap-2">
+          <input type="radio" name="visibility" checked={visibilityType === 'global'} onChange={() => setVisibilityType('global')} />
+          All Students
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="radio" name="visibility" checked={visibilityType === 'class'} onChange={() => setVisibilityType('class')} />
+          Specific Classes
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="radio" name="visibility" checked={visibilityType === 'student'} onChange={() => setVisibilityType('student')} />
+          Specific Students
+        </label>
+      </div>
+
+      {visibilityType === 'class' && (
+        <div className="max-h-40 overflow-y-auto border p-2 rounded bg-white">
+          {classes.map(c => (
+            <label key={c.id} className="flex items-center gap-2 p-1 hover:bg-slate-50 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={selectedClasses.includes(c.id)} 
+                onChange={(e) => {
+                  if (e.target.checked) setSelectedClasses([...selectedClasses, c.id]);
+                  else setSelectedClasses(selectedClasses.filter(id => id !== c.id));
+                }} 
+              />
+              {c.name} {c.section}
+            </label>
+          ))}
+        </div>
+      )}
+
+      {visibilityType === 'student' && (
+        <div className="max-h-40 overflow-y-auto border p-2 rounded bg-white">
+          {students.map(s => (
+            <label key={s.id} className="flex items-center gap-2 p-1 hover:bg-slate-50 cursor-pointer text-sm">
+              <input 
+                type="checkbox" 
+                checked={selectedStudents.includes(s.id)} 
+                onChange={(e) => {
+                  if (e.target.checked) setSelectedStudents([...selectedStudents, s.id]);
+                  else setSelectedStudents(selectedStudents.filter(id => id !== s.id));
+                }} 
+              />
+              {s.name} ({classes.find(c => c.id === s.class_id)?.name || 'Unknown'})
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   const handleAddLesson = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.from('python_lessons').insert([newLesson]);
+    const lessonToInsert = { ...newLesson, visibility: getVisibilityObject() };
+    const { error } = await supabase.from('python_lessons').insert([lessonToInsert]);
     if (!error) {
-      setNewLesson({ title: '', module: MODULES[0], description: '', video_url: '', content: '' });
+      setNewLesson({ title: '', module: MODULES[0], description: '', video_url: '', content: '', visibility: defaultVisibility });
+      setVisibilityType('global');
+      setSelectedClasses([]);
+      setSelectedStudents([]);
       fetchLessons();
       alert("Lesson added successfully!");
     } else {
@@ -93,9 +167,13 @@ const PythonTeacher = () => {
 
   const handleAddAssignment = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.from('python_assignments').insert([newAssignment]);
+    const assignmentToInsert = { ...newAssignment, visibility: getVisibilityObject() };
+    const { error } = await supabase.from('python_assignments').insert([assignmentToInsert]);
     if (!error) {
-      setNewAssignment({ title: '', module: MODULES[0], instructions: '', starter_code: '' });
+      setNewAssignment({ title: '', module: MODULES[0], instructions: '', starter_code: '', visibility: defaultVisibility });
+      setVisibilityType('global');
+      setSelectedClasses([]);
+      setSelectedStudents([]);
       fetchAssignments();
       alert("Assignment added successfully!");
     } else {
@@ -235,6 +313,7 @@ const PythonTeacher = () => {
               <textarea className="input-field" placeholder="Lesson Description / Learning Objectives" rows={3} value={newLesson.description} onChange={e => setNewLesson({...newLesson, description: e.target.value})}></textarea>
               <input className="input-field" placeholder="YouTube Video URL (optional)" value={newLesson.video_url} onChange={e => setNewLesson({...newLesson, video_url: e.target.value})} />
               <textarea className="input-field" placeholder="Markdown/Text Content" rows={6} value={newLesson.content} onChange={e => setNewLesson({...newLesson, content: e.target.value})}></textarea>
+              {renderVisibilitySelector()}
               <button type="submit" className="btn-hero-primary" style={{ background: 'var(--primary-color)', color: 'white', border: 'none' }}><Plus size={16} className="inline mr-2" /> Publish Lesson</button>
             </form>
           </div>
@@ -248,7 +327,12 @@ const PythonTeacher = () => {
                     <h4 className="font-bold text-lg">{l.title}</h4>
                     <button onClick={() => handleDeleteLesson(l.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16}/></button>
                   </div>
-                  <p className="text-xs text-blue-600 mb-2">{l.module}</p>
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-xs text-blue-600">{l.module}</p>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
+                      {l.visibility?.isGlobal ? 'All Students' : (l.visibility?.classes?.length ? 'Specific Classes' : 'Specific Students')}
+                    </span>
+                  </div>
                   <p className="text-sm text-slate-600">{l.description}</p>
                 </div>
               ))}
@@ -272,6 +356,7 @@ const PythonTeacher = () => {
                 <label className="block text-sm font-bold text-slate-600 mb-1">Starter Code (Optional)</label>
                 <PythonIDE initialCode={newAssignment.starter_code} height="200px" onSave={(code) => setNewAssignment({...newAssignment, starter_code: code})} />
               </div>
+              {renderVisibilitySelector()}
               <button type="submit" className="btn-hero-primary" style={{ background: '#10b981', color: 'white', border: 'none' }}><Plus size={16} className="inline mr-2" /> Post Assignment</button>
             </form>
           </div>
@@ -285,7 +370,12 @@ const PythonTeacher = () => {
                     <h4 className="font-bold text-lg">{a.title}</h4>
                     <button onClick={() => handleDeleteAssignment(a.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16}/></button>
                   </div>
-                  <p className="text-xs text-blue-600 mb-2">{a.module}</p>
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-xs text-blue-600">{a.module}</p>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
+                      {a.visibility?.isGlobal ? 'All Students' : (a.visibility?.classes?.length ? 'Specific Classes' : 'Specific Students')}
+                    </span>
+                  </div>
                   <p className="text-sm text-slate-600">{a.instructions}</p>
                 </div>
               ))}

@@ -130,6 +130,20 @@ const PythonStudent = () => {
     if (data) setAssignments(data);
   };
 
+  const visibleLessons = lessons.filter(l => {
+    if (!l.visibility || l.visibility.isGlobal) return true;
+    if (studentClass && l.visibility.classes?.includes(studentClass.id)) return true;
+    if (studentRecord && l.visibility.students?.includes(studentRecord.id)) return true;
+    return false;
+  });
+
+  const visibleAssignments = assignments.filter(a => {
+    if (!a.visibility || a.visibility.isGlobal) return true;
+    if (studentClass && a.visibility.classes?.includes(studentClass.id)) return true;
+    if (studentRecord && a.visibility.students?.includes(studentRecord.id)) return true;
+    return false;
+  });
+
   const fetchStudentRecordAndSubmissions = async () => {
     if (profile && profile.role === 'student') {
       setStudentRecord(profile);
@@ -227,7 +241,7 @@ const PythonStudent = () => {
             <div className="col-span-1 border-r border-slate-200 pr-4 mb-4 md:mb-0">
               <h3 className="font-bold text-lg mb-4 text-slate-700">Modules</h3>
               <div className="flex flex-col gap-2">
-                {lessons.map((l, index) => (
+                {visibleLessons.map((l, index) => (
                   <button 
                     key={l.id}
                     onClick={() => setSelectedLesson(l)}
@@ -238,7 +252,7 @@ const PythonStudent = () => {
                     <div className="text-xs text-slate-500 mt-1">{l.module}</div>
                   </button>
                 ))}
-                {lessons.length === 0 && <p className="text-slate-500 italic">No lessons available yet.</p>}
+                {visibleLessons.length === 0 && <p className="text-slate-500 italic">No lessons available yet.</p>}
               </div>
             </div>
           ) : (
@@ -248,12 +262,12 @@ const PythonStudent = () => {
                 className="input-field bg-white"
                 value={selectedLesson?.id || ''}
                 onChange={(e) => {
-                  const lesson = lessons.find(l => l.id === e.target.value);
+                  const lesson = visibleLessons.find(l => l.id === e.target.value);
                   setSelectedLesson(lesson);
                 }}
               >
                 <option value="" disabled>Select a lesson to start...</option>
-                {lessons.map((l, index) => (
+                {visibleLessons.map((l, index) => (
                   <option key={l.id} value={l.id}>Lesson {index + 1}: {l.title}</option>
                 ))}
               </select>
@@ -346,7 +360,7 @@ const PythonStudent = () => {
             <div className="col-span-1 border-r border-slate-200 pr-4 mb-6 md:mb-0">
               <h3 className="font-bold text-lg mb-4 text-slate-700">Assignments</h3>
               <div className="flex flex-col gap-2">
-                {assignments.map(a => {
+                {visibleAssignments.map(a => {
                   const sub = mySubmissions.find(s => s.assignment_id === a.id);
                   return (
                     <button 
@@ -362,7 +376,7 @@ const PythonStudent = () => {
                     </button>
                   );
                 })}
-                {assignments.length === 0 && <p className="text-slate-500 italic">No assignments available yet.</p>}
+                {visibleAssignments.length === 0 && <p className="text-slate-500 italic">No assignments available yet.</p>}
               </div>
               
               <div className="mt-8">
@@ -386,13 +400,13 @@ const PythonStudent = () => {
                   if (e.target.value === 'playground') {
                     setSelectedAssignment({ title: "Free Practice Playground", instructions: "Write and test whatever Python code you like! (This will not be submitted)", starter_code: 'print("Hello Python!")', isPlayground: true });
                   } else {
-                    const assignment = assignments.find(a => a.id === e.target.value);
+                    const assignment = visibleAssignments.find(a => a.id === e.target.value);
                     setSelectedAssignment(assignment);
                   }
                 }}
               >
                 <option value="" disabled>Select an assignment...</option>
-                {assignments.map(a => {
+                {visibleAssignments.map(a => {
                   const sub = mySubmissions.find(s => s.assignment_id === a.id);
                   const statusLabel = sub ? (sub.status === 'reviewed' ? ' - Reviewed' : ' - Submitted') : '';
                   return <option key={a.id} value={a.id}>{a.title}{statusLabel}</option>;
