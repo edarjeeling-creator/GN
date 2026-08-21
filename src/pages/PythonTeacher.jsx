@@ -131,7 +131,7 @@ const PythonTeacher = () => {
             <input 
               type="text" 
               placeholder="Search students..." 
-              className="w-full border border-slate-300 rounded-md py-1 pl-8 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full border border-slate-300 rounded-md py-1 pl-8 pr-3 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
               value={studentSearchQuery}
               onChange={(e) => setStudentSearchQuery(e.target.value)}
             />
