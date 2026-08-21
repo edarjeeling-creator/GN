@@ -89,17 +89,17 @@ const PythonTeacher = () => {
 
   const renderVisibilitySelector = () => (
     <div className="bg-slate-50 p-4 rounded-md border border-slate-200">
-      <label className="block text-sm font-bold text-slate-600 mb-2">Assign To:</label>
+      <label className="block text-sm font-bold text-slate-800 mb-2">Assign To:</label>
       <div className="flex gap-4 mb-4">
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-2 text-slate-800 font-medium">
           <input type="radio" name="visibility" checked={visibilityType === 'global'} onChange={() => setVisibilityType('global')} />
           All Students
         </label>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-2 text-slate-800 font-medium">
           <input type="radio" name="visibility" checked={visibilityType === 'class'} onChange={() => setVisibilityType('class')} />
           Specific Classes
         </label>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-2 text-slate-800 font-medium">
           <input type="radio" name="visibility" checked={visibilityType === 'student'} onChange={() => setVisibilityType('student')} />
           Specific Students
         </label>
@@ -108,7 +108,7 @@ const PythonTeacher = () => {
       {visibilityType === 'class' && (
         <div className="max-h-40 overflow-y-auto border p-2 rounded bg-white">
           {classes.map(c => (
-            <label key={c.id} className="flex items-center gap-2 p-1 hover:bg-slate-50 cursor-pointer">
+            <label key={c.id} className="flex items-center gap-2 p-1 hover:bg-slate-100 cursor-pointer text-slate-800">
               <input 
                 type="checkbox" 
                 checked={selectedClasses.includes(c.id)} 
@@ -126,7 +126,7 @@ const PythonTeacher = () => {
       {visibilityType === 'student' && (
         <div className="max-h-40 overflow-y-auto border p-2 rounded bg-white">
           {students.map(s => (
-            <label key={s.id} className="flex items-center gap-2 p-1 hover:bg-slate-50 cursor-pointer text-sm">
+            <label key={s.id} className="flex items-center gap-2 p-1 hover:bg-slate-100 cursor-pointer text-sm text-slate-800">
               <input 
                 type="checkbox" 
                 checked={selectedStudents.includes(s.id)} 
@@ -352,11 +352,11 @@ const PythonTeacher = () => {
                 {MODULES.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
               <textarea className="input-field" placeholder="Instructions (e.g. Write a program to...)" rows={4} value={newAssignment.instructions} onChange={e => setNewAssignment({...newAssignment, instructions: e.target.value})} required></textarea>
+              {renderVisibilitySelector()}
               <div>
                 <label className="block text-sm font-bold text-slate-600 mb-1">Starter Code (Optional)</label>
                 <PythonIDE initialCode={newAssignment.starter_code} height="200px" onSave={(code) => setNewAssignment({...newAssignment, starter_code: code})} />
               </div>
-              {renderVisibilitySelector()}
               <button type="submit" className="btn-hero-primary" style={{ background: '#10b981', color: 'white', border: 'none' }}><Plus size={16} className="inline mr-2" /> Post Assignment</button>
             </form>
           </div>
