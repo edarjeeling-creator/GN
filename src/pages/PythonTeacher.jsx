@@ -89,27 +89,27 @@ const PythonTeacher = () => {
   };
 
   const renderVisibilitySelector = () => (
-    <div className="bg-slate-50 p-4 rounded-md border border-slate-200">
-      <label className="block text-sm font-bold text-slate-800 mb-2">Assign To:</label>
+    <div className="bg-[var(--bg-color)] p-4 rounded-md border border-[var(--border-color)]">
+      <label className="block text-sm font-bold text-[var(--text-primary)] mb-2">Assign To:</label>
       <div className="flex gap-4 mb-4">
-        <label className="flex items-center gap-2 text-slate-800 font-medium">
+        <label className="flex items-center gap-2 text-[var(--text-primary)] font-medium">
           <input type="radio" name="visibility" checked={visibilityType === 'global'} onChange={() => setVisibilityType('global')} />
           All Students
         </label>
-        <label className="flex items-center gap-2 text-slate-800 font-medium">
+        <label className="flex items-center gap-2 text-[var(--text-primary)] font-medium">
           <input type="radio" name="visibility" checked={visibilityType === 'class'} onChange={() => setVisibilityType('class')} />
           Specific Classes
         </label>
-        <label className="flex items-center gap-2 text-slate-800 font-medium">
+        <label className="flex items-center gap-2 text-[var(--text-primary)] font-medium">
           <input type="radio" name="visibility" checked={visibilityType === 'student'} onChange={() => setVisibilityType('student')} />
           Specific Students
         </label>
       </div>
 
       {visibilityType === 'class' && (
-        <div className="max-h-40 overflow-y-auto border p-2 rounded bg-white">
+        <div className="max-h-40 overflow-y-auto border border-[var(--border-color)] p-2 rounded bg-[var(--surface-color)]">
           {classes.map(c => (
-            <label key={c.id} className="flex items-center gap-2 p-1 hover:bg-slate-100 cursor-pointer text-slate-800">
+            <label key={c.id} className="flex items-center gap-2 p-1 hover:bg-[var(--bg-color)] cursor-pointer text-[var(--text-primary)]">
               <input 
                 type="checkbox" 
                 checked={selectedClasses.includes(c.id)} 
@@ -127,20 +127,20 @@ const PythonTeacher = () => {
       {visibilityType === 'student' && (
         <div className="flex flex-col gap-2">
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+            <Search size={14} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)]" />
             <input 
               type="text" 
               placeholder="Search students..." 
-              className="w-full border border-slate-300 rounded-md py-1 pl-8 pr-3 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full bg-[var(--surface-color)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-md py-1 pl-8 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
               value={studentSearchQuery}
               onChange={(e) => setStudentSearchQuery(e.target.value)}
             />
           </div>
-          <div className="max-h-40 overflow-y-auto border p-2 rounded bg-white">
+          <div className="max-h-40 overflow-y-auto border border-[var(--border-color)] p-2 rounded bg-[var(--surface-color)]">
             {students
               .filter(s => s.name.toLowerCase().includes(studentSearchQuery.toLowerCase()))
               .map(s => (
-              <label key={s.id} className="flex items-center gap-2 p-1 hover:bg-slate-100 cursor-pointer text-sm text-slate-800">
+              <label key={s.id} className="flex items-center gap-2 p-1 hover:bg-[var(--bg-color)] cursor-pointer text-sm text-[var(--text-primary)]">
                 <input 
                   type="checkbox" 
                   checked={selectedStudents.includes(s.id)} 
@@ -153,7 +153,7 @@ const PythonTeacher = () => {
               </label>
             ))}
             {students.filter(s => s.name.toLowerCase().includes(studentSearchQuery.toLowerCase())).length === 0 && (
-              <p className="text-sm text-slate-500 p-2 text-center">No students found.</p>
+              <p className="text-sm text-[var(--text-secondary)] p-2 text-center">No students found.</p>
             )}
           </div>
         </div>
