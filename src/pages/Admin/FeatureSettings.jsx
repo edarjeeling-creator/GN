@@ -29,9 +29,9 @@ const AddAccessModal = ({ isOpen, onClose, type, items, onGrant }) => {
       finalExpiresAt = new Date(expiresAt).toISOString();
     }
     const isEnabled = actionType === 'grant';
-    const selectedItem = items.find(i => i.id === selectedId);
+    const selectedItem = items.find(i => String(i.id) === String(selectedId));
     const targetName = selectedItem ? selectedItem.name : 'Unknown';
-    onGrant(type, selectedId, targetName, isEnabled, finalExpiresAt, reason);
+    onGrant(type, selectedItem ? selectedItem.id : selectedId, targetName, isEnabled, finalExpiresAt, reason);
     setSearch('');
     setSelectedId('');
     setActionType('grant');
