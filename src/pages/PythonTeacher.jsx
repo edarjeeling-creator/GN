@@ -19,8 +19,8 @@ const MODULES = [
 ];
 
 const PythonTeacher = () => {
-  const { classes, students, updateStudentUid } = useData();
-  const [activeTab, setActiveTab] = useState('lessons'); // 'lessons', 'assignments', 'submissions', 'lab-manager'
+  const { classes, students, updateStudentUid, grantFeatureAccess } = useData();
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('pythonTeacher_activeTab') || 'lessons');
   const [lessons, setLessons] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [submissions, setSubmissions] = useState([]);
@@ -33,19 +33,39 @@ const PythonTeacher = () => {
   
   // Forms
   const defaultVisibility = { isGlobal: true, classes: [], students: [] };
-  const [newLesson, setNewLesson] = useState({ title: '', module: MODULES[0], description: '', video_url: '', content: '', visibility: defaultVisibility });
-  const [newAssignment, setNewAssignment] = useState({ title: '', module: MODULES[0], instructions: '', starter_code: '', visibility: defaultVisibility });
+  const [newLesson, setNewLesson] = useState(() => {
+    const saved = localStorage.getItem('pythonTeacher_newLesson');
+    return saved ? JSON.parse(saved) : { title: '', module: MODULES[0], description: '', video_url: '', content: '', visibility: defaultVisibility };
+  });
+  const [newAssignment, setNewAssignment] = useState(() => {
+    const saved = localStorage.getItem('pythonTeacher_newAssignment');
+    return saved ? JSON.parse(saved) : { title: '', module: MODULES[0], instructions: '', starter_code: '', visibility: defaultVisibility };
+  });
   
   // Visibility State
-  const [visibilityType, setVisibilityType] = useState('global'); // 'global', 'class', 'student'
-  const [selectedClasses, setSelectedClasses] = useState([]);
-  const [selectedStudents, setSelectedStudents] = useState([]);
+  const [visibilityType, setVisibilityType] = useState(() => localStorage.getItem('pythonTeacher_visibilityType') || 'global');
+  const [selectedClasses, setSelectedClasses] = useState(() => {
+    const saved = localStorage.getItem('pythonTeacher_selectedClasses');
+    return saved ? JSON.parse(saved) : [];
+  const [reviewingSubmission, setReviewingSubmission] = useState(null);
+  const [feedback, setFeedback] = useState("");
+  const [marks, setMarks] = useState("");
+  });
+  const [selectedStudents, setSelectedStudents] = useState(() => {
+    const saved = localStorage.getItem('pythonTeacher_selectedStudents');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
   
-  // Review Mode
-  const [reviewingSubmission, setReviewingSubmission] = useState(null);
-  const [feedback, setFeedback] = useState('');
-  const [marks, setMarks] = useState('');
+
+  // Persist state
+  useEffect(() => { localStorage.setItem('pythonTeacher_activeTab', activeTab); }, [activeTab]);
+  useEffect(() => { localStorage.setItem('pythonTeacher_newLesson', JSON.stringify(newLesson)); }, [newLesson]);
+  useEffect(() => { localStorage.setItem('pythonTeacher_newAssignment', JSON.stringify(newAssignment)); }, [newAssignment]);
+  useEffect(() => { localStorage.setItem('pythonTeacher_visibilityType', visibilityType); }, [visibilityType]);
+  useEffect(() => { localStorage.setItem('pythonTeacher_selectedClasses', JSON.stringify(selectedClasses)); }, [selectedClasses]);
+  useEffect(() => { localStorage.setItem('pythonTeacher_selectedStudents', JSON.stringify(selectedStudents)); }, [selectedStudents]);
+  
 
   useEffect(() => {
     fetchLessons();
@@ -161,15 +181,51 @@ const PythonTeacher = () => {
     </div>
   );
 
+  const autoGrantAccess = async (visibility) => {
+    try {
+      if (visibility.isGlobal) {
+        // For global visibility, activate for all current classes
+        for (const cls of classes) {
+          await grantFeatureAccess('python_portal', 'class', cls.id, `${cls.name} ${cls.section}`, true, null, 'Auto-granted via Global Assignment');
+        }
+      } else {
+        if (visibility.classes && visibility.classes.length > 0) {
+          for (const classId of visibility.classes) {
+            const cls = classes.find(c => c.id === classId);
+            if (cls) {
+               await grantFeatureAccess('python_portal', 'class', classId, `${cls.name} ${cls.section}`, true, null, 'Auto-granted via Class Assignment');
+            }
+          }
+        }
+        if (visibility.students && visibility.students.length > 0) {
+          for (const studentId of visibility.students) {
+            const student = students.find(s => s.id === studentId);
+            if (student) {
+               await grantFeatureAccess('python_portal', 'student', studentId, student.name, true, null, 'Auto-granted via Student Assignment');
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error auto-granting access", e);
+    }
+  };
+
   const handleAddLesson = async (e) => {
     e.preventDefault();
-    const lessonToInsert = { ...newLesson, visibility: getVisibilityObject() };
+    const visibility = getVisibilityObject();
+    const lessonToInsert = { ...newLesson, visibility };
     const { error } = await supabase.from('python_lessons').insert([lessonToInsert]);
     if (!error) {
+      await autoGrantAccess(visibility);
       setNewLesson({ title: '', module: MODULES[0], description: '', video_url: '', content: '', visibility: defaultVisibility });
       setVisibilityType('global');
       setSelectedClasses([]);
       setSelectedStudents([]);
+      localStorage.removeItem('pythonTeacher_newLesson');
+      localStorage.removeItem('pythonTeacher_visibilityType');
+      localStorage.removeItem('pythonTeacher_selectedClasses');
+      localStorage.removeItem('pythonTeacher_selectedStudents');
       fetchLessons();
       alert("Lesson added successfully!");
     } else {
@@ -185,13 +241,19 @@ const PythonTeacher = () => {
 
   const handleAddAssignment = async (e) => {
     e.preventDefault();
-    const assignmentToInsert = { ...newAssignment, visibility: getVisibilityObject() };
+    const visibility = getVisibilityObject();
+    const assignmentToInsert = { ...newAssignment, visibility };
     const { error } = await supabase.from('python_assignments').insert([assignmentToInsert]);
     if (!error) {
+      await autoGrantAccess(visibility);
       setNewAssignment({ title: '', module: MODULES[0], instructions: '', starter_code: '', visibility: defaultVisibility });
       setVisibilityType('global');
       setSelectedClasses([]);
       setSelectedStudents([]);
+      localStorage.removeItem('pythonTeacher_newAssignment');
+      localStorage.removeItem('pythonTeacher_visibilityType');
+      localStorage.removeItem('pythonTeacher_selectedClasses');
+      localStorage.removeItem('pythonTeacher_selectedStudents');
       fetchAssignments();
       alert("Assignment added successfully!");
     } else {
