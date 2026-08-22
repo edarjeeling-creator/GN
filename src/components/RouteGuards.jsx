@@ -75,8 +75,8 @@ export const FeatureRoute = ({ featureName, userType, children }) => {
     if (profile.role === 'teacher' || isTeachingPrincipal) {
       const teacherRule = featureAccess.find(f => 
         f.feature_name === featureName && 
-        f.user_type === 'teacher' && 
-        f.user_id === profile.id
+        f.target_type === 'teacher' && 
+        f.target_id === profile.id
       );
       if (teacherRule && teacherRule.is_enabled && isNotExpired(teacherRule.expires_at)) {
         hasAccess = true;
@@ -92,15 +92,15 @@ export const FeatureRoute = ({ featureName, userType, children }) => {
         // Priority 1: Student-level rule
         const studentRule = featureAccess.find(f => 
           f.feature_name === featureName && 
-          f.user_type === 'student' && 
-          f.student_id === studentData.id
+          f.target_type === 'student' && 
+          f.target_id === studentData.id
         );
 
         // Priority 2: Class-level rule
         const classRule = featureAccess.find(f => 
           f.feature_name === featureName && 
-          f.user_type === 'class' && 
-          f.class_id === studentData.class_id
+          f.target_type === 'class' && 
+          f.target_id === studentData.class_id
         );
 
         if (studentRule) {

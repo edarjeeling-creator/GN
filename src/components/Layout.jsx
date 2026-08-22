@@ -77,7 +77,7 @@ const Layout = ({ children }) => {
     isPythonEnabled = true;
   } else if (featureAccess && Array.isArray(featureAccess) && profile) {
     if (profile.role === 'teacher') {
-      const teacherRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'teacher' && f.user_id === profile.id);
+      const teacherRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.target_type === 'teacher' && f.target_id === profile.id);
       if (teacherRule) isPythonEnabled = teacherRule.is_enabled && isNotExpired(teacherRule.expires_at);
     }
     
@@ -90,8 +90,8 @@ const Layout = ({ children }) => {
       );
 
       for (const s of matchingStudents) {
-        const studentRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'student' && f.student_id === s.id);
-        const classRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'class' && f.class_id === s.class_id);
+        const studentRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.target_type === 'student' && f.target_id === s.id);
+        const classRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.target_type === 'class' && f.target_id === s.class_id);
         
         if (studentRule) {
           if (studentRule.is_enabled && isNotExpired(studentRule.expires_at)) {

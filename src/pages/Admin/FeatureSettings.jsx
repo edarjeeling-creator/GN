@@ -153,7 +153,7 @@ const FeatureSettings = ({ teachers }) => {
 
   const getActiveRules = (userType) => {
     if (!featureAccess || !Array.isArray(featureAccess)) return [];
-    return featureAccess.filter(f => f.feature_name === 'python_portal' && f.user_type === userType);
+    return featureAccess.filter(f => f.feature_name === 'python_portal' && f.target_type === userType);
   };
 
   const isRuleActive = (rule) => {
@@ -235,17 +235,17 @@ const FeatureSettings = ({ teachers }) => {
             let entityId = null;
 
             if (type === 'class') {
-              const c = classes.find(c => c.id === rule.class_id);
+              const c = classes.find(c => c.id === rule.target_id);
               if (c) entityName = c.name;
-              entityId = rule.class_id;
+              entityId = rule.target_id;
             } else if (type === 'teacher') {
-              const t = teachers.find(t => t.id === rule.user_id);
+              const t = teachers.find(t => t.id === rule.target_id);
               if (t) { entityName = t.name; entitySub = t.email; }
-              entityId = rule.user_id;
+              entityId = rule.target_id;
             } else if (type === 'student') {
-              const s = students.find(s => s.id === rule.student_id);
+              const s = students.find(s => s.id === rule.target_id);
               if (s) { entityName = s.name; entitySub = s.uid || ''; }
-              entityId = rule.student_id;
+              entityId = rule.target_id;
             }
 
             const active = isRuleActive(rule);

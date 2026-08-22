@@ -9,13 +9,12 @@ const pool = new Pool({
 async function applyFixes() {
   const client = await pool.connect();
   try {
-    const storageSql = fs.readFileSync('fix_storage_rls.sql', 'utf8');
-    await client.query(storageSql);
-    console.log('✅ fix_storage_rls.sql applied');
+    const marksStatusSql = fs.readFileSync('fix_marks_status_rls.sql', 'utf8');
+    await client.query(marksStatusSql);
+    console.log('✅ fix_marks_status_rls.sql applied');
     
-    const assignmentsSql = fs.readFileSync('fix_assignments_rls.sql', 'utf8');
-    await client.query(assignmentsSql);
-    console.log('✅ fix_assignments_rls.sql applied');
+    await client.query(`NOTIFY pgrst, 'reload schema'`);
+    console.log('✅ schema reloaded');
   } catch (err) {
     console.error('❌ Error applying fixes:', err);
   } finally {

@@ -89,8 +89,8 @@ const StudentPortal = () => {
 
   let isPythonEnabled = false;
   if (featureAccess && Array.isArray(featureAccess) && studentData) {
-    const studentRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'student' && f.student_id === studentData.id);
-    const classRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'class' && f.class_id === classId);
+    const studentRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.target_type === 'student' && f.target_id === studentData.id);
+    const classRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.target_type === 'class' && f.target_id === classId);
     if (studentRule) isPythonEnabled = studentRule.is_enabled && isNotExpired(studentRule.expires_at);
     else if (classRule) isPythonEnabled = classRule.is_enabled && isNotExpired(classRule.expires_at);
   }

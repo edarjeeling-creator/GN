@@ -47,10 +47,10 @@ const PythonTeacher = () => {
   const [selectedClasses, setSelectedClasses] = useState(() => {
     const saved = localStorage.getItem('pythonTeacher_selectedClasses');
     return saved ? JSON.parse(saved) : [];
+  });
   const [reviewingSubmission, setReviewingSubmission] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [marks, setMarks] = useState("");
-  });
   const [selectedStudents, setSelectedStudents] = useState(() => {
     const saved = localStorage.getItem('pythonTeacher_selectedStudents');
     return saved ? JSON.parse(saved) : [];

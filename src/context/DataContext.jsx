@@ -305,21 +305,19 @@ export const DataProvider = ({ children }) => {
 
     const payload = {
       feature_name: featureName,
-      user_type: userType,
+      target_type: userType,
+      target_id: id,
       is_enabled: isEnabled,
       expires_at: expiresAt,
       access_reason: accessReason,
       created_by: currentUserId
     };
-    if (userType === 'teacher') payload.user_id = id;
-    if (userType === 'class') payload.class_id = id;
-    if (userType === 'student') payload.student_id = id;
 
-    const onConflictKeys = userType === 'teacher' ? 'feature_name,user_id' : userType === 'student' ? 'feature_name,student_id' : 'feature_name,class_id';
+    const onConflictKeys = 'feature_name,target_type,target_id';
 
     // Optimistic UI update
     setFeatureAccess(prev => {
-      const existingIdx = prev.findIndex(f => f.feature_name === featureName && f.user_type === userType && (userType === 'teacher' ? f.user_id === id : userType === 'student' ? f.student_id === id : f.class_id === id));
+      const existingIdx = prev.findIndex(f => f.feature_name === featureName && f.target_type === userType && f.target_id === id);
       if (existingIdx > -1) {
         const next = [...prev];
         next[existingIdx] = { ...next[existingIdx], ...payload };
@@ -366,14 +364,13 @@ export const DataProvider = ({ children }) => {
     const currentUserId = session?.user?.id;
 
     // Optimistic UI update
-    setFeatureAccess(prev => prev.filter(f => !(f.feature_name === featureName && f.user_type === userType && (userType === 'teacher' ? f.user_id === id : userType === 'student' ? f.student_id === id : f.class_id === id))));
+    setFeatureAccess(prev => prev.filter(f => !(f.feature_name === featureName && f.target_type === userType && f.target_id === id)));
 
-    let query = supabase.from('feature_access').delete().eq('feature_name', featureName).eq('user_type', userType);
-    if (userType === 'teacher') query = query.eq('user_id', id);
-    if (userType === 'class') query = query.eq('class_id', id);
-    if (userType === 'student') query = query.eq('student_id', id);
-
-    const { error } = await query;
+    const { error } = await supabase.from('feature_access')
+      .delete()
+      .eq('feature_name', featureName)
+      .eq('target_type', userType)
+      .eq('target_id', id);
     if (error) {
       console.error("Error revoking feature:", error);
     } else {

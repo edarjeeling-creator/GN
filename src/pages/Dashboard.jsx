@@ -21,7 +21,7 @@ const Dashboard = () => {
 
   let isPythonEnabled = profile?.role === 'admin';
   if (!isPythonEnabled && featureAccess && Array.isArray(featureAccess)) {
-    const teacherRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.user_type === 'teacher' && f.user_id === profile?.id);
+    const teacherRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.target_type === 'teacher' && f.target_id === profile?.id);
     if (teacherRule) {
       isPythonEnabled = teacherRule.is_enabled && isNotExpired(teacherRule.expires_at);
     }
