@@ -15,7 +15,7 @@ const AddAccessModal = ({ isOpen, onClose, type, items, onGrant }) => {
   const filteredItems = items.filter(item => {
     if (!search) return true;
     const searchLower = search.toLowerCase();
-    if (type === 'class') return item.name.toLowerCase().includes(searchLower);
+    if (type === 'class') return `${item.name} ${item.section || ''}`.toLowerCase().includes(searchLower);
     if (type === 'teacher') return item.name.toLowerCase().includes(searchLower) || (item.email && item.email.toLowerCase().includes(searchLower));
     if (type === 'student') return item.name.toLowerCase().includes(searchLower) || (item.uid && item.uid.toLowerCase().includes(searchLower));
     return true;
@@ -73,7 +73,7 @@ const AddAccessModal = ({ isOpen, onClose, type, items, onGrant }) => {
               {filteredItems.length === 0 && <option disabled>No matches found.</option>}
               {filteredItems.map(item => (
                 <option key={item.id} value={item.id}>
-                  {type === 'class' ? item.name : `${item.name} ${item.uid ? `(${item.uid})` : ''}`}
+                  {type === 'class' ? `${item.name} ${item.section || ''}`.trim() : `${item.name} ${item.uid ? `(${item.uid})` : ''}`}
                 </option>
               ))}
             </select>
