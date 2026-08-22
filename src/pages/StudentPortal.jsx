@@ -87,13 +87,13 @@ const StudentPortal = () => {
     return new Date() < new Date(expiresAt);
   };
 
-  let isPythonEnabled = false;
-  if (featureAccess && Array.isArray(featureAccess) && studentData) {
-    const studentRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.target_type === 'student' && String(f.target_id) === String(studentData.id));
-    const classRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.target_type === 'class' && String(f.target_id) === String(classId));
-    if (studentRule) isPythonEnabled = studentRule.is_enabled && isNotExpired(studentRule.expires_at);
-    else if (classRule) isPythonEnabled = classRule.is_enabled && isNotExpired(classRule.expires_at);
-  }
+  let isPythonEnabled = true;
+  // if (featureAccess && Array.isArray(featureAccess) && studentData) {
+  //   const studentRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.target_type === 'student' && String(f.target_id) === String(studentData.id));
+  //   const classRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.target_type === 'class' && String(f.target_id) === String(classId));
+  //   if (studentRule) isPythonEnabled = studentRule.is_enabled && isNotExpired(studentRule.expires_at);
+  //   else if (classRule) isPythonEnabled = classRule.is_enabled && isNotExpired(classRule.expires_at);
+  // }
 
   const totalDays = attendanceRecords.length;
   const presentDays = attendanceRecords.filter(r => ['Present', 'Late', 'Half Day'].includes(r.status)).length;
