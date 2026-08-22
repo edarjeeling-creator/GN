@@ -303,10 +303,12 @@ export const DataProvider = ({ children }) => {
     const { data: { session } } = await supabase.auth.getSession();
     const currentUserId = session?.user?.id;
 
+    const targetIdString = String(id);
+
     const payload = {
       feature_name: featureName,
       target_type: userType,
-      target_id: id,
+      target_id: targetIdString,
       is_enabled: isEnabled,
       expires_at: expiresAt,
       access_reason: accessReason,
@@ -317,7 +319,7 @@ export const DataProvider = ({ children }) => {
 
     // Optimistic UI update
     setFeatureAccess(prev => {
-      const existingIdx = prev.findIndex(f => f.feature_name === featureName && f.target_type === userType && f.target_id === id);
+      const existingIdx = prev.findIndex(f => f.feature_name === featureName && f.target_type === userType && String(f.target_id) === targetIdString);
       if (existingIdx > -1) {
         const next = [...prev];
         next[existingIdx] = { ...next[existingIdx], ...payload };
