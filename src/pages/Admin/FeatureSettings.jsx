@@ -50,6 +50,15 @@ const AddAccessModal = ({ isOpen, onClose, type, items, onGrant }) => {
         </div>
         
         <form onSubmit={handleSubmit} className="p-4 flex-1 overflow-y-auto">
+          {/* Feature Select */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Select Feature</label>
+            <select className="input-field bg-slate-50" disabled>
+              <option value="python_portal">Python Patshala</option>
+            </select>
+            <p className="text-xs text-slate-500 mt-1">This access rule will be permanently linked to Python Patshala.</p>
+          </div>
+
           {/* Search & Select */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-slate-700 mb-1">Select {type}</label>
