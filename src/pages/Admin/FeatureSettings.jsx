@@ -54,11 +54,11 @@ const AddAccessModal = ({ isOpen, onClose, type, items, onGrant }) => {
           <div className="mb-4">
             <label className="block text-sm font-medium text-slate-700 mb-1">Select Feature</label>
             <select 
-              className="input-field bg-slate-50" 
+              className="input-field bg-slate-50 text-slate-900" 
               value="python_portal"
               onChange={(e) => {}} // Read-only visually
             >
-              <option value="python_portal">Python Patshala</option>
+              <option value="python_portal" className="text-slate-900">Python Patshala</option>
             </select>
             <p className="text-xs text-slate-500 mt-1">This access rule is automatically linked to Python Patshala.</p>
           </div>
