@@ -90,8 +90,8 @@ const Layout = ({ children }) => {
       );
 
       for (const s of matchingStudents) {
-        const studentRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.target_type === 'student' && f.target_id === s.id);
-        const classRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.target_type === 'class' && f.target_id === s.class_id);
+        const studentRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.target_type === 'student' && String(f.target_id) === String(s.id));
+        const classRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.target_type === 'class' && String(f.target_id) === String(s.class_id));
         
         if (studentRule) {
           if (studentRule.is_enabled && isNotExpired(studentRule.expires_at)) {
