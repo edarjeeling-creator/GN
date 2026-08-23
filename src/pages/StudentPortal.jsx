@@ -87,7 +87,7 @@ const StudentPortal = () => {
     return new Date() < new Date(expiresAt);
   };
 
-  let isPythonEnabled = true; // TEMPORARY BYPASS: Force Python Patshala to be enabled for all students until Database RLS is fixed
+  let isPythonEnabled = false;
   if (featureAccess && Array.isArray(featureAccess) && studentData) {
     const studentRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.target_type === 'student' && String(f.target_id) === String(studentData.id));
     const classRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.target_type === 'class' && String(f.target_id) === String(classId));

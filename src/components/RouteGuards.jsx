@@ -62,10 +62,7 @@ export const FeatureRoute = ({ featureName, userType, children }) => {
   // Admins always have access
   if (profile.role === 'admin') return children;
 
-  // TEMPORARY BYPASS: Force Python Patshala access for students until Database RLS is fixed
-  if (featureName === 'python_portal' && profile.role === 'student') {
-    return children;
-  }
+
 
   // Check based on profile role and permission hierarchy
   let hasAccess = false;

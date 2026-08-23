@@ -53,14 +53,16 @@ export const DataProvider = ({ children }) => {
       const queries = [
         supabase.from('classes').select('*'),
         supabase.from('subjects').select('*'),
-        fetchAll(supabase.from('students').select('*')),
-        supabase.from('feature_access').select('*')
+        fetchAll(supabase.from('students').select('*'))
       ];
 
       if (session) {
+        queries.push(supabase.from('feature_access').select('*'));
         queries.push(supabase.from('teacher_subjects').select('*').eq('teacher_id', session.user.id));
         queries.push(fetchAll(supabase.from('marks').select('*').is('deleted_at', null)));
         queries.push(fetchAll(supabase.from('attendance').select('*')));
+      } else {
+        queries.push(supabase.from('school_settings').select('*').eq('setting_key', 'public_feature_access'));
       }
 
       const results = await Promise.all(queries);
@@ -73,7 +75,20 @@ export const DataProvider = ({ children }) => {
       if (clsRes.data) setClasses(clsRes.data);
       if (subRes.data) setSubjects(subRes.data);
       if (stuRes.data) setStudents(stuRes.data);
-      if (featRes && featRes.data) setFeatureAccess(featRes.data);
+      
+      if (session) {
+        if (featRes && featRes.data) setFeatureAccess(featRes.data);
+      } else {
+        if (featRes && featRes.data && featRes.data.length > 0) {
+          try {
+            setFeatureAccess(JSON.parse(featRes.data[0].setting_value));
+          } catch (e) {
+            setFeatureAccess([]);
+          }
+        } else {
+          setFeatureAccess([]);
+        }
+      }
 
       if (session) {
         const tsRes = results[4];
@@ -140,6 +155,19 @@ export const DataProvider = ({ children }) => {
       supabase.removeChannel(marksSubscription);
     };
   }, [session]);
+
+  // Sync feature access to school_settings so students can read it (bypassing RLS)
+  useEffect(() => {
+    if (session && profile?.role === 'admin' && !loadingData) {
+      supabase.rpc('upsert_school_setting', {
+        p_key: 'public_feature_access',
+        p_value: JSON.stringify(featureAccess),
+        p_desc: 'Public cache of feature access rules for students'
+      }).then(({ error }) => {
+        if (error) console.error("Error syncing feature access to public cache:", error);
+      });
+    }
+  }, [featureAccess, session, profile, loadingData]);
 
   const updateMark = async (studentId, subjectId, term, score) => {
     if (isReadOnly) {
