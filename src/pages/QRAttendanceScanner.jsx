@@ -1,26 +1,24 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Scanner } from '@yudiel/react-qr-scanner';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { 
   CheckCircle, XCircle, Clock, AlertTriangle, WifiOff, Wifi, 
-  User, Users, Settings, Search, RefreshCw, X, Edit2, Trash2, Camera 
+  Settings, Search, RefreshCw, X, Camera, RotateCcw
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const DEFAULT_SETTINGS = {
   gate: 'Main Gate',
   deviceName: 'Reception Tablet',
-  duplicateWindow: 720,
-  soundOn: true,
-  preferredCameraId: ''
+  duplicateWindow: 3, // Changed from 720 to 3 minutes for testing/standard usage
+  soundOn: true
 };
 
 const QRAttendanceScanner = () => {
   const { profile } = useAuth();
   
   // States
-  const [scanResult, setScanResult] = useState(null);
   const [attendanceStatus, setAttendanceStatus] = useState('Present');
   const [stats, setStats] = useState({ students: 0, teachers: 0, late: 0, total: 0 });
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -28,25 +26,17 @@ const QRAttendanceScanner = () => {
   const [offlineQueue, setOfflineQueue] = useState(() => JSON.parse(localStorage.getItem('qr_offline_queue') || '[]'));
   const [settings, setSettings] = useState(() => JSON.parse(localStorage.getItem('qr_settings')) || DEFAULT_SETTINGS);
   
-  const [cameras, setCameras] = useState([]);
-  const [isScanning, setIsScanning] = useState(false);
-  const [cameraError, setCameraError] = useState(null);
-  
   const [scanHistory, setScanHistory] = useState([]);
   const [showSettings, setShowSettings] = useState(false);
-  const [showManualSearch, setShowManualSearch] = useState(false);
-  const [manualQuery, setManualQuery] = useState('');
-  const [manualResults, setManualResults] = useState([]);
+  const [toast, setToast] = useState(null); 
   
-  const [editScan, setEditScan] = useState(null); // Scan object being edited
-  const [editRemarks, setEditRemarks] = useState('');
+  const [facingMode, setFacingMode] = useState('environment'); // environment = rear camera
   
   // Refs
-  const html5QrCodeRef = useRef(null);
   const audioCtxRef = useRef(null);
-  const processingRef = useRef(false);
+  const lastScannedRef = useRef({ code: null, time: 0 });
 
-  // Initialize Audio
+  // --- Sound & Audio Context ---
   useEffect(() => {
     const handleInteraction = () => {
       if (!audioCtxRef.current && settings.soundOn) {
@@ -59,152 +49,84 @@ const QRAttendanceScanner = () => {
 
   const playTone = useCallback((type) => {
     if (!settings.soundOn) return;
-    if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    const ctx = audioCtxRef.current;
-    if(ctx.state === 'suspended') ctx.resume();
-    
-    const osc = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-    
-    osc.connect(gainNode);
-    gainNode.connect(ctx.destination);
-    
-    if (type === 'success') {
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(800, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
-      gainNode.gain.setValueAtTime(0.5, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.3);
-    } else if (type === 'duplicate') {
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(400, ctx.currentTime);
-      osc.frequency.setValueAtTime(400, ctx.currentTime + 0.1);
-      osc.frequency.setValueAtTime(600, ctx.currentTime + 0.15);
-      gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.4);
-    } else if (type === 'error') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(200, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.3);
-      gainNode.gain.setValueAtTime(0.5, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.3);
-    }
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+      
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      if (type === 'success') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
+        gainNode.gain.setValueAtTime(0.5, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      } else if (type === 'duplicate') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(400, ctx.currentTime);
+        osc.frequency.setValueAtTime(400, ctx.currentTime + 0.1);
+        osc.frequency.setValueAtTime(600, ctx.currentTime + 0.15);
+        gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.4);
+      } else {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.3);
+        gainNode.gain.setValueAtTime(0.5, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      }
+    } catch (e) { console.error("Audio error", e); }
   }, [settings.soundOn]);
 
-  // Online / Offline Listeners
+  // --- Network Listeners & Sync ---
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
+    const handleOnline = () => {
+      setIsOnline(true);
+      if (offlineQueue.length > 0) processOfflineQueue();
+    };
     const handleOffline = () => setIsOnline(false);
+    
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [offlineQueue]);
 
-  // Process Offline Queue when back online
-  useEffect(() => {
-    if (isOnline && offlineQueue.length > 0) {
-      processOfflineQueue();
-    }
-  }, [isOnline]);
-
-  // Save Settings to Local Storage
   useEffect(() => {
     localStorage.setItem('qr_settings', JSON.stringify(settings));
   }, [settings]);
 
-  // Initialize Cameras
+  // Initial Load
   useEffect(() => {
     fetchStats();
     fetchRecentHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    Html5Qrcode.getCameras().then(devices => {
-      if (devices && devices.length) {
-        setCameras(devices);
-        setCameraError(null);
-        let camToUse = settings.preferredCameraId;
-        if (!camToUse || !devices.find(d => d.id === camToUse)) {
-           // Default to back camera if possible
-           const backCam = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear'));
-           camToUse = backCam ? backCam.id : devices[0].id;
-           setSettings(s => ({ ...s, preferredCameraId: camToUse }));
-        }
-        startScanner(camToUse);
-      } else {
-        setCameraError("No cameras found. Please connect a camera to this device.");
-      }
-    }).catch(err => {
-      console.error("Error getting cameras", err);
-      setCameraError("Camera permission denied. Please allow camera access in your browser site settings and reload the page.");
-    });
-
-    return () => {
-      stopScanner();
-    };
-  }, []); // Run once on mount
-
-  const startScanner = (cameraId) => {
-    if (!cameraId) return;
-    stopScanner();
-    
-    setTimeout(() => {
-      html5QrCodeRef.current = new Html5Qrcode("qr-reader-video");
-      const config = {
-        fps: 10,
-        qrbox: { width: 300, height: 300 },
-        aspectRatio: 1.0,
-        videoConstraints: { 
-          deviceId: { exact: cameraId },
-          advanced: [{ focusMode: "continuous" }] 
-        }
-      };
-
-      html5QrCodeRef.current.start(cameraId, config, onScanSuccess, onScanFailure)
-        .then(() => setIsScanning(true))
-        .catch(err => {
-           console.log("Error starting scanner with autofocus, trying without advanced constraints", err);
-           // Fallback without advanced constraints
-           const fallbackConfig = { fps: 10, qrbox: { width: 300, height: 300 } };
-           html5QrCodeRef.current.start(cameraId, fallbackConfig, onScanSuccess, onScanFailure)
-             .then(() => setIsScanning(true))
-             .catch(e => {
-                console.error("Scanner fallback failed", e);
-                setCameraError("Could not start the camera. It may be in use by another application.");
-             });
-        });
-    }, 100);
-  };
-
-  const stopScanner = () => {
-    if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-      html5QrCodeRef.current.stop().then(() => setIsScanning(false)).catch(console.error);
-    }
-  };
-
-  const handleCameraChange = (e) => {
-    const camId = e.target.value;
-    setSettings(s => ({ ...s, preferredCameraId: camId }));
-    startScanner(camId);
-  };
-
+  // --- Core Attendance Logic (Optimized) ---
   const fetchStats = async () => {
-    if(!isOnline) return;
+    if (!navigator.onLine) return;
     const today = new Date().toISOString().split('T')[0];
     const { data } = await supabase
       .from('attendance_logs')
       .select('person_type, status')
       .gte('scan_time', `${today}T00:00:00Z`)
-      .lte('scan_time', `${today}T23:59:59Z`)
       .neq('status', 'Cancelled');
       
     if (data) {
@@ -219,7 +141,7 @@ const QRAttendanceScanner = () => {
   };
 
   const fetchRecentHistory = async () => {
-    if(!isOnline) return;
+    if (!navigator.onLine) return;
     const today = new Date().toISOString().split('T')[0];
     const { data } = await supabase
       .from('attendance_logs')
@@ -228,21 +150,143 @@ const QRAttendanceScanner = () => {
       .order('scan_time', { ascending: false })
       .limit(10);
       
-    if(data) {
-      // Need names, doing manual lookups. (In a real app, use a DB view or join).
-      const enriched = await Promise.all(data.map(async (item) => {
+    if (data) {
+      // Manual enrichment optimization for history
+      const studentIds = data.filter(d => d.person_type === 'student').map(d => d.person_id);
+      const teacherIds = data.filter(d => d.person_type === 'teacher').map(d => d.person_id);
+      
+      const [studentsRes, teachersRes] = await Promise.all([
+        studentIds.length > 0 ? supabase.from('students').select('id, name, class_id, classes(name, section)').in('id', studentIds) : { data: [] },
+        teacherIds.length > 0 ? supabase.from('profiles').select('id, name').in('id', teacherIds) : { data: [] }
+      ]);
+      
+      const enriched = data.map(item => {
         let name = "Unknown";
-        if(item.person_type === 'student') {
-          const {data: s} = await supabase.from('students').select('name').eq('id', item.person_id).single();
-          if(s) name = s.name;
+        let className = "";
+        if (item.person_type === 'student') {
+          const s = studentsRes.data?.find(x => x.id === item.person_id);
+          if (s) {
+            name = s.name;
+            if (s.classes) className = `${s.classes.name} ${s.classes.section}`;
+          }
         } else {
-          const {data: p} = await supabase.from('profiles').select('name').eq('id', item.person_id).single();
-          if(p) name = p.name;
+          const t = teachersRes.data?.find(x => x.id === item.person_id);
+          if (t) name = t.name;
         }
-        return { ...item, name };
-      }));
+        return { ...item, name, className };
+      });
       setScanHistory(enriched);
     }
+  };
+
+  const logAttendance = async (payload, status, timeStr, isBackgroundSync = false) => {
+    const today = new Date().toISOString().split('T')[0];
+    const personId = payload.id;
+    let personName = '';
+    let personClass = '';
+    let classId = null;
+    let isTeacher = payload.type === 'teacher';
+
+    // 1. Parallel Lookups
+    const dupCheckPromise = supabase
+      .from('attendance_logs')
+      .select('id, scan_time')
+      .eq('person_id', personId)
+      .gte('scan_time', `${today}T00:00:00Z`)
+      .neq('status', 'Cancelled')
+      .order('scan_time', { ascending: false })
+      .limit(1);
+
+    let profilePromise;
+    if (isTeacher) {
+      profilePromise = supabase.from('profiles').select('name').eq('id', personId).single();
+    } else {
+      profilePromise = supabase.from('students').select('name, class_id, classes(name, section)').eq('id', personId).single();
+    }
+
+    const [dupRes, profileRes] = await Promise.all([dupCheckPromise, profilePromise]);
+
+    // Validation
+    if (profileRes.error || !profileRes.data) {
+      throw new Error(isTeacher ? "Teacher not found" : "Student not found");
+    }
+
+    if (isTeacher) {
+      personName = profileRes.data.name;
+    } else {
+      personName = profileRes.data.name;
+      classId = profileRes.data.class_id;
+      if (profileRes.data.classes) {
+        personClass = `${profileRes.data.classes.name} ${profileRes.data.classes.section}`;
+      }
+    }
+
+    // 2. Duplicate Check
+    if (dupRes.data && dupRes.data.length > 0) {
+      const existingTime = new Date(dupRes.data[0].scan_time);
+      const diffMins = (new Date(timeStr) - existingTime) / (1000 * 60);
+      
+      if (diffMins < parseInt(settings.duplicateWindow || 3)) {
+        return {
+          status: 'duplicate',
+          message: 'Already Marked',
+          name: personName,
+          className: personClass,
+          time: existingTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+      }
+    }
+
+    // 3. Parallel Inserts
+    const insertLogPromise = supabase.from('attendance_logs').insert({
+      person_type: payload.type,
+      person_id: personId,
+      status: status,
+      device_name: settings.deviceName,
+      gate: settings.gate,
+      scanner_user: profile?.id,
+      operator_name: profile?.name,
+      scan_time: timeStr
+    }).select().single();
+
+    let legacyInsertPromise;
+    if (isTeacher) {
+      // Ensure we just upsert or handle teacher check-in
+      legacyInsertPromise = supabase.rpc('process_teacher_attendance', { 
+         p_teacher_id: personId, p_status: status, p_time: timeStr 
+      }).catch(e => {
+         // Fallback if RPC doesn't exist, not failing the main transaction
+         return supabase.from('teacher_attendance').insert({
+           teacher_id: personId, attendance_date: today, status: status, check_in_time: timeStr
+         });
+      });
+    } else {
+      // Backward compatibility for students
+      legacyInsertPromise = supabase.from('attendance').select('id').eq('student_id', personId).eq('date', today).single()
+        .then(res => {
+          if (!res.data) {
+            return supabase.from('attendance').insert({
+              student_id: personId, class_id: classId, date: today, status: status, academic_year: '2026'
+            });
+          }
+        });
+    }
+
+    const [logRes] = await Promise.all([insertLogPromise, legacyInsertPromise]);
+
+    if (logRes.error) throw logRes.error;
+
+    if (!isBackgroundSync && logRes.data) {
+      setScanHistory(prev => [{ ...logRes.data, name: personName, className: personClass }, ...prev].slice(0, 10));
+    }
+
+    return {
+      status: 'success',
+      message: 'Attendance Marked',
+      name: personName,
+      className: personClass,
+      time: new Date(timeStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
   };
 
   const processOfflineQueue = async () => {
@@ -253,7 +297,7 @@ const QRAttendanceScanner = () => {
       try {
         await logAttendance(item.payload, item.status, item.scanTime, true);
       } catch (e) {
-        newQueue.push(item);
+        newQueue.push(item); // Keep failed items
       }
     }
     
@@ -263,281 +307,74 @@ const QRAttendanceScanner = () => {
     fetchRecentHistory();
   };
 
-  const logAttendance = async (payload, status, timeStr, isBackgroundSync = false) => {
-    let personId = payload.id;
-    let personName = '';
-    let personClass = '';
+  // --- Scanner Callbacks ---
+  const showToast = (result) => {
+    setToast(result);
+    // Auto-hide toast after 3.5 seconds
+    setTimeout(() => {
+      setToast(current => current?.time === result.time ? null : current);
+    }, 3500);
+  };
+
+  const handleScan = async (detectedCodes) => {
+    if (!detectedCodes || detectedCodes.length === 0) return;
+    const rawValue = detectedCodes[0].rawValue;
     
-    // Duplicate Check
-    const today = new Date().toISOString().split('T')[0];
-    const { data: existingLog } = await supabase
-      .from('attendance_logs')
-      .select('id, scan_time')
-      .eq('person_id', personId)
-      .gte('scan_time', `${today}T00:00:00Z`)
-      .neq('status', 'Cancelled')
-      .order('scan_time', { ascending: false })
-      .limit(1);
-
-    if (existingLog && existingLog.length > 0) {
-      const existingTime = new Date(existingLog[0].scan_time);
-      const diffMins = (new Date(timeStr) - existingTime) / (1000 * 60);
-      
-      if (diffMins < parseInt(settings.duplicateWindow)) {
-         if (payload.type === 'student') {
-             const { data: student } = await supabase.from('students').select('name, class_id').eq('id', personId).single();
-             if (student) {
-                personName = student.name;
-                const { data: cls } = await supabase.from('classes').select('name, section').eq('id', student.class_id).single();
-                if (cls) personClass = `${cls.name} ${cls.section}`;
-             }
-         } else {
-             const { data: teacher } = await supabase.from('profiles').select('name').eq('id', personId).single();
-             if (teacher) personName = teacher.name;
-         }
-         
-         const timeFormatted = existingTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-         
-         if(!isBackgroundSync) {
-           updateHistoryLocal({ id: 'dup-'+Date.now(), name: personName, status: 'Duplicate', scan_time: timeStr });
-         }
-
-         return {
-           status: 'duplicate',
-           message: `Already marked at ${timeFormatted}`,
-           name: personName,
-           class: personClass
-         };
-      }
+    // Client-side debounce (3 seconds)
+    const now = Date.now();
+    if (lastScannedRef.current.code === rawValue && (now - lastScannedRef.current.time) < 3000) {
+      return; 
     }
-
-    // Validation & Name fetch
-    if (payload.type === 'student') {
-      const { data: student, error: stuError } = await supabase.from('students').select('name, class_id').eq('id', personId).single();
-      if (stuError || !student) throw new Error("Student not found");
-      personName = student.name;
-      const { data: cls } = await supabase.from('classes').select('name, section').eq('id', student.class_id).single();
-      if (cls) personClass = `${cls.name} ${cls.section}`;
-      
-      // Backward Compatibility
-      const { data: existingOldAtt } = await supabase.from('attendance').select('id').eq('student_id', personId).eq('date', today).single();
-      if (!existingOldAtt) {
-         await supabase.from('attendance').insert({
-            student_id: personId, class_id: student.class_id, date: today, status: status, academic_year: '2026'
-         });
-      }
-    } else if (payload.type === 'teacher') {
-      const { data: teacher, error: tchError } = await supabase.from('profiles').select('name').eq('id', personId).single();
-      if (tchError || !teacher) throw new Error("Teacher not found");
-      personName = teacher.name;
-
-      // Update teacher_attendance table
-      const { data: existingTAtt } = await supabase.from('teacher_attendance')
-        .select('id, check_in_time')
-        .eq('teacher_id', personId)
-        .eq('attendance_date', today)
-        .single();
-        
-      if (!existingTAtt) {
-         await supabase.from('teacher_attendance').insert({
-            teacher_id: personId, 
-            attendance_date: today, 
-            status: status, 
-            check_in_time: timeStr
-         });
-      } else if (!existingTAtt.check_in_time) {
-         await supabase.from('teacher_attendance').update({
-             check_in_time: timeStr, 
-             status: status
-         }).eq('id', existingTAtt.id);
+    
+    lastScannedRef.current = { code: rawValue, time: now };
+    
+    // Parse Payload
+    let payload;
+    try {
+      if (rawValue.startsWith('{')) {
+        payload = JSON.parse(rawValue);
+        if (!payload.id || !payload.type) throw new Error("Missing format");
       } else {
-         await supabase.from('teacher_attendance').update({
-             check_out_time: timeStr
-         }).eq('id', existingTAtt.id);
+        // Fallback for legacy raw IDs - we assume student for speed, or we can't reliably scan them instantly.
+        // For rapid scans, legacy IDs without JSON are dangerous. We will pass it as student.
+        payload = { type: 'student', id: rawValue, signature: 'legacy' };
       }
-    } else {
-      throw new Error("Invalid Person Type");
+    } catch (e) {
+      playTone('error');
+      showToast({ status: 'error', message: 'Invalid Format', name: 'Unknown QR' });
+      return;
     }
 
-    // Insert
-    const insertData = {
-      person_type: payload.type,
-      person_id: personId,
-      status: status,
-      device_name: settings.deviceName,
-      gate: settings.gate,
-      scanner_user: profile?.id,
-      operator_name: profile?.name,
-      scan_time: timeStr
-    };
+    const scanTime = new Date().toISOString();
+    const currentStatus = attendanceStatus;
 
-    const { data: logRow, error: logError } = await supabase.from('attendance_logs').insert(insertData).select().single();
-    if (logError) throw logError;
-
-    if(!isBackgroundSync && logRow) {
-      updateHistoryLocal({ ...logRow, name: personName });
+    if (!navigator.onLine) {
+      const newQueue = [...offlineQueue, { payload, status: currentStatus, scanTime }];
+      setOfflineQueue(newQueue);
+      localStorage.setItem('qr_offline_queue', JSON.stringify(newQueue));
+      playTone('success');
+      showToast({
+        status: 'offline', message: 'Saved Offline',
+        name: payload.uid || payload.id, time: new Date().toLocaleTimeString()
+      });
+      return;
     }
-
-    return {
-      status: 'success',
-      message: 'Attendance marked',
-      name: personName,
-      class: personClass,
-      time: new Date(timeStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-  };
-
-  const updateHistoryLocal = (newItem) => {
-    setScanHistory(prev => [newItem, ...prev].slice(0, 10));
-  };
-
-  const onScanSuccess = async (decodedText) => {
-    if (processingRef.current) return;
-    processingRef.current = true;
 
     try {
-      let payload;
-      try {
-        payload = JSON.parse(decodedText);
-        if (!payload.signature || !payload.id || !payload.type) {
-          throw new Error("Invalid QR Code Format");
-        }
-      } catch (e) {
-        // Fallback for legacy QR codes (raw ID strings)
-        if (decodedText.length > 5 && !decodedText.startsWith("{")) {
-           // Attempt to figure out if it's a student or teacher ID
-           const { data: stu } = await supabase.from('students').select('id').eq('id', decodedText).maybeSingle();
-           if (stu) {
-              payload = { type: 'student', id: decodedText, signature: 'legacy' };
-           } else {
-              const { data: tch } = await supabase.from('profiles').select('id').eq('id', decodedText).maybeSingle();
-              if (tch) {
-                 payload = { type: 'teacher', id: decodedText, signature: 'legacy' };
-              } else {
-                 throw new Error("ID not found in database");
-              }
-           }
-        } else {
-           throw new Error(e.message || "Invalid JSON Payload");
-        }
-      }
-
-      const scanTime = new Date().toISOString();
-      const currentStatus = attendanceStatus;
-
-      if (!isOnline) {
-        const newQueue = [...offlineQueue, { payload, status: currentStatus, scanTime }];
-        setOfflineQueue(newQueue);
-        localStorage.setItem('qr_offline_queue', JSON.stringify(newQueue));
-        playTone('success');
-        setScanResult({
-          status: 'success', message: 'Saved to Offline Queue',
-          name: payload.uid || payload.employee_id || 'ID Scanned',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        });
-      } else {
-        const result = await logAttendance(payload, currentStatus, scanTime);
-        playTone(result.status);
-        setScanResult(result);
-        fetchStats();
-      }
+      const result = await logAttendance(payload, currentStatus, scanTime);
+      playTone(result.status);
+      showToast(result);
+      // Fetch stats asynchronously in background so it doesn't block UI
+      fetchStats(); 
     } catch (error) {
       console.error(error);
       playTone('error');
-      setScanResult({
+      showToast({
         status: 'error',
-        message: `${error.message || 'Error'} (Read: ${decodedText.substring(0, 20)}...)`,
+        message: 'Student Not Found',
         name: 'Invalid Scan',
         time: new Date().toLocaleTimeString()
       });
-    }
-
-    setTimeout(() => {
-      setScanResult(null);
-      processingRef.current = false;
-    }, 3000);
-  };
-
-  const onScanFailure = () => { /* Ignore constant background failures */ };
-
-  const handleManualSearch = async () => {
-    if (!manualQuery || manualQuery.length < 3) return;
-    
-    // Search Students
-    const { data: students } = await supabase
-      .from('students')
-      .select('id, name, uid, class_id')
-      .or(`name.ilike.%${manualQuery}%,uid.ilike.%${manualQuery}%`)
-      .limit(5);
-      
-    // Search Teachers
-    const { data: teachers } = await supabase
-      .from('profiles')
-      .select('id, name, role')
-      .eq('role', 'teacher')
-      .ilike('name', `%${manualQuery}%`)
-      .limit(5);
-
-    const formatted = [];
-    if (students) {
-      for (const s of students) {
-         const { data: c } = await supabase.from('classes').select('name, section').eq('id', s.class_id).single();
-         formatted.push({ type: 'student', id: s.id, name: s.name, uid: s.uid, subtitle: c ? `${c.name} ${c.section}` : '' });
-      }
-    }
-    if (teachers) {
-      for (const t of teachers) {
-         formatted.push({ type: 'teacher', id: t.id, name: t.name, uid: 'Teacher', subtitle: 'Faculty' });
-      }
-    }
-    setManualResults(formatted);
-  };
-
-  const handleManualMark = async (person) => {
-    if(processingRef.current) return;
-    processingRef.current = true;
-    
-    try {
-      const payload = { type: person.type, id: person.id };
-      const scanTime = new Date().toISOString();
-      const result = await logAttendance(payload, attendanceStatus, scanTime);
-      playTone(result.status);
-      setScanResult(result);
-      fetchStats();
-      setShowManualSearch(false);
-      setManualQuery('');
-      setManualResults([]);
-    } catch (error) {
-      playTone('error');
-    }
-    setTimeout(() => { setScanResult(null); processingRef.current = false; }, 3000);
-  };
-
-  const handleUndo = async (scan) => {
-    if (!scan.id || scan.id.startsWith('dup')) return;
-    const reason = prompt("Enter cancellation reason:", "Accidental scan");
-    if (reason === null) return;
-    
-    const { error } = await supabase.from('attendance_logs')
-      .update({ status: 'Cancelled', cancelled_at: new Date().toISOString(), cancelled_by: profile?.id, cancel_reason: reason })
-      .eq('id', scan.id);
-      
-    if (!error) {
-      setScanHistory(prev => prev.map(s => s.id === scan.id ? { ...s, status: 'Cancelled' } : s));
-      fetchStats();
-    }
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editScan) return;
-    const { error } = await supabase.from('attendance_logs')
-      .update({ status: editScan.status, remarks: editRemarks })
-      .eq('id', editScan.id);
-      
-    if (!error) {
-      setScanHistory(prev => prev.map(s => s.id === editScan.id ? { ...s, status: editScan.status, remarks: editRemarks } : s));
-      setEditScan(null);
-      fetchStats();
     }
   };
 
@@ -547,7 +384,7 @@ const QRAttendanceScanner = () => {
       case 'Late': return 'bg-amber-500';
       case 'Half Day': return 'bg-orange-500';
       case 'Leave': return 'bg-blue-500';
-      case 'Duplicate': return 'bg-red-500';
+      case 'Duplicate': return 'bg-amber-500';
       case 'Cancelled': return 'bg-slate-500';
       default: return 'bg-slate-500';
     }
@@ -563,33 +400,33 @@ const QRAttendanceScanner = () => {
             <X size={24} />
           </Link>
           <div>
-            <h1 className="text-xl font-bold tracking-tight">Attendance Kiosk <span className="text-xs font-normal text-slate-400 bg-slate-700 px-2 py-0.5 rounded ml-2">{settings.gate}</span></h1>
+            <h1 className="text-xl font-bold tracking-tight">QR Scanner <span className="text-xs font-normal text-slate-400 bg-slate-700 px-2 py-0.5 rounded ml-2">{settings.gate}</span></h1>
             <p className="text-xs text-slate-400">{settings.deviceName} • Operator: {profile?.name || 'System'}</p>
           </div>
         </div>
         
         <div className="flex items-center gap-4">
-          <button onClick={() => setShowManualSearch(true)} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors" title="Manual Search">
-            <Search size={20} />
+          <button onClick={() => setFacingMode(prev => prev === 'environment' ? 'user' : 'environment')} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors" title="Switch Camera">
+            <RotateCcw size={20} />
           </button>
           <button onClick={() => setShowSettings(true)} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors" title="Settings">
             <Settings size={20} />
           </button>
 
-          <div className={`flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-full ${isOnline ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+          <div className={`flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-full ${isOnline ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
             {isOnline ? (offlineQueue.length > 0 ? <RefreshCw size={16} className="animate-spin" /> : <Wifi size={16} />) : <WifiOff size={16} />}
             {isOnline ? (offlineQueue.length > 0 ? `Syncing ${offlineQueue.length}...` : 'Online') : `Offline (${offlineQueue.length})`}
           </div>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col lg:flex-row p-4 gap-4 overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row p-4 gap-4 overflow-hidden relative">
         
-        {/* Left Side: Scanner & Controls */}
-        <div className="w-full lg:w-[65%] flex flex-col gap-4">
+        {/* Left Side: Scanner */}
+        <div className="w-full lg:w-[65%] flex flex-col gap-4 relative">
           
           {/* Status Selector */}
-          <div className="bg-slate-800 rounded-2xl p-2 flex gap-2 overflow-x-auto shrink-0 shadow-lg border border-slate-700">
+          <div className="bg-slate-800 rounded-2xl p-2 flex gap-2 overflow-x-auto shrink-0 shadow-lg border border-slate-700 z-20">
             {['Present', 'Late', 'Half Day', 'Leave'].map(status => (
               <button
                 key={status}
@@ -611,87 +448,77 @@ const QRAttendanceScanner = () => {
           {/* Camera Viewport */}
           <div className="flex-1 relative bg-black rounded-3xl overflow-hidden shadow-2xl flex flex-col min-h-[400px]">
              
-             {/* HTML5 Qrcode Mount Point */}
-             <div id="qr-reader-video" className="w-full h-full object-cover"></div>
+             {/* The New React QR Scanner */}
+             <div className="absolute inset-0 z-0">
+               <Scanner 
+                 onScan={handleScan}
+                 onError={(err) => console.error(err)}
+                 components={{
+                    audio: false,
+                    finder: true
+                 }}
+                 constraints={{
+                    facingMode: facingMode
+                 }}
+                 styles={{
+                    container: { width: '100%', height: '100%' },
+                    video: { objectFit: 'cover' }
+                 }}
+               />
+             </div>
              
-             {/* Camera Error State */}
-             {cameraError && (
-               <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-sm z-40 p-6 text-center border border-red-500/20">
-                 <Camera size={48} className="text-red-500 mb-4 opacity-80" />
-                 <h3 className="text-xl font-bold text-white mb-2">Camera Issue</h3>
-                 <p className="text-slate-300 max-w-sm">{cameraError}</p>
-                 <button onClick={() => window.location.reload()} className="mt-6 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium transition-colors shadow-lg">
-                   Reload Page
-                 </button>
+             {/* Reticle / Overlays are handled by yudiel/react-qr-scanner's finder, but we add custom styling overlay */}
+             <div className="absolute inset-0 pointer-events-none z-10 flex flex-col items-center justify-between py-8">
+               <div className="bg-black/40 backdrop-blur-sm px-4 py-2 rounded-full text-white/80 font-medium tracking-wide">
+                 Point camera at ID Card
                </div>
-             )}
-             
-             {/* Camera Selector Overlay */}
-             {cameras.length > 1 && (
-               <div className="absolute top-4 right-4 z-40">
-                 <div className="bg-black/50 backdrop-blur px-3 py-1.5 rounded-lg border border-white/20 flex items-center gap-2">
-                   <Camera size={16} className="text-white" />
-                   <select 
-                     className="bg-transparent text-white text-sm outline-none cursor-pointer"
-                     value={settings.preferredCameraId}
-                     onChange={handleCameraChange}
-                   >
-                     {cameras.map(c => <option key={c.id} value={c.id} className="text-black">{c.label || 'Camera'}</option>)}
-                   </select>
-                 </div>
-               </div>
-             )}
+             </div>
 
-             {/* Result Overlay */}
-             {scanResult && (
-               <div className={`absolute inset-0 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-200 z-50 ${
-                 scanResult.status === 'success' ? 'bg-emerald-500/95' 
-                 : scanResult.status === 'duplicate' ? 'bg-amber-500/95'
-                 : 'bg-red-500/95'
-               }`}>
-                 {scanResult.status === 'success' && <CheckCircle size={80} className="text-white mb-4 drop-shadow-lg" />}
-                 {scanResult.status === 'duplicate' && <AlertTriangle size={80} className="text-white mb-4 drop-shadow-lg" />}
-                 {scanResult.status === 'error' && <XCircle size={80} className="text-white mb-4 drop-shadow-lg" />}
-                 
-                 <h2 className="text-5xl font-extrabold text-white text-center tracking-tight drop-shadow-lg px-4">
-                   {scanResult.name}
-                 </h2>
-                 
-                 {scanResult.class && (
-                   <p className="text-2xl text-white/90 mt-2 font-medium drop-shadow-md">{scanResult.class}</p>
-                 )}
-                 
-                 <div className="mt-6 flex items-center gap-3 bg-black/20 px-6 py-3 rounded-2xl backdrop-blur-sm border border-white/10">
-                    {scanResult.status === 'duplicate' && <AlertTriangle size={24} className="text-white" />}
-                    {scanResult.status === 'error' && <XCircle size={24} className="text-white" />}
-                    {scanResult.status === 'success' && <Clock size={24} className="text-white" />}
-                    
-                    <span className="text-2xl font-bold text-white tracking-wide text-center">
-                      {scanResult.status === 'success' 
-                        ? `${attendanceStatus} at ${scanResult.time || new Date().toLocaleTimeString()}`
-                        : `${scanResult.message}${scanResult.decodedText ? `: ${scanResult.decodedText}` : ''}`
-                      }
-                    </span>
+             {/* Non-Blocking Toast Notification */}
+             {toast && (
+               <div className="absolute bottom-6 left-0 right-0 flex justify-center z-50 pointer-events-none px-4">
+                 <div className={`animate-in slide-in-from-bottom-5 fade-in duration-200 flex items-center gap-4 px-6 py-4 rounded-2xl shadow-2xl border backdrop-blur-md max-w-md w-full
+                   ${toast.status === 'success' ? 'bg-emerald-500/90 border-emerald-400/50' : 
+                     toast.status === 'duplicate' ? 'bg-amber-500/90 border-amber-400/50' : 
+                     toast.status === 'offline' ? 'bg-blue-500/90 border-blue-400/50' :
+                     'bg-red-500/90 border-red-400/50'}`}>
+                   
+                   <div className="shrink-0 text-white drop-shadow-md">
+                     {toast.status === 'success' && <CheckCircle size={36} />}
+                     {toast.status === 'duplicate' && <AlertTriangle size={36} />}
+                     {toast.status === 'offline' && <WifiOff size={36} />}
+                     {toast.status === 'error' && <XCircle size={36} />}
+                   </div>
+                   
+                   <div className="flex-1 min-w-0">
+                     <p className="text-white/90 text-sm font-bold uppercase tracking-wider">{toast.message}</p>
+                     <h3 className="text-white text-xl font-extrabold truncate drop-shadow-sm leading-tight">{toast.name}</h3>
+                     {toast.className && <p className="text-white/80 text-sm font-medium">{toast.className}</p>}
+                   </div>
+                   
+                   <div className="shrink-0 text-white/70 text-sm font-medium text-right">
+                     {toast.time}
+                   </div>
                  </div>
                </div>
              )}
           </div>
           
           {/* Live Stats Row */}
-          <div className="grid grid-cols-4 gap-3 shrink-0">
-             <div className="bg-slate-800 rounded-xl p-3 border border-slate-700 text-center">
+          <div className="grid grid-cols-4 gap-3 shrink-0 z-20">
+             <div className="bg-slate-800 rounded-xl p-3 border border-slate-700 text-center shadow-md">
                <div className="text-xs text-slate-400 mb-1">Students</div>
                <div className="text-2xl font-bold text-emerald-400">{stats.students}</div>
              </div>
-             <div className="bg-slate-800 rounded-xl p-3 border border-slate-700 text-center">
+             <div className="bg-slate-800 rounded-xl p-3 border border-slate-700 text-center shadow-md">
                <div className="text-xs text-slate-400 mb-1">Teachers</div>
                <div className="text-2xl font-bold text-blue-400">{stats.teachers}</div>
              </div>
-             <div className="bg-slate-800 rounded-xl p-3 border border-slate-700 text-center">
+             <div className="bg-slate-800 rounded-xl p-3 border border-slate-700 text-center shadow-md">
                <div className="text-xs text-slate-400 mb-1">Late</div>
                <div className="text-2xl font-bold text-amber-400">{stats.late}</div>
              </div>
-             <div className="bg-slate-800 rounded-xl p-3 border border-slate-700 text-center">
+             <div className="bg-slate-800 rounded-xl p-3 border border-slate-700 text-center shadow-md">
                <div className="text-xs text-slate-400 mb-1">Total Scans</div>
                <div className="text-2xl font-bold text-white">{stats.total}</div>
              </div>
@@ -699,37 +526,28 @@ const QRAttendanceScanner = () => {
         </div>
 
         {/* Right Side: History */}
-        <div className="w-full lg:w-[35%] bg-slate-800 rounded-3xl border border-slate-700 flex flex-col overflow-hidden shadow-lg">
+        <div className="w-full lg:w-[35%] bg-slate-800 rounded-3xl border border-slate-700 flex flex-col overflow-hidden shadow-lg z-20">
           <div className="p-4 border-b border-slate-700 bg-slate-800/80 shrink-0">
              <h3 className="font-bold text-slate-200 flex items-center justify-between">
                <span>Recent Scans</span>
-               <span className="text-xs font-normal text-slate-400">{scanHistory.length} items</span>
+               <span className="text-xs font-normal text-slate-400">Live updating</span>
              </h3>
           </div>
           <div className="flex-1 overflow-y-auto p-2">
             {scanHistory.map((scan, idx) => (
-              <div key={idx} className="bg-slate-900/50 rounded-xl p-3 mb-2 flex items-center justify-between group">
+              <div key={scan.id || idx} className="bg-slate-900/50 rounded-xl p-3 mb-2 flex flex-col group animate-in slide-in-from-left-2 fade-in">
                 <div className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full shadow-sm ${getStatusColor(scan.status)}`}></div>
-                  <div>
-                    <div className="text-sm font-semibold text-white">{scan.name}</div>
-                    <div className="text-xs text-slate-400 flex items-center gap-1">
-                      {new Date(scan.scan_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                      <span className="px-1 text-slate-500">•</span>
-                      <span className={`${scan.status === 'Cancelled' ? 'line-through text-slate-500' : ''}`}>{scan.status}</span>
+                  <div className={`w-3 h-3 rounded-full shadow-sm shrink-0 ${getStatusColor(scan.status)}`}></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold text-white truncate">{scan.name}</div>
+                    <div className="text-xs text-slate-400 flex items-center justify-between mt-0.5">
+                       <span>{scan.className || 'Staff'}</span>
+                       <span className="flex items-center gap-1">
+                          {new Date(scan.scan_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                       </span>
                     </div>
                   </div>
                 </div>
-                {!scan.id.startsWith('dup') && scan.status !== 'Cancelled' && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => { setEditScan(scan); setEditRemarks(scan.remarks || ''); }} className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded">
-                      <Edit2 size={14} />
-                    </button>
-                    <button onClick={() => handleUndo(scan)} className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded">
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                )}
               </div>
             ))}
             {scanHistory.length === 0 && (
@@ -798,97 +616,13 @@ const QRAttendanceScanner = () => {
               </div>
             </div>
             
-            <button onClick={() => setShowSettings(false)} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl mt-6 transition-colors">
+            <button onClick={() => setShowSettings(false)} className="w-full mt-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold transition-colors">
               Save & Close
             </button>
           </div>
         </div>
       )}
 
-      {/* Manual Search Modal */}
-      {showManualSearch && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-slate-800 rounded-3xl p-6 w-full max-w-lg border border-slate-700 shadow-2xl flex flex-col max-h-[80vh]">
-            <div className="flex justify-between items-center mb-4 shrink-0">
-              <h2 className="text-xl font-bold">Manual Entry</h2>
-              <button onClick={() => setShowManualSearch(false)} className="text-slate-400 hover:text-white"><X size={24} /></button>
-            </div>
-            
-            <div className="shrink-0 mb-4">
-              <input 
-                type="text"
-                placeholder="Search by Name, UID, or Employee ID..."
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-white outline-none focus:border-indigo-500"
-                value={manualQuery}
-                onChange={(e) => { setManualQuery(e.target.value); handleManualSearch(); }}
-                onKeyUp={(e) => { if(e.key==='Enter') handleManualSearch(); }}
-                autoFocus
-              />
-            </div>
-
-            <div className="flex-1 overflow-y-auto space-y-2">
-              {manualResults.map(p => (
-                <div key={p.id} className="bg-slate-900/50 border border-slate-700 rounded-xl p-3 flex items-center justify-between">
-                  <div>
-                    <div className="font-bold text-white">{p.name}</div>
-                    <div className="text-xs text-slate-400">{p.uid} • {p.subtitle}</div>
-                  </div>
-                  <button 
-                    onClick={() => handleManualMark(p)}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg"
-                  >
-                    Mark {attendanceStatus}
-                  </button>
-                </div>
-              ))}
-              {manualQuery && manualResults.length === 0 && (
-                <div className="text-center text-slate-500 p-4">No matches found.</div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Scan Modal */}
-      {editScan && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-slate-800 rounded-3xl p-6 w-full max-w-sm border border-slate-700 shadow-2xl">
-            <h2 className="text-xl font-bold mb-4">Edit Record</h2>
-            <div className="mb-4">
-              <label className="block text-sm text-slate-400 mb-1">Status</label>
-              <select 
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white"
-                value={editScan.status}
-                onChange={(e) => setEditScan({...editScan, status: e.target.value})}
-              >
-                <option value="Present">Present</option>
-                <option value="Late">Late</option>
-                <option value="Half Day">Half Day</option>
-                <option value="Leave">Leave</option>
-              </select>
-            </div>
-            <div className="mb-6">
-              <label className="block text-sm text-slate-400 mb-1">Remarks</label>
-              <input 
-                type="text"
-                placeholder="e.g. Bus breakdown"
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white"
-                value={editRemarks}
-                onChange={(e) => setEditRemarks(e.target.value)}
-              />
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setEditScan(null)} className="flex-1 bg-slate-700 hover:bg-slate-600 p-3 rounded-xl font-bold">Cancel</button>
-              <button onClick={handleSaveEdit} className="flex-1 bg-indigo-600 hover:bg-indigo-500 p-3 rounded-xl font-bold">Save</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CSS for Scanner Object Fit */}
-      <style dangerouslySetInnerHTML={{__html: `
-        #qr-reader-video video { object-fit: cover !important; width: 100% !important; height: 100% !important; }
-      `}} />
     </div>
   );
 };
