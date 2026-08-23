@@ -320,6 +320,34 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
     }
   };
 
+  const generateQRStickersPDF = async () => {
+    const selectedStudentsForQR = studentsList.filter(s => selectedStudentIds.has(s.id));
+    if (selectedStudentsForQR.length === 0) return alert("Please select at least one student!");
+    
+    setIsGenerating(true);
+    
+    const element = document.getElementById('student-qr-sticker-print-container');
+    element.style.display = 'block';
+    
+    const opt = {
+      margin:       10,
+      filename:     `Student_QR_Stickers_${selectedClass === 'all' ? 'All' : 'Class'}.pdf`,
+      image:        { type: 'jpeg', quality: 1.0 },
+      html2canvas:  { scale: 2, useCORS: true, logging: false },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    try {
+      await html2pdf().set(opt).from(element).save();
+    } catch (error) {
+      console.error(error);
+      alert("Error generating QR Stickers PDF!");
+    } finally {
+      element.style.display = 'none';
+      setIsGenerating(false);
+    }
+  };
+
   const selectedStudents = studentsList.filter(s => selectedStudentIds.has(s.id));
 
   const getClassName = (classId) => {
@@ -360,6 +388,16 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
           >
             {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
             Copy Class Links
+          </button>
+          <button 
+            className="flex items-center gap-2" 
+            style={{ background: '#8b5cf6', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontWeight: 600, cursor: isGenerating || selectedStudentIds.size === 0 ? 'not-allowed' : 'pointer', opacity: isGenerating || selectedStudentIds.size === 0 ? 0.7 : 1 }}
+            onClick={generateQRStickersPDF}
+            disabled={isGenerating || selectedStudentIds.size === 0}
+            title="Print big QR codes as stickers"
+          >
+            {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <Printer size={18} />}
+            QR Stickers
           </button>
           <button 
             className="btn-hero-primary flex items-center gap-2" 
@@ -670,6 +708,20 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
             </div>
           </React.Fragment>
         ))}
+      </div>
+
+      {/* Hidden Print Container for QR Stickers (A4 Grid) */}
+      <div id="student-qr-sticker-print-container" style={{ display: 'none', background: 'white', width: '210mm', padding: '10mm', boxSizing: 'border-box' }}>
+        <h2 style={{ textAlign: 'center', fontFamily: "'Inter', sans-serif", marginBottom: '10mm' }}>Student QR Code Stickers {selectedClass !== 'all' && `- ${getClassName(selectedClass)}`}</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10mm', width: '100%' }}>
+          {selectedStudents.map((student) => (
+            <div key={`sticker-${student.id}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px dashed #cbd5e1', padding: '5mm', borderRadius: '2mm', breakInside: 'avoid' }}>
+              <QRCode value={generateQRData(student)} size={120} style={{ width: '40mm', height: '40mm' }} level="M" fgColor="#000000" bgColor="#FFFFFF" />
+              <div style={{ marginTop: '3mm', fontSize: '10pt', fontWeight: 600, fontFamily: "'Inter', sans-serif", textAlign: 'center' }}>{student.name}</div>
+              <div style={{ fontSize: '8pt', color: '#64748b', fontFamily: "'Inter', sans-serif", textAlign: 'center' }}>{getClassName(student.class_id)} | Adm: {student.uid || 'N/A'}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
