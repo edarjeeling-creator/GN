@@ -711,14 +711,14 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
       </div>
 
       {/* Hidden Print Container for QR Stickers (A4 Grid) */}
-      <div id="student-qr-sticker-print-container" style={{ display: 'none', background: 'white', width: '210mm', padding: '10mm', boxSizing: 'border-box' }}>
-        <h2 style={{ textAlign: 'center', fontFamily: "'Inter', sans-serif", marginBottom: '10mm' }}>Student QR Code Stickers {selectedClass !== 'all' && `- ${getClassName(selectedClass)}`}</h2>
+      <div id="student-qr-sticker-print-container" style={{ display: 'none', background: 'white', color: '#000000', width: '210mm', padding: '10mm', boxSizing: 'border-box' }}>
+        <h2 style={{ textAlign: 'center', fontFamily: "'Inter', sans-serif", marginBottom: '10mm', color: '#000000' }}>Student QR Code Stickers {selectedClass !== 'all' && `- ${getClassName(selectedClass)}`}</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10mm', width: '100%' }}>
           {selectedStudents.map((student) => (
             <div key={`sticker-${student.id}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px dashed #cbd5e1', padding: '5mm', borderRadius: '2mm', breakInside: 'avoid' }}>
               <QRCode value={generateQRData(student)} size={120} style={{ width: '40mm', height: '40mm' }} level="M" fgColor="#000000" bgColor="#FFFFFF" />
-              <div style={{ marginTop: '3mm', fontSize: '10pt', fontWeight: 600, fontFamily: "'Inter', sans-serif", textAlign: 'center' }}>{student.name}</div>
-              <div style={{ fontSize: '8pt', color: '#64748b', fontFamily: "'Inter', sans-serif", textAlign: 'center' }}>{getClassName(student.class_id)} | Adm: {student.uid || 'N/A'}</div>
+              <div style={{ marginTop: '3mm', fontSize: '10pt', fontWeight: 600, fontFamily: "'Inter', sans-serif", textAlign: 'center', color: '#000000' }}>{student.name}</div>
+              <div style={{ fontSize: '8pt', color: '#475569', fontFamily: "'Inter', sans-serif", textAlign: 'center' }}>{getClassName(student.class_id)} | Adm: {student.uid || 'N/A'}</div>
             </div>
           ))}
         </div>

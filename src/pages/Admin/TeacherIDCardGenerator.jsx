@@ -685,14 +685,14 @@ const TeacherIDCardGenerator = ({ teachers: globalTeachers, fetchStats }) => {
       </div>
 
       {/* Hidden Print Container for QR Stickers (A4 Grid) */}
-      <div id="teacher-qr-sticker-print-container" style={{ display: 'none', background: 'white', width: '210mm', padding: '10mm', boxSizing: 'border-box' }}>
-        <h2 style={{ textAlign: 'center', fontFamily: "'Inter', sans-serif", marginBottom: '10mm' }}>Teacher QR Code Stickers</h2>
+      <div id="teacher-qr-sticker-print-container" style={{ display: 'none', background: 'white', color: '#000000', width: '210mm', padding: '10mm', boxSizing: 'border-box' }}>
+        <h2 style={{ textAlign: 'center', fontFamily: "'Inter', sans-serif", marginBottom: '10mm', color: '#000000' }}>Teacher QR Code Stickers</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10mm', width: '100%' }}>
           {selectedTeachers.map((teacher) => (
             <div key={`sticker-${teacher.id}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px dashed #cbd5e1', padding: '5mm', borderRadius: '2mm', breakInside: 'avoid' }}>
               <QRCode value={generateQRData(teacher)} size={120} style={{ width: '40mm', height: '40mm' }} level="M" fgColor="#000000" bgColor="#FFFFFF" />
-              <div style={{ marginTop: '3mm', fontSize: '10pt', fontWeight: 600, fontFamily: "'Inter', sans-serif", textAlign: 'center' }}>{teacher.name}</div>
-              <div style={{ fontSize: '8pt', color: '#64748b', fontFamily: "'Inter', sans-serif", textAlign: 'center' }}>ID: {teacher.employee_id || 'N/A'}</div>
+              <div style={{ marginTop: '3mm', fontSize: '10pt', fontWeight: 600, fontFamily: "'Inter', sans-serif", textAlign: 'center', color: '#000000' }}>{teacher.name}</div>
+              <div style={{ fontSize: '8pt', color: '#475569', fontFamily: "'Inter', sans-serif", textAlign: 'center' }}>ID: {teacher.employee_id || 'N/A'}</div>
             </div>
           ))}
         </div>
