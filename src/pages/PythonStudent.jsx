@@ -238,17 +238,17 @@ const PythonStudent = () => {
       {activeTab === 'lessons' && (
         <div className="grid md:grid-cols-3 gap-6">
           {!isMobile ? (
-            <div className="col-span-1 border-r border-slate-200 pr-4 mb-4 md:mb-0">
-              <h3 className="font-bold text-lg mb-4 text-slate-700">Modules</h3>
+            <div className="col-span-1 border-r border-slate-800 pr-4 mb-4 md:mb-0">
+              <h3 className="font-bold text-lg mb-4 text-slate-200">Modules</h3>
               <div className="flex flex-col gap-2">
                 {visibleLessons.map((l, index) => (
                   <button 
                     key={l.id}
                     onClick={() => setSelectedLesson(l)}
-                    className={`text-left p-3 rounded-lg transition-colors ${selectedLesson?.id === l.id ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'hover:bg-slate-50'}`}
+                    className={`text-left p-3 rounded-lg transition-colors ${selectedLesson?.id === l.id ? 'bg-indigo-900/50 text-indigo-300 border border-indigo-800' : 'hover:bg-slate-800 text-slate-300'}`}
                   >
-                    <div className="font-bold text-sm">Lesson {index + 1}:</div>
-                    <div className="text-md">{l.title}</div>
+                    <div className="font-bold text-sm text-slate-400">Lesson {index + 1}:</div>
+                    <div className="text-md text-slate-200">{l.title}</div>
                     <div className="text-xs text-slate-500 mt-1">{l.module}</div>
                   </button>
                 ))}
@@ -257,9 +257,9 @@ const PythonStudent = () => {
             </div>
           ) : (
             <div className="col-span-1 mb-2">
-              <h3 className="font-bold text-lg mb-2 text-slate-700">Select Module</h3>
+              <h3 className="font-bold text-lg mb-2 text-slate-200">Select Module</h3>
               <select 
-                className="input-field bg-white"
+                className="input-field bg-slate-900 text-slate-200 border-slate-800"
                 value={selectedLesson?.id || ''}
                 onChange={(e) => {
                   const lesson = visibleLessons.find(l => l.id === e.target.value);
@@ -276,22 +276,22 @@ const PythonStudent = () => {
           
           <div className="md:col-span-2 col-span-1 min-w-0">
             {selectedLesson ? (
-              <div className="card p-4 md:p-8 bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
-                <h2 className="text-3xl font-bold text-slate-800 mb-2">{selectedLesson.title}</h2>
-                <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-bold mb-6">{selectedLesson.module}</span>
+              <div className="card p-4 md:p-8 bg-slate-900/50 border border-slate-800 shadow-sm rounded-xl overflow-hidden">
+                <h2 className="text-3xl font-bold text-slate-200 mb-2">{selectedLesson.title}</h2>
+                <span className="inline-block bg-indigo-900/50 text-indigo-300 text-xs px-2 py-1 rounded-full font-bold mb-6 border border-indigo-800/50">{selectedLesson.module}</span>
                 
                 {selectedLesson.video_url && (
-                  <div className="mb-6 p-4 bg-slate-50 rounded-lg flex items-start gap-3 border border-slate-200">
-                    <Video className="text-red-500 mt-1" />
+                  <div className="mb-6 p-4 bg-slate-800/50 rounded-lg flex items-start gap-3 border border-slate-700">
+                    <Video className="text-red-400 mt-1" />
                     <div>
-                      <h4 className="font-bold">Video Lesson</h4>
-                      <a href={selectedLesson.video_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{selectedLesson.video_url}</a>
+                      <h4 className="font-bold text-slate-200">Video Lesson</h4>
+                      <a href={selectedLesson.video_url} target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">{selectedLesson.video_url}</a>
                     </div>
                   </div>
                 )}
                 
                 <div className="prose max-w-full overflow-hidden">
-                  <p className="text-slate-700 mb-6">{selectedLesson.description}</p>
+                  <p className="text-slate-300 mb-6">{selectedLesson.description}</p>
                   
                   {selectedLesson.content && (
                     <div style={{ position: 'relative', marginTop: '1.5rem', maxWidth: '100%' }}>
@@ -357,8 +357,8 @@ const PythonStudent = () => {
       {activeTab === 'assignments' && (
         <div className="grid md:grid-cols-4 gap-6">
           {!isMobile ? (
-            <div className="col-span-1 border-r border-slate-200 pr-4 mb-6 md:mb-0">
-              <h3 className="font-bold text-lg mb-4 text-slate-700">Assignments</h3>
+            <div className="col-span-1 border-r border-slate-800 pr-4 mb-6 md:mb-0">
+              <h3 className="font-bold text-lg mb-4 text-slate-200">Assignments</h3>
               <div className="flex flex-col gap-2">
                 {visibleAssignments.map(a => {
                   const sub = mySubmissions.find(s => s.assignment_id === a.id);
@@ -366,11 +366,11 @@ const PythonStudent = () => {
                     <button 
                       key={a.id}
                       onClick={() => setSelectedAssignment(a)}
-                      className={`text-left p-3 rounded-lg transition-colors border ${selectedAssignment?.id === a.id ? 'bg-indigo-50 border-indigo-200' : 'border-transparent hover:bg-slate-50'}`}
+                      className={`text-left p-3 rounded-lg transition-colors border ${selectedAssignment?.id === a.id ? 'bg-indigo-900/50 border-indigo-800 text-slate-200' : 'border-transparent hover:bg-slate-800 text-slate-300'}`}
                     >
                       <div className="flex justify-between items-start">
-                        <div className="font-bold text-slate-800">{a.title}</div>
-                        {sub && <CheckCircle size={16} className="text-green-500 flex-shrink-0" />}
+                        <div className="font-bold text-slate-200">{a.title}</div>
+                        {sub && <CheckCircle size={16} className="text-green-400 flex-shrink-0" />}
                       </div>
                       <div className="text-xs text-slate-500 mt-1 truncate">{a.module}</div>
                     </button>
@@ -380,8 +380,8 @@ const PythonStudent = () => {
               </div>
               
               <div className="mt-8">
-                <h3 className="font-bold text-lg mb-4 text-slate-700">Free Practice IDE</h3>
-                <p className="text-sm text-slate-600 mb-4">Want to just test some code? Click below for a blank editor.</p>
+                <h3 className="font-bold text-lg mb-4 text-slate-200">Free Practice IDE</h3>
+                <p className="text-sm text-slate-400 mb-4">Want to just test some code? Click below for a blank editor.</p>
                 <button 
                   onClick={() => setSelectedAssignment({ title: "Free Practice Playground", instructions: "Write and test whatever Python code you like! (This will not be submitted)", starter_code: 'print("Hello Python!")', isPlayground: true })}
                   className="w-full btn-hero-outline"
@@ -392,9 +392,9 @@ const PythonStudent = () => {
             </div>
           ) : (
             <div className="col-span-1 mb-2">
-              <h3 className="font-bold text-lg mb-2 text-slate-700">Select Assignment</h3>
+              <h3 className="font-bold text-lg mb-2 text-slate-200">Select Assignment</h3>
               <select 
-                className="input-field bg-white"
+                className="input-field bg-slate-900 text-slate-200 border-slate-800"
                 value={selectedAssignment?.id || (selectedAssignment?.isPlayground ? 'playground' : '')}
                 onChange={(e) => {
                   if (e.target.value === 'playground') {
@@ -419,15 +419,15 @@ const PythonStudent = () => {
           <div className="md:col-span-3 col-span-1 min-w-0">
             {selectedAssignment ? (
               <div className="flex flex-col gap-4">
-                <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
-                  <h2 className="text-2xl font-bold text-slate-800 mb-2">{selectedAssignment.title}</h2>
-                  <p className="text-slate-600 bg-slate-50 p-4 rounded-md border border-slate-100">{selectedAssignment.instructions}</p>
+                <div className="bg-slate-900/50 p-6 rounded-lg border border-slate-800 shadow-sm">
+                  <h2 className="text-2xl font-bold text-slate-200 mb-2">{selectedAssignment.title}</h2>
+                  <p className="text-slate-300 bg-slate-800/50 p-4 rounded-md border border-slate-700">{selectedAssignment.instructions}</p>
                   
                   {/* Show previous submission feedback if any */}
                   {!selectedAssignment.isPlayground && mySubmissions.find(s => s.assignment_id === selectedAssignment.id)?.teacher_feedback && (
-                    <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                      <h4 className="font-bold text-yellow-800 flex items-center gap-2"><FileText size={16}/> Teacher Feedback:</h4>
-                      <p className="text-yellow-700 mt-1">{mySubmissions.find(s => s.assignment_id === selectedAssignment.id).teacher_feedback}</p>
+                    <div className="mt-4 p-4 bg-yellow-900/30 border border-yellow-800 rounded-md">
+                      <h4 className="font-bold text-yellow-500 flex items-center gap-2"><FileText size={16}/> Teacher Feedback:</h4>
+                      <p className="text-yellow-200 mt-1">{mySubmissions.find(s => s.assignment_id === selectedAssignment.id).teacher_feedback}</p>
                     </div>
                   )}
                 </div>
@@ -451,41 +451,41 @@ const PythonStudent = () => {
 
       {activeTab === 'progress' && (
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="card p-6">
-            <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2"><Trophy className="text-yellow-500"/> My Badges</h3>
+          <div className="card p-6 bg-slate-900/50 border border-slate-800">
+            <h3 className="text-xl font-bold text-slate-200 mb-6 flex items-center gap-2"><Trophy className="text-yellow-500"/> My Badges</h3>
             <div className="grid grid-cols-2 gap-4">
               {calculateBadges().map((b, i) => (
-                <div key={i} className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex flex-col items-center text-center">
-                  <div className="bg-white p-3 rounded-full shadow-sm mb-3">{b.icon}</div>
-                  <h4 className="font-bold text-slate-700">{b.name}</h4>
-                  <p className="text-xs text-slate-500 mt-1">{b.desc}</p>
+                <div key={i} className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 flex flex-col items-center text-center">
+                  <div className="bg-slate-900 p-3 rounded-full shadow-sm mb-3">{b.icon}</div>
+                  <h4 className="font-bold text-slate-200">{b.name}</h4>
+                  <p className="text-xs text-slate-400 mt-1">{b.desc}</p>
                 </div>
               ))}
               {calculateBadges().length === 0 && (
-                <div className="col-span-2 text-center text-slate-400 py-8">
+                <div className="col-span-2 text-center text-slate-500 py-8">
                   <p>Submit your first assignment to earn a badge!</p>
                 </div>
               )}
             </div>
           </div>
           
-          <div className="card p-6">
-            <h3 className="text-xl font-bold text-slate-800 mb-6">Submission History</h3>
+          <div className="card p-6 bg-slate-900/50 border border-slate-800">
+            <h3 className="text-xl font-bold text-slate-200 mb-6">Submission History</h3>
             <div className="flex flex-col gap-3">
               {mySubmissions.map(s => (
-                <div key={s.id} className="p-3 border-b border-slate-100 last:border-0">
+                <div key={s.id} className="p-3 border-b border-slate-800 last:border-0">
                   <div className="flex justify-between items-center">
                     <div>
-                      <div className="font-bold text-slate-700">{s.python_assignments?.title}</div>
+                      <div className="font-bold text-slate-200">{s.python_assignments?.title}</div>
                       <div className="text-xs text-slate-500">{new Date(s.updated_at).toLocaleDateString()}</div>
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <div className="flex items-center gap-4">
-                        <span className={`text-xs px-2 py-1 rounded-full ${s.status === 'reviewed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                        <span className={`text-xs px-2 py-1 rounded-full ${s.status === 'reviewed' ? 'bg-green-900/30 text-green-400 border border-green-800' : 'bg-indigo-900/30 text-indigo-400 border border-indigo-800'}`}>
                           {s.status === 'reviewed' ? 'Reviewed' : 'Submitted'}
                         </span>
                         {s.marks !== null && (
-                          <span className="font-bold text-lg text-indigo-600 bg-indigo-50 px-2 py-1 rounded">
+                          <span className="font-bold text-lg text-indigo-400 bg-indigo-900/30 px-2 py-1 rounded">
                             {s.marks}/10
                           </span>
                         )}
@@ -493,15 +493,15 @@ const PythonStudent = () => {
                     </div>
                   </div>
                   {s.teacher_feedback && (
-                    <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm">
-                      <strong className="text-yellow-800 flex items-center gap-1 mb-1"><FileText size={14}/> Teacher Message:</strong>
-                      <span className="text-yellow-700">{s.teacher_feedback}</span>
+                     <div className="mt-2 p-3 bg-yellow-900/30 border border-yellow-800 rounded-md text-sm">
+                      <strong className="text-yellow-500 flex items-center gap-1 mb-1"><FileText size={14}/> Teacher Message:</strong>
+                      <span className="text-yellow-200">{s.teacher_feedback}</span>
                     </div>
                   )}
                 </div>
               ))}
               {mySubmissions.length === 0 && (
-                <p className="text-slate-400">No submissions yet.</p>
+                <p className="text-slate-500">No submissions yet.</p>
               )}
             </div>
           </div>
