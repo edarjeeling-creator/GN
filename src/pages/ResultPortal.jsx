@@ -423,10 +423,6 @@ const ResultPortal = () => {
                   </td>
                 </tr>
               ))}
-              <tr>
-                <td style={{ border: '1px solid black', padding: '6px 12px', fontWeight: 'bold', textTransform: 'uppercase' }}>TOTAL</td>
-                <td style={{ border: '1px solid black', padding: '6px 12px', textAlign: 'center', fontWeight: 'bold' }}>{grandTotal}</td>
-              </tr>
             </tbody>
           </table>
 
@@ -532,10 +528,6 @@ const ResultPortal = () => {
               })}
   
               {/* Total Row */}
-              <tr>
-                <td colSpan={colCount - 1} style={{ padding: '8px 12px', border: '1px solid black', fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'right' }}>TOTAL</td>
-                <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold' }}>{grandTotal}</td>
-              </tr>
   
               {/* Footer Details */}
               {!selectedTerm.includes('_Test') && (
