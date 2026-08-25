@@ -21,6 +21,7 @@ import ImportHistory from './Admin/ImportHistory';
 import ReportCardCMS from './Admin/ReportCardCMS';
 import AuditLog from './Admin/AuditLog';
 import ResultStatusManager from './Admin/ResultStatusManager';
+import MonthlyAttendanceReport from './Admin/MonthlyAttendanceReport';
 import DiscussionPanel from '../components/chat/DiscussionPanel';
 
 const Admin = () => {
@@ -682,7 +683,13 @@ const Admin = () => {
           Portal Settings
         </button>
         <button 
-          onClick={() => setActiveTab('id_cards')} 
+          onClick={() => setActiveTab('monthly_reports')}
+          style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'monthly_reports' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'monthly_reports' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: activeTab === 'monthly_reports' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '1rem' }}
+        >
+          Monthly Reports
+        </button>
+        <button 
+          onClick={() => setActiveTab('id_cards')}
           style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'id_cards' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'id_cards' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: activeTab === 'id_cards' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '1rem' }}
         >
           ID Cards
@@ -691,6 +698,10 @@ const Admin = () => {
 
       {activeTab === 'portal_settings' && (
         <FeatureSettings teachers={teachers} />
+      )}
+
+      {activeTab === 'monthly_reports' && (
+        <MonthlyAttendanceReport />
       )}
 
       {activeTab === 'id_cards' && (

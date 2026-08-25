@@ -274,6 +274,24 @@ const QRAttendanceScanner = () => {
 
     const [logRes] = await Promise.all([insertLogPromise, legacyInsertPromise]);
 
+    if (!isTeacher) {
+      const formattedTime = new Date(timeStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const formattedDate = new Date(timeStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-');
+      const gateName = settings.gate || 'Main Gate';
+      const notificationType = `gate_entry_${Date.now()}`;
+      
+      supabase.from('student_notifications').insert({
+        student_id: personId,
+        attendance_date: today,
+        title: 'Gate Scan Alert',
+        message: `Student ID was scanned at ${gateName} on ${formattedDate} at ${formattedTime}. Status: <strong>${status}</strong>.`,
+        type: notificationType,
+        channel: 'portal'
+      }).then(({error}) => {
+        if (error) console.error("Failed to send portal notification:", error);
+      });
+    }
+
     if (logRes.error) throw logRes.error;
 
     if (!isBackgroundSync && logRes.data) {
