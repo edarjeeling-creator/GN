@@ -117,23 +117,37 @@ const ParentPortal = () => {
       
     if (enrichedStudent) setStudentDetails(enrichedStudent);
 
-    // Fetch Demands
-    const { data: fetchedDemands } = await supabase
-      .from('fee_demands')
-      .select('*, fee_demand_items(*, fee_heads(name))')
-      .eq('student_id', student.id)
-      .order('created_at', { ascending: false });
-    
-    if (fetchedDemands) setDemands(fetchedDemands);
+    // Fetch Demands & Payments securely via RPC
+    let fetchedDemands = [];
+    let fetchedPayments = [];
 
-    // Fetch Payments
-    const { data: fetchedPayments } = await supabase
-      .from('fee_payments')
-      .select('*')
-      .eq('student_id', student.id)
-      .order('created_at', { ascending: false });
+    const { data: feeData, error: feeError } = await supabase.rpc('get_parent_portal_data', {
+      p_student_id: student.id
+    });
 
-    if (fetchedPayments) setPayments(fetchedPayments);
+    if (feeError) {
+      console.error('Error fetching fee data:', feeError);
+    } else if (feeData) {
+      // Fetch fee head names for mapping
+      const { data: feeHeads } = await supabase.from('fee_heads').select('id, name');
+      const feeHeadsMap = {};
+      if (feeHeads) {
+        feeHeads.forEach(fh => feeHeadsMap[fh.id] = fh.name);
+      }
+
+      fetchedDemands = (feeData.demands || []).map(d => ({
+        ...d,
+        fee_demand_items: (d.items || []).map(item => ({
+          ...item,
+          fee_heads: { name: feeHeadsMap[item.fee_head_id] || 'Fee' }
+        }))
+      })).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      
+      fetchedPayments = (feeData.payments || []).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      
+      setDemands(fetchedDemands);
+      setPayments(fetchedPayments);
+    }
 
     // Fetch Bank Settings
     const { data: settingsData } = await supabase
@@ -191,12 +205,13 @@ const ParentPortal = () => {
       setSubmitSuccess(true);
       
       // Refresh payments list
-      const { data: fetchedPayments } = await supabase
-        .from('fee_payments')
-        .select('*')
-        .eq('student_id', session.id)
-        .order('created_at', { ascending: false });
-      if (fetchedPayments) setPayments(fetchedPayments);
+      const { data: feeData } = await supabase.rpc('get_parent_portal_data', {
+        p_student_id: session.id
+      });
+      if (feeData && feeData.payments) {
+        const sortedPayments = (feeData.payments || []).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        setPayments(sortedPayments);
+      }
 
       setTimeout(() => {
         setShowPaymentModal(false);
