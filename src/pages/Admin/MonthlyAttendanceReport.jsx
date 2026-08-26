@@ -216,17 +216,17 @@ const MonthlyAttendanceReport = () => {
             No {role}s found for the selected criteria.
           </div>
         ) : (
-          <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+          <div className="overflow-x-auto border border-[var(--border-color)] rounded-lg shadow-sm">
             <table className="w-full text-sm text-left whitespace-nowrap">
-              <thead className="bg-gray-50 text-gray-700 sticky top-0 z-10 shadow-sm">
+              <thead className="bg-[var(--bg-color)] text-[var(--text-primary)] sticky top-0 z-10 shadow-sm">
                 <tr>
-                  <th className="px-4 py-3 font-semibold border-b border-gray-200 sticky left-0 bg-gray-50 z-20 min-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                  <th className="px-4 py-3 font-semibold border-b border-[var(--border-color)] sticky left-0 bg-[var(--bg-color)] z-20 min-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-none">
                     Name
                   </th>
                   {daysInMonth.map(day => (
                     <th 
                       key={day.dateString} 
-                      className={`px-2 py-3 font-semibold border-b border-gray-200 text-center min-w-[40px] ${day.isWeekend ? 'bg-gray-100 text-gray-500' : ''}`}
+                      className={`px-2 py-3 font-semibold border-b border-[var(--border-color)] text-center min-w-[40px] ${day.isWeekend ? 'bg-slate-100 dark:bg-slate-800/80 text-[var(--text-secondary)]' : ''}`}
                       title={format(parseISO(day.dateString), 'EEEE, MMM d, yyyy')}
                     >
                       {day.dayNumber}
@@ -234,12 +234,12 @@ const MonthlyAttendanceReport = () => {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-[var(--border-color)]">
                 {entities.map(entity => (
-                  <tr key={entity.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-4 py-2 font-medium sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] truncate max-w-[250px]">
+                  <tr key={entity.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="px-4 py-2 font-medium sticky left-0 bg-[var(--surface-color)] z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] dark:shadow-[2px_0_5px_-2px_rgba(255,255,255,0.05)] truncate max-w-[250px]">
                       {entity.name}
-                      {role === 'student' && entity.roll_no && <span className="text-xs text-gray-500 ml-2">({entity.roll_no})</span>}
+                      {role === 'student' && entity.roll_no && <span className="text-xs text-[var(--text-secondary)] ml-2">({entity.roll_no})</span>}
                     </td>
                     {daysInMonth.map(day => {
                       // Find attendance record for this entity on this day
@@ -265,7 +265,7 @@ const MonthlyAttendanceReport = () => {
                       return (
                         <td 
                           key={`${entity.id}-${day.dateString}`} 
-                          className={`px-2 py-2 text-center border-l border-gray-100 ${day.isWeekend ? 'bg-gray-50/50' : ''}`}
+                          className={`px-2 py-2 text-center border-l border-[var(--border-color)]/50 ${day.isWeekend ? 'bg-slate-50/50 dark:bg-slate-800/30' : ''}`}
                         >
                           <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-xs ${colorClass}`}>
                             {display}
