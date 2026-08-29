@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { Check, X, Clock, AlertTriangle, Save, Loader2, Calendar, User, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, X, Clock, AlertTriangle, Save, Loader2, Calendar, User, Search, ChevronDown, ChevronUp, Camera, FileUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -24,6 +24,10 @@ const Attendance = () => {
   const [showOverrideModal, setShowOverrideModal] = useState(false);
   const [globalFilter, setGlobalFilter] = useState('');
   const [sorting, setSorting] = useState([]);
+
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiResults, setAiResults] = useState(null);
+  const fileInputRef = useRef(null);
 
   const classStudents = useMemo(() => {
     return students
@@ -78,6 +82,109 @@ const Attendance = () => {
       });
       setAttendanceData(updatedData);
     }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload a valid image file.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image size should be less than 5MB.');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setMessage({ text: '', type: '' });
+    
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Data = reader.result.split(',')[1];
+        const mimeType = file.type;
+
+        const { data, error } = await supabase.functions.invoke('analyze-attendance-register', {
+          body: { base64Image: base64Data, mimeType, classId: selectedClassId }
+        });
+
+        if (error) throw error;
+        if (!data || !data.results) throw new Error("No data returned from AI");
+
+        const matchedResults = data.results.map((aiRecord, index) => {
+          let matchedStudent = null;
+          let matchStatus = 'UNMATCHED';
+
+          if (aiRecord.roll_no != null) {
+            matchedStudent = classStudents.find(s => parseInt(s.roll_no) === parseInt(aiRecord.roll_no));
+          }
+
+          // 2. Exact/Normalized name match
+          if (!matchedStudent && aiRecord.name) {
+            const normalizedName = aiRecord.name.toLowerCase().replace(/\s+/g, ' ').trim();
+            matchedStudent = classStudents.find(s => s.name.toLowerCase().replace(/\s+/g, ' ').trim() === normalizedName);
+          }
+
+          // 3. If no exact match, flag as ambiguous. Do not guess with substring.
+          if (!matchedStudent && aiRecord.name) {
+             matchStatus = 'AMBIGUOUS';
+          }
+
+          if (matchedStudent && matchStatus !== 'AMBIGUOUS') {
+            matchStatus = 'MATCHED';
+          }
+
+          return {
+            ...aiRecord,
+            key: `ai_row_${index}`,
+            matchStatus,
+            studentId: matchedStudent?.id || null,
+            resolvedStatus: (matchStatus === 'MATCHED' && aiRecord.status && aiRecord.confidence > 0.6) ? aiRecord.status : ''
+          };
+        });
+
+        setAiResults(matchedResults);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error(err);
+      setMessage({ text: err.message || 'Failed to analyze image.', type: 'danger' });
+    } finally {
+      setIsAnalyzing(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const updateAiResultStatus = (key, status) => {
+    setAiResults(prev => prev.map(res => res.key === key ? { ...res, resolvedStatus: status } : res));
+  };
+  
+  const updateAiResultStudent = (key, studentId) => {
+    setAiResults(prev => prev.map(res => res.key === key ? { 
+      ...res, 
+      studentId, 
+      matchStatus: 'MATCHED' 
+    } : res));
+  };
+
+  const confirmAiImport = () => {
+    const updatedData = { ...attendanceData };
+    aiResults.forEach(res => {
+      if (res.studentId && res.resolvedStatus) {
+         updatedData[res.studentId] = { 
+           ...updatedData[res.studentId], 
+           status: res.resolvedStatus 
+         };
+      }
+    });
+    setAttendanceData(updatedData);
+    setAiResults(null);
+  };
+
+  const cancelAiImport = () => {
+    setAiResults(null);
   };
 
   const triggerSaveFlow = () => {
@@ -251,10 +358,26 @@ const Attendance = () => {
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">Date</label>
               <Input type="date" className="w-full h-11" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} />
             </div>
-            <div>
-              <Button onClick={markAllPresent} disabled={!selectedClassId || classStudents.length === 0 || (isLocked && profile?.role === 'teacher')} className="w-full h-11 shadow-sm">
-                <Check size={18} className="mr-2" /> Mark All Present
+            <div className="flex gap-2">
+              <Button onClick={markAllPresent} disabled={!selectedClassId || classStudents.length === 0 || (isLocked && profile?.role === 'teacher')} className="w-full h-11 shadow-sm px-2">
+                <Check size={18} className="mr-1" /> Mark All
               </Button>
+              <Button 
+                onClick={() => fileInputRef.current?.click()} 
+                disabled={!selectedClassId || classStudents.length === 0 || isAnalyzing || (isLocked && profile?.role === 'teacher')} 
+                variant="outline"
+                className="w-full h-11 shadow-sm px-2 border-brand-200 text-brand-700 hover:bg-brand-50"
+              >
+                {isAnalyzing ? <Loader2 size={18} className="animate-spin mr-1" /> : <Camera size={18} className="mr-1" />}
+                Import AI
+              </Button>
+              <input 
+                type="file" 
+                accept="image/*" 
+                ref={fileInputRef} 
+                onChange={handleImageUpload} 
+                className="hidden" 
+              />
             </div>
           </div>
         </CardContent>
@@ -288,6 +411,81 @@ const Attendance = () => {
             <User size={48} className="mx-auto text-slate-300 mb-4" />
             <h3 className="text-lg font-bold text-slate-700">No students found</h3>
             <p className="text-slate-500">This class currently has no enrolled students.</p>
+          </Card>
+        ) : aiResults ? (
+          <Card className="overflow-hidden flex flex-col shadow-sm border-brand-300 bg-brand-50/30">
+            <div className="p-4 border-b border-slate-200 bg-white">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <FileUp className="text-brand-500" size={20} />
+                Review AI Import
+              </h2>
+              <p className="text-sm text-slate-500 mt-1">
+                Please verify the extracted data. Unresolved or ambiguous records have been left blank.
+              </p>
+            </div>
+            <div className="p-0 overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[600px]">
+                <thead className="bg-slate-50/80 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-semibold">
+                  <tr>
+                    <th className="p-3 pl-4 w-1/3">AI Extracted (Name / Roll)</th>
+                    <th className="p-3 w-1/3">Matched Student</th>
+                    <th className="p-3 w-1/4">Status</th>
+                    <th className="p-3 w-1/12 text-center">Match</th>
+                  </tr>
+                </thead>
+                <tbody className="text-sm divide-y divide-slate-100 bg-white">
+                  {aiResults.map(res => (
+                    <tr key={res.key} className={!res.studentId || !res.resolvedStatus ? 'bg-amber-50/50' : ''}>
+                      <td className="p-3 pl-4">
+                        <div className="font-medium text-slate-800">{res.name || <span className="text-slate-400 italic">Unknown</span>}</div>
+                        <div className="text-xs text-slate-500">Roll: {res.roll_no || '-'}</div>
+                      </td>
+                      <td className="p-3">
+                        <select 
+                          className={`w-full p-2 border rounded-md text-sm ${res.matchStatus === 'UNMATCHED' ? 'border-red-300 bg-red-50' : 'border-slate-200'}`}
+                          value={res.studentId || ''}
+                          onChange={(e) => updateAiResultStudent(res.key, e.target.value)}
+                        >
+                          <option value="">-- Select Student --</option>
+                          {classStudents.map(s => (
+                            <option key={s.id} value={s.id}>{s.name} (Roll: {s.roll_no})</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="p-3">
+                        <select
+                          className={`w-full p-2 border rounded-md text-sm ${!res.resolvedStatus ? 'border-amber-300 bg-amber-50' : 'border-slate-200'}`}
+                          value={res.resolvedStatus}
+                          onChange={(e) => updateAiResultStatus(res.key, e.target.value)}
+                        >
+                          <option value="">-- Blank (Manual) --</option>
+                          <option value="Present">Present</option>
+                          <option value="Absent">Absent</option>
+                          <option value="Late">Late</option>
+                          <option value="Leave">Leave</option>
+                        </select>
+                        {!res.resolvedStatus && <div className="text-xs text-amber-600 mt-1 flex items-center gap-1"><AlertTriangle size={12}/> Needs review</div>}
+                      </td>
+                      <td className="p-3 text-center">
+                        {res.matchStatus === 'MATCHED' ? (
+                          <Check size={18} className="text-emerald-500 mx-auto" />
+                        ) : res.matchStatus === 'AMBIGUOUS' ? (
+                          <AlertTriangle size={18} className="text-amber-500 mx-auto" title="Ambiguous Match" />
+                        ) : (
+                          <X size={18} className="text-red-400 mx-auto" title="No Match" />
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+              <Button variant="outline" onClick={cancelAiImport}>Cancel</Button>
+              <Button onClick={confirmAiImport} className="bg-brand-600 hover:bg-brand-700 text-white">
+                Confirm & Map to Grid
+              </Button>
+            </div>
           </Card>
         ) : (
           <Card className="overflow-hidden flex flex-col shadow-sm">
