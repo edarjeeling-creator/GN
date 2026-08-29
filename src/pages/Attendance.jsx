@@ -101,53 +101,55 @@ const Attendance = () => {
     setMessage({ text: '', type: '' });
     
     try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64Data = reader.result.split(',')[1];
-        const mimeType = file.type;
+      const base64Data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
 
-        const { data, error } = await supabase.functions.invoke('analyze-attendance-register', {
-          body: { base64Image: base64Data, mimeType, classId: selectedClassId }
-        });
+      const mimeType = file.type;
 
-        if (error) throw error;
-        if (!data || !data.results) throw new Error("No data returned from AI");
+      const { data, error } = await supabase.functions.invoke('analyze-attendance-register', {
+        body: { base64Image: base64Data, mimeType, classId: selectedClassId }
+      });
 
-        const matchedResults = data.results.map((aiRecord, index) => {
-          let matchedStudent = null;
-          let matchStatus = 'UNMATCHED';
+      if (error) throw error;
+      if (!data || !data.results) throw new Error("No data returned from AI");
 
-          if (aiRecord.roll_no != null) {
-            matchedStudent = classStudents.find(s => parseInt(s.roll_no) === parseInt(aiRecord.roll_no));
-          }
+      const matchedResults = data.results.map((aiRecord, index) => {
+        let matchedStudent = null;
+        let matchStatus = 'UNMATCHED';
 
-          // 2. Exact/Normalized name match
-          if (!matchedStudent && aiRecord.name) {
-            const normalizedName = aiRecord.name.toLowerCase().replace(/\s+/g, ' ').trim();
-            matchedStudent = classStudents.find(s => s.name.toLowerCase().replace(/\s+/g, ' ').trim() === normalizedName);
-          }
+        if (aiRecord.roll_no != null) {
+          matchedStudent = classStudents.find(s => parseInt(s.roll_no) === parseInt(aiRecord.roll_no));
+        }
 
-          // 3. If no exact match, flag as ambiguous. Do not guess with substring.
-          if (!matchedStudent && aiRecord.name) {
-             matchStatus = 'AMBIGUOUS';
-          }
+        // 2. Exact/Normalized name match
+        if (!matchedStudent && aiRecord.name) {
+          const normalizedName = aiRecord.name.toLowerCase().replace(/\s+/g, ' ').trim();
+          matchedStudent = classStudents.find(s => s.name.toLowerCase().replace(/\s+/g, ' ').trim() === normalizedName);
+        }
 
-          if (matchedStudent && matchStatus !== 'AMBIGUOUS') {
-            matchStatus = 'MATCHED';
-          }
+        // 3. If no exact match, flag as ambiguous. Do not guess with substring.
+        if (!matchedStudent && aiRecord.name) {
+           matchStatus = 'AMBIGUOUS';
+        }
 
-          return {
-            ...aiRecord,
-            key: `ai_row_${index}`,
-            matchStatus,
-            studentId: matchedStudent?.id || null,
-            resolvedStatus: (matchStatus === 'MATCHED' && aiRecord.status && aiRecord.confidence > 0.6) ? aiRecord.status : ''
-          };
-        });
+        if (matchedStudent && matchStatus !== 'AMBIGUOUS') {
+          matchStatus = 'MATCHED';
+        }
 
-        setAiResults(matchedResults);
-      };
-      reader.readAsDataURL(file);
+        return {
+          ...aiRecord,
+          key: `ai_row_${index}`,
+          matchStatus,
+          studentId: matchedStudent?.id || null,
+          resolvedStatus: (matchStatus === 'MATCHED' && aiRecord.status && aiRecord.confidence > 0.6) ? aiRecord.status : ''
+        };
+      });
+
+      setAiResults(matchedResults);
     } catch (err) {
       console.error(err);
       setMessage({ text: err.message || 'Failed to analyze image.', type: 'danger' });
