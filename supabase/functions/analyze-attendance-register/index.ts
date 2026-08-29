@@ -38,9 +38,9 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    const { base64Image, classId, mimeType } = await req.json()
-    if (!base64Image || !classId || !mimeType) {
-      throw new Error('Missing required fields: base64Image, mimeType, or classId')
+    const { base64Image, classId, mimeType, selectedDate } = await req.json()
+    if (!base64Image || !classId || !mimeType || !selectedDate) {
+      throw new Error('Missing required fields: base64Image, mimeType, classId, or selectedDate')
     }
 
     // 2. Authorize User against Class
@@ -67,30 +67,53 @@ serve(async (req: Request) => {
       }
     }
 
+    // Parse the target date
+    const targetDateObj = new Date(selectedDate);
+    const targetDay = targetDateObj.getDate();
+    const targetMonth = targetDateObj.toLocaleString('en-US', { month: 'long' });
+    const targetYear = targetDateObj.getFullYear();
+
     // 3. Prepare Gemini API Request
     const prompt = `You are extracting attendance information from a photograph of a school attendance register.
 Analyze the image carefully.
-Identify each student row and determine the attendance mark for that row.
 
-Return ONLY valid JSON array. Do not include markdown formatting or extra text.
+The teacher selected the date: ${targetMonth} ${targetDay}, ${targetYear}. 
+Your primary task is to extract attendance ONLY for this specific date.
 
-For each recognizable student, return an object matching this exact structure:
+Follow these critical steps:
+1. First, check if the register belongs to the expected month and year (${targetMonth} ${targetYear}). If it clearly belongs to a completely different month/year, set "month_year_match" to false.
+2. Locate the date headers (e.g., numbers 1 to 31 across the top).
+3. Identify the specific header corresponding to the target day: ${targetDay}.
+4. Trace that exact column downward.
+5. Extract attendance marks ONLY from that specific column.
+6. Completely ignore attendance marks appearing under other days and all other date columns. Do not use marks from neighboring columns to infer the selected day's status.
+7. If the column for day ${targetDay} is completely blank for a student, their status is null. Do not copy marks from adjacent columns.
+
+If you cannot confidently locate the column for day ${targetDay} (e.g., it is cut off, too blurry, or not present), you MUST set "date_column_found" to false and return an empty records array. DO NOT GUESS.
+
+Return ONLY a valid JSON object matching this exact structure:
 {
-  "name": "student name exactly or approximately as written",
-  "roll_no": <number or null>,
-  "status": "Present" or "Absent" or null,
-  "confidence": <number between 0 and 1>
+  "date_column_found": <boolean>,
+  "date_column_label": <string or null, e.g., "28">,
+  "date_column_confidence": <number between 0 and 1>,
+  "month_year_match": <boolean>,
+  "records": [
+    {
+      "name": "student name exactly or approximately as written",
+      "roll_no": <number or null>,
+      "status": "Present" or "Absent" or "Late" or "Leave" or null,
+      "confidence": <number between 0 and 1>
+    }
+  ]
 }
 
 Rules:
-1. Do not invent students.
-2. Do not invent roll numbers.
-3. If a roll number is unreadable, return null.
-4. If the student's identity is unclear, return the visible text but mark confidence low (e.g. 0.4).
-5. If the attendance mark is unclear, return status null.
-6. Never guess Present or Absent.
-7. Do not interpret blank cells as Present unless the register clearly uses blank cells as Present (usually 'P' means Present, 'A' or red ink means Absent).
-8. Return only the JSON array.
+1. Do not invent students or roll numbers.
+2. If a roll number is unreadable, return null.
+3. If the student's identity is unclear, return the visible text but mark confidence low.
+4. If the attendance mark in the TARGET COLUMN is unclear, return status null.
+5. Never guess Present or Absent.
+6. Return only the JSON object, no markdown, no backticks.
 `
 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiApiKey}`
@@ -135,11 +158,11 @@ Rules:
     const rawText = responseData.candidates[0].content.parts[0].text
     
     // Parse the JSON
-    let extractedData = []
+    let extractedData = null
     try {
       extractedData = JSON.parse(rawText)
-      if (!Array.isArray(extractedData)) {
-         throw new Error("Response was not a JSON array")
+      if (typeof extractedData !== 'object' || !Array.isArray(extractedData.records)) {
+         throw new Error("Response structure invalid")
       }
     } catch (err) {
       console.error("JSON parsing error:", rawText)
@@ -147,14 +170,20 @@ Rules:
     }
 
     // 4. Validate output
-    const validatedData = extractedData.map(item => ({
+    const validatedRecords = extractedData.records.map((item: any) => ({
       name: typeof item.name === 'string' ? item.name : '',
       roll_no: typeof item.roll_no === 'number' ? item.roll_no : null,
       status: ['Present', 'Absent', 'Late', 'Leave'].includes(item.status) ? item.status : null,
       confidence: typeof item.confidence === 'number' ? item.confidence : 0
-    })).filter(item => item.name || item.roll_no) // Keep only valid items
+    })).filter((item: any) => item.name || item.roll_no) // Keep only valid items
 
-    return new Response(JSON.stringify({ results: validatedData }), { 
+    return new Response(JSON.stringify({ 
+      date_column_found: extractedData.date_column_found === true,
+      date_column_label: extractedData.date_column_label || null,
+      date_column_confidence: extractedData.date_column_confidence || 0,
+      month_year_match: extractedData.month_year_match !== false,
+      results: validatedRecords 
+    }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
       status: 200 
     })
