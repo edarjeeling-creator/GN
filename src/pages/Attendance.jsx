@@ -111,11 +111,28 @@ const Attendance = () => {
       const mimeType = file.type;
 
       const { data, error } = await supabase.functions.invoke('analyze-attendance-register', {
-        body: { base64Image: base64Data, mimeType, classId: selectedClassId }
+        body: { base64Image: base64Data, mimeType, classId: selectedClassId, selectedDate }
       });
 
       if (error) throw error;
-      if (!data || !data.results) throw new Error("No data returned from AI");
+      if (!data) throw new Error("No data returned from AI");
+
+      if (data.month_year_match === false) {
+        throw new Error("The uploaded register appears to be from a different month or year than the selected date.");
+      }
+
+      if (data.date_column_found === false) {
+        throw new Error("Could not confidently locate the selected date column. Please verify the register image.");
+      }
+
+      if (!data.results) {
+        throw new Error("No records returned from AI");
+      }
+
+      // Optional: show a warning if confidence is low, but still allow review
+      if (data.date_column_confidence && data.date_column_confidence < 0.6) {
+        setMessage({ text: 'Warning: The AI is not highly confident it found the correct date column. Please review carefully.', type: 'warning' });
+      }
 
       const matchedResults = data.results.map((aiRecord, index) => {
         let matchedStudent = null;
