@@ -25,7 +25,11 @@ const Attendance = () => {
   const [globalFilter, setGlobalFilter] = useState('');
   const [sorting, setSorting] = useState([]);
 
-  const classStudents = useMemo(() => students.filter(s => s.class_id === selectedClassId), [students, selectedClassId]);
+  const classStudents = useMemo(() => {
+    return students
+      .filter(s => s.class_id === selectedClassId)
+      .sort((a, b) => a.roll_no - b.roll_no);
+  }, [students, selectedClassId]);
 
   useEffect(() => {
     if (!selectedClassId || !selectedDate) {
