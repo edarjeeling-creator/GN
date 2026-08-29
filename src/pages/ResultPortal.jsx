@@ -404,7 +404,7 @@ const ResultPortal = () => {
           </div>
 
           <div style={{ fontWeight: 'bold', fontSize: '18px', marginBottom: '15px', textTransform: 'uppercase', textAlign: 'center' }}>
-            {getTermLabel()} PROGRESS REPORT CARD - {academicYear}
+            {getTermLabel()} REPORT CARD - {academicYear}
           </div>
 
           <table style={{ width: '100%', borderCollapse: 'collapse', border: '2px solid black', fontSize: '16px' }}>
@@ -463,7 +463,7 @@ const ResultPortal = () => {
               </tr>
               <tr>
                 <td colSpan={colCount} style={{ padding: '15px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1em', textTransform: 'uppercase' }}>
-                  {getTermLabel()} PROGRESS REPORT CARD - {academicYear}
+                  {getTermLabel()} REPORT CARD - {academicYear}
                 </td>
               </tr>
               

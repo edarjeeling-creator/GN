@@ -457,7 +457,7 @@ const ReportCards = () => {
                 </tr>
                 <tr>
                   <td colSpan="2" style={{ padding: '15px 12px', border: '1px solid black', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1em', textTransform: 'uppercase' }}>
-                    {settings.title || 'PROGRESS REPORT CARD'} - {settings.academicYear || academicYear}
+                    {settings.title || 'REPORT CARD'} - {settings.academicYear || academicYear}
                   </td>
                 </tr>
                 
