@@ -114,7 +114,17 @@ const Attendance = () => {
         body: { base64Image: base64Data, mimeType, classId: selectedClassId, selectedDate }
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.context && typeof error.context.json === 'function') {
+          try {
+            const errData = await error.context.json();
+            throw new Error(errData.error || errData.message || error.message);
+          } catch (e) {
+            throw new Error(error.message);
+          }
+        }
+        throw error;
+      }
       if (!data) throw new Error("No data returned from AI");
 
       if (data.month_year_match === false) {
