@@ -83,11 +83,12 @@ const Layout = ({ children }) => {
     
     if (!isPythonEnabled && students) {
       // Find ALL students matching this profile
-      const matchingStudents = students.filter(s => 
-        s.id === profile?.id || 
-        (profile?.uid && s.uid === profile?.uid) || 
-        (profile?.name && s.name && s.name.trim().toLowerCase() === profile?.name.trim().toLowerCase())
-      );
+      const matchingStudents = students.filter(s => {
+        if (profile?.id) return s.id === profile.id;
+        if (profile?.uid) return s.uid === profile.uid;
+        if (profile?.name) return s.name && s.name.trim().toLowerCase() === profile.name.trim().toLowerCase();
+        return false;
+      });
 
       for (const s of matchingStudents) {
         const studentRule = featureAccess.find(f => f.feature_name === 'python_portal' && f.target_type === 'student' && String(f.target_id) === String(s.id));

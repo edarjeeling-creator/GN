@@ -21,11 +21,12 @@ const StudentPortal = () => {
   const [loading, setLoading] = useState(true);
   const [notifSearch, setNotifSearch] = useState('');
 
-  const studentData = students?.find(s => 
-    s.id === profile?.id || 
-    (profile?.uid && s.uid === profile?.uid) || 
-    (profile?.name && s.name && s.name.trim().toLowerCase() === profile?.name.trim().toLowerCase())
-  );
+  const studentData = students?.find(s => {
+    if (profile?.id) return s.id === profile.id;
+    if (profile?.uid) return s.uid === profile.uid;
+    if (profile?.name) return s.name && s.name.trim().toLowerCase() === profile.name.trim().toLowerCase();
+    return false;
+  });
   const classId = studentData?.class_id;
 
   const fetchNotifications = async () => {

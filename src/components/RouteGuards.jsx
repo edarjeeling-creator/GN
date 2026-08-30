@@ -84,11 +84,12 @@ export const FeatureRoute = ({ featureName, userType, children }) => {
         hasAccess = true;
       }
     } else if (profile.role === 'student') {
-      const matchingStudents = students.filter(s => 
-        s.id === profile?.id || 
-        (profile?.uid && s.uid === profile?.uid) || 
-        (profile?.name && s.name && s.name.trim().toLowerCase() === profile?.name.trim().toLowerCase())
-      );
+      const matchingStudents = students.filter(s => {
+        if (profile?.id) return s.id === profile.id;
+        if (profile?.uid) return s.uid === profile.uid;
+        if (profile?.name) return s.name && s.name.trim().toLowerCase() === profile.name.trim().toLowerCase();
+        return false;
+      });
       
       for (const studentData of matchingStudents) {
         // Priority 1: Student-level rule
