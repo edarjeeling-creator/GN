@@ -22,6 +22,7 @@ import ReportCardCMS from './Admin/ReportCardCMS';
 import AuditLog from './Admin/AuditLog';
 import ResultStatusManager from './Admin/ResultStatusManager';
 import MonthlyAttendanceReport from './Admin/MonthlyAttendanceReport';
+import CalendarManager from './Admin/CalendarManager';
 import DiscussionPanel from '../components/chat/DiscussionPanel';
 
 const Admin = () => {
@@ -761,6 +762,7 @@ const Admin = () => {
               <option value="data">Data Import & Export</option>
               <option value="marks">Marks Manager</option>
               <option value="report_cms">Report Configuration (CMS)</option>
+              <option value="calendar">Manage Calendar Events</option>
               <option value="audit">Marks Audit Log</option>
               <option value="publishing">Result Publishing & Locking</option>
             </select>
@@ -768,6 +770,10 @@ const Admin = () => {
 
           {managementSection === 'audit' && (
             <AuditLog />
+          )}
+
+          {managementSection === 'calendar' && (
+            <CalendarManager />
           )}
 
           {managementSection === 'publishing' && (

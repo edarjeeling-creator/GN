@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, AlertCircle, CheckCircle, Clock, Users, Camera, ChevronDown, User, Send, AlertTriangle, Fingerprint, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import TeacherAttendanceHistory from '../components/TeacherAttendanceHistory';
+import CalendarWidget from '../components/CalendarWidget';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -27,16 +28,6 @@ const Dashboard = () => {
     }
   }
   
-  if (profile?.role === 'student') {
-    return <Navigate to="/student-portal" replace />;
-  }
-
-  if (profile?.role === 'principal') {
-    return <Navigate to="/principal" replace />;
-  }
-
-  const isLibrarian = profile?.role === 'librarian';
-
   const assignedActiveClasses = Object.keys(teacherSubjects).filter(classId => classes.some(c => c.id === classId));
   const totalAssignedClasses = assignedActiveClasses.length;
   
@@ -68,17 +59,13 @@ const Dashboard = () => {
   const [attendanceActionLoading, setAttendanceActionLoading] = useState(false);
   const [recentNotices, setRecentNotices] = useState([]);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, [teacherSubjects]);
-
   const fetchDashboardData = async () => {
     try {
       const today = new Date().toISOString().split('T')[0];
       
       setReportingTimeConfig({ time: 'Open', grace: 0 });
 
-      const { data: myAtt } = await supabase.from('teacher_attendance').select('*').eq('teacher_id', profile.id).eq('attendance_date', today).maybeSingle();
+      const { data: myAtt } = await supabase.from('teacher_attendance').select('*').eq('teacher_id', profile?.id).eq('attendance_date', today).maybeSingle();
       if (myAtt) setMyAttendanceToday(myAtt);
 
       const classIdFilter = assignedActiveClasses.length > 0 ? `class_id.in.(${assignedActiveClasses.join(',')}),` : '';
@@ -87,7 +74,7 @@ const Dashboard = () => {
         .from('attendance')
         .select('id, student_id, status, class_id, date')
         .eq('date', today)
-        .or(`${classIdFilter}marked_by.eq.${profile.id}`);
+        .or(`${classIdFilter}marked_by.eq.${profile?.id}`);
         
       setAttendanceData(attData || []);
 
@@ -105,6 +92,22 @@ const Dashboard = () => {
       console.error("Error fetching dashboard data:", err);
     }
   };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [teacherSubjects]);
+
+  if (profile?.role === 'student') {
+    return <Navigate to="/student-portal" replace />;
+  }
+
+  if (profile?.role === 'principal') {
+    return <Navigate to="/principal" replace />;
+  }
+
+  const isLibrarian = profile?.role === 'librarian';
+
+
 
   const handleCheckIn = async () => {
     setAttendanceActionLoading(true);
@@ -267,6 +270,11 @@ const Dashboard = () => {
 
       {/* Teacher Attendance History */}
       <TeacherAttendanceHistory teacherId={profile?.id} />
+
+      {/* Calendar Widget */}
+      {!isLibrarian && (
+        <CalendarWidget />
+      )}
 
       {!isLibrarian && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

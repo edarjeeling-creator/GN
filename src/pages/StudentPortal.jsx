@@ -7,6 +7,7 @@ import { ArrowRight, Bell, CheckCircle, Trash2, CheckSquare, Search, Calendar, A
 import html2pdf from 'html2pdf.js';
 import { motion, AnimatePresence } from 'framer-motion';
 import FeeDashboardView from '../components/FeeDashboardView';
+import CalendarWidget from '../components/CalendarWidget';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -221,9 +222,11 @@ const StudentPortal = () => {
       {/* Overview Tab */}
       <AnimatePresence mode="wait">
         {activeTab === 'overview' && (
-          <motion.div key="overview" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Link to="/study-materials">
-              <Card hoverable className="h-full border-t-4 border-t-brand-500 group premium-card">
+          <motion.div key="overview" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+            <CalendarWidget />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <Link to="/study-materials">
+                <Card hoverable className="h-full border-t-4 border-t-brand-500 group premium-card">
                 <CardContent className="p-6 flex flex-col h-full">
                   <div className="w-12 h-12 bg-brand-950/30 text-brand-400 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <Book size={24} />
@@ -275,6 +278,7 @@ const StudentPortal = () => {
                 </Card>
               </Link>
             )}
+            </div>
           </motion.div>
         )}
 

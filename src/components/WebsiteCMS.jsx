@@ -178,7 +178,17 @@ export default function WebsiteCMS() {
     btn2Url: '/contact' 
   });
   const [events, setEvents] = useState([]);
-  const [newEvent, setNewEvent] = useState({ title: '', date: '', location: '' });
+  const [newEvent, setNewEvent] = useState({ 
+    title: '', 
+    date: '', 
+    end_date: '',
+    start_time: '',
+    end_time: '',
+    location: '', 
+    description: '',
+    event_type: 'general',
+    is_all_day: true
+  });
   const [savingWelcome, setSavingWelcome] = useState(false);
   const [savingLeadership, setSavingLeadership] = useState(false);
   const [savingWhyChooseUs, setSavingWhyChooseUs] = useState(false);
@@ -337,8 +347,29 @@ export default function WebsiteCMS() {
   const handleAddEvent = async (e) => {
     if(e) e.preventDefault();
     if (!newEvent.title || !newEvent.date) return;
-    await supabase.from('events').insert([newEvent]);
-    setNewEvent({ title: '', date: '', location: '' });
+    
+    const payload = { ...newEvent };
+    if (!payload.end_date) payload.end_date = null;
+    if (payload.is_all_day) {
+      payload.start_time = null;
+      payload.end_time = null;
+    } else {
+      if (!payload.start_time) payload.start_time = null;
+      if (!payload.end_time) payload.end_time = null;
+    }
+
+    await supabase.from('events').insert([payload]);
+    setNewEvent({ 
+      title: '', 
+      date: '', 
+      end_date: '',
+      start_time: '',
+      end_time: '',
+      location: '', 
+      description: '',
+      event_type: 'general',
+      is_all_day: true
+    });
     fetchEvents();
   };
   const handleDeleteEvent = async (id) => {
@@ -2581,9 +2612,38 @@ export default function WebsiteCMS() {
             </div>
             <form onSubmit={handleAddEvent} style={{ display: 'grid', gap: '1rem', background: '#f8fafc', padding: '1.5rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
               <h4 style={{ fontWeight: 600, color: '#334155' }}>Add New Event</h4>
-              <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>Title: <input type="text" className="input-field" style={{ width: '100%', marginTop: '0.25rem', background: '#f8fafc', color: '#0f172a' }} value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} required /></label>
-              <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>Date: <input type="date" className="input-field" style={{ width: '100%', marginTop: '0.25rem', background: '#f8fafc', color: '#0f172a' }} value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} required /></label>
-              <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>Location: <input type="text" className="input-field" style={{ width: '100%', marginTop: '0.25rem', background: '#f8fafc', color: '#0f172a' }} value={newEvent.location} onChange={e => setNewEvent({...newEvent, location: e.target.value})} /></label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 600, gridColumn: '1 / -1' }}>Title: <input type="text" className="input-field" style={{ width: '100%', marginTop: '0.25rem', background: '#f8fafc', color: '#0f172a' }} value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} required /></label>
+                
+                <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>Start Date: <input type="date" className="input-field" style={{ width: '100%', marginTop: '0.25rem', background: '#f8fafc', color: '#0f172a' }} value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} required /></label>
+                <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>End Date (Optional): <input type="date" className="input-field" style={{ width: '100%', marginTop: '0.25rem', background: '#f8fafc', color: '#0f172a' }} value={newEvent.end_date} onChange={e => setNewEvent({...newEvent, end_date: e.target.value})} /></label>
+                
+                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', gridColumn: '1 / -1', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={newEvent.is_all_day} onChange={e => setNewEvent({...newEvent, is_all_day: e.target.checked})} />
+                  All-day Event
+                </label>
+
+                {!newEvent.is_all_day && (
+                  <>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>Start Time: <input type="time" className="input-field" style={{ width: '100%', marginTop: '0.25rem', background: '#f8fafc', color: '#0f172a' }} value={newEvent.start_time} onChange={e => setNewEvent({...newEvent, start_time: e.target.value})} /></label>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>End Time: <input type="time" className="input-field" style={{ width: '100%', marginTop: '0.25rem', background: '#f8fafc', color: '#0f172a' }} value={newEvent.end_time} onChange={e => setNewEvent({...newEvent, end_time: e.target.value})} /></label>
+                  </>
+                )}
+
+                <label style={{ fontSize: '0.875rem', fontWeight: 600, gridColumn: '1 / -1' }}>Location: <input type="text" className="input-field" style={{ width: '100%', marginTop: '0.25rem', background: '#f8fafc', color: '#0f172a' }} value={newEvent.location} onChange={e => setNewEvent({...newEvent, location: e.target.value})} /></label>
+                <label style={{ fontSize: '0.875rem', fontWeight: 600, gridColumn: '1 / -1' }}>Event Type: 
+                  <select className="input-field" style={{ width: '100%', marginTop: '0.25rem', background: '#f8fafc', color: '#0f172a' }} value={newEvent.event_type} onChange={e => setNewEvent({...newEvent, event_type: e.target.value})}>
+                    <option value="general">General</option>
+                    <option value="academic">Academic</option>
+                    <option value="sports">Sports</option>
+                    <option value="holiday">Holiday</option>
+                    <option value="exam">Exam</option>
+                  </select>
+                </label>
+                <label style={{ fontSize: '0.875rem', fontWeight: 600, gridColumn: '1 / -1' }}>Description: 
+                  <textarea className="input-field" style={{ width: '100%', marginTop: '0.25rem', background: '#f8fafc', color: '#0f172a', minHeight: '80px', resize: 'vertical' }} value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} />
+                </label>
+              </div>
               <button className="btn-hero-primary" type="submit" style={{ background: '#10b981', color: 'white', padding: '0.75rem', border: 'none', borderRadius: '0.5rem' }}>Add Event</button>
             </form>
           </div>

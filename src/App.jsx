@@ -33,14 +33,34 @@ import MandatoryDisclosures from './pages/MandatoryDisclosures';
 import PublicIDForm from './pages/PublicIDForm';
 import ClassTeacherPortal from './pages/ClassTeacherPortal';
 
+// Mobile App Shell & Pages
+import MobileAppShell from './mobile/layouts/MobileAppShell';
+import MobileHome from './mobile/pages/MobileHome';
+import MobileProfile from './mobile/pages/MobileProfile';
+import MobileMessages from './mobile/pages/MobileMessages';
+import MobileSettings from './mobile/pages/MobileSettings';
+import MobileCalendar from './mobile/pages/MobileCalendar';
+import MobileProtectedRoute from './mobile/components/MobileProtectedRoute';
+import { Capacitor } from '@capacitor/core';
+
 function App() {
+  // If capacitor is native, we might want to redirect `/` to `/m/dashboard` if authenticated,
+  // but we can just let ProtectedRoute handle it or handle it at the index level.
+  // We'll add a Mobile Entry redirect if on native platform.
+  const isNative = Capacitor.isNativePlatform();
+
   return (
     <ThemeProvider>
       <>
         <Router>
           <Routes>
+            {/* Mobile Native App Entry point redirection */}
+            {isNative && (
+              <Route path="/" element={<Navigate to="/m/dashboard" replace />} />
+            )}
+            
             {/* Public Routes with PublicLayout */}
-            <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
+            {!isNative && <Route path="/" element={<PublicLayout><Home /></PublicLayout>} /> }
             <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
             <Route path="/academics" element={<PublicLayout><Academics /></PublicLayout>} />
             <Route path="/admissions" element={<PublicLayout><Admissions /></PublicLayout>} />
@@ -99,6 +119,23 @@ function App() {
               {/* Library Routes */}
               <Route path="/library" element={<LibrarianRoute><LibraryDashboard /></LibrarianRoute>} />
             </Route>
+
+            {/* Mobile App Specific Routes */}
+            <Route path="/m" element={<MobileProtectedRoute />}>
+              <Route element={<MobileAppShell />}>
+                <Route path="dashboard" element={<MobileHome />} />
+                <Route path="profile" element={<MobileProfile />} />
+                <Route path="messages" element={<MobileMessages />} />
+                <Route path="settings" element={<MobileSettings />} />
+                
+                {/* Fallbacks for features not yet implemented in mobile */}
+                <Route path="assignments" element={<div style={{padding: '24px'}}>Assignments coming soon</div>} />
+                <Route path="syllabus" element={<div style={{padding: '24px'}}>Syllabus coming soon</div>} />
+                <Route path="timetable" element={<div style={{padding: '24px'}}>Timetable coming soon</div>} />
+                <Route path="calendar" element={<MobileCalendar />} />
+              </Route>
+            </Route>
+
           </Routes>
         </Router>
       </>

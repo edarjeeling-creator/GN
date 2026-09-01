@@ -1,0 +1,61 @@
+/* src/mobile/styles/mobile.css */
+
+:root {
+  --mobile-primary: #5cb85c; /* Approximate matching green */
+  --mobile-primary-dark: #4cae4c;
+  --mobile-bg: #f4f6f8;
+  --mobile-card-bg: #ffffff;
+  --mobile-text-primary: #1a1a1a;
+  --mobile-text-secondary: #737373;
+  --mobile-border: #eaeaea;
+  --mobile-safe-bottom: env(safe-area-inset-bottom, 20px);
+}
+
+.mobile-app-root {
+  background-color: var(--mobile-bg);
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--mobile-text-primary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Base resets for the mobile layer */
+.mobile-app-root * {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-content-area {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: calc(100px + var(--mobile-safe-bottom)); /* Space for bottom nav */
+  scrollbar-width: none; /* Firefox */
+}
+
+.mobile-content-area::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
+/* Hide scrollbars for horizontal lists but allow scrolling */
+.mobile-horizontal-scroll {
+  display: flex;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 12px;
+}
+.mobile-horizontal-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Drawer transitions */
+.mobile-drawer-overlay {
+  transition: opacity 0.3s ease;
+}
+.mobile-drawer-content {
+  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
