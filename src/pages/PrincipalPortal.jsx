@@ -638,12 +638,12 @@ const PrincipalPortal = () => {
             <Card className="p-4">
               <div className="flex justify-between items-center flex-wrap gap-4">
                 <div className="flex gap-2 items-center flex-wrap">
-                  <select className="h-10 px-3 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white" value={attendanceDateFilter} onChange={e => setAttendanceDateFilter(e.target.value)}>
-                    <option value="today">Today</option>
-                    <option value="yesterday">Yesterday</option>
-                    <option value="week">This Week</option>
-                    <option value="month">This Month</option>
-                    <option value="custom">Custom Range</option>
+                  <select className="h-10 px-3 rounded-lg border border-slate-300 dark:border-slate-700 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white cursor-pointer" value={attendanceDateFilter} onChange={e => setAttendanceDateFilter(e.target.value)}>
+                    <option value="today" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Today</option>
+                    <option value="yesterday" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Yesterday</option>
+                    <option value="week" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">This Week</option>
+                    <option value="month" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">This Month</option>
+                    <option value="custom" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Custom Range</option>
                   </select>
                   {attendanceDateFilter === 'custom' && (
                     <div className="flex items-center gap-2">
@@ -859,15 +859,15 @@ const PrincipalPortal = () => {
                   <Button type="submit" disabled={searching} className="h-12 px-8">{searching ? 'Searching...' : 'Search'}</Button>
                 </form>
                 {searchResults.length > 0 && (
-                  <div className="overflow-x-auto border rounded-xl">
-                    <table className="w-full text-left divide-y divide-slate-200">
-                      <thead className="bg-slate-50"><tr><th className="p-4 font-semibold text-slate-600">Name</th><th className="p-4 font-semibold text-slate-600">Role</th><th className="p-4 font-semibold text-slate-600">Class/Sub</th><th className="p-4 font-semibold text-slate-600">UID</th></tr></thead>
-                      <tbody className="divide-y divide-slate-100 bg-white">
+                  <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
+                    <table className="w-full text-left divide-y divide-slate-200 dark:divide-slate-800">
+                      <thead className="bg-slate-50 dark:bg-slate-800/80"><tr><th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Name</th><th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Role</th><th className="p-4 font-semibold text-slate-600 dark:text-slate-300">Class/Sub</th><th className="p-4 font-semibold text-slate-600 dark:text-slate-300">UID</th></tr></thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                         {searchResults.map(u => (
-                          <tr key={u.id} className="hover:bg-slate-50">
-                            <td className="p-4 font-semibold text-slate-800">{u.role === 'student' ? formatStudentDisplayName(u.name) : u.name}</td>
+                          <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                            <td className="p-4 font-semibold text-slate-800 dark:text-white">{u.role === 'student' ? formatStudentDisplayName(u.name) : u.name}</td>
                             <td className="p-4"><Badge variant="secondary" className="uppercase">{u.role}</Badge></td>
-                            <td className="p-4 text-slate-600">{u.class ? `${u.class} ${u.section || ''}` : (u.subject || '-')}</td>
+                            <td className="p-4 text-slate-600 dark:text-slate-300">{u.class ? `${u.class} ${u.section || ''}` : (u.subject || '-')}</td>
                             <td className="p-4 text-slate-400 font-mono text-sm">{u.uid_display || u.id}</td>
                           </tr>
                         ))}
@@ -883,16 +883,16 @@ const PrincipalPortal = () => {
         {activeTab === 'notices' && (
           <motion.div key="notices" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
-              <CardHeader><CardTitle className="flex items-center gap-2"><Send size={20} className="text-brand-500" /> Create Notice</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="flex items-center gap-2 text-slate-900 dark:text-white"><Send size={20} className="text-brand-500" /> Create Notice</CardTitle></CardHeader>
               <CardContent>
                 <form onSubmit={handleSendNotice} className="space-y-5">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">Notice Title</label>
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Notice Title</label>
                     <Input required type="text" value={noticeTitle} onChange={e => setNoticeTitle(e.target.value)} placeholder="E.g. Tomorrow is a holiday" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">Message</label>
-                    <div className="border border-slate-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-brand-500 focus-within:border-brand-500">
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Message</label>
+                    <div className="border border-slate-300 dark:border-slate-700 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-brand-500 focus-within:border-brand-500">
                       <Editor value={noticeMessage} onChange={e => setNoticeMessage(e.target.value)} style={{ minHeight: '200px' }}>
                         <Toolbar>
                           <BtnUndo /><BtnRedo /><Separator /><BtnBold /><BtnItalic /><BtnUnderline /><BtnStrikeThrough /><Separator /><BtnNumberedList /><BtnBulletList /><Separator /><BtnLink /><BtnClearFormatting />
@@ -901,9 +901,15 @@ const PrincipalPortal = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">Target Audience</label>
-                    <select className="input-field w-full h-11 bg-white" value={noticeAudience} onChange={e => setNoticeAudience(e.target.value)}>
-                      <option value="all">Entire School</option><option value="students">Only Students</option><option value="teachers">Only Teachers</option>
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Target Audience</label>
+                    <select 
+                      className="input-field w-full h-11 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 cursor-pointer" 
+                      value={noticeAudience} 
+                      onChange={e => setNoticeAudience(e.target.value)}
+                    >
+                      <option value="all" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Entire School</option>
+                      <option value="students" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Only Students</option>
+                      <option value="teachers" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Only Teachers</option>
                     </select>
                   </div>
                   <Button type="submit" className="w-full h-12 mt-2 shadow-lg shadow-brand-500/20">Publish Notice</Button>
@@ -912,19 +918,19 @@ const PrincipalPortal = () => {
             </Card>
 
             <Card>
-              <CardHeader><CardTitle className="flex items-center gap-2"><Bell size={20} className="text-brand-500" /> Recent Notices</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="flex items-center gap-2 text-slate-900 dark:text-white"><Bell size={20} className="text-brand-500" /> Recent Notices</CardTitle></CardHeader>
               <CardContent>
                 {recentNotices.length === 0 ? (
-                  <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">No recent notices published.</div>
+                  <div className="p-8 text-center text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">No recent notices published.</div>
                 ) : (
                   <div className="space-y-4">
                     {recentNotices.map(n => (
-                      <div key={n.id} className="p-5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors">
+                      <div key={n.id} className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors">
                         <div className="flex justify-between items-start mb-2 gap-2">
-                          <h3 className="font-bold text-slate-800 text-lg leading-tight">{n.title}</h3>
+                          <h3 className="font-bold text-slate-800 dark:text-white text-lg leading-tight">{n.title}</h3>
                           <Badge variant="secondary" className="uppercase text-[10px] whitespace-nowrap tracking-wider">{n.target_audience}</Badge>
                         </div>
-                        <div className="text-slate-600 text-sm mb-3 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: n.content }} />
+                        <div className="text-slate-600 dark:text-slate-300 text-sm mb-3 prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: n.content }} />
                         <p className="text-xs font-semibold text-slate-400">{new Date(n.publish_date).toLocaleString()}</p>
                       </div>
                     ))}
