@@ -64,48 +64,53 @@ const TeacherAttendanceHistory = ({ teacherId }) => {
   const attendancePercentage = daysInMonthSoFar > 0 ? Math.round((presentDays / daysInMonthSoFar) * 100) : 0;
 
   return (
-    <div className="card shadow-sm border border-slate-200 mt-8 mb-8 overflow-hidden">
-      <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
-        <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-          <Calendar className="text-primary" /> My Attendance History
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl mt-8 mb-8 overflow-hidden">
+      <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/90 text-white">
+        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+          <Calendar className="text-brand-400" /> My Attendance History
         </h3>
         <div className="flex items-center gap-4">
-          <button onClick={prevMonth} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><ChevronLeft size={20}/></button>
-          <span className="font-semibold text-slate-700 min-w-[120px] text-center">{monthName}</span>
-          <button onClick={nextMonth} className="p-2 hover:bg-slate-100 rounded-full transition-colors" disabled={currentMonth.getMonth() === today.getMonth() && currentMonth.getFullYear() === today.getFullYear()}>
-            <ChevronRight size={20} className={currentMonth.getMonth() === today.getMonth() && currentMonth.getFullYear() === today.getFullYear() ? 'text-slate-300' : ''}/>
+          <button onClick={prevMonth} className="p-2 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full transition-colors" title="Previous Month"><ChevronLeft size={20}/></button>
+          <span className="font-semibold text-slate-100 min-w-[140px] text-center">{monthName}</span>
+          <button 
+            onClick={nextMonth} 
+            className="p-2 hover:bg-slate-800 text-slate-300 hover:text-white rounded-full transition-colors disabled:opacity-30 disabled:hover:bg-transparent" 
+            disabled={currentMonth.getMonth() === today.getMonth() && currentMonth.getFullYear() === today.getFullYear()}
+            title="Next Month"
+          >
+            <ChevronRight size={20} className={currentMonth.getMonth() === today.getMonth() && currentMonth.getFullYear() === today.getFullYear() ? 'text-slate-600' : 'text-slate-300'}/>
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-slate-200">
-        <div className="bg-white p-6 text-center hover:bg-slate-50 transition-colors">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-slate-800/80">
+        <div className="bg-slate-900/70 p-6 text-center hover:bg-slate-800/50 transition-colors">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <CheckCircle className="text-green-500" size={20}/>
-            <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Present</span>
+            <CheckCircle className="text-emerald-400" size={20}/>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Present</span>
           </div>
-          <span className="text-3xl font-black text-slate-800">{presentCount}</span>
+          <span className="text-3xl font-black text-white">{presentCount}</span>
         </div>
-        <div className="bg-white p-6 text-center hover:bg-slate-50 transition-colors">
+        <div className="bg-slate-900/70 p-6 text-center hover:bg-slate-800/50 transition-colors">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <Clock className="text-amber-500" size={20}/>
-            <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Late</span>
+            <Clock className="text-amber-400" size={20}/>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Late</span>
           </div>
-          <span className="text-3xl font-black text-slate-800">{lateCount}</span>
+          <span className="text-3xl font-black text-white">{lateCount}</span>
         </div>
-        <div className="bg-white p-6 text-center hover:bg-slate-50 transition-colors">
+        <div className="bg-slate-900/70 p-6 text-center hover:bg-slate-800/50 transition-colors">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <AlertTriangle className="text-red-500" size={20}/>
-            <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Leave</span>
+            <AlertTriangle className="text-rose-400" size={20}/>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Leave</span>
           </div>
-          <span className="text-3xl font-black text-slate-800">{leaveCount}</span>
+          <span className="text-3xl font-black text-white">{leaveCount}</span>
         </div>
-        <div className="bg-white p-6 text-center hover:bg-slate-50 transition-colors">
+        <div className="bg-slate-900/70 p-6 text-center hover:bg-slate-800/50 transition-colors">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <Calendar className="text-primary" size={20}/>
-            <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Monthly %</span>
+            <Calendar className="text-brand-400" size={20}/>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Monthly %</span>
           </div>
-          <span className="text-3xl font-black text-slate-800">{attendancePercentage}%</span>
+          <span className="text-3xl font-black text-white">{attendancePercentage}%</span>
         </div>
       </div>
 
@@ -113,7 +118,7 @@ const TeacherAttendanceHistory = ({ teacherId }) => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-sm uppercase text-slate-500">
+              <tr className="bg-slate-800/50 border-b border-slate-700/80 text-xs uppercase tracking-wider text-slate-400">
                 <th className="p-4 font-semibold">Date</th>
                 <th className="p-4 font-semibold">Status</th>
                 <th className="p-4 font-semibold">Check In</th>
@@ -121,27 +126,27 @@ const TeacherAttendanceHistory = ({ teacherId }) => {
                 <th className="p-4 font-semibold">Hours</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-800/80">
               {history.map(record => (
-                <tr key={record.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                  <td className="p-4 font-medium text-slate-700">
+                <tr key={record.id} className="hover:bg-slate-800/40 transition-colors">
+                  <td className="p-4 font-semibold text-slate-100 text-sm">
                     {new Date(record.attendance_date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
                   </td>
                   <td className="p-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold
-                      ${record.status.includes('Present') ? 'bg-green-100 text-green-800' : 
-                        record.status === 'Late' ? 'bg-amber-100 text-amber-800' : 
-                        'bg-red-100 text-red-800'}`}>
+                      ${record.status.includes('Present') ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 
+                        record.status === 'Late' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' : 
+                        'bg-rose-500/15 text-rose-400 border border-rose-500/30'}`}>
                       {record.status}
                     </span>
                   </td>
-                  <td className="p-4 text-slate-600 text-sm">
+                  <td className="p-4 text-slate-200 text-sm font-medium font-mono">
                     {record.check_in_time ? new Date(record.check_in_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-'}
                   </td>
-                  <td className="p-4 text-slate-600 text-sm">
+                  <td className="p-4 text-slate-400 text-sm font-medium font-mono">
                     {record.check_out_time ? new Date(record.check_out_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-'}
                   </td>
-                  <td className="p-4 text-slate-600 text-sm font-mono">
+                  <td className="p-4 text-slate-200 text-sm font-mono font-medium">
                     {record.working_hours || '-'}
                   </td>
                 </tr>
@@ -150,7 +155,7 @@ const TeacherAttendanceHistory = ({ teacherId }) => {
           </table>
         </div>
       ) : (
-        <div className="p-8 text-center text-slate-500">
+        <div className="p-8 text-center text-slate-400 text-sm">
           No attendance records found for {monthName}.
         </div>
       )}
