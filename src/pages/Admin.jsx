@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { supabase, getClientSchoolId } from '../lib/supabase';
 import { motion } from 'framer-motion';
-import { Users, BookOpen, Shield, Layers, LogOut, QrCode, ShieldCheck } from 'lucide-react';
+import { Users, BookOpen, Shield, Layers, LogOut, QrCode, ShieldCheck, Loader2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
@@ -38,6 +37,7 @@ const Admin = () => {
   const [teachers, setTeachers] = useState([]);
   const [newTeacher, setNewTeacher] = useState({ name: '', email: '', password: '' });
   const [teacherMessage, setTeacherMessage] = useState({ type: '', text: '' });
+  const [isCreatingTeacher, setIsCreatingTeacher] = useState(false);
   const [teacherSearchQuery, setTeacherSearchQuery] = useState('');
   
   // State for Language Edit Modal
@@ -105,7 +105,7 @@ const Admin = () => {
       teachers: teacherCount || 0
     });
 
-    const { data: tData } = await supabase.from('profiles').select('*').eq('role', 'teacher').order('name');
+    const { data: tData } = await supabase.from('profiles').select('*').in('role', ['teacher', 'principal']).order('name');
     if (tData) setTeachers(tData);
   };
 
@@ -344,33 +344,28 @@ const Admin = () => {
   const handleAddTeacher = async (e) => {
     e.preventDefault();
     setTeacherMessage({ type: '', text: '' });
+    
+    const name = newTeacher.name?.trim();
+    const email = newTeacher.email?.trim().toLowerCase();
+    const password = newTeacher.password;
+
+    if (!name || !email || !password) {
+      const msg = 'Please fill in all fields (Name, Email, Password).';
+      setTeacherMessage({ type: 'error', text: msg });
+      alert(msg);
+      return;
+    }
+
+    setIsCreatingTeacher(true);
     try {
-      if (!newTeacher.name || !newTeacher.email || !newTeacher.password) {
-        setTeacherMessage({ type: 'error', text: 'Please fill in all fields (Name, Email, Password).' });
-        return;
-      }
-      
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://grades.gyanodayniketan.cloud';
-      const supabaseKey = import.meta.env.VITE_SUPABASE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
-      if (!supabaseKey) {
-        setTeacherMessage({ type: 'error', text: 'Configuration Error: Supabase Key is missing!' });
-        return;
-      }
+      const schoolId = getClientSchoolId() || 'd3b07384-d113-4956-a5ec-9af2c61146e5';
 
-      // Create secondary supabase client to avoid logging out admin
-      const secondarySupabase = createClient(
-        supabaseUrl,
-        supabaseKey,
-        { auth: { persistSession: false, autoRefreshToken: false } }
-      );
-
-      // We use the custom RPC to bypass GoTrue email sending, since SMTP is failing
-      const { data, error } = await secondarySupabase.rpc('create_teacher_bypass', {
-        p_email: newTeacher.email,
-        p_password: newTeacher.password,
-        p_name: newTeacher.name,
-        p_school_id: getClientSchoolId()
+      // Use the custom RPC to create teacher account
+      const { data, error } = await supabase.rpc('create_teacher_bypass', {
+        p_email: email,
+        p_password: password,
+        p_name: name,
+        p_school_id: schoolId
       });
 
       if (data && data.success === false) {
@@ -380,16 +375,31 @@ const Admin = () => {
       if (!error) {
         setNewTeacher({ name: '', email: '', password: '' });
         fetchStats();
-        setTeacherMessage({ type: 'success', text: 'Teacher successfully added!' });
+        setTeacherMessage({ type: 'success', text: `Teacher account for "${name}" created successfully!` });
+        alert(`Teacher account for "${name}" created successfully!`);
       } else {
-        let msg = error.message;
-        if (msg === '{}' || !msg || msg === '[object Object]') {
+        let rawMsg = error.message || '';
+        let msg = rawMsg;
+        if (rawMsg.includes('users_email_partial_key') || rawMsg.includes('duplicate key') || rawMsg.toLowerCase().includes('already exists')) {
+          msg = `An account with the email "${email}" already exists. Please use a different email address.`;
+        } else if (rawMsg === '{}' || !rawMsg || rawMsg === '[object Object]') {
           msg = "Server Error (500) - Database trigger failed or backend constraint violated.";
         }
         setTeacherMessage({ type: 'error', text: 'Error adding teacher: ' + msg });
+        alert('Error adding teacher: ' + msg);
       }
     } catch (err) {
-      setTeacherMessage({ type: 'error', text: 'Unexpected error: ' + (err.message || 'Unknown error occurred') });
+      let rawMsg = err.message || '';
+      let msg = rawMsg;
+      if (rawMsg.includes('users_email_partial_key') || rawMsg.includes('duplicate key') || rawMsg.toLowerCase().includes('already exists')) {
+        msg = `An account with the email "${email}" already exists. Please use a different email address.`;
+      } else {
+        msg = rawMsg || 'Unknown error occurred';
+      }
+      setTeacherMessage({ type: 'error', text: msg });
+      alert(msg);
+    } finally {
+      setIsCreatingTeacher(false);
     }
   };
 
@@ -1248,7 +1258,7 @@ const Admin = () => {
                 required
               >
                 <option value="">Select Teacher</option>
-                {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {teachers.map(t => <option key={t.id} value={t.id}>{t.name} {t.role === 'principal' ? '(Principal)' : ''}</option>)}
               </select>
               
               <select 
@@ -1277,13 +1287,15 @@ const Admin = () => {
 
           <div className="bento-card" style={{ padding: '2rem' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Add New Teacher</h3>
-            <div className="flex flex-col gap-3">
+            <form onSubmit={handleAddTeacher} className="flex flex-col gap-3">
               <input 
                 type="text" 
                 placeholder="Full Name" 
                 className="input-field" 
                 value={newTeacher.name}
                 onChange={e => setNewTeacher({...newTeacher, name: e.target.value})}
+                disabled={isCreatingTeacher}
+                required
               />
               <input 
                 type="email" 
@@ -1291,6 +1303,8 @@ const Admin = () => {
                 className="input-field" 
                 value={newTeacher.email}
                 onChange={e => setNewTeacher({...newTeacher, email: e.target.value})}
+                disabled={isCreatingTeacher}
+                required
               />
               <input 
                 type="password" 
@@ -1298,14 +1312,46 @@ const Admin = () => {
                 className="input-field" 
                 value={newTeacher.password}
                 onChange={e => setNewTeacher({...newTeacher, password: e.target.value})}
+                disabled={isCreatingTeacher}
+                required
               />
               {teacherMessage.text && (
-                <div style={{ padding: '0.75rem', borderRadius: '0.375rem', background: teacherMessage.type === 'error' ? '#fee2e2' : '#dcfce7', color: teacherMessage.type === 'error' ? '#991b1b' : '#166534', fontSize: '0.875rem' }}>
+                <div style={{
+                  padding: '0.75rem 1rem',
+                  borderRadius: '0.5rem',
+                  background: teacherMessage.type === 'error' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                  border: `1px solid ${teacherMessage.type === 'error' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)'}`,
+                  color: teacherMessage.type === 'error' ? '#fca5a5' : '#86efac',
+                  fontSize: '0.875rem',
+                  fontWeight: 500
+                }}>
                   {teacherMessage.text}
                 </div>
               )}
-              <button type="button" onClick={handleAddTeacher} className="btn-hero-primary" style={{ background: '#059669', color: 'white', border: 'none', padding: '0.75rem', marginTop: '0.5rem' }}>Create Teacher Account</button>
-            </div>
+              <button 
+                type="submit" 
+                disabled={isCreatingTeacher}
+                className="btn-hero-primary flex items-center justify-center gap-2" 
+                style={{ 
+                  background: isCreatingTeacher ? '#047857' : '#059669', 
+                  color: 'white', 
+                  border: 'none', 
+                  padding: '0.75rem', 
+                  marginTop: '0.5rem',
+                  opacity: isCreatingTeacher ? 0.75 : 1,
+                  cursor: isCreatingTeacher ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {isCreatingTeacher ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    <span>Creating Teacher Account...</span>
+                  </>
+                ) : (
+                  'Create Teacher Account'
+                )}
+              </button>
+            </form>
 
             <div style={{ maxHeight: '200px', overflowY: 'auto', borderRadius: '0.5rem', border: '1px solid #e2e8f0', marginTop: '2rem' }}>
               <div style={{ padding: '1rem', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>

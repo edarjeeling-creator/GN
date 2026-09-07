@@ -9,6 +9,9 @@ const Classes = () => {
   const { classes, subjects, students, teacherSubjects, toggleTeacherSubject, addStudent, addSubject, updateStudentContactNumber } = useData();
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
+  const isPrincipal = profile?.role === 'principal';
+  const isPrivileged = isAdmin || isPrincipal;
+  const [showAllClasses, setShowAllClasses] = useState(false);
   
   const [expandedClass, setExpandedClass] = useState(null);
   
@@ -81,19 +84,46 @@ const Classes = () => {
     }
   };
 
+  const displayedClasses = classes.filter(cls => 
+    isPrivileged || showAllClasses || (teacherSubjects[cls.id] || []).length > 0
+  );
+
   return (
     <div>
-      <div className="page-header mb-4">
+      <div className="page-header mb-4 flex justify-between items-center flex-wrap gap-2">
         <div>
           <h1>My Classes</h1>
           <p>Select a class to manage subjects, add students, and view flowsheets.</p>
         </div>
+        {!isPrivileged && (
+          <button 
+            type="button" 
+            onClick={() => setShowAllClasses(prev => !prev)}
+            className="btn btn-outline btn-sm"
+          >
+            {showAllClasses ? 'Show Only My Classes' : 'Browse All Classes'}
+          </button>
+        )}
       </div>
       
-      <div className="grid gap-4">
-        {classes.filter(cls => isAdmin || (teacherSubjects[cls.id] || []).length > 0).map(cls => {
-          const selectedSubjects = teacherSubjects[cls.id] || [];
-          const isExpanded = expandedClass === cls.id;
+      {displayedClasses.length === 0 ? (
+        <div className="card text-center p-8">
+          <Users size={48} className="mx-auto text-muted mb-3" style={{ opacity: 0.5 }} />
+          <h3 className="text-lg font-bold mb-2">No Classes Assigned Yet</h3>
+          <p className="text-muted mb-4">You have not selected any classes or subjects to teach yet.</p>
+          <button 
+            type="button" 
+            onClick={() => setShowAllClasses(true)}
+            className="btn btn-primary btn-sm mx-auto"
+          >
+            Browse All Classes to Select Subjects
+          </button>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {displayedClasses.map(cls => {
+            const selectedSubjects = teacherSubjects[cls.id] || [];
+            const isExpanded = expandedClass === cls.id;
 
           return (
             <div key={cls.id} className="card">
@@ -315,6 +345,7 @@ const Classes = () => {
           );
         })}
       </div>
+      )}
     </div>
   );
 };
