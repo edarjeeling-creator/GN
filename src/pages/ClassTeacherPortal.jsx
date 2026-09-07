@@ -253,12 +253,12 @@ const ClassTeacherPortal = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+      <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <Users size={24} className="text-brand-600" /> Class Teacher Portal
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+            <Users size={24} className="text-brand-600 dark:text-brand-400" /> Class Teacher Portal
           </h1>
-          <p className="text-slate-500">
+          <p className="text-slate-500 dark:text-slate-400">
             {cls.name} {cls.section} - {academicYear}
           </p>
         </div>
@@ -270,17 +270,21 @@ const ClassTeacherPortal = () => {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex border-b border-slate-200 gap-6">
+      <div className="flex border-b border-slate-200 dark:border-slate-800 gap-6">
         <button
           onClick={() => setActiveTab('directory')}
           className={`pb-3.5 px-2 font-bold text-sm flex items-center gap-2 border-b-2 transition-all ${
             activeTab === 'directory'
-              ? 'border-brand-600 text-brand-600'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
+              ? 'border-brand-600 dark:border-brand-400 text-brand-600 dark:text-brand-400'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
           <Phone size={16} /> Student Directory & Parent Contacts
-          <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-700 font-bold">
+          <span className={`ml-1.5 px-2 py-0.5 text-xs rounded-full font-bold ${
+            activeTab === 'directory' 
+              ? 'bg-brand-500/20 text-brand-400 border border-brand-500/30' 
+              : 'bg-slate-800 text-slate-300 border border-slate-700'
+          }`}>
             {classStudents.length}
           </span>
         </button>
@@ -289,8 +293,8 @@ const ClassTeacherPortal = () => {
           onClick={() => setActiveTab('marks')}
           className={`pb-3.5 px-2 font-bold text-sm flex items-center gap-2 border-b-2 transition-all ${
             activeTab === 'marks'
-              ? 'border-brand-600 text-brand-600'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
+              ? 'border-brand-600 dark:border-brand-400 text-brand-600 dark:text-brand-400'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
           <Trophy size={16} /> Consolidated Marksheet
@@ -300,8 +304,8 @@ const ClassTeacherPortal = () => {
           onClick={() => setActiveTab('messages')}
           className={`pb-3.5 px-2 font-bold text-sm flex items-center gap-2 border-b-2 transition-all ${
             activeTab === 'messages'
-              ? 'border-brand-600 text-brand-600'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
+              ? 'border-brand-600 dark:border-brand-400 text-brand-600 dark:text-brand-400'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
           <MessageSquare size={16} /> Message CMS
@@ -315,10 +319,10 @@ const ClassTeacherPortal = () => {
             <Card>
               <CardContent className="p-5 flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Class Strength</div>
-                  <div className="text-2xl font-black text-slate-800">{classStudents.length}</div>
+                  <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Class Strength</div>
+                  <div className="text-2xl font-black text-white">{classStudents.length}</div>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold">
+                <div className="w-10 h-10 rounded-full bg-slate-800 text-slate-300 border border-slate-700 flex items-center justify-center font-bold">
                   <Users size={20} />
                 </div>
               </CardContent>
@@ -326,10 +330,10 @@ const ClassTeacherPortal = () => {
             <Card>
               <CardContent className="p-5 flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-0.5">Phone Configured</div>
-                  <div className="text-2xl font-black text-emerald-600">{studentsWithPhone}</div>
+                  <div className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-0.5">Phone Configured</div>
+                  <div className="text-2xl font-black text-emerald-400">{studentsWithPhone}</div>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold">
                   <CheckCircle2 size={20} />
                 </div>
               </CardContent>
@@ -337,10 +341,10 @@ const ClassTeacherPortal = () => {
             <Card>
               <CardContent className="p-5 flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-0.5">Missing Phone</div>
-                  <div className="text-2xl font-black text-amber-600">{studentsWithoutPhone}</div>
+                  <div className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-0.5">Missing Phone</div>
+                  <div className="text-2xl font-black text-amber-400">{studentsWithoutPhone}</div>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                <div className="w-10 h-10 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center justify-center font-bold">
                   <AlertCircle size={20} />
                 </div>
               </CardContent>
@@ -349,10 +353,10 @@ const ClassTeacherPortal = () => {
 
           {/* Search bar & Directory Card */}
           <Card>
-            <CardHeader className="p-4 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+            <CardHeader className="p-4 sm:p-6 border-b border-slate-800 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
               <div>
-                <CardTitle className="text-lg">Class Roster & Parent Contacts</CardTitle>
-                <p className="text-xs text-slate-500 mt-1">
+                <CardTitle className="text-lg text-white">Class Roster & Parent Contacts</CardTitle>
+                <p className="text-xs text-slate-400 mt-1">
                   Add or update parents' phone numbers anytime. Changes save instantly and enable direct WhatsApp alerts.
                 </p>
               </div>
@@ -363,13 +367,13 @@ const ClassTeacherPortal = () => {
                   placeholder="Search name, roll, phone..."
                   value={directorySearch}
                   onChange={(e) => setDirectorySearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  className="w-full pl-9 pr-3 py-2 text-xs bg-slate-800/90 border border-slate-700 text-slate-100 placeholder:text-slate-400 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500"
                 />
               </div>
             </CardHeader>
             <CardContent className="p-0 overflow-x-auto">
               <table className="w-full text-sm text-left">
-                <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
+                <thead className="text-xs text-slate-400 uppercase bg-slate-800/60 border-b border-slate-800">
                   <tr>
                     <th className="px-4 py-3 font-semibold w-16">Roll</th>
                     <th className="px-4 py-3 font-semibold min-w-[180px]">Student Name</th>
@@ -378,33 +382,33 @@ const ClassTeacherPortal = () => {
                     <th className="px-4 py-3 font-semibold text-center w-36">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-800/80">
                   {filteredDirectoryStudents.map(student => {
                     const isEditing = editingStudentId === student.id;
                     const isSaving = savingStudentId === student.id;
 
                     return (
-                      <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="px-4 py-3 font-semibold text-slate-500">{student.roll_no}</td>
+                      <tr key={student.id} className="hover:bg-slate-800/40 transition-colors">
+                        <td className="px-4 py-3 font-semibold text-slate-300">{student.roll_no}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-slate-100 overflow-hidden border border-slate-200 shrink-0 flex items-center justify-center">
+                            <div className="w-9 h-9 rounded-full bg-slate-800 overflow-hidden border border-slate-700 shrink-0 flex items-center justify-center">
                               {student.picture_url ? (
                                 <img src={student.picture_url} alt={student.name} className="w-full h-full object-cover" />
                               ) : (
-                                <span className="text-slate-500 font-bold text-xs">
+                                <span className="text-slate-300 font-bold text-xs">
                                   {student.name ? student.name.charAt(0).toUpperCase() : 'S'}
                                 </span>
                               )}
                             </div>
                             <div>
-                              <div className="font-bold text-slate-800">{formatStudentDisplayName(student.name)}</div>
+                              <div className="font-bold text-white text-sm">{formatStudentDisplayName(student.name)}</div>
                               {student.uid && <div className="text-[11px] text-slate-400">UID: {student.uid}</div>}
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-slate-600">
-                          {student.father_name || <span className="text-slate-400 italic text-xs">Not recorded</span>}
+                        <td className="px-4 py-3 text-slate-300">
+                          {student.father_name || <span className="text-slate-500 italic text-xs">Not recorded</span>}
                         </td>
                         <td className="px-4 py-3">
                           {isEditing ? (
@@ -414,7 +418,7 @@ const ClassTeacherPortal = () => {
                                 placeholder="10-digit mobile number"
                                 value={phoneInput}
                                 onChange={(e) => setPhoneInput(e.target.value)}
-                                className="px-2.5 py-1 text-xs border border-brand-500 rounded-md focus:outline-none w-36 text-slate-800"
+                                className="px-2.5 py-1 text-xs bg-slate-800 border border-brand-500 rounded-md focus:outline-none w-36 text-white placeholder:text-slate-500"
                                 autoFocus
                               />
                               <button
@@ -427,7 +431,7 @@ const ClassTeacherPortal = () => {
                               </button>
                               <button
                                 onClick={handleCancelEdit}
-                                className="p-1 text-slate-400 hover:text-slate-600 rounded"
+                                className="p-1 text-slate-400 hover:text-white rounded"
                               >
                                 <X size={13} />
                               </button>
@@ -435,16 +439,16 @@ const ClassTeacherPortal = () => {
                           ) : (
                             <div className="flex items-center gap-2">
                               {student.contact_number ? (
-                                <div className="flex items-center gap-1.5 font-semibold text-slate-800 text-xs">
-                                  <Phone size={13} className="text-emerald-600" />
+                                <div className="flex items-center gap-1.5 font-semibold text-emerald-400 text-xs font-mono">
+                                  <Phone size={13} className="text-emerald-400" />
                                   <span>{student.contact_number}</span>
                                 </div>
                               ) : (
-                                <span className="text-amber-500 italic text-xs">No number</span>
+                                <span className="text-amber-400 font-medium italic text-xs">No number</span>
                               )}
                               <button
                                 onClick={() => handleStartEditPhone(student)}
-                                className="px-2 py-0.5 text-[11px] font-semibold text-brand-600 hover:text-brand-800 hover:bg-brand-50 rounded border border-brand-200 flex items-center gap-1 transition-colors"
+                                className="px-2.5 py-1 text-[11px] font-semibold text-brand-400 hover:text-white bg-brand-500/10 hover:bg-brand-500/20 rounded border border-brand-500/30 flex items-center gap-1 transition-colors"
                                 title="Change or add parent phone number"
                               >
                                 <Edit2 size={10} />
@@ -466,7 +470,7 @@ const ClassTeacherPortal = () => {
                           ) : (
                             <button
                               onClick={() => handleStartEditPhone(student)}
-                              className="text-[11px] text-slate-400 hover:text-brand-600 underline"
+                              className="text-xs text-slate-400 hover:text-brand-400 underline font-medium"
                             >
                               + Add Phone
                             </button>
@@ -477,7 +481,7 @@ const ClassTeacherPortal = () => {
                   })}
                   {filteredDirectoryStudents.length === 0 && (
                     <tr>
-                      <td colSpan="5" className="p-8 text-center text-slate-500 text-sm">
+                      <td colSpan="5" className="p-8 text-center text-slate-400 text-sm">
                         No students found matching "{directorySearch}".
                       </td>
                     </tr>
@@ -495,49 +499,49 @@ const ClassTeacherPortal = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-6">
-            <div className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Class Average</div>
-            <div className="text-3xl font-black text-brand-600">{portalData.classAverage}%</div>
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Class Average</div>
+            <div className="text-3xl font-black text-brand-400">{portalData.classAverage}%</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
-            <div className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Highest Marks</div>
-            <div className="text-3xl font-black text-emerald-600">{portalData.highestPercentage}%</div>
+            <div className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-1">Highest Marks</div>
+            <div className="text-3xl font-black text-emerald-400">{portalData.highestPercentage}%</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
-            <div className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Lowest Marks</div>
-            <div className="text-3xl font-black text-red-500">{portalData.lowestPercentage}%</div>
+            <div className="text-xs font-semibold text-rose-400 uppercase tracking-wider mb-1">Lowest Marks</div>
+            <div className="text-3xl font-black text-rose-400">{portalData.lowestPercentage}%</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
-            <div className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Students</div>
-            <div className="text-3xl font-black text-slate-700">{classStudents.length}</div>
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Total Students</div>
+            <div className="text-3xl font-black text-white">{classStudents.length}</div>
           </CardContent>
         </Card>
       </div>
 
 
-      <div className="flex flex-col sm:flex-row gap-4 items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+      <div className="flex flex-col sm:flex-row gap-4 items-center bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-800">
         <div className="flex items-center gap-2">
-          <label className="text-sm font-semibold text-slate-700 whitespace-nowrap">Term:</label>
+          <label className="text-sm font-semibold text-slate-300 whitespace-nowrap">Term:</label>
           <select 
             value={selectedTerm} 
             onChange={(e) => setSelectedTerm(e.target.value)}
-            className="input-field py-1.5 px-3 rounded-lg text-sm bg-slate-50 border-slate-200 text-slate-900"
+            className="input-field py-1.5 px-3 rounded-lg text-sm bg-slate-800 border border-slate-700 text-white focus:outline-none focus:ring-1 focus:ring-brand-500"
           >
             <option value="Midterm">Midterm</option>
             <option value="Finalterm">Finalterm</option>
           </select>
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-sm font-semibold text-slate-700 whitespace-nowrap">Subject:</label>
+          <label className="text-sm font-semibold text-slate-300 whitespace-nowrap">Subject:</label>
           <select 
             value={selectedSubject} 
             onChange={(e) => setSelectedSubject(e.target.value)}
-            className="input-field py-1.5 px-3 rounded-lg text-sm bg-slate-50 border-slate-200 text-slate-900"
+            className="input-field py-1.5 px-3 rounded-lg text-sm bg-slate-800 border border-slate-700 text-white focus:outline-none focus:ring-1 focus:ring-brand-500"
           >
             <option value="All">All Subjects (Consolidated)</option>
             {classSubjects.map(sub => (
@@ -548,59 +552,59 @@ const ClassTeacherPortal = () => {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>
+        <CardHeader className="border-b border-slate-800">
+          <CardTitle className="text-white">
             {selectedSubject === 'All' ? `Consolidated Marksheet (${selectedTerm})` : `${classSubjects.find(s => s.id === selectedSubject)?.name} Marksheet (${selectedTerm})`}
           </CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto p-0">
           {!portalData.hasMarks ? (
-            <div className="p-8 text-center text-slate-500 font-medium">
+            <div className="p-8 text-center text-slate-400 font-medium">
               No marks have been entered for {selectedTerm} yet.
             </div>
           ) : (
             <table className="w-full text-sm text-left">
-            <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+            <thead className="text-xs text-slate-400 uppercase bg-slate-800/60 border-b border-slate-800">
               <tr>
                 <th className="px-4 py-3 font-semibold w-16">Roll</th>
                 <th className="px-4 py-3 font-semibold min-w-[150px]">Student Name</th>
                 {classSubjects
                   .filter(sub => selectedSubject === 'All' || sub.id === selectedSubject)
                   .map((sub) => (
-                  <th key={sub.id} className="px-4 py-3 font-semibold text-center whitespace-nowrap">
+                  <th key={sub.id} className="px-4 py-3 font-semibold text-center whitespace-nowrap text-slate-300">
                     {sub.name}
                   </th>
                 ))}
                 {selectedSubject === 'All' && (
                   <>
-                    <th className="px-4 py-3 font-semibold text-center bg-brand-50/50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400">Total</th>
-                    <th className="px-4 py-3 font-semibold text-center bg-brand-50/50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400">%</th>
-                    <th className="px-4 py-3 font-semibold text-center bg-amber-50/50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400">Rank</th>
+                    <th className="px-4 py-3 font-semibold text-center bg-brand-500/10 text-brand-300 border-l border-slate-800">Total</th>
+                    <th className="px-4 py-3 font-semibold text-center bg-brand-500/10 text-brand-300">%</th>
+                    <th className="px-4 py-3 font-semibold text-center bg-amber-500/10 text-amber-400">Rank</th>
                   </>
                 )}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-800/80">
               {portalData.studentScores.map((student) => (
-                <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-medium">{student.roll_no}</td>
-                  <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">
+                <tr key={student.id} className="hover:bg-slate-800/40 transition-colors">
+                  <td className="px-4 py-3 text-slate-300 font-medium">{student.roll_no}</td>
+                  <td className="px-4 py-3 font-semibold text-white">
                     {formatStudentDisplayName(student.name)}
                   </td>
                   {classSubjects
                     .filter(sub => selectedSubject === 'All' || sub.id === selectedSubject)
                     .map((sub) => {
                     const scoreObj = student.subjectScores.find((s) => s.subjectId === sub.id);
-                    const isFailing = scoreObj && scoreObj.total !== null && scoreObj.total < 40; // Assuming 40 is pass mark
+                    const isFailing = scoreObj && scoreObj.total !== null && scoreObj.total < 40;
                     return (
                       <td
                         key={sub.id}
                         className={`px-4 py-3 text-center ${
                           scoreObj?.total === null
-                            ? 'text-slate-300 dark:text-slate-600 font-normal'
+                            ? 'text-slate-500 font-normal'
                             : isFailing
-                            ? 'text-red-500 font-bold bg-red-50/30 dark:bg-red-900/30'
-                            : 'text-slate-700 dark:text-slate-200 font-medium'
+                            ? 'text-rose-400 font-bold bg-rose-950/20'
+                            : 'text-slate-200 font-medium'
                         }`}
                       >
                         {scoreObj?.total !== null ? scoreObj.total : '-'}
@@ -609,9 +613,9 @@ const ClassTeacherPortal = () => {
                   })}
                   {selectedSubject === 'All' && (
                     <>
-                      <td className="px-4 py-3 text-center font-bold text-brand-700 dark:text-brand-400 bg-brand-50/20">{student.grandMtTotal}</td>
-                      <td className="px-4 py-3 text-center font-bold text-brand-700 dark:text-brand-400 bg-brand-50/20">{student.percentage}%</td>
-                      <td className="px-4 py-3 text-center font-bold text-amber-600 dark:text-amber-400 bg-amber-50/20">
+                      <td className="px-4 py-3 text-center font-bold text-brand-300 bg-brand-500/10 border-l border-slate-800">{student.grandMtTotal}</td>
+                      <td className="px-4 py-3 text-center font-bold text-brand-300 bg-brand-500/10">{student.percentage}%</td>
+                      <td className="px-4 py-3 text-center font-bold text-amber-400 bg-amber-500/10">
                         {student.rank}
                         {student.rank === 1 ? 'st' : student.rank === 2 ? 'nd' : student.rank === 3 ? 'rd' : 'th'}
                       </td>
