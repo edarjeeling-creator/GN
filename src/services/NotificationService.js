@@ -11,29 +11,48 @@ class NotificationService {
    * @param {string} [params.linkUrl] - URL to navigate to when clicked
    * @param {string} [params.schoolId] - The school ID
    */
-  async create({ profileId, type, title, body, linkUrl, schoolId }) {
+  async create({ profileId, userId, type, title, body, message, linkUrl, schoolId }) {
     try {
-      // 1. Insert into database (this acts as the source of truth and triggers realtime in-app notifications)
+      const targetUserId = userId || profileId;
+      const content = message || body;
+
+      // 1. Insert into database (source of truth for in-app notifications)
       const { data, error } = await supabase
         .from('notifications')
         .insert({
-          profile_id: profileId,
+          user_id: targetUserId,
           type,
           title,
-          body,
-          link_url: linkUrl,
-          school_id: schoolId
+          message: content,
+          school_id: schoolId,
+          is_read: false
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      // 2. Trigger FCM (In a production environment, this should ideally be done 
-      // via a Supabase Database Webhook to an Edge Function, but for now we'll 
-      // rely on the client or Edge Function to pick this up).
-      // If we are sending direct to an Edge Function from client:
-      // await supabase.functions.invoke('send-fcm', { body: { notification: data } });
+      // 2. Trigger FCM Mobile Push to registered device tokens
+      try {
+        const { data: devices } = await supabase
+          .from('user_devices')
+          .select('fcm_token')
+          .eq('profile_id', targetUserId)
+          .neq('is_active', false);
+
+        const tokens = (devices || []).map(d => d.fcm_token).filter(Boolean);
+        if (tokens.length > 0) {
+          await supabase.functions.invoke('send-notification', {
+            body: {
+              tokens,
+              notification: { title, body: content },
+              data: { linkUrl: linkUrl || '/', type }
+            }
+          });
+        }
+      } catch (pushErr) {
+        console.warn('FCM dispatch skipped:', pushErr);
+      }
 
       return { success: true, data };
     } catch (error) {

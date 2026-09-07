@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { Trash2, Edit2, Save, X, Search, AlertTriangle } from 'lucide-react';
+import { formatStudentDisplayName } from '../../utils/studentUtils';
 
 const MarksManager = ({ classes, subjects, academicYear }) => {
   const { students } = useData();
@@ -271,7 +272,7 @@ const MarksManager = ({ classes, subjects, academicYear }) => {
                     filteredMarks.map((m) => (
                       <tr key={m.student.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '1rem' }}>{m.student.roll_no}</td>
-                        <td style={{ padding: '1rem', fontWeight: 500 }}>{m.student.name}</td>
+                        <td style={{ padding: '1rem', fontWeight: 500 }}>{formatStudentDisplayName(m.student.name)}</td>
                         <td style={{ padding: '1rem' }}>
                           {editingId === m.student.id ? (
                             <input

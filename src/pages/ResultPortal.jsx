@@ -4,6 +4,7 @@ import { Search, Loader2, BookOpen, Home, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { getGroupsForClass, getDynamicSubjectName, calculateAttendancePercentage } from '../utils/reportUtils';
+import { formatStudentDisplayName } from '../utils/studentUtils';
 
 const ResultPortal = () => {
   const queryParams = new URLSearchParams(window.location.search);
@@ -394,7 +395,7 @@ const ResultPortal = () => {
           {/* Top text block matching the image */}
           <div style={{ display: 'flex', fontWeight: 'bold', fontSize: '18px', marginBottom: '10px' }}>
             <span style={{ width: '180px' }}>STUDENT NAME:</span> 
-            <span>{student.name}</span>
+            <span>{formatStudentDisplayName(student.name)}</span>
           </div>
           
           <div style={{ display: 'flex', fontWeight: 'bold', fontSize: '18px', marginBottom: '10px' }}>
@@ -452,7 +453,7 @@ const ResultPortal = () => {
               <tr>
                 <td colSpan={colCount} style={{ padding: '10px 12px', border: '1px solid black' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span><span style={{ fontWeight: 'bold' }}>Student Name:</span> <span>{student.name}</span></span>
+                    <span><span style={{ fontWeight: 'bold' }}>Student Name:</span> <span>{formatStudentDisplayName(student.name)}</span></span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span><span style={{ fontWeight: 'bold' }}>Class:</span> <span>{cls.name}</span></span>

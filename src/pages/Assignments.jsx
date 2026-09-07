@@ -4,6 +4,7 @@ import { uploadFile, deleteFile } from '../lib/storage';
 import { useAuth } from '../context/AuthContext';
 import { FileText, Upload, CheckCircle, Clock, Loader2, Link as LinkIcon } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { formatStudentDisplayName } from '../utils/studentUtils';
 
 const Assignments = () => {
   const { profile } = useAuth();
@@ -192,7 +193,7 @@ const Assignments = () => {
                     <p className="text-sm font-bold text-gray-500">{assign.subject}</p>
                     {isTeacher && parsedStudent && (
                        <p className="text-sm mt-1 text-gray-700">
-                         <strong>Student:</strong> {parsedStudent.name} ({parsedStudent.class}-{parsedStudent.section}, Roll {parsedStudent.roll_no})
+                         <strong>Student:</strong> {formatStudentDisplayName(parsedStudent.name)} ({parsedStudent.class}-{parsedStudent.section}, Roll {parsedStudent.roll_no})
                        </p>
                     )}
                   </div>

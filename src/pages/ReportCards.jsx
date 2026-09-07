@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { ArrowLeft, Printer, User } from 'lucide-react';
 import { getConversionConstants } from './SubjectMarks';
 import { getGroupsForClass, getDynamicSubjectName, calculateAttendancePercentage, getGrade, getGradeColor } from '../utils/reportUtils';
+import { formatStudentDisplayName } from '../utils/studentUtils';
 
 const ReportCards = () => {
   const { classId } = useParams();
@@ -446,7 +447,7 @@ const ReportCards = () => {
                 <tr>
                   <td colSpan="2" style={{ padding: '10px 12px', border: '1px solid black' }}>
                     <div style={{ marginBottom: '8px' }}>
-                      <span style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>Student Name:</span> <span>{student.name}</span>
+                      <span style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>Student Name:</span> <span>{formatStudentDisplayName(student.name)}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span><span style={{ fontWeight: 'bold' }}>Class:</span> <span>{cls?.name}</span></span>

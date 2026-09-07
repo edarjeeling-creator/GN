@@ -3,20 +3,61 @@ import { useParams, Navigate, Link } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
-import { Trophy, AlertCircle, Printer, Users } from 'lucide-react';
+import { 
+  Trophy, AlertCircle, Printer, Users, Phone, MessageSquare, 
+  Edit2, Check, X, ExternalLink, Search, CheckCircle2 
+} from 'lucide-react';
 import { getConversionConstants } from './SubjectMarks';
 import { getGrade, getGradeColor } from '../utils/reportUtils';
+import { formatStudentDisplayName } from '../utils/studentUtils';
+import WhatsAppComposerModal from '../components/WhatsAppComposerModal';
+import TeacherMessageCMS from '../components/TeacherMessageCMS';
 
 const ClassTeacherPortal = () => {
   const { classId } = useParams();
   const { profile } = useAuth();
-  const { classes, subjects, students, marks, academicYear } = useData();
+  const { classes, subjects, students, marks, academicYear, updateStudentContactNumber } = useData();
+
+  const [activeTab, setActiveTab] = useState('directory'); // 'directory' | 'marks' | 'messages'
+  const [directorySearch, setDirectorySearch] = useState('');
+  const [editingStudentId, setEditingStudentId] = useState(null);
+  const [phoneInput, setPhoneInput] = useState('');
+  const [savingStudentId, setSavingStudentId] = useState(null);
+  const [selectedComposerStudent, setSelectedComposerStudent] = useState(null);
 
   const [selectedTerm, setSelectedTerm] = useState('Midterm');
   const [selectedSubject, setSelectedSubject] = useState('All');
 
   const cls = classes.find((c) => c.id === classId);
   const classStudents = students.filter((s) => s.class_id === classId);
+
+  const handleStartEditPhone = (student) => {
+    setEditingStudentId(student.id);
+    setPhoneInput(student.contact_number || '');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingStudentId(null);
+    setPhoneInput('');
+  };
+
+  const handleSavePhone = async (studentId) => {
+    setSavingStudentId(studentId);
+    try {
+      const res = await updateStudentContactNumber(studentId, phoneInput);
+      if (res?.success) {
+        setEditingStudentId(null);
+      } else {
+        alert("Failed to update contact number: " + (res?.error?.message || "Please try again."));
+      }
+    } catch (err) {
+      alert("Error: " + err.message);
+    } finally {
+      setSavingStudentId(null);
+    }
+  };
+
+
 
   // Security: Check if user is the assigned class teacher, or an admin/principal
   const isClassTeacher = cls?.class_teacher_id === profile?.id;
@@ -192,6 +233,24 @@ const ClassTeacherPortal = () => {
     return <div className="p-8 text-center text-slate-500">No data available for this class.</div>;
   }
 
+  const filteredDirectoryStudents = useMemo(() => {
+    return classStudents
+      .filter(s => {
+        if (!directorySearch.trim()) return true;
+        const q = directorySearch.toLowerCase().trim();
+        return (
+          (s.name && s.name.toLowerCase().includes(q)) ||
+          String(s.roll_no).includes(q) ||
+          (s.father_name && s.father_name.toLowerCase().includes(q)) ||
+          (s.contact_number && s.contact_number.includes(q))
+        );
+      })
+      .sort((a, b) => (Number(a.roll_no) || 0) - (Number(b.roll_no) || 0));
+  }, [classStudents, directorySearch]);
+
+  const studentsWithPhone = classStudents.filter(s => s.contact_number).length;
+  const studentsWithoutPhone = classStudents.length - studentsWithPhone;
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -209,6 +268,229 @@ const ClassTeacherPortal = () => {
           </Link>
         </div>
       </div>
+
+      {/* Tab Navigation */}
+      <div className="flex border-b border-slate-200 gap-6">
+        <button
+          onClick={() => setActiveTab('directory')}
+          className={`pb-3.5 px-2 font-bold text-sm flex items-center gap-2 border-b-2 transition-all ${
+            activeTab === 'directory'
+              ? 'border-brand-600 text-brand-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Phone size={16} /> Student Directory & Parent Contacts
+          <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-700 font-bold">
+            {classStudents.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('marks')}
+          className={`pb-3.5 px-2 font-bold text-sm flex items-center gap-2 border-b-2 transition-all ${
+            activeTab === 'marks'
+              ? 'border-brand-600 text-brand-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Trophy size={16} /> Consolidated Marksheet
+        </button>
+
+        <button
+          onClick={() => setActiveTab('messages')}
+          className={`pb-3.5 px-2 font-bold text-sm flex items-center gap-2 border-b-2 transition-all ${
+            activeTab === 'messages'
+              ? 'border-brand-600 text-brand-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <MessageSquare size={16} /> Message CMS
+        </button>
+      </div>
+
+      {activeTab === 'directory' && (
+        <div className="space-y-6">
+          {/* Summary KPIs */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="p-5 flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Class Strength</div>
+                  <div className="text-2xl font-black text-slate-800">{classStudents.length}</div>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold">
+                  <Users size={20} />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5 flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-0.5">Phone Configured</div>
+                  <div className="text-2xl font-black text-emerald-600">{studentsWithPhone}</div>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                  <CheckCircle2 size={20} />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5 flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-0.5">Missing Phone</div>
+                  <div className="text-2xl font-black text-amber-600">{studentsWithoutPhone}</div>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                  <AlertCircle size={20} />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Search bar & Directory Card */}
+          <Card>
+            <CardHeader className="p-4 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+              <div>
+                <CardTitle className="text-lg">Class Roster & Parent Contacts</CardTitle>
+                <p className="text-xs text-slate-500 mt-1">
+                  Add or update parents' phone numbers anytime. Changes save instantly and enable direct WhatsApp alerts.
+                </p>
+              </div>
+              <div className="relative w-full sm:w-64">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search name, roll, phone..."
+                  value={directorySearch}
+                  onChange={(e) => setDirectorySearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-500"
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="p-0 overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold w-16">Roll</th>
+                    <th className="px-4 py-3 font-semibold min-w-[180px]">Student Name</th>
+                    <th className="px-4 py-3 font-semibold min-w-[150px]">Father / Guardian</th>
+                    <th className="px-4 py-3 font-semibold min-w-[220px]">Parent Phone Number</th>
+                    <th className="px-4 py-3 font-semibold text-center w-36">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredDirectoryStudents.map(student => {
+                    const isEditing = editingStudentId === student.id;
+                    const isSaving = savingStudentId === student.id;
+
+                    return (
+                      <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="px-4 py-3 font-semibold text-slate-500">{student.roll_no}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-slate-100 overflow-hidden border border-slate-200 shrink-0 flex items-center justify-center">
+                              {student.picture_url ? (
+                                <img src={student.picture_url} alt={student.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-slate-500 font-bold text-xs">
+                                  {student.name ? student.name.charAt(0).toUpperCase() : 'S'}
+                                </span>
+                              )}
+                            </div>
+                            <div>
+                              <div className="font-bold text-slate-800">{formatStudentDisplayName(student.name)}</div>
+                              {student.uid && <div className="text-[11px] text-slate-400">UID: {student.uid}</div>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">
+                          {student.father_name || <span className="text-slate-400 italic text-xs">Not recorded</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          {isEditing ? (
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="tel"
+                                placeholder="10-digit mobile number"
+                                value={phoneInput}
+                                onChange={(e) => setPhoneInput(e.target.value)}
+                                className="px-2.5 py-1 text-xs border border-brand-500 rounded-md focus:outline-none w-36 text-slate-800"
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => handleSavePhone(student.id)}
+                                disabled={isSaving}
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-semibold flex items-center gap-1"
+                              >
+                                {isSaving ? '...' : <Check size={12} />}
+                                <span>Save</span>
+                              </button>
+                              <button
+                                onClick={handleCancelEdit}
+                                className="p-1 text-slate-400 hover:text-slate-600 rounded"
+                              >
+                                <X size={13} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              {student.contact_number ? (
+                                <div className="flex items-center gap-1.5 font-semibold text-slate-800 text-xs">
+                                  <Phone size={13} className="text-emerald-600" />
+                                  <span>{student.contact_number}</span>
+                                </div>
+                              ) : (
+                                <span className="text-amber-500 italic text-xs">No number</span>
+                              )}
+                              <button
+                                onClick={() => handleStartEditPhone(student)}
+                                className="px-2 py-0.5 text-[11px] font-semibold text-brand-600 hover:text-brand-800 hover:bg-brand-50 rounded border border-brand-200 flex items-center gap-1 transition-colors"
+                                title="Change or add parent phone number"
+                              >
+                                <Edit2 size={10} />
+                                <span>{student.contact_number ? 'Change' : '+ Add'}</span>
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {student.contact_number ? (
+                            <button
+                              onClick={() => setSelectedComposerStudent(student)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                              title="Compose WhatsApp Message"
+                            >
+                              <MessageSquare size={13} />
+                              <span>WhatsApp</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleStartEditPhone(student)}
+                              className="text-[11px] text-slate-400 hover:text-brand-600 underline"
+                            >
+                              + Add Phone
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {filteredDirectoryStudents.length === 0 && (
+                    <tr>
+                      <td colSpan="5" className="p-8 text-center text-slate-500 text-sm">
+                        No students found matching "{directorySearch}".
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'marks' && (
+        <div className="space-y-6">
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -303,7 +585,7 @@ const ClassTeacherPortal = () => {
                 <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-medium">{student.roll_no}</td>
                   <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">
-                    {student.name}
+                    {formatStudentDisplayName(student.name)}
                   </td>
                   {classSubjects
                     .filter(sub => selectedSubject === 'All' || sub.id === selectedSubject)
@@ -342,6 +624,30 @@ const ClassTeacherPortal = () => {
           )}
         </CardContent>
       </Card>
+        </div>
+      )}
+
+      {activeTab === 'messages' && (
+        <TeacherMessageCMS
+          teacherId={profile?.id}
+          teacherName={profile?.name || 'Class Teacher'}
+          cls={cls}
+          sampleStudent={classStudents[0]}
+        />
+      )}
+
+      {/* WhatsApp Composer Modal */}
+      {selectedComposerStudent && (
+        <WhatsAppComposerModal
+          isOpen={!!selectedComposerStudent}
+          onClose={() => setSelectedComposerStudent(null)}
+          student={selectedComposerStudent}
+          cls={cls}
+          teacherName={profile?.name || 'Class Teacher'}
+          teacherId={profile?.id}
+          initialTemplateKey="absentee_alert"
+        />
+      )}
     </div>
   );
 };

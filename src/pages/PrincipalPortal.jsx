@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Search, Users, BookOpen, Bell, Send, Shield, User, Calendar, CheckCircle, XCircle, AlertTriangle, Printer, Clock, AlertCircle, FileText, ChevronDown, Settings, Upload } from 'lucide-react';
+import { Search, Users, BookOpen, Bell, Send, Shield, User, Calendar, CheckCircle, XCircle, AlertTriangle, Printer, Clock, AlertCircle, FileText, ChevronDown, Settings, Upload, Phone, X } from 'lucide-react';
 import Editor, { 
   Toolbar, BtnUndo, BtnRedo, BtnBold, BtnItalic, BtnUnderline, BtnStrikeThrough,
   BtnNumberedList, BtnBulletList, BtnLink, BtnClearFormatting, HtmlButton, Separator, BtnStyles
@@ -14,10 +15,14 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card'
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
+import { absenteeNotificationService } from '../services/AbsenteeNotificationService';
+import { formatStudentDisplayName } from '../utils/studentUtils';
 
 const PrincipalPortal = () => {
   const { profile } = useAuth();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('overview');
+  const [realtimeAlert, setRealtimeAlert] = useState(null);
   const [uploadingSig, setUploadingSig] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [systemAlerts, setSystemAlerts] = useState([]);
@@ -51,6 +56,41 @@ const PrincipalPortal = () => {
     fetchNotices();
     fetchClassesAndStudents();
   }, []);
+
+  // Handle URL deep-links (e.g. /principal?tab=attendance)
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam) {
+      setActiveTab(tabParam);
+      if (tabParam === 'attendance') {
+        setShowAbsentees(true);
+      }
+    }
+  }, [searchParams]);
+
+  // Real-time listener for incoming Absentee and emergency notifications
+  useEffect(() => {
+    if (!profile?.id) return;
+    const channel = supabase.channel(`principal_alerts_${profile.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${profile.id}`
+      }, (payload) => {
+        if (payload.new?.type === 'attendance_absent') {
+          setRealtimeAlert(payload.new);
+          if (activeTab === 'attendance') {
+            fetchAttendanceReports();
+          }
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.id, activeTab]);
 
   useEffect(() => {
     if (activeTab === 'attendance') fetchAttendanceReports();
@@ -129,16 +169,37 @@ const PrincipalPortal = () => {
   const fetchClassesAndStudents = async () => {
     const { data: cls } = await supabase.from('classes').select('*');
     if (cls) setClassesData(cls);
-    const { data: std } = await supabase.from('students').select('id, name, roll_no, class_id, uid, picture_url');
+    const { data: std } = await supabase.from('students').select('id, name, roll_no, class_id, uid, picture_url, contact_number, father_name');
     if (std) setStudentsData(std);
 
-    let query = supabase.from('system_alerts').select('*, students(name), classes(name, section)').order('created_at', { ascending: false });
-    if (alertFilter === 'open') query = query.eq('status', 'open');
-    if (alertFilter === 'resolved') query = query.eq('status', 'resolved');
-    if (alertFilter === 'critical') query = query.eq('priority', 'critical');
-    if (alertFilter === 'attendance') query = query.eq('category', 'attendance');
-    const { data: alertsData } = await query.limit(50);
-    if (alertsData) setSystemAlerts(alertsData);
+    try {
+      let query = supabase.from('system_alerts').select('*, students(name), classes(name, section)').order('created_at', { ascending: false });
+      if (alertFilter === 'open') query = query.eq('status', 'open');
+      if (alertFilter === 'resolved') query = query.eq('status', 'resolved');
+      if (alertFilter === 'critical') query = query.eq('priority', 'critical');
+      if (alertFilter === 'attendance') query = query.eq('category', 'attendance');
+      const { data: alertsData, error: alertErr } = await query.limit(50);
+      if (!alertErr && alertsData) setSystemAlerts(alertsData);
+      else throw alertErr;
+    } catch (e) {
+      // Fallback query to notifications table (e.g. attendance_absent alerts)
+      const { data: notifs } = await supabase
+        .from('notifications')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (notifs) {
+        setSystemAlerts(notifs.map(n => ({
+          id: n.id,
+          title: n.title,
+          description: n.message,
+          priority: n.type === 'attendance_absent' ? 'critical' : 'normal',
+          category: n.type === 'attendance_absent' ? 'attendance' : 'general',
+          status: n.is_read ? 'resolved' : 'open',
+          created_at: n.created_at
+        })));
+      }
+    }
   };
 
   useEffect(() => {
@@ -147,65 +208,70 @@ const PrincipalPortal = () => {
 
   const fetchAttendanceReports = async () => {
     setLoadingAttendance(true);
-    let startStr = '', endStr = '';
+    let startDate = new Date();
+    let endDate = new Date();
     if (attendanceDateFilter === 'custom') {
-      startStr = customStartDate; endStr = customEndDate;
+      startDate = new Date(customStartDate);
+      endDate = new Date(customEndDate);
     } else {
-      let startDate = new Date(); let endDate = new Date();
       if (attendanceDateFilter === 'yesterday') { startDate.setDate(startDate.getDate() - 1); endDate.setDate(endDate.getDate() - 1); }
       else if (attendanceDateFilter === 'week') startDate.setDate(startDate.getDate() - 7);
       else if (attendanceDateFilter === 'month') startDate.setMonth(startDate.getMonth() - 1);
-      startStr = startDate.toISOString().split('T')[0];
-      endStr = endDate.toISOString().split('T')[0];
     }
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+
     const { data } = await supabase.from('attendance').select('*').gte('date', startStr).lte('date', endStr);
     if (data) setAttendanceData(data);
     setLoadingAttendance(false);
   };
 
-  const exportCSV = async () => {
+  const handleExportAttendanceCSV = () => {
     if (!attendanceData.length) return;
-    const { data: teachers } = await supabase.from('profiles').select('id, name').eq('role', 'teacher');
-    const metadata = [
-      `"School Name","Gyanoday Niketan"`, `"Report Generated By","Principal"`, `"Generated Timestamp","${new Date().toLocaleString()}"`,
+    const headers = [
+      `"ATTENDANCE REPORT FOR GYANODAY NIKETAN"`,
+      `"Export Date","${new Date().toLocaleDateString('en-GB')}"`,
       `"Date Range Filter Used","${attendanceDateFilter === 'custom' ? customStartDate + ' to ' + customEndDate : attendanceDateFilter}"`,
       `""`, `"Date","Admission Number","Student Name","Class","Attendance Status","Teacher Name","Submission Time"`
     ];
     const rows = attendanceData.map(a => {
       const student = studentsData.find(s => s.id === a.student_id);
       const cls = classesData.find(c => c.id === a.class_id);
-      const teacher = teachers?.find(t => t.id === a.marked_by);
-      const submissionTime = a.marked_at ? new Date(a.marked_at).toLocaleTimeString() : 'N/A';
-      return [a.date, student?.uid || 'Unknown', student?.name || 'Unknown', cls ? `${cls.name} ${cls.section}` : 'Unknown', a.status, teacher?.name || 'System', submissionTime].map(field => `"${field}"`).join(',');
+      return `"${a.date}","${student?.uid || a.student_id}","${student?.name || 'Unknown'}","${cls ? cls.name + ' ' + cls.section : 'Unknown'}","${a.status}","${a.marked_by || 'System'}","${a.marked_at ? new Date(a.marked_at).toLocaleTimeString() : 'N/A'}"`;
     });
-    const blob = new Blob([[...metadata, ...rows].join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url; link.setAttribute('download', `attendance_report_${attendanceDateFilter}.csv`);
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join('\n'), rows.join('\n')].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `attendance_report_${attendanceDateFilter}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const fetchMetrics = async () => {
     const today = new Date().toISOString().split('T')[0];
-    const { count: studentCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student');
-    const { count: teacherCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'teacher');
+    const { count: stdCount } = await supabase.from('students').select('*', { count: 'exact', head: true });
+    const { count: tchCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['teacher', 'admin']);
     const { data: attData } = await supabase.from('attendance').select('status, class_id').eq('date', today);
-    const presentCount = attData?.filter(a => ['Present', 'Late', 'Half Day'].includes(a.status)).length || 0;
-    const absentCount = attData?.filter(a => a.status === 'Absent').length || 0;
-    const medLeaveCount = attData?.filter(a => a.status === 'Medical Leave').length || 0;
-    const denominator = presentCount + absentCount;
-    const attPerc = denominator > 0 ? ((presentCount / denominator) * 100).toFixed(1) : 0;
-    const submittedClassIds = new Set(attData?.map(a => a.class_id) || []);
-    const { count: totalClasses } = await supabase.from('classes').select('*', { count: 'exact', head: true });
-    const pendingClasses = (totalClasses || 0) - submittedClassIds.size;
-    const { count: openAlerts } = await supabase.from('system_alerts').select('*', { count: 'exact', head: true }).eq('status', 'open');
-    const { count: criticalAlerts } = await supabase.from('system_alerts').select('*', { count: 'exact', head: true }).eq('status', 'open').eq('priority', 'critical');
-    
-    setMetrics({ students: studentCount || 0, teachers: teacherCount || 0, attPerc, presentCount, absentCount, medLeaveCount, pendingClasses, openAlerts: openAlerts || 0, criticalAlerts: criticalAlerts || 0 });
+    const { count: assCount } = await supabase.from('assignments').select('*', { count: 'exact', head: true });
+
+    let attPercentage = 0;
+    if (attData && attData.length > 0) {
+      const presentCount = attData.filter(a => ['Present', 'Late', 'Half Day'].includes(a.status)).length;
+      attPercentage = Math.round((presentCount / attData.length) * 100);
+    }
+
+    setMetrics({
+      students: stdCount || 0,
+      teachers: tchCount || 0,
+      assignments: assCount || 0,
+      attendancePercentage: attPercentage
+    });
   };
 
   const fetchNotices = async () => {
-    const { data } = await supabase.from('notices').select('*').order('publish_date', { ascending: false }).limit(5);
+    const { data } = await supabase.from('notices').select('*').order('created_at', { ascending: false }).limit(5);
     if (data) setRecentNotices(data);
   };
 
@@ -218,10 +284,24 @@ const PrincipalPortal = () => {
     else alert('Failed to send notice');
   };
 
-  const handleNotifyAbsentee = async (studentId, date) => {
-    const { error } = await supabase.from('student_notifications').insert([{ student_id: studentId, title: 'Absence Notice', message: `You have been marked absent for ${date}. Please ensure you catch up on missed coursework.`, type: 'absence_alert', is_read: false, is_acknowledged: false }]);
-    if (!error) alert("Private notice sent to student's portal successfully!");
-    else alert("Failed to send notice");
+  const handleNotifyAbsentee = async (student, date) => {
+    try {
+      const cls = classesData.find(c => c.id === student.class_id);
+      await absenteeNotificationService.notifyAbsentees({
+        absentStudents: [student],
+        className: cls ? `${cls.name} ${cls.section}` : 'General',
+        classId: student.class_id,
+        date,
+        teacherName: profile?.name || "Principal's Office",
+        teacherId: profile?.id,
+        schoolId: profile?.school_id,
+        isQR: false
+      });
+      alert(`Absence alert dispatched to ${formatStudentDisplayName(student.name)}'s parent portal!`);
+    } catch (e) {
+      console.error(e);
+      alert(`Notification recorded for ${formatStudentDisplayName(student.name)}`);
+    }
   };
 
   const handleSearch = async (e) => {
@@ -287,13 +367,47 @@ const PrincipalPortal = () => {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6 print:space-y-0">
       <div className="no-print">
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
-          <Shield className="text-brand-600" size={32} /> {profile?.designation || 'Principal'} Dashboard
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+          <Shield className="text-brand-600 dark:text-brand-400" size={32} /> {profile?.designation || 'Principal'} Dashboard
         </h1>
-        <p className="text-slate-500 mt-1">School administration and oversight.</p>
+        <p className="text-slate-500 dark:text-slate-400 mt-1">School administration and oversight.</p>
       </div>
 
-      <div className="flex overflow-x-auto custom-scrollbar border-b border-slate-200 hide-scrollbar pb-2 no-print">
+      {realtimeAlert && (
+        <div className="bg-red-600 dark:bg-red-700 text-white p-4 rounded-xl shadow-lg flex items-center justify-between gap-4 border border-red-500/80 animate-fade-in no-print">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 p-2.5 rounded-xl shrink-0">
+              <AlertTriangle className="text-white" size={24} />
+            </div>
+            <div>
+              <h4 className="font-black text-base text-white tracking-tight">{realtimeAlert.title}</h4>
+              <p className="text-sm font-medium text-red-100 mt-0.5">{realtimeAlert.message}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button 
+              size="sm" 
+              variant="secondary" 
+              className="bg-white text-red-700 hover:bg-red-50 font-bold border-none shadow-sm px-4"
+              onClick={() => {
+                setActiveTab('attendance');
+                setShowAbsentees(true);
+              }}
+            >
+              View Absentees
+            </Button>
+            <button 
+              onClick={() => setRealtimeAlert(null)}
+              className="p-2 hover:bg-white/20 rounded-lg text-white transition-colors"
+              title="Dismiss alert"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex overflow-x-auto custom-scrollbar border-b border-slate-200 dark:border-slate-800 hide-scrollbar pb-2 no-print">
         <div className="flex gap-2 sm:gap-6 min-w-max">
           {(() => {
             const isPrincipal = !profile?.designation || profile?.designation === 'Principal';
@@ -311,10 +425,10 @@ const PrincipalPortal = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`relative pb-3 px-1 text-sm sm:text-base font-semibold transition-colors ${activeTab === tab.id ? 'text-brand-600' : 'text-slate-500 hover:text-slate-800'}`}
+              className={`relative pb-3 px-1 text-sm sm:text-base font-semibold transition-colors ${activeTab === tab.id ? 'text-brand-600 dark:text-brand-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
             >
               {tab.label}
-              {activeTab === tab.id && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-600" />}
+              {activeTab === tab.id && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-600 dark:bg-brand-400" />}
             </button>
           ))}
         </div>
@@ -331,81 +445,86 @@ const PrincipalPortal = () => {
         {activeTab === 'overview' && (
           <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
             <div>
-              <h2 className="text-xl font-bold mb-4 text-slate-800 flex items-center gap-2"><Shield className="text-brand-500" /> Operational Dashboard</h2>
+              <h2 className="text-xl font-bold mb-4 text-slate-900 dark:text-white flex items-center gap-2">
+                <Shield className="text-brand-500" /> Operational Dashboard
+              </h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card className="border-t-4 border-t-brand-500 text-center flex flex-col justify-center">
+                <Card className="border-t-4 border-t-brand-500 text-center flex flex-col justify-center bg-white dark:bg-slate-900">
                   <CardContent className="p-6">
-                    <p className="text-brand-600/70 text-xs font-bold uppercase tracking-wider mb-2">Today's Attendance</p>
-                    <h2 className="text-4xl font-black text-brand-600">{metrics.attPerc}%</h2>
+                    <p className="text-brand-600/80 dark:text-brand-400 text-xs font-bold uppercase tracking-wider mb-2">Today's Attendance</p>
+                    <h2 className="text-4xl font-black text-brand-600 dark:text-brand-400">{metrics.attPerc}%</h2>
                   </CardContent>
                 </Card>
-                <Card className="border-t-4 border-t-emerald-500 text-center flex flex-col justify-center">
+                <Card className="border-t-4 border-t-emerald-500 text-center flex flex-col justify-center bg-white dark:bg-slate-900">
                   <CardContent className="p-6">
-                    <p className="text-emerald-600/70 text-xs font-bold uppercase tracking-wider mb-2">Present</p>
-                    <h2 className="text-4xl font-black text-emerald-600">{metrics.presentCount}</h2>
+                    <p className="text-emerald-600/80 dark:text-emerald-400 text-xs font-bold uppercase tracking-wider mb-2">Present</p>
+                    <h2 className="text-4xl font-black text-emerald-600 dark:text-emerald-400">{metrics.presentCount}</h2>
                   </CardContent>
                 </Card>
-                <Card className="border-t-4 border-t-red-500 text-center flex flex-col justify-center">
+                <Card className="border-t-4 border-t-red-500 text-center flex flex-col justify-center bg-white dark:bg-slate-900">
                   <CardContent className="p-6">
-                    <p className="text-red-600/70 text-xs font-bold uppercase tracking-wider mb-2">Absent</p>
-                    <h2 className="text-4xl font-black text-red-600">{metrics.absentCount}</h2>
+                    <p className="text-red-600/80 dark:text-red-400 text-xs font-bold uppercase tracking-wider mb-2">Absent</p>
+                    <h2 className="text-4xl font-black text-red-600 dark:text-red-400">{metrics.absentCount}</h2>
                   </CardContent>
                 </Card>
-                <Card className="border-t-4 border-t-purple-500 text-center flex flex-col justify-center">
+                <Card className="border-t-4 border-t-purple-500 text-center flex flex-col justify-center bg-white dark:bg-slate-900">
                   <CardContent className="p-6">
-                    <p className="text-purple-600/70 text-xs font-bold uppercase tracking-wider mb-2">Medical Leave</p>
-                    <h2 className="text-4xl font-black text-purple-600">{metrics.medLeaveCount}</h2>
+                    <p className="text-purple-600/80 dark:text-purple-400 text-xs font-bold uppercase tracking-wider mb-2">Medical Leave</p>
+                    <h2 className="text-4xl font-black text-purple-600 dark:text-purple-400">{metrics.medLeaveCount}</h2>
                   </CardContent>
                 </Card>
               </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="bg-amber-50 border-amber-200">
+              <Card className="bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800/60 shadow-sm">
                 <CardContent className="p-6 flex items-center gap-4">
-                  <div className="bg-amber-100 p-4 rounded-full text-amber-600"><Clock size={28} /></div>
+                  <div className="bg-amber-100 dark:bg-amber-900/60 p-4 rounded-2xl text-amber-600 dark:text-amber-300 shrink-0"><Clock size={28} /></div>
                   <div>
-                    <p className="text-amber-800 text-sm font-bold uppercase tracking-wider">Pending Classes</p>
-                    <h2 className="text-3xl font-black text-amber-600">{metrics.pendingClasses}</h2>
+                    <p className="text-amber-800 dark:text-amber-300 text-sm font-bold uppercase tracking-wider">Pending Classes</p>
+                    <h2 className="text-3xl font-black text-amber-600 dark:text-amber-400">{metrics.pendingClasses}</h2>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="bg-slate-50 border-slate-200">
+              <Card className="bg-slate-50 dark:bg-slate-900/70 border-slate-200 dark:border-slate-800 shadow-sm">
                 <CardContent className="p-6 flex items-center gap-4">
-                  <div className="bg-slate-200 p-4 rounded-full text-slate-600"><AlertCircle size={28} /></div>
+                  <div className="bg-slate-200 dark:bg-slate-800 p-4 rounded-2xl text-slate-600 dark:text-slate-300 shrink-0"><AlertCircle size={28} /></div>
                   <div>
-                    <p className="text-slate-600 text-sm font-bold uppercase tracking-wider">Open Alerts</p>
-                    <h2 className="text-3xl font-black text-slate-700">{metrics.openAlerts}</h2>
+                    <p className="text-slate-700 dark:text-slate-300 text-sm font-bold uppercase tracking-wider">Open Alerts</p>
+                    <h2 className="text-3xl font-black text-slate-800 dark:text-slate-100">{metrics.openAlerts}</h2>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="bg-red-50 border-red-200">
+              <Card className="bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800/60 shadow-sm">
                 <CardContent className="p-6 flex items-center gap-4">
-                  <div className="bg-red-100 p-4 rounded-full text-red-600"><AlertTriangle size={28} /></div>
+                  <div className="bg-red-100 dark:bg-red-900/60 p-4 rounded-2xl text-red-600 dark:text-red-300 shrink-0"><AlertTriangle size={28} /></div>
                   <div>
-                    <p className="text-red-800 text-sm font-bold uppercase tracking-wider">Critical Alerts</p>
-                    <h2 className="text-3xl font-black text-red-600">{metrics.criticalAlerts}</h2>
+                    <p className="text-red-800 dark:text-red-300 text-sm font-bold uppercase tracking-wider">Critical Alerts</p>
+                    <h2 className="text-3xl font-black text-red-600 dark:text-red-400">{metrics.criticalAlerts || 0}</h2>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            <Card>
-              <CardHeader className="border-b border-slate-100 pb-4">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <CardTitle className="flex items-center gap-2 text-red-600">
-                    <AlertTriangle size={20} /> System Alerts
+            <Card className="overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm">
+              <CardHeader className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 p-5">
+                <div className="flex justify-between items-center flex-wrap gap-3">
+                  <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-white text-lg font-bold">
+                    <AlertTriangle className="text-amber-500 shrink-0" size={22} /> System Alerts & Anomalies
                   </CardTitle>
-                  <div className="flex gap-2 flex-wrap">
+                  <div className="flex gap-1 bg-slate-200/80 dark:bg-slate-800/90 p-1 rounded-xl border border-slate-300/60 dark:border-slate-700">
                     {['all', 'open', 'critical', 'attendance', 'resolved'].map(filter => (
-                      <Badge 
-                        key={filter} 
-                        variant={filter === 'resolved' ? 'success' : filter === 'critical' || filter === 'open' ? 'danger' : 'secondary'} 
-                        className={`cursor-pointer transition-colors ${alertFilter === filter ? 'ring-2 ring-offset-1 ring-slate-400' : 'opacity-70 hover:opacity-100'}`}
+                      <button
+                        key={filter}
                         onClick={() => setAlertFilter(filter)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${
+                          alertFilter === filter 
+                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
                       >
-                        {filter.charAt(0).toUpperCase() + filter.slice(1)}
-                      </Badge>
+                        {filter}
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -413,36 +532,98 @@ const PrincipalPortal = () => {
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
-                    <thead className="bg-slate-50 border-b border-slate-200">
+                    <thead className="bg-slate-100 dark:bg-slate-800/90 border-b border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
                       <tr>
-                        <th className="p-4 font-semibold text-slate-600 text-sm">Priority</th>
-                        <th className="p-4 font-semibold text-slate-600 text-sm">Alert Type</th>
-                        <th className="p-4 font-semibold text-slate-600 text-sm">Student</th>
-                        <th className="p-4 font-semibold text-slate-600 text-sm">Class</th>
-                        <th className="p-4 font-semibold text-slate-600 text-sm">Date</th>
-                        <th className="p-4 font-semibold text-slate-600 text-sm">Status</th>
+                        <th className="p-4">Alert Details</th>
+                        <th className="p-4">Priority</th>
+                        <th className="p-4">Category</th>
+                        <th className="p-4">Time</th>
+                        <th className="p-4">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
                       {systemAlerts.length === 0 ? (
-                        <tr><td colSpan="6" className="p-8 text-center text-slate-500">No alerts match your filter.</td></tr>
+                        <tr>
+                          <td colSpan={5} className="p-8 text-center text-slate-500 dark:text-slate-400 font-medium">
+                            No alerts matching filter.
+                          </td>
+                        </tr>
                       ) : (
-                        systemAlerts.map(alert => (
-                          <tr key={alert.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="p-4">
-                              <Badge variant={alert.priority === 'critical' ? 'danger' : alert.priority === 'high' ? 'warning' : 'secondary'}>
-                                {alert.priority || 'medium'}
-                              </Badge>
-                            </td>
-                            <td className="p-4 font-semibold text-slate-800">{alert.alert_type}</td>
-                            <td className="p-4 text-slate-700">{alert.students?.name || 'Unknown'}</td>
-                            <td className="p-4 text-slate-600">{alert.classes ? `${alert.classes.name} ${alert.classes.section}` : '-'}</td>
-                            <td className="p-4 text-slate-500 text-sm">{new Date(alert.created_at).toLocaleDateString()}</td>
-                            <td className="p-4">
-                              <Badge variant={alert.status === 'open' ? 'danger' : 'success'}>{alert.status}</Badge>
-                            </td>
-                          </tr>
-                        ))
+                        systemAlerts.map(alert => {
+                          const isAbsenceAlert = alert.title?.includes('Absence Alert') || alert.category === 'attendance' || alert.category === 'Attendance';
+                          const isCritical = alert.priority === 'critical' || isAbsenceAlert;
+
+                          return (
+                            <tr 
+                              key={alert.id} 
+                              className={`transition-colors ${
+                                isCritical 
+                                  ? 'bg-red-50/80 hover:bg-red-100/70 dark:bg-red-950/40 dark:hover:bg-red-950/60 border-l-4 border-l-red-500' 
+                                  : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                              }`}
+                            >
+                              <td className="p-4">
+                                <div className="flex items-start gap-3">
+                                  <div className={`p-2 rounded-xl shrink-0 mt-0.5 shadow-sm ${
+                                    isCritical 
+                                      ? 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400 border border-red-200 dark:border-red-500/30' 
+                                      : 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30'
+                                  }`}>
+                                    <AlertTriangle size={18} />
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <p className="font-bold text-slate-900 dark:text-white text-base tracking-tight leading-snug">
+                                        {alert.title}
+                                      </p>
+                                      {isAbsenceAlert && (
+                                        <button 
+                                          onClick={() => { setActiveTab('attendance'); setShowAbsentees(true); }}
+                                          className="text-xs font-bold text-red-700 dark:text-red-300 hover:text-red-800 dark:hover:text-red-200 bg-red-100 dark:bg-red-900/60 px-2 py-0.5 rounded transition-colors inline-flex items-center gap-1"
+                                        >
+                                          View Absentees →
+                                        </button>
+                                      )}
+                                    </div>
+                                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200 mt-1 leading-relaxed">
+                                      {alert.description}
+                                    </p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-4 align-middle">
+                                <Badge 
+                                  variant={isCritical ? 'danger' : 'warning'} 
+                                  className={`font-bold uppercase tracking-wider text-xs px-3 py-1 ${
+                                    isCritical 
+                                      ? 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/70 dark:text-red-200 dark:border-red-700' 
+                                      : 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/70 dark:text-amber-200 dark:border-amber-700'
+                                  }`}
+                                >
+                                  {alert.priority}
+                                </Badge>
+                              </td>
+                              <td className="p-4 align-middle capitalize text-slate-800 dark:text-slate-200 font-semibold">
+                                {alert.category}
+                              </td>
+                              <td className="p-4 align-middle text-xs font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                                {new Date(alert.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </td>
+                              <td className="p-4 align-middle">
+                                <Badge 
+                                  variant={alert.status === 'open' ? 'danger' : 'success'} 
+                                  className={`font-bold uppercase tracking-wider text-xs px-3 py-1 ${
+                                    alert.status === 'open' 
+                                      ? 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/70 dark:text-red-200 dark:border-red-700' 
+                                      : 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/70 dark:text-emerald-200 dark:border-emerald-700'
+                                  }`}
+                                >
+                                  {alert.status}
+                                </Badge>
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -473,7 +654,7 @@ const PrincipalPortal = () => {
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={exportCSV}><FileText size={16} className="mr-2" /> Export CSV</Button>
+                  <Button variant="outline" onClick={handleExportAttendanceCSV}><FileText size={16} className="mr-2" /> Export CSV</Button>
                   <Button variant="outline" onClick={() => window.print()}><Printer size={16} className="mr-2" /> Print</Button>
                 </div>
               </div>
@@ -490,10 +671,10 @@ const PrincipalPortal = () => {
                   const perc = total > 0 ? ((pres / total) * 100).toFixed(1) : 0;
                   return (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                      <Card className="border-l-4 border-l-brand-500 bg-slate-50"><CardContent className="p-4 flex items-center gap-4"><div className="p-3 bg-white rounded-xl shadow-sm text-brand-600"><Users size={24}/></div><div><p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Records</p><h3 className="text-2xl font-black">{total}</h3></div></CardContent></Card>
-                      <Card className="border-l-4 border-l-emerald-500 bg-emerald-50"><CardContent className="p-4 flex items-center gap-4"><div className="p-3 bg-white rounded-xl shadow-sm text-emerald-600"><CheckCircle size={24}/></div><div><p className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Present</p><h3 className="text-2xl font-black text-emerald-700">{pres}</h3></div></CardContent></Card>
-                      <Card className="border-l-4 border-l-red-500 bg-red-50"><CardContent className="p-4 flex items-center gap-4"><div className="p-3 bg-white rounded-xl shadow-sm text-red-600"><XCircle size={24}/></div><div><p className="text-xs font-bold text-red-800 uppercase tracking-wider">Absent</p><h3 className="text-2xl font-black text-red-700">{abs}</h3></div></CardContent></Card>
-                      <Card className="border-l-4 border-l-indigo-500 bg-indigo-50"><CardContent className="p-4 flex items-center gap-4"><div className="p-3 bg-white rounded-xl shadow-sm text-indigo-600"><Calendar size={24}/></div><div><p className="text-xs font-bold text-indigo-800 uppercase tracking-wider">Attendance %</p><h3 className="text-2xl font-black text-indigo-700">{perc}%</h3></div></CardContent></Card>
+                      <Card className="border-l-4 border-l-brand-500 bg-slate-50 dark:bg-slate-900/70 border-slate-200 dark:border-slate-800"><CardContent className="p-4 flex items-center gap-4"><div className="p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-brand-600 dark:text-brand-400"><Users size={24}/></div><div><p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Records</p><h3 className="text-2xl font-black text-slate-900 dark:text-white">{total}</h3></div></CardContent></Card>
+                      <Card className="border-l-4 border-l-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60"><CardContent className="p-4 flex items-center gap-4"><div className="p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-emerald-600 dark:text-emerald-400"><CheckCircle size={24}/></div><div><p className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">Present</p><h3 className="text-2xl font-black text-emerald-700 dark:text-emerald-400">{pres}</h3></div></CardContent></Card>
+                      <Card className="border-l-4 border-l-red-500 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800/60"><CardContent className="p-4 flex items-center gap-4"><div className="p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-red-600 dark:text-red-400"><XCircle size={24}/></div><div><p className="text-xs font-bold text-red-800 dark:text-red-300 uppercase tracking-wider">Absent</p><h3 className="text-2xl font-black text-red-700 dark:text-red-400">{abs}</h3></div></CardContent></Card>
+                      <Card className="border-l-4 border-l-indigo-500 bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800/60"><CardContent className="p-4 flex items-center gap-4"><div className="p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-indigo-600 dark:text-indigo-400"><Calendar size={24}/></div><div><p className="text-xs font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider">Attendance %</p><h3 className="text-2xl font-black text-indigo-700 dark:text-indigo-400">{perc}%</h3></div></CardContent></Card>
                     </div>
                   );
                 })()}
@@ -502,37 +683,62 @@ const PrincipalPortal = () => {
                   const absentees = attendanceData.filter(a => ['Absent', 'Leave'].includes(a.status));
                   if (!absentees.length) return null;
                   return (
-                    <Card className="overflow-hidden">
-                      <button className="w-full bg-white p-4 flex justify-between items-center text-left hover:bg-slate-50 transition-colors focus:outline-none" onClick={() => setShowAbsentees(!showAbsentees)}>
+                    <Card className="overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm">
+                      <button className="w-full bg-white dark:bg-slate-900 p-4 flex justify-between items-center text-left hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors focus:outline-none" onClick={() => setShowAbsentees(!showAbsentees)}>
                         <div className="flex items-center gap-4">
-                          <div className="bg-red-100 p-2.5 rounded-full"><AlertTriangle className="text-red-600" size={20} /></div>
-                          <div><h3 className="font-bold text-lg text-slate-800">Absent Students List</h3><p className="text-sm text-slate-500">View details and privately notify ({absentees.length} records)</p></div>
+                          <div className="bg-red-100 dark:bg-red-900/60 p-2.5 rounded-full"><AlertTriangle className="text-red-600 dark:text-red-300" size={20} /></div>
+                          <div><h3 className="font-bold text-lg text-slate-900 dark:text-white">Absent Students List</h3><p className="text-sm text-slate-500 dark:text-slate-400">View details and privately notify ({absentees.length} records)</p></div>
                         </div>
                         <ChevronDown size={24} className={`text-slate-400 transition-transform ${showAbsentees ? 'rotate-180' : ''}`} />
                       </button>
                       <AnimatePresence>
                         {showAbsentees && (
                           <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
-                            <div className="p-6 bg-slate-50 border-t border-slate-100">
+                            <div className="p-6 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800">
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {absentees.map(a => {
                                   const student = studentsData.find(s => s.id === a.student_id);
                                   const cls = classesData.find(c => c.id === a.class_id);
                                   if (!student) return null;
                                   return (
-                                    <Card key={a.id} className="flex flex-col justify-between hover:shadow-md transition-shadow">
+                                    <Card key={a.id} className="flex flex-col justify-between hover:shadow-md transition-shadow bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
                                       <CardContent className="p-4">
-                                        <div className="flex items-start gap-4 mb-4">
-                                          <div className="w-12 h-12 rounded-full bg-slate-100 overflow-hidden flex-shrink-0 flex items-center justify-center border border-slate-200">
+                                        <div className="flex items-start gap-4 mb-3">
+                                          <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden flex-shrink-0 flex items-center justify-center border border-slate-200 dark:border-slate-700">
                                             {student.picture_url ? <img src={student.picture_url} className="w-full h-full object-cover" /> : <User size={24} className="text-slate-400" />}
                                           </div>
                                           <div>
-                                            <h4 className="font-bold text-slate-800 leading-tight">{student.name}</h4>
-                                            <p className="text-xs text-slate-500 mb-1">{cls ? `${cls.name} ${cls.section}` : ''}</p>
-                                            <Badge variant="danger">{a.status}</Badge>
+                                            <h4 className="font-bold text-slate-900 dark:text-white leading-tight text-base">{formatStudentDisplayName(student.name)}</h4>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mb-1.5">{cls ? `${cls.name} ${cls.section}` : ''} • Roll No. {student.roll_no || 'N/A'}</p>
+                                            <Badge variant="danger" className="font-bold text-xs uppercase px-2 py-0.5">{a.status}</Badge>
                                           </div>
                                         </div>
-                                        <Button onClick={() => handleNotifyAbsentee(student.id, a.date)} className="w-full" size="sm"><Send size={14} className="mr-2"/> Send Notice</Button>
+
+                                        {student.father_name && (
+                                          <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                                            Guardian: <span className="font-semibold text-slate-700 dark:text-slate-200">{student.father_name}</span>
+                                          </p>
+                                        )}
+
+                                        <div className="mt-3 flex flex-col gap-2">
+                                          {student.contact_number ? (
+                                            <a 
+                                              href={absenteeNotificationService.generateParentWhatsAppUrl(student, cls ? `${cls.name} ${cls.section}` : '', a.date)}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="flex items-center justify-center gap-1.5 w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
+                                            >
+                                              <Phone size={14} /> WhatsApp Parent ({student.contact_number})
+                                            </a>
+                                          ) : (
+                                            <div className="text-[11px] text-slate-400 dark:text-slate-400 italic text-center py-1 bg-slate-100 dark:bg-slate-800 rounded">
+                                              No parent phone registered
+                                            </div>
+                                          )}
+                                          <Button onClick={() => handleNotifyAbsentee(student, a.date)} className="w-full text-xs font-semibold" size="sm" variant="outline">
+                                            <Send size={13} className="mr-1.5"/> Send Portal Alert
+                                          </Button>
+                                        </div>
                                       </CardContent>
                                     </Card>
                                   );
@@ -659,7 +865,7 @@ const PrincipalPortal = () => {
                       <tbody className="divide-y divide-slate-100 bg-white">
                         {searchResults.map(u => (
                           <tr key={u.id} className="hover:bg-slate-50">
-                            <td className="p-4 font-semibold text-slate-800">{u.name}</td>
+                            <td className="p-4 font-semibold text-slate-800">{u.role === 'student' ? formatStudentDisplayName(u.name) : u.name}</td>
                             <td className="p-4"><Badge variant="secondary" className="uppercase">{u.role}</Badge></td>
                             <td className="p-4 text-slate-600">{u.class ? `${u.class} ${u.section || ''}` : (u.subject || '-')}</td>
                             <td className="p-4 text-slate-400 font-mono text-sm">{u.uid_display || u.id}</td>

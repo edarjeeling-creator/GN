@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Edit, FileText, CheckCircle, Clock } from 'lucide-react';
+import { formatStudentDisplayName } from '../utils/studentUtils';
 
 export default function WeeklyTests() {
   const { profile: user } = useAuth();
@@ -221,7 +222,7 @@ export default function WeeklyTests() {
               {students.map(student => (
                 <tr key={student.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="p-4">{student.roll_no}</td>
-                  <td className="p-4 font-medium">{student.name}</td>
+                  <td className="p-4 font-medium">{formatStudentDisplayName(student.name)}</td>
                   <td className="p-4">
                     <input
                       type="number"

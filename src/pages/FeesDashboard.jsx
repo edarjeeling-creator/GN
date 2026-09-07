@@ -23,11 +23,11 @@ const FeesDashboard = () => {
   return (
     <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.025em', marginBottom: '0.5rem' }}>Fee Management</h1>
-        <p style={{ color: '#64748b', fontSize: '1.05rem' }}>Comprehensive reconciliation, collection, and configuration center.</p>
+        <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#ffffff', letterSpacing: '-0.025em', marginBottom: '0.5rem' }}>Fee Management</h1>
+        <p style={{ color: '#94a3b8', fontSize: '1.05rem' }}>Comprehensive reconciliation, collection, and configuration center.</p>
       </div>
 
-      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '2px solid #e2e8f0', marginBottom: '2rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '2px solid rgba(255, 255, 255, 0.1)', marginBottom: '2rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
         {tabs.map(tab => (
           <button
             key={tab.id}
@@ -37,8 +37,8 @@ const FeesDashboard = () => {
               alignItems: 'center',
               gap: '0.5rem',
               padding: '0.75rem 1.25rem',
-              background: activeTab === tab.id ? '#eff6ff' : 'transparent',
-              color: activeTab === tab.id ? '#2563eb' : '#64748b',
+              background: activeTab === tab.id ? '#ffffff' : 'transparent',
+              color: activeTab === tab.id ? '#2563eb' : '#94a3b8',
               border: 'none',
               borderRadius: '0.5rem',
               fontWeight: activeTab === tab.id ? '700' : '600',
@@ -48,14 +48,14 @@ const FeesDashboard = () => {
             }}
             onMouseOver={(e) => {
               if (activeTab !== tab.id) {
-                e.currentTarget.style.background = '#f8fafc';
-                e.currentTarget.style.color = '#0f172a';
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.color = '#f8fafc';
               }
             }}
             onMouseOut={(e) => {
               if (activeTab !== tab.id) {
                 e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.color = '#64748b';
+                e.currentTarget.style.color = '#94a3b8';
               }
             }}
           >
@@ -65,7 +65,7 @@ const FeesDashboard = () => {
         ))}
       </div>
 
-      <div style={{ background: '#ffffff', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)', padding: '2rem', minHeight: '600px' }}>
+      <div style={{ background: '#ffffff', color: '#0f172a', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)', padding: '2rem', minHeight: '600px' }}>
         {activeTab === 'overview' && <FeeOverview />}
 
         {activeTab === 'engine' && <FeeGenerationEngine />}

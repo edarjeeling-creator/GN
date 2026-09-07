@@ -305,49 +305,49 @@ const BulkBankReceipts = () => {
           
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#475569', marginBottom: '0.5rem' }}>Deposit Date *</label>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>Deposit Date *</label>
               <input 
                 type="date" 
                 name="depositDate"
                 value={batchData.depositDate}
                 onChange={handleBatchChange}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.9rem' }}
               />
             </div>
             
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#475569', marginBottom: '0.5rem' }}>Bank Name *</label>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>Bank Name *</label>
               <input 
                 type="text" 
                 name="bankName"
                 placeholder="e.g., State Bank of India"
                 value={batchData.bankName}
                 onChange={handleBatchChange}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.9rem' }}
               />
             </div>
             
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#475569', marginBottom: '0.5rem' }}>Branch (Optional)</label>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>Branch (Optional)</label>
               <input 
                 type="text" 
                 name="branch"
                 placeholder="e.g., Main Branch"
                 value={batchData.branch}
                 onChange={handleBatchChange}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.9rem' }}
               />
             </div>
             
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#475569', marginBottom: '0.5rem' }}>Total Bundle Amount (₹) *</label>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>Total Bundle Amount (₹) *</label>
               <input 
                 type="number" 
                 name="totalAmount"
                 placeholder="Amount written on back of bundle"
                 value={batchData.totalAmount}
                 onChange={handleBatchChange}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '1.125rem', fontWeight: 'bold' }}
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '1.125rem', fontWeight: 'bold', color: '#0f172a', background: '#ffffff' }}
               />
             </div>
           </div>
@@ -403,22 +403,22 @@ const BulkBankReceipts = () => {
           </div>
 
           {/* SPREADSHEET */}
-          <div style={{ background: 'white', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+          <div style={{ background: 'white', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+              <thead style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1' }}>
                 <tr>
-                  <th style={{ padding: '1rem', textAlign: 'left', color: '#475569', fontWeight: '600', width: '50px' }}>#</th>
-                  <th style={{ padding: '1rem', textAlign: 'left', color: '#475569', fontWeight: '600', width: '180px' }}>Student UID *</th>
-                  <th style={{ padding: '1rem', textAlign: 'left', color: '#475569', fontWeight: '600' }}>Student Details</th>
-                  <th style={{ padding: '1rem', textAlign: 'left', color: '#475569', fontWeight: '600', width: '150px' }}>Amount (₹) *</th>
-                  <th style={{ padding: '1rem', textAlign: 'left', color: '#475569', fontWeight: '600', width: '180px' }}>Slip/Ref No</th>
-                  <th style={{ padding: '1rem', textAlign: 'left', color: '#475569', fontWeight: '600', width: '80px' }}>Action</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', color: '#0f172a', fontWeight: '700', fontSize: '0.875rem', width: '50px' }}>#</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', color: '#0f172a', fontWeight: '700', fontSize: '0.875rem', width: '180px' }}>Student UID *</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', color: '#0f172a', fontWeight: '700', fontSize: '0.875rem' }}>Student Details</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', color: '#0f172a', fontWeight: '700', fontSize: '0.875rem', width: '150px' }}>Amount (₹) *</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', color: '#0f172a', fontWeight: '700', fontSize: '0.875rem', width: '180px' }}>Slip/Ref No</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', color: '#0f172a', fontWeight: '700', fontSize: '0.875rem', width: '80px' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {entries.map((entry, index) => (
                   <tr key={entry.id} style={{ borderBottom: '1px solid #e2e8f0', background: entry.status === 'error' ? '#fef2f2' : 'white' }}>
-                    <td style={{ padding: '0.75rem', color: '#94a3b8', fontWeight: '500', textAlign: 'center' }}>
+                    <td style={{ padding: '0.75rem', color: '#64748b', fontWeight: '600', textAlign: 'center' }}>
                       {index + 1}
                     </td>
                     <td style={{ padding: '0.75rem' }}>
@@ -430,18 +430,18 @@ const BulkBankReceipts = () => {
                         onBlur={(e) => handleUidBlur(entry.id, e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, entry.id, 'uid', index, 0)}
                         placeholder="Scan or type"
-                        style={{ width: '100%', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '0.25rem' }}
+                        style={{ width: '100%', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '0.25rem', color: '#0f172a', background: '#ffffff', fontSize: '0.9rem' }}
                       />
                     </td>
                     <td style={{ padding: '0.75rem' }}>
                       {loadingRowId === entry.id ? (
-                        <span style={{ color: '#94a3b8' }}>Loading...</span>
+                        <span style={{ color: '#64748b' }}>Loading...</span>
                       ) : entry.name ? (
                         <div>
-                          <div style={{ fontWeight: '600', color: entry.status === 'error' ? '#ef4444' : '#1e293b' }}>{entry.name}</div>
-                          <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', gap: '1rem' }}>
-                            <span>{entry.class}</span>
-                            {entry.outstanding > 0 && <span style={{ color: '#f59e0b' }}>Due: ₹{entry.outstanding}</span>}
+                          <div style={{ fontWeight: '700', color: entry.status === 'error' ? '#ef4444' : '#0f172a' }}>{entry.name}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#475569', display: 'flex', gap: '1rem' }}>
+                            <span style={{ fontWeight: 600 }}>{entry.class}</span>
+                            {entry.outstanding > 0 && <span style={{ color: '#d97706', fontWeight: 600 }}>Due: ₹{entry.outstanding}</span>}
                           </div>
                         </div>
                       ) : null}
@@ -454,7 +454,7 @@ const BulkBankReceipts = () => {
                         onChange={(e) => handleEntryChange(entry.id, 'amount', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, entry.id, 'amount', index, 1)}
                         placeholder="0.00"
-                        style={{ width: '100%', padding: '0.5rem', border: '2px solid #cbd5e1', borderRadius: '0.25rem', fontWeight: 'bold' }}
+                        style={{ width: '100%', padding: '0.5rem', border: '2px solid #cbd5e1', borderRadius: '0.25rem', fontWeight: 'bold', color: '#0f172a', background: '#ffffff', fontSize: '0.95rem' }}
                       />
                     </td>
                     <td style={{ padding: '0.75rem' }}>
@@ -465,7 +465,7 @@ const BulkBankReceipts = () => {
                         onChange={(e) => handleEntryChange(entry.id, 'slip', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, entry.id, 'slip', index, 2)}
                         placeholder="Optional"
-                        style={{ width: '100%', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '0.25rem' }}
+                        style={{ width: '100%', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '0.25rem', color: '#0f172a', background: '#ffffff', fontSize: '0.9rem' }}
                       />
                     </td>
                     <td style={{ padding: '0.75rem', textAlign: 'center' }}>

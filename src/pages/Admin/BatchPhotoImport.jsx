@@ -4,6 +4,7 @@ import { findBestMatch } from '../../utils/matchingEngine';
 import { CheckCircle, AlertTriangle, Upload, X, RefreshCw } from 'lucide-react';
 
 import { processPdfFile } from '../../utils/pdfProcessor';
+import { formatStudentDisplayName } from '../../utils/studentUtils';
 
 const BatchPhotoImport = ({ students, classes, onUploadSuccess }) => {
   const [file, setFile] = useState(null);
@@ -217,7 +218,7 @@ const BatchPhotoImport = ({ students, classes, onUploadSuccess }) => {
                     <>
                       <div className="flex justify-between items-center mb-2">
                         <p style={{ fontWeight: 700 }}>
-                          Match: {item.match.student.name}
+                          Match: {formatStudentDisplayName(item.match.student.name)}
                           <button 
                             className="text-primary hover:underline ml-3 text-xs"
                             onClick={() => setResults(prev => prev.map((r, i) => i === idx ? { ...r, match: { score: 0, type: 'Manual Override', student: null }, status: 'pending' } : r))}
@@ -282,8 +283,8 @@ const BatchPhotoImport = ({ students, classes, onUploadSuccess }) => {
                         defaultValue=""
                       >
                         <option value="" disabled>Manually assign to student...</option>
-                        {students.sort((a,b) => a.name.localeCompare(b.name)).map(s => (
-                          <option key={s.id} value={s.id}>{s.name} (Roll: {s.roll_no})</option>
+                        {students.sort((a,b) => formatStudentDisplayName(a.name).localeCompare(formatStudentDisplayName(b.name))).map(s => (
+                          <option key={s.id} value={s.id}>{formatStudentDisplayName(s.name)} (Roll: {s.roll_no})</option>
                         ))}
                       </select>
                       

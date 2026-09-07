@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, User, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText, AlertTriangle, Lock, Menu, X, Wallet, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Users, User, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText, AlertTriangle, Lock, Menu, X, Wallet, MessageSquare, ClipboardCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeProvider';
 import { useSubscription } from '../context/SubscriptionContext';
 import { useChat } from '../context/ChatContext';
 import { supabase } from '../lib/supabase';
+import { devicePushService } from '../services/DevicePushService';
 
 const Layout = ({ children }) => {
   const { profile, logout, loading } = useAuth();
@@ -18,6 +19,7 @@ const Layout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [unreadPrincipalNotifs, setUnreadPrincipalNotifs] = useState(0);
   const { unreadCounts } = useChat();
   const totalChatUnread = Object.values(unreadCounts || {}).reduce((a, b) => a + b, 0);
 
@@ -40,6 +42,9 @@ const Layout = ({ children }) => {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'student_notifications' }, () => {
            fetchUnreadCount();
         })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, () => {
+           fetchUnreadCount();
+        })
         .subscribe();
         
       return () => {
@@ -48,23 +53,99 @@ const Layout = ({ children }) => {
     }
   }, [profile, students]);
 
+  // Mobile device push registration for all logged in roles (Principal, Admin, Teacher, Student)
+  useEffect(() => {
+    if (profile?.id) {
+      devicePushService.registerCurrentDevice(profile.school_id);
+    }
+    return () => {
+      devicePushService.cleanup();
+    };
+  }, [profile?.id, profile?.school_id]);
+
+  // Track unread in-app alerts for Principal & Admin
+  useEffect(() => {
+    if (!profile?.id) return;
+    if (profile.role === 'principal' || profile.role === 'admin') {
+      const fetchPrincipalUnread = async () => {
+        const { count } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', profile.id)
+          .eq('is_read', false);
+        if (count !== null) setUnreadPrincipalNotifs(count);
+      };
+      fetchPrincipalUnread();
+
+      const channel = supabase.channel(`principal_badge_${profile.id}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${profile.id}`
+        }, () => {
+          fetchPrincipalUnread();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [profile?.id, profile?.role]);
+
   const fetchUnreadCount = async () => {
-    if (!profile || !students) return;
+    if (!profile) return;
     const student = students?.find(s => 
       s.id === profile.id || 
       (profile.uid && s.uid === profile.uid) || 
       (profile.name && s.name && s.name.trim().toLowerCase() === profile.name.trim().toLowerCase())
-    );
+    ) || (profile.role === 'student' ? profile : null);
     if (!student) return;
-    
-    const { count } = await supabase
-      .from('student_notifications')
-      .select('*', { count: 'exact', head: true })
-      .eq('student_id', student.id)
-      .eq('is_read', false)
-      .neq('is_invalid', true);
-      
-    if (count !== null) setUnreadNotifications(count);
+
+    let total = 0;
+    try {
+      const { count } = await supabase
+        .from('student_notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('student_id', student.id)
+        .eq('is_read', false)
+        .neq('is_invalid', true);
+      if (count !== null && !isNaN(count)) total += count;
+    } catch (e) {}
+
+    let attendanceList = [];
+    try {
+      const { data: att } = await supabase
+        .from('attendance')
+        .select('id, date, status')
+        .eq('student_id', student.id)
+        .in('status', ['Absent', 'Leave', 'Half Day']);
+      if (att && att.length > 0) attendanceList = att;
+    } catch (e) {}
+
+    if (attendanceList.length === 0 && student.uid) {
+      try {
+        const { data: reportData } = await supabase.rpc('get_student_report', {
+          p_uid: String(student.uid),
+          p_academic_year: '2026'
+        });
+        if (reportData?.attendance) {
+          attendanceList = reportData.attendance.filter(r => ['Absent', 'Leave', 'Half Day'].includes(r.status));
+        }
+      } catch (err) {}
+    }
+
+    if (attendanceList.length > 0) {
+      const unack = attendanceList.filter(r => {
+        const ackKey = `student_ack_absence_${student.id}_${r.id || r.date}`;
+        const readKey = `student_read_absence_${student.id}_${r.id || r.date}`;
+        return !localStorage.getItem(ackKey) && !localStorage.getItem(readKey);
+      }).length;
+      total += unack;
+    }
+
+    setUnreadNotifications(total);
   };
 
   const isNotExpired = (expiresAt) => {
@@ -392,16 +473,21 @@ const Layout = ({ children }) => {
             return (
               <>
                 {profile?.role === 'student' && (
-                  <NavLink to="/student-portal" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <LayoutDashboard size={18} /> Student Portal
-                    </div>
-                    {unreadNotifications > 0 && (
-                      <span style={{ background: '#ef4444', color: 'white', fontSize: '0.65rem', fontWeight: 'bold', padding: '0.1rem 0.4rem', borderRadius: '9999px' }}>
-                        {unreadNotifications}
-                      </span>
-                    )}
-                  </NavLink>
+                  <>
+                    <NavLink to="/student-portal" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <LayoutDashboard size={18} /> Student Portal
+                      </div>
+                      {unreadNotifications > 0 && (
+                        <span style={{ background: '#ef4444', color: 'white', fontSize: '0.65rem', fontWeight: 'bold', padding: '0.1rem 0.4rem', borderRadius: '9999px' }}>
+                          {unreadNotifications}
+                        </span>
+                      )}
+                    </NavLink>
+                    <NavLink to="/hpc/my-card" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                      <ClipboardCheck size={18} /> 360° Progress Card
+                    </NavLink>
+                  </>
                 )}
 
                 {isTeacherOrAdminOrTeachingPrincipal && (
@@ -455,6 +541,9 @@ const Layout = ({ children }) => {
                     <NavLink to="/weekly-tests" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
                       <FileText size={18} /> Weekly Tests
                     </NavLink>
+                    <NavLink to="/hpc/workspace" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                      <ClipboardCheck size={18} /> HPC Workspace
+                    </NavLink>
                   </>
                 )}
               </>
@@ -463,11 +552,21 @@ const Layout = ({ children }) => {
 
           {(profile?.role === 'principal' || profile?.role === 'admin') && (
             <>
-              <NavLink to="/principal" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
-                <Shield size={18} /> {profile?.designation && profile.role === 'principal' ? `${profile.designation} Portal` : 'Principal Portal'}
+              <NavLink to="/principal" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Shield size={18} /> {profile?.designation && profile.role === 'principal' ? `${profile.designation} Portal` : 'Principal Portal'}
+                </div>
+                {unreadPrincipalNotifs > 0 && (
+                  <span style={{ background: '#ef4444', color: 'white', fontSize: '0.65rem', fontWeight: 'bold', padding: '0.1rem 0.4rem', borderRadius: '9999px' }}>
+                    {unreadPrincipalNotifs}
+                  </span>
+                )}
               </NavLink>
               <NavLink to="/analytics" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
                 <BarChart3 size={18} /> Analytics
+              </NavLink>
+              <NavLink to="/hpc/review" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                <ClipboardCheck size={18} /> HPC Review
               </NavLink>
               <NavLink to="/search" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
                 <Search size={18} /> Search Users
@@ -476,9 +575,14 @@ const Layout = ({ children }) => {
           )}
 
           {profile?.role === 'admin' && (
-             <NavLink to="/admin" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
-               <Shield size={18} /> Admin Panel
-             </NavLink>
+             <>
+               <NavLink to="/admin" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                 <Shield size={18} /> Admin Panel
+               </NavLink>
+               <NavLink to="/hpc/config" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                 <ClipboardCheck size={18} /> HPC Configuration
+               </NavLink>
+             </>
           )}
 
           {(profile?.role === 'admin' || profile?.role === 'accountant') && (

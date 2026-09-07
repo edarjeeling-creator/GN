@@ -15,6 +15,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { useTheme } from '../../context/ThemeProvider';
+import { formatStudentDisplayName } from '../../utils/studentUtils';
 
 const MobileDrawer = ({ isOpen, onClose }) => {
   const { profile } = useAuth();
@@ -41,7 +42,9 @@ const MobileDrawer = ({ isOpen, onClose }) => {
     (profile?.name && s.name && s.name.trim().toLowerCase() === profile.name.trim().toLowerCase())
   );
   
-  const displayName = profile?.name || studentData?.name || 'STUDENT';
+  const rawName = profile?.name || studentData?.name;
+  const isStudent = profile?.role === 'student' || (!profile?.role && studentData);
+  const displayName = isStudent && rawName ? formatStudentDisplayName(rawName) : (rawName || 'STUDENT');
   const roleDisplay = profile?.role === 'student' ? 'Student' : (profile?.role || 'User');
 
   const handleNavigation = (path) => {

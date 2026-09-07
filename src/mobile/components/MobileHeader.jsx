@@ -3,6 +3,7 @@ import { Bell, SlidersHorizontal, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { formatStudentDisplayName } from '../../utils/studentUtils';
 
 const MobileHeader = ({ onMenuClick }) => {
   const { profile } = useAuth();
@@ -16,7 +17,9 @@ const MobileHeader = ({ onMenuClick }) => {
   );
 
   const profileImage = profile?.picture_url || studentData?.picture_url;
-  const displayName = profile?.name || studentData?.name || 'STUDENT';
+  const rawName = profile?.name || studentData?.name;
+  const isStudent = profile?.role === 'student' || (!profile?.role && studentData);
+  const displayName = isStudent && rawName ? formatStudentDisplayName(rawName) : (rawName || 'STUDENT');
 
   return (
     <div style={{

@@ -13,6 +13,7 @@ import MobileCard from '../components/ui/MobileCard';
 import AccordionSection from '../components/AccordionSection';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { formatStudentDisplayName } from '../../utils/studentUtils';
 
 const StatCard = ({ title, value, subtext, icon, color }) => (
   <MobileCard style={{ 
@@ -63,7 +64,9 @@ const MobileProfile = () => {
   const studentClass = classes?.find(c => c.id === studentData?.class_id);
   const className = studentClass ? `${studentClass.name}-${studentClass.section || ''}` : '';
   const profileImage = profile?.picture_url || studentData?.picture_url;
-  const displayName = profile?.name || studentData?.name || 'STUDENT';
+  const rawName = profile?.name || studentData?.name;
+  const isStudent = profile?.role === 'student' || (!profile?.role && studentData);
+  const displayName = isStudent && rawName ? formatStudentDisplayName(rawName) : (rawName || 'STUDENT');
   const studentId = studentData?.uid || profile?.uid || 'N/A';
 
   const studentAttendance = attendance?.filter(a => a.student_id === studentData?.id) || [];

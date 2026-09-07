@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
+import { formatStudentDisplayName } from '../../utils/studentUtils';
 
 const AuditLog = () => {
   const [logs, setLogs] = useState([]);
@@ -96,7 +97,7 @@ const AuditLog = () => {
                       {format(new Date(log.created_at), 'MMM d, yyyy HH:mm')}
                     </td>
                     <td>
-                      <div className="font-medium text-slate-800">{log.students?.name}</div>
+                      <div className="font-medium text-slate-800">{formatStudentDisplayName(log.students?.name)}</div>
                       <div className="text-xs text-slate-500">Roll: {log.students?.roll_no}</div>
                     </td>
                     <td className="text-slate-700">{log.subjects?.name}</td>

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import { Users, AlertTriangle, CheckCircle, TrendingDown } from 'lucide-react';
+import { formatStudentDisplayName } from '../utils/studentUtils';
 
 const AttendanceReports = () => {
   const { classes, students, attendance, academicYear } = useData();
@@ -160,7 +161,7 @@ const AttendanceReports = () => {
                         {chronicAbsentees.map(s => (
                           <tr key={s.id}>
                             <td>{s.roll_no}</td>
-                            <td className="font-medium">{s.name}</td>
+                            <td className="font-medium">{formatStudentDisplayName(s.name)}</td>
                             <td style={{ color: 'var(--danger-color)', fontWeight: 'bold' }}>
                               {s.attendancePercentage.toFixed(1)}%
                             </td>

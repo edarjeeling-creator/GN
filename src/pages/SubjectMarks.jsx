@@ -9,6 +9,7 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 import { useReactTable, getCoreRowModel, flexRender, getSortedRowModel, getFilteredRowModel } from '@tanstack/react-table';
+import { formatStudentDisplayName } from '../utils/studentUtils';
 
 export const getConversionConstants = (className) => {
   if (!className) return { examConv: 75, testMax: 25 };
@@ -181,7 +182,7 @@ const SubjectMarks = () => {
               <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-slate-200 shrink-0 bg-slate-50 flex items-center justify-center">
                 {student.picture_url ? <img src={student.picture_url} className="w-full h-full object-cover" /> : <User size={20} className="text-slate-400" />}
               </div>
-              <span className="font-semibold text-slate-800">{student.name}</span>
+              <span className="font-semibold text-slate-800">{formatStudentDisplayName(student.name)}</span>
             </div>
           );
         },

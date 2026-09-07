@@ -239,7 +239,7 @@ export const DataProvider = ({ children }) => {
     }
   };
 
-  const addStudent = async (classId, name, rollNo) => {
+  const addStudent = async (classId, name, rollNo, contactNumber = null) => {
     if (isReadOnly) {
       return { success: false, error: { message: "Portal is in Read-Only Mode. Please renew your subscription to register new students." } };
     }
@@ -248,7 +248,10 @@ export const DataProvider = ({ children }) => {
       return { success: false, error: { message: `Student limit reached (${allowedStudents} allowed). Please upgrade your subscription plan.` } };
     }
 
-    const { data, error } = await supabase.from('students').insert([{ class_id: classId, name, roll_no: rollNo }]).select();
+    const payload = { class_id: classId, name, roll_no: rollNo };
+    if (contactNumber) payload.contact_number = String(contactNumber).trim();
+
+    const { data, error } = await supabase.from('students').insert([payload]).select();
     if (!error && data) {
       setStudents(prev => [...prev, data[0]]);
       return { success: true };
@@ -258,6 +261,29 @@ export const DataProvider = ({ children }) => {
 
   const updateStudentName = (studentId, newName) => {
     setStudents(prev => prev.map(s => s.id === studentId ? { ...s, name: newName } : s));
+  };
+
+  const updateStudentContactNumber = async (studentId, contactNumber) => {
+    if (isReadOnly) {
+      alert("This action is disabled. The portal is in Read-Only Mode.");
+      return { success: false, error: { message: "Portal is in Read-Only Mode." } };
+    }
+
+    const cleaned = contactNumber ? String(contactNumber).replace(/[^\d+]/g, '').trim() : null;
+
+    // Optimistic UI update
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, contact_number: cleaned } : s));
+
+    const { data, error } = await supabase.from('students')
+      .update({ contact_number: cleaned })
+      .eq('id', studentId)
+      .select();
+
+    if (error) {
+      console.error("Error updating student contact number:", error);
+      return { success: false, error };
+    }
+    return { success: true, data: data?.[0] };
   };
 
   const updateStudentLanguages = async (studentId, secondLang, thirdLang, electiveSubject = null, sixthSubject = null) => {
@@ -426,7 +452,7 @@ export const DataProvider = ({ children }) => {
       academicYear, setAcademicYear,
       classes: activeClasses, subjects, students, teacherSubjects, marks, attendance, featureAccess,
       loadingData,
-      updateMark, toggleTeacherSubject, addStudent, updateStudentName, updateStudentLanguages, updateStudentUid, updateStudentPictureUrl, updateSubjectName, addSubject, removeStudent, grantFeatureAccess, revokeFeatureAccess
+      updateMark, toggleTeacherSubject, addStudent, updateStudentName, updateStudentContactNumber, updateStudentLanguages, updateStudentUid, updateStudentPictureUrl, updateSubjectName, addSubject, removeStudent, grantFeatureAccess, revokeFeatureAccess
     }}>
       {children}
     </DataContext.Provider>

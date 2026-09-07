@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { Search, User } from 'lucide-react';
+import { formatStudentDisplayName } from '../utils/studentUtils';
 
 const StudentSearch = () => {
   const { students, classes } = useData();
@@ -67,7 +68,7 @@ const StudentSearch = () => {
                           <td style={{ fontWeight: '500' }}>
                             <div className="flex items-center gap-2">
                               <User size={16} className="text-primary" />
-                              {student.name}
+                              {formatStudentDisplayName(student.name)}
                             </div>
                           </td>
                           <td>{cls ? `${cls.name} ${cls.section}` : 'Unknown'}</td>

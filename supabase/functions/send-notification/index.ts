@@ -34,49 +34,88 @@ Deno.serve(async (req: Request) => {
 
   try {
     const payload = await req.json();
-    console.log("Received webhook payload:", payload);
+    console.log("Received notification payload:", payload);
 
-    // Only process INSERT operations
-    if (payload.type !== "INSERT") {
-      return new Response(JSON.stringify({ ignored: true, reason: "Not an INSERT event" }), {
+    // 1. Direct Multicast Push to Device Tokens
+    if (payload.tokens && Array.isArray(payload.tokens) && payload.tokens.length > 0) {
+      const title = payload.notification?.title || payload.title || "Gyanoday Niketan Alert";
+      const body = payload.notification?.body || payload.body || "New alert";
+      const data = payload.data || {};
+
+      const stringifiedData: Record<string, string> = {};
+      for (const [key, value] of Object.entries(data)) {
+        stringifiedData[key] = String(value);
+      }
+
+      console.log(`Sending direct push to ${payload.tokens.length} device tokens...`);
+      const response = await admin.messaging().sendEachForMulticast({
+        tokens: payload.tokens,
+        notification: { title, body },
+        data: stringifiedData
+      });
+
+      console.log(`Direct push result: ${response.successCount} succeeded, ${response.failureCount} failed.`);
+      return new Response(JSON.stringify({ 
+        success: true, 
+        successCount: response.successCount, 
+        failureCount: response.failureCount 
+      }), {
         headers: { "Content-Type": "application/json" },
       });
     }
 
-    const record = payload.record;
-    if (!record) {
-      return new Response("Bad Request: missing record", { status: 400 });
+    // 2. Direct Topic Push
+    if (payload.topic) {
+      let topic = String(payload.topic).replace(/[^a-zA-Z0-9-_.~%]/g, "_");
+      const title = payload.notification?.title || payload.title || "Gyanoday Niketan Alert";
+      const body = payload.notification?.body || payload.body || "New alert";
+      const data = payload.data || {};
+
+      const stringifiedData: Record<string, string> = {};
+      for (const [key, value] of Object.entries(data)) {
+        stringifiedData[key] = String(value);
+      }
+
+      const response = await admin.messaging().send({
+        topic,
+        notification: { title, body },
+        data: stringifiedData
+      });
+
+      return new Response(JSON.stringify({ success: true, messageId: response }), {
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    const title = record.title || "New Notice";
-    // Truncate body if it's too long
-    const body = record.content 
-      ? (record.content.length > 100 ? record.content.substring(0, 97) + "..." : record.content)
-      : "You have a new notice.";
-    
-    // Use target_audience for topic if provided, else default to all_users
-    let topic = record.target_audience || "all_users";
-    
-    // Sanitize topic name (Firebase topics only allow [a-zA-Z0-9-_.~%]+)
-    topic = topic.replace(/[^a-zA-Z0-9-_.~%]/g, "_");
-    
-    const message = {
-      notification: {
-        title: title,
-        body: body,
-      },
-      topic: topic,
-      data: {
-        noticeId: String(record.id),
-        type: "notice"
-      }
-    };
-    
-    console.log(`Sending notification to topic '${topic}'...`);
-    const response = await admin.messaging().send(message);
-    console.log("Successfully sent message:", response);
-    
-    return new Response(JSON.stringify({ success: true, messageId: response }), {
+    // 3. Database Webhook INSERT on notices table
+    if (payload.type === "INSERT" && payload.record) {
+      const record = payload.record;
+      const title = record.title || "New Notice";
+      const body = record.content 
+        ? (record.content.length > 100 ? record.content.substring(0, 97) + "..." : record.content)
+        : "You have a new notice.";
+      
+      let topic = record.target_audience || "all_users";
+      topic = topic.replace(/[^a-zA-Z0-9-_.~%]/g, "_");
+      
+      const message = {
+        notification: { title, body },
+        topic: topic,
+        data: {
+          noticeId: String(record.id),
+          type: "notice"
+        }
+      };
+      
+      console.log(`Sending notification to topic '${topic}'...`);
+      const response = await admin.messaging().send(message);
+      
+      return new Response(JSON.stringify({ success: true, messageId: response }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ ignored: true, reason: "No valid tokens, topic, or INSERT record found." }), {
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {

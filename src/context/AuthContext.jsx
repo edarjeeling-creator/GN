@@ -94,6 +94,7 @@ export const AuthProvider = ({ children }) => {
 
           const studentProfile = {
             id: student.id,
+            uid: student.uid,
             name: student.name,
             role: 'student',
             student_id: student.id,

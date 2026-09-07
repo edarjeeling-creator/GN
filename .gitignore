@@ -22,3 +22,13 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Scratch & local testing
+/scratch/
+/test_*.js
+/test_*.mjs
+/patch*.js
+/check_schema.*
+/fetch_schema.*
+/run_*.cjs
+.temp/

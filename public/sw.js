@@ -49,3 +49,64 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// Real Mobile Push Notification Event Handling
+self.addEventListener('push', (event) => {
+  let payload = {};
+  if (event.data) {
+    try {
+      payload = event.data.json();
+    } catch (e) {
+      payload = { title: 'Gyanoday Niketan Alert', body: event.data.text() };
+    }
+  }
+
+  const notification = payload.notification || payload;
+  const title = notification.title || payload.title || 'Gyanoday Niketan Alert';
+  const body = notification.body || payload.body || 'You have a new school alert.';
+  const linkUrl = (payload.data && payload.data.linkUrl) || payload.linkUrl || '/';
+
+  const options = {
+    body: body,
+    icon: '/logo.png',
+    badge: '/logo.png',
+    vibrate: [200, 100, 200],
+    data: {
+      linkUrl: linkUrl,
+      ...payload.data
+    },
+    actions: [
+      { action: 'open', title: 'View Details' }
+    ]
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
+});
+
+// Tapping Notification Opens Deep-Linked Target Page
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const linkUrl = event.notification.data?.linkUrl || '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // If a tab is already open, focus it and navigate
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          if ('navigate' in client) {
+            client.navigate(linkUrl);
+          }
+          return client.focus();
+        }
+      }
+      // Otherwise open a new window
+      if (clients.openWindow) {
+        return clients.openWindow(linkUrl);
+      }
+    })
+  );
+});
+

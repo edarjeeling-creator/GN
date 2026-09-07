@@ -33,6 +33,11 @@ import MandatoryDisclosures from './pages/MandatoryDisclosures';
 import PublicIDForm from './pages/PublicIDForm';
 import ClassTeacherPortal from './pages/ClassTeacherPortal';
 
+// HPC Module
+import HPCConfiguration from './pages/hpc/HPCConfiguration';
+import HPCAssessmentWorkspace from './pages/hpc/HPCAssessmentWorkspace';
+import HPCReview from './pages/hpc/HPCReview';
+import HPCStudentProfile from './pages/hpc/HPCStudentProfile';
 // Mobile App Shell & Pages
 import MobileAppShell from './mobile/layouts/MobileAppShell';
 import MobileHome from './mobile/pages/MobileHome';
@@ -112,6 +117,12 @@ function App() {
               
               {/* Admin Only Routes */}
               <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+              
+              {/* HPC Routes */}
+              <Route path="/hpc/config" element={<AdminRoute><HPCConfiguration /></AdminRoute>} />
+              <Route path="/hpc/workspace" element={<TeacherRoute><HPCAssessmentWorkspace /></TeacherRoute>} />
+              <Route path="/hpc/review" element={<PrincipalRoute><HPCReview /></PrincipalRoute>} />
+              <Route path="/hpc/my-card" element={<StudentRoute><HPCStudentProfile /></StudentRoute>} />
               
               {/* Accountant & Admin Routes */}
               <Route path="/fees" element={<AccountantRoute><FeesDashboard /></AccountantRoute>} />

@@ -177,15 +177,15 @@ const FeeGenerationEngine = () => {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
         {/* Left Column: Configuration */}
-        <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '1rem', border: '1px solid #e2e8f0' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Settings size={18} color="#3b82f6" /> Generation Parameters
+        <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '1rem', border: '1px solid #cbd5e1' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Settings size={18} color="#2563eb" /> Generation Parameters
           </h3>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: '#334155' }}>Academic Year</label>
-              <select value={academicYear} onChange={e => setAcademicYear(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', background: 'white' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.5rem', color: '#0f172a' }}>Academic Year</label>
+              <select value={academicYear} onChange={e => setAcademicYear(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontSize: '0.9rem' }}>
                 <option value="2025">2025-2026</option>
                 <option value="2026">2026-2027</option>
                 <option value="2027">2027-2028</option>
@@ -193,24 +193,24 @@ const FeeGenerationEngine = () => {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: '#334155' }}>Billing Month</label>
-              <select value={month} onChange={e => setMonth(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', background: 'white' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.5rem', color: '#0f172a' }}>Billing Month</label>
+              <select value={month} onChange={e => setMonth(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontSize: '0.9rem' }}>
                 {months.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
-              <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.5rem' }}>Note: Annual (one-time) fees are only applied during April billing.</p>
+              <p style={{ fontSize: '0.75rem', color: '#475569', marginTop: '0.5rem' }}>Note: Annual (one-time) fees are only applied during April billing.</p>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: '#334155' }}>Target Group</label>
-              <select value={targetClass} onChange={e => setTargetClass(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', background: 'white' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.5rem', color: '#0f172a' }}>Target Group</label>
+              <select value={targetClass} onChange={e => setTargetClass(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontSize: '0.9rem' }}>
                 <option value="all">Entire School (All Classes)</option>
                 {classes.map(c => <option key={c.id} value={c.id}>Only {c.name} {c.section}</option>)}
               </select>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: '#334155' }}>Payment Due Date</label>
-              <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', background: 'white' }} />
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.5rem', color: '#0f172a' }}>Payment Due Date</label>
+              <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontSize: '0.9rem' }} />
             </div>
 
             <button 

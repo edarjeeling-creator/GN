@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Shield, Lock, ChevronRight, User, AlertCircle, Phone, Calendar, CheckCircle2, History } from 'lucide-react';
+import { formatStudentDisplayName } from '../utils/studentUtils';
 
 const ParentPortal = () => {
   const [session, setSession] = useState(null);
@@ -333,7 +334,7 @@ const ParentPortal = () => {
 
         {/* Student Details Card */}
         <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '1rem', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#f9fafb', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.025em' }}>{studentDetails?.name}</h2>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#f9fafb', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.025em' }}>{formatStudentDisplayName(studentDetails?.name)}</h2>
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.9rem' }}>
             <div><span style={{ color: '#9ca3af' }}>Bill Book No:</span> <strong style={{ color: '#f3f4f6' }}>{studentDetails?.uid}</strong></div>

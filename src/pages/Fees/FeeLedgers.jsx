@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Search, User, CreditCard, Clock, FileText, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
+import { formatStudentDisplayName } from '../../utils/studentUtils';
 
 const FeeLedgers = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -84,7 +85,7 @@ const FeeLedgers = () => {
               placeholder="Search name or UID..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ flex: 1, padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
+              style={{ flex: 1, padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.9rem' }}
             />
             <button type="submit" style={{ background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', padding: '0 1rem', cursor: 'pointer' }}>
               <Search size={20} />
@@ -110,7 +111,7 @@ const FeeLedgers = () => {
                   }}
                 >
                   <div style={{ fontWeight: 600, color: '#0f172a', display: 'flex', justifyContent: 'space-between' }}>
-                    {s.name}
+                    {formatStudentDisplayName(s.name)}
                     <ArrowRight size={16} color={selectedStudent?.id === s.id ? '#3b82f6' : '#94a3b8'} />
                   </div>
                   <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>
@@ -172,19 +173,19 @@ const FeeLedgers = () => {
                   </h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     {ledgerData.demands.map(demand => (
-                      <div key={demand.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem', background: '#f8fafc' }}>
+                      <div key={demand.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid #cbd5e1', borderRadius: '0.5rem', background: '#f8fafc' }}>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                            <span style={{ fontWeight: 600 }}>{demand.month} {demand.academic_year}</span>
-                            {demand.status === 'paid' && <span style={{ background: '#dcfce7', color: '#166534', padding: '0.1rem 0.5rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 600 }}>Paid</span>}
-                            {demand.status === 'pending' && <span style={{ background: '#fef9c3', color: '#854d0e', padding: '0.1rem 0.5rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 600 }}>Pending</span>}
-                            {demand.status === 'partial' && <span style={{ background: '#dbeafe', color: '#1e40af', padding: '0.1rem 0.5rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 600 }}>Partial</span>}
+                            <span style={{ fontWeight: 700, color: '#0f172a' }}>{demand.month} {demand.academic_year}</span>
+                            {demand.status === 'paid' && <span style={{ background: '#dcfce7', color: '#166534', padding: '0.1rem 0.5rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 700 }}>Paid</span>}
+                            {demand.status === 'pending' && <span style={{ background: '#fef9c3', color: '#854d0e', padding: '0.1rem 0.5rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 700 }}>Pending</span>}
+                            {demand.status === 'partial' && <span style={{ background: '#dbeafe', color: '#1e40af', padding: '0.1rem 0.5rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 700 }}>Partial</span>}
                           </div>
-                          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                          <div style={{ fontSize: '0.85rem', color: '#475569' }}>
                             Due: {new Date(demand.due_date).toLocaleDateString()}
                           </div>
                         </div>
-                        <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>
+                        <div style={{ fontWeight: 700, fontSize: '1.1rem', color: '#0f172a' }}>
                           ₹{Number(demand.total_amount).toLocaleString('en-IN')}
                         </div>
                       </div>
@@ -197,15 +198,15 @@ const FeeLedgers = () => {
                   </h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     {ledgerData.payments.map(payment => (
-                      <div key={payment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem', background: '#f8fafc' }}>
+                      <div key={payment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid #cbd5e1', borderRadius: '0.5rem', background: '#f8fafc' }}>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                            <span style={{ fontWeight: 600, textTransform: 'capitalize' }}>{payment.payment_mode.replace('_', ' ')}</span>
-                            {payment.status === 'approved' && <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 600 }}><CheckCircle size={14}/> Verified</span>}
-                            {payment.status === 'pending_verification' && <span style={{ color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 600 }}><Clock size={14}/> Pending</span>}
-                            {payment.status === 'rejected' && <span style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 600 }}><AlertCircle size={14}/> Rejected</span>}
+                            <span style={{ fontWeight: 700, textTransform: 'capitalize', color: '#0f172a' }}>{payment.payment_mode.replace('_', ' ')}</span>
+                            {payment.status === 'approved' && <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 700 }}><CheckCircle size={14}/> Verified</span>}
+                            {payment.status === 'pending_verification' && <span style={{ color: '#d97706', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 700 }}><Clock size={14}/> Pending</span>}
+                            {payment.status === 'rejected' && <span style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 700 }}><AlertCircle size={14}/> Rejected</span>}
                           </div>
-                          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                          <div style={{ fontSize: '0.85rem', color: '#475569' }}>
                             {new Date(payment.payment_date).toLocaleDateString()} • Ref: {payment.reference_number || 'N/A'}
                           </div>
                         </div>

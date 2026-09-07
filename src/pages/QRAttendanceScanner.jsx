@@ -4,9 +4,12 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { 
   CheckCircle, XCircle, Clock, AlertTriangle, WifiOff, Wifi, 
-  Settings, Search, RefreshCw, X, Camera, RotateCcw
+  Settings, Search, RefreshCw, X, Camera, RotateCcw, Users, UserX, Check
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { absenteeNotificationService } from '../services/AbsenteeNotificationService';
+import AbsenteeNotificationModal from '../components/AbsenteeNotificationModal';
+import { formatStudentDisplayName } from '../utils/studentUtils';
 
 const DEFAULT_SETTINGS = {
   gate: 'Main Gate',
@@ -31,6 +34,19 @@ const QRAttendanceScanner = () => {
   const [toast, setToast] = useState(null); 
   
   const [facingMode, setFacingMode] = useState('environment'); // environment = rear camera
+
+  // Classroom QR Mode States
+  const [classesList, setClassesList] = useState([]);
+  const [selectedClassId, setSelectedClassId] = useState('');
+  const [classStudents, setClassStudents] = useState([]);
+  const [classAttendanceMap, setClassAttendanceMap] = useState({});
+  const [finalizingAttendance, setFinalizingAttendance] = useState(false);
+  const [finalizedToday, setFinalizedToday] = useState(false);
+
+  // Absentee Modal State
+  const [absenteeModalData, setAbsenteeModalData] = useState(null);
+  const [showAbsenteeModal, setShowAbsenteeModal] = useState(false);
+
   
   // Refs
   const audioCtxRef = useRef(null);
@@ -119,6 +135,45 @@ const QRAttendanceScanner = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Load Classes for Classroom Mode
+  useEffect(() => {
+    const loadClasses = async () => {
+      const { data } = await supabase.from('classes').select('id, name, section').order('name');
+      if (data) setClassesList(data);
+    };
+    loadClasses();
+  }, []);
+
+  // Fetch Class Students & Attendance Progress
+  const fetchClassProgress = useCallback(async () => {
+    if (!selectedClassId) {
+      setClassStudents([]);
+      setClassAttendanceMap({});
+      return;
+    }
+    const today = new Date().toISOString().split('T')[0];
+    const [{ data: stds }, { data: att }] = await Promise.all([
+      supabase.from('students').select('*').eq('class_id', selectedClassId).order('roll_no'),
+      supabase.from('attendance').select('student_id, status').eq('class_id', selectedClassId).eq('date', today)
+    ]);
+
+    if (stds) setClassStudents(stds);
+    const map = {};
+    let hasAnyAbsent = false;
+    if (att) {
+      att.forEach(a => {
+        map[a.student_id] = a.status;
+        if (a.status === 'Absent') hasAnyAbsent = true;
+      });
+    }
+    setClassAttendanceMap(map);
+    setFinalizedToday(hasAnyAbsent);
+  }, [selectedClassId]);
+
+  useEffect(() => {
+    fetchClassProgress();
+  }, [fetchClassProgress]);
+
   // --- Core Attendance Logic (Optimized) ---
   const fetchStats = async () => {
     if (!navigator.onLine) return;
@@ -166,7 +221,7 @@ const QRAttendanceScanner = () => {
         if (item.person_type === 'student') {
           const s = studentsRes.data?.find(x => x.id === item.person_id);
           if (s) {
-            name = s.name;
+            name = formatStudentDisplayName(s.name);
             if (s.classes) className = `${s.classes.name} ${s.classes.section}`;
           }
         } else {
@@ -214,7 +269,7 @@ const QRAttendanceScanner = () => {
     if (isTeacher) {
       personName = profileRes.data.name;
     } else {
-      personName = profileRes.data.name;
+      personName = formatStudentDisplayName(profileRes.data.name);
       classId = profileRes.data.class_id;
       if (profileRes.data.classes) {
         personClass = `${profileRes.data.classes.name} ${profileRes.data.classes.section}`;
@@ -261,15 +316,14 @@ const QRAttendanceScanner = () => {
          });
       });
     } else {
-      // Backward compatibility for students
-      legacyInsertPromise = supabase.from('attendance').select('id').eq('student_id', personId).eq('date', today).single()
-        .then(res => {
-          if (!res.data) {
-            return supabase.from('attendance').insert({
-              student_id: personId, class_id: classId, date: today, status: status, academic_year: '2026'
-            });
-          }
-        });
+      // Upsert student attendance record
+      legacyInsertPromise = supabase.from('attendance').upsert({
+        student_id: personId,
+        class_id: classId,
+        date: today,
+        status: status,
+        academic_year: '2026'
+      }, { onConflict: 'student_id,date' });
     }
 
     const [logRes] = await Promise.all([insertLogPromise, legacyInsertPromise]);
@@ -280,16 +334,47 @@ const QRAttendanceScanner = () => {
       const gateName = settings.gate || 'Main Gate';
       const notificationType = `gate_entry_${Date.now()}`;
       
-      supabase.from('student_notifications').insert({
-        student_id: personId,
-        attendance_date: today,
-        title: 'Gate Scan Alert',
-        message: `Student ID was scanned at ${gateName} on ${formattedDate} at ${formattedTime}. Status: <strong>${status}</strong>.`,
-        type: notificationType,
-        channel: 'portal'
-      }).then(({error}) => {
-        if (error) console.error("Failed to send portal notification:", error);
-      });
+      try {
+        supabase.from('student_notifications').insert({
+          student_id: personId,
+          attendance_date: today,
+          title: 'Gate Scan Alert',
+          message: `Student ID was scanned at ${gateName} on ${formattedDate} at ${formattedTime}. Status: <strong>${status}</strong>.`,
+          type: notificationType,
+          channel: 'portal'
+        }).then(({error}) => {
+          if (error) console.error("Failed to send portal notification:", error);
+        });
+      } catch (e) {
+        // Safe fallback if student_notifications not present
+      }
+
+      // If marked as Absent directly via scanner, trigger instant alerts
+      if (status === 'Absent') {
+        absenteeNotificationService.notifyAbsentees({
+          absentStudents: [{
+            id: personId,
+            name: personName,
+            roll_no: profileRes.data?.roll_no || 'N/A',
+            contact_number: profileRes.data?.contact_number,
+            father_name: profileRes.data?.father_name
+          }],
+          className: personClass,
+          classId,
+          date: today,
+          teacherName: profile?.name || 'Gate/QR Scanner',
+          teacherId: profile?.id,
+          schoolId: profile?.school_id,
+          isQR: true
+        }).then(dispatchRes => {
+          setAbsenteeModalData(dispatchRes);
+        }).catch(e => console.error("QR Absentee alert error:", e));
+      }
+
+      // Update active classroom progress if this student belongs to selected class
+      if (selectedClassId && (classId === selectedClassId || !classId)) {
+        setClassAttendanceMap(prev => ({ ...prev, [personId]: status }));
+      }
     }
 
     if (logRes.error) throw logRes.error;
@@ -299,12 +384,102 @@ const QRAttendanceScanner = () => {
     }
 
     return {
-      status: 'success',
-      message: 'Attendance Marked',
+      status: status === 'Absent' ? 'error' : 'success',
+      message: status === 'Absent' ? 'Marked Absent' : 'Attendance Marked',
       name: personName,
       className: personClass,
       time: new Date(timeStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
+  };
+
+  // --- Finalize Attendance for Classroom QR Mode ---
+  const handleFinalizeClassAttendance = async () => {
+    if (!selectedClassId || classStudents.length === 0) return;
+    const today = new Date().toISOString().split('T')[0];
+    const selectedClass = classesList.find(c => c.id === selectedClassId);
+    const className = selectedClass ? `${selectedClass.name} ${selectedClass.section}`.trim() : '';
+
+    // Find all unscanned students who do NOT have an attendance record or are not marked
+    const unscanned = classStudents.filter(s => {
+      const st = classAttendanceMap[s.id];
+      return !st || st === '';
+    });
+
+    if (unscanned.length === 0) {
+      alert(`All ${classStudents.length} students in Class ${className} have already been marked for today!`);
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Finalize Attendance for Class ${className}?\n\n` +
+      `• Total Students: ${classStudents.length}\n` +
+      `• Already Scanned: ${classStudents.length - unscanned.length}\n` +
+      `• Students to mark ABSENT: ${unscanned.length}\n\n` +
+      `This will mark absentees in the database and dispatch mobile push & in-app alerts to the Principal & Parents.`
+    );
+    if (!confirmed) return;
+
+    setFinalizingAttendance(true);
+
+    try {
+      // 1. Batch upsert into attendance table
+      const recordsToUpsert = unscanned.map(s => ({
+        student_id: s.id,
+        class_id: selectedClassId,
+        date: today,
+        academic_year: '2026',
+        status: 'Absent',
+        remarks: 'Marked absent via QR Classroom Finalization'
+      }));
+
+      const { error: attError } = await supabase.from('attendance').upsert(recordsToUpsert, { onConflict: 'student_id,date' });
+      if (attError) throw attError;
+
+      // 2. Batch insert into attendance_logs table
+      const logRecords = unscanned.map(s => ({
+        person_type: 'student',
+        person_id: s.id,
+        status: 'Absent',
+        device_name: settings.deviceName,
+        gate: `${settings.gate} (Class Finalize)`,
+        scanner_user: profile?.id,
+        operator_name: profile?.name,
+        remarks: 'Unscanned - Batch finalized as absent',
+        scan_time: new Date().toISOString()
+      }));
+      await supabase.from('attendance_logs').insert(logRecords);
+
+      // 3. Dispatch notifications to Principal and Parents
+      const dispatchResult = await absenteeNotificationService.notifyAbsentees({
+        absentStudents: unscanned,
+        className,
+        classId: selectedClassId,
+        date: today,
+        teacherName: profile?.name || 'Class Teacher',
+        teacherId: profile?.id,
+        schoolId: profile?.school_id,
+        isQR: true
+      });
+
+      setAbsenteeModalData(dispatchResult);
+      setShowAbsenteeModal(true);
+      setFinalizedToday(true);
+      await fetchClassProgress();
+      fetchStats();
+      fetchRecentHistory();
+
+      showToast({
+        status: 'success',
+        message: 'Class Attendance Finalized',
+        name: `${unscanned.length} Absentees Notified`,
+        time: new Date().toLocaleTimeString()
+      });
+    } catch (err) {
+      console.error('Error finalizing class attendance:', err);
+      alert('Failed to finalize attendance: ' + (err.message || err));
+    } finally {
+      setFinalizingAttendance(false);
+    }
   };
 
   const processOfflineQueue = async () => {
@@ -400,6 +575,7 @@ const QRAttendanceScanner = () => {
     switch (status) {
       case 'Present': return 'bg-emerald-500';
       case 'Late': return 'bg-amber-500';
+      case 'Absent': return 'bg-red-600';
       case 'Half Day': return 'bg-orange-500';
       case 'Leave': return 'bg-blue-500';
       case 'Duplicate': return 'bg-amber-500';
@@ -441,19 +617,63 @@ const QRAttendanceScanner = () => {
       <div className="flex-1 flex flex-col lg:flex-row p-4 gap-4 overflow-hidden relative">
         
         {/* Left Side: Scanner */}
-        <div className="w-full lg:w-[65%] flex flex-col gap-4 relative">
+        <div className="w-full lg:w-[65%] flex flex-col gap-3 relative">
+
+          {/* Classroom QR Mode Selector & Finalization Toolbar */}
+          <div className="bg-slate-800/90 backdrop-blur-md rounded-2xl p-3 border border-slate-700/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-lg z-20">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shrink-0">
+                <Users size={18} />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Classroom Mode (Optional)</label>
+                <select 
+                  value={selectedClassId} 
+                  onChange={e => setSelectedClassId(e.target.value)}
+                  className="bg-slate-900/90 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none mt-0.5 cursor-pointer"
+                >
+                  <option value="">Gate Mode (All Students / Staff)</option>
+                  {classesList.map(c => (
+                    <option key={c.id} value={c.id}>Class {c.name} {c.section}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {selectedClassId && (
+              <div className="flex items-center gap-3 justify-between sm:justify-end border-t sm:border-t-0 border-slate-700/50 pt-2 sm:pt-0">
+                <div className="text-left sm:text-right">
+                  <div className="text-[11px] text-slate-400">Class Progress</div>
+                  <div className="text-xs font-bold text-slate-200">
+                    {Object.values(classAttendanceMap).filter(st => ['Present', 'Late', 'Half Day'].includes(st)).length} / {classStudents.length} Scanned
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleFinalizeClassAttendance}
+                  disabled={finalizingAttendance || classStudents.length === 0}
+                  className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-red-600/20 hover:shadow-red-600/40 transition-all disabled:opacity-50"
+                  title="Mark unscanned students absent and notify Parents & Principal"
+                >
+                  <UserX size={14} />
+                  {finalizingAttendance ? 'Finalizing...' : `Finalize & Notify Absentees (${classStudents.filter(s => !classAttendanceMap[s.id]).length})`}
+                </button>
+              </div>
+            )}
+          </div>
           
           {/* Status Selector */}
-          <div className="bg-slate-800 rounded-2xl p-2 flex gap-2 overflow-x-auto shrink-0 shadow-lg border border-slate-700 z-20">
-            {['Present', 'Late', 'Half Day', 'Leave'].map(status => (
+          <div className="bg-slate-800 rounded-2xl p-1.5 flex gap-1.5 overflow-x-auto shrink-0 shadow-lg border border-slate-700 z-20 hide-scrollbar">
+            {['Present', 'Late', 'Absent', 'Half Day', 'Leave'].map(status => (
               <button
                 key={status}
                 onClick={() => setAttendanceStatus(status)}
-                className={`flex-1 min-w-[100px] py-3 px-4 rounded-xl font-semibold transition-all duration-200 ${
+                className={`flex-1 min-w-[85px] py-2.5 px-3 rounded-xl font-semibold text-xs sm:text-sm transition-all duration-200 ${
                   attendanceStatus === status 
                     ? status === 'Late' ? 'bg-amber-500 text-white shadow-md'
                     : status === 'Half Day' ? 'bg-orange-500 text-white shadow-md'
                     : status === 'Leave' ? 'bg-blue-500 text-white shadow-md'
+                    : status === 'Absent' ? 'bg-red-600 text-white shadow-md ring-2 ring-red-400'
                     : 'bg-emerald-500 text-white shadow-md'
                   : 'bg-transparent text-slate-400 hover:bg-slate-700 hover:text-slate-200'
                 }`}
@@ -640,6 +860,13 @@ const QRAttendanceScanner = () => {
           </div>
         </div>
       )}
+
+      {/* Absentee Notification Modal */}
+      <AbsenteeNotificationModal 
+        isOpen={showAbsenteeModal}
+        onClose={() => setShowAbsenteeModal(false)}
+        data={absenteeModalData}
+      />
 
     </div>
   );

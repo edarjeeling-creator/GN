@@ -2,17 +2,21 @@ import { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
-import { Book, CheckCircle, Circle, Users, FileText, UserPlus } from 'lucide-react';
+import { Book, CheckCircle, Circle, Users, FileText, UserPlus, Phone, Edit2, Check, X } from 'lucide-react';
+import { formatStudentDisplayName } from '../utils/studentUtils';
 
 const Classes = () => {
-  const { classes, subjects, students, teacherSubjects, toggleTeacherSubject, addStudent, addSubject } = useData();
+  const { classes, subjects, students, teacherSubjects, toggleTeacherSubject, addStudent, addSubject, updateStudentContactNumber } = useData();
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
   
   const [expandedClass, setExpandedClass] = useState(null);
   
   // State for new student form
-  const [newStudent, setNewStudent] = useState({ name: '', roll_no: '' });
+  const [newStudent, setNewStudent] = useState({ name: '', roll_no: '', contact_number: '' });
+  const [editingStudentId, setEditingStudentId] = useState(null);
+  const [phoneInput, setPhoneInput] = useState('');
+  const [savingStudentId, setSavingStudentId] = useState(null);
   
   // State for new subject form
   const [newSubject, setNewSubject] = useState('');
@@ -25,13 +29,39 @@ const Classes = () => {
     }
   };
 
+  const handleStartEditPhone = (student) => {
+    setEditingStudentId(student.id);
+    setPhoneInput(student.contact_number || '');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingStudentId(null);
+    setPhoneInput('');
+  };
+
+  const handleSavePhone = async (studentId) => {
+    setSavingStudentId(studentId);
+    try {
+      const res = await updateStudentContactNumber(studentId, phoneInput);
+      if (res?.success) {
+        setEditingStudentId(null);
+      } else {
+        alert("Failed to update contact number: " + (res?.error?.message || "Please try again."));
+      }
+    } catch (err) {
+      alert("Error: " + err.message);
+    } finally {
+      setSavingStudentId(null);
+    }
+  };
+
   const handleAddStudent = async (e, classId) => {
     e.preventDefault();
     if (!newStudent.name || !newStudent.roll_no) return;
     
-    const res = await addStudent(classId, newStudent.name, parseInt(newStudent.roll_no));
+    const res = await addStudent(classId, newStudent.name, parseInt(newStudent.roll_no), newStudent.contact_number || null);
     if (res.success) {
-      setNewStudent({ name: '', roll_no: '' });
+      setNewStudent({ name: '', roll_no: '', contact_number: '' });
       alert("Student added successfully!");
     } else {
       alert("Error adding student: " + res.error.message);
@@ -169,23 +199,79 @@ const Classes = () => {
                     </h4>
                     
                     {/* List of existing students */}
-                    <div className="mb-4" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                    <div className="mb-4" style={{ maxHeight: '250px', overflowY: 'auto' }}>
                       <table className="data-table" style={{ fontSize: '0.9rem' }}>
                         <thead>
                           <tr>
                             <th style={{ width: '80px' }}>Roll No</th>
                             <th>Student Name</th>
+                            <th>Parent Phone</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {students.filter(s => s.class_id === cls.id).sort((a, b) => a.roll_no - b.roll_no).map(student => (
-                            <tr key={student.id}>
-                              <td>{student.roll_no}</td>
-                              <td>{student.name}</td>
-                            </tr>
-                          ))}
+                          {students.filter(s => s.class_id === cls.id).sort((a, b) => a.roll_no - b.roll_no).map(student => {
+                            const isEditing = editingStudentId === student.id;
+                            const isSaving = savingStudentId === student.id;
+                            return (
+                              <tr key={student.id}>
+                                <td>{student.roll_no}</td>
+                                <td style={{ fontWeight: 500 }}>{formatStudentDisplayName(student.name)}</td>
+                                <td>
+                                  {isEditing ? (
+                                    <div className="flex items-center gap-1">
+                                      <input
+                                        type="tel"
+                                        placeholder="10-digit number"
+                                        value={phoneInput}
+                                        onChange={(e) => setPhoneInput(e.target.value)}
+                                        className="input-field"
+                                        style={{ width: '130px', padding: '0.2rem 0.5rem', fontSize: '0.8rem' }}
+                                        autoFocus
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSavePhone(student.id)}
+                                        disabled={isSaving}
+                                        className="btn btn-primary btn-sm"
+                                        style={{ padding: '0.2rem 0.4rem' }}
+                                      >
+                                        {isSaving ? '...' : <Check size={12} />}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={handleCancelEdit}
+                                        className="btn btn-outline btn-sm"
+                                        style={{ padding: '0.2rem 0.4rem' }}
+                                      >
+                                        <X size={12} />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2">
+                                      {student.contact_number ? (
+                                        <span className="flex items-center gap-1 text-slate-700">
+                                          <Phone size={12} className="text-emerald-600" />
+                                          {student.contact_number}
+                                        </span>
+                                      ) : (
+                                        <span className="text-slate-400 italic text-xs">No phone</span>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => handleStartEditPhone(student)}
+                                        className="text-xs text-blue-600 hover:text-blue-800 underline flex items-center gap-0.5"
+                                        title="Edit phone number"
+                                      >
+                                        <Edit2 size={10} /> {student.contact_number ? 'Edit' : '+ Add'}
+                                      </button>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
                           {students.filter(s => s.class_id === cls.id).length === 0 && (
-                            <tr><td colSpan="2">No students added yet.</td></tr>
+                            <tr><td colSpan="3">No students added yet.</td></tr>
                           )}
                         </tbody>
                       </table>
@@ -196,7 +282,7 @@ const Classes = () => {
                         type="text" 
                         placeholder="Student Full Name" 
                         className="input-field" 
-                        style={{ maxWidth: '250px' }}
+                        style={{ maxWidth: '220px' }}
                         value={newStudent.name}
                         onChange={e => setNewStudent({...newStudent, name: e.target.value})}
                         required
@@ -205,11 +291,19 @@ const Classes = () => {
                         type="number" 
                         placeholder="Roll No" 
                         className="input-field" 
-                        style={{ width: '100px' }}
+                        style={{ width: '90px' }}
                         value={newStudent.roll_no}
                         onChange={e => setNewStudent({...newStudent, roll_no: e.target.value})}
                         required
                         min="1"
+                      />
+                      <input 
+                        type="tel" 
+                        placeholder="Parent Phone (Optional)" 
+                        className="input-field" 
+                        style={{ maxWidth: '180px' }}
+                        value={newStudent.contact_number}
+                        onChange={e => setNewStudent({...newStudent, contact_number: e.target.value})}
                       />
                       <button type="submit" className="btn btn-outline btn-sm">Add Student</button>
                     </form>

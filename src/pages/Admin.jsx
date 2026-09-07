@@ -7,6 +7,7 @@ import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { getConversionConstants } from './SubjectMarks';
+import { formatStudentDisplayName } from '../utils/studentUtils';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import * as XLSX from 'xlsx';
 import WebsiteCMS from '../components/WebsiteCMS';
@@ -24,6 +25,7 @@ import ResultStatusManager from './Admin/ResultStatusManager';
 import MonthlyAttendanceReport from './Admin/MonthlyAttendanceReport';
 import CalendarManager from './Admin/CalendarManager';
 import DiscussionPanel from '../components/chat/DiscussionPanel';
+import MessageCMS from './Admin/MessageCMS';
 
 const Admin = () => {
   const { logout, profile } = useAuth();
@@ -695,6 +697,12 @@ const Admin = () => {
         >
           ID Cards
         </button>
+        <button 
+          onClick={() => setActiveTab('message_cms')}
+          style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'message_cms' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'message_cms' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: activeTab === 'message_cms' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '1rem' }}
+        >
+          Message CMS
+        </button>
       </div>
 
       {activeTab === 'portal_settings' && (
@@ -1001,7 +1009,7 @@ const Admin = () => {
                               alt={s.name} 
                               style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
                             />
-                            <span style={{ fontWeight: 500 }}>{s.name}</span>
+                            <span style={{ fontWeight: 500 }}>{formatStudentDisplayName(s.name)}</span>
                           </div>
                         </td>
                         <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>{sCls ? `${sCls.name} ${sCls.section}` : 'Unknown'}</td>
@@ -1466,6 +1474,9 @@ const Admin = () => {
 
       {/* Website CMS */}
       {activeTab === 'cms' && <WebsiteCMS />}
+
+      {/* Message CMS */}
+      {activeTab === 'message_cms' && <MessageCMS />}
 
       <input 
         type="file" 

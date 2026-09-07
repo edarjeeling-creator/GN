@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import QRCode from 'react-qr-code';
 import html2pdf from 'html2pdf.js';
 import { Users, Printer, Loader2, Save, Upload, Image as ImageIcon, Send, Copy, RefreshCw, ExternalLink, Trash2, MoreVertical, Circle, MessageSquare } from 'lucide-react';
+import { formatStudentDisplayName } from '../../utils/studentUtils';
 
 const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
   const [selectedClass, setSelectedClass] = useState('all');
@@ -128,7 +129,8 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
   };
 
   const generateWhatsAppMessage = (name, link) => {
-    return encodeURIComponent(`Dear ${name},\n\nGyanoday Niketan School requests you to complete your ID Card information.\n\nPlease click the secure link below:\n${link}\n\nPlease upload a recent passport-size photograph.\n\nThank you.`);
+    const displayName = formatStudentDisplayName(name);
+    return encodeURIComponent(`Dear ${displayName},\n\nGyanoday Niketan School requests you to complete your ID Card information.\n\nPlease click the secure link below:\n${link}\n\nPlease upload a recent passport-size photograph.\n\nThank you.`);
   };
 
   const handleGenerateLink = async (studentId, studentName, regenerate = false) => {
@@ -239,7 +241,7 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
         
         handleFieldChange(student.id, 'id_details_status', 'Link Sent');
 
-        textToCopy += `*${i + 1}. ${student.name}*\n`;
+        textToCopy += `*${i + 1}. ${formatStudentDisplayName(student.name)}*\n`;
         textToCopy += `Link: ${link}\n\n`;
       }
 
@@ -494,7 +496,7 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
                       />
                     </div>
                     <div>
-                      <div style={{ fontWeight: 600, color: '#1e293b' }}>{s.name}</div>
+                      <div style={{ fontWeight: 600, color: '#1e293b' }}>{formatStudentDisplayName(s.name)}</div>
                       <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{getClassName(s.class_id)} • R:{s.roll_no} • {s.uid}</div>
                     </div>
                   </div>
@@ -615,7 +617,7 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
               {/* 4. Student Details Section */}
               <div style={{ position: 'absolute', top: '40mm', left: '2mm', width: '50mm', zIndex: 2, fontFamily: "'Inter', sans-serif" }}>
                 <div style={{ fontSize: '7.5pt', fontWeight: 800, color: '#0f172a', textAlign: 'center', marginBottom: '1.5mm', textTransform: 'uppercase', letterSpacing: '-0.1px' }}>
-                  {student.name}
+                  {formatStudentDisplayName(student.name)}
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8mm', fontSize: '4.5pt', lineHeight: '1.2' }}>
@@ -717,7 +719,7 @@ const IDCardGenerator = ({ classes, students: globalStudents, fetchStats }) => {
           {selectedStudents.map((student) => (
             <div key={`sticker-${student.id}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px dashed #cbd5e1', padding: '5mm', borderRadius: '2mm', breakInside: 'avoid' }}>
               <QRCode value={generateQRData(student)} size={120} style={{ width: '40mm', height: '40mm' }} level="M" fgColor="#000000" bgColor="#FFFFFF" />
-              <div style={{ marginTop: '3mm', fontSize: '10pt', fontWeight: 600, fontFamily: "'Inter', sans-serif", textAlign: 'center', color: '#000000' }}>{student.name}</div>
+              <div style={{ marginTop: '3mm', fontSize: '10pt', fontWeight: 600, fontFamily: "'Inter', sans-serif", textAlign: 'center', color: '#000000' }}>{formatStudentDisplayName(student.name)}</div>
               <div style={{ fontSize: '8pt', color: '#475569', fontFamily: "'Inter', sans-serif", textAlign: 'center' }}>{getClassName(student.class_id)} | Adm: {student.uid || 'N/A'}</div>
             </div>
           ))}

@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { useData } from '../../context/DataContext';
 import { Calendar, Users, Loader2, Info } from 'lucide-react';
 import { getDaysInMonth, format, isWeekend, isFuture, parseISO } from 'date-fns';
+import { formatStudentDisplayName } from '../../utils/studentUtils';
 
 const MonthlyAttendanceReport = () => {
   const { classes, students, academicYear } = useData();
@@ -238,7 +239,7 @@ const MonthlyAttendanceReport = () => {
                 {entities.map(entity => (
                   <tr key={entity.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="px-4 py-2 font-medium sticky left-0 bg-[var(--surface-color)] z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] dark:shadow-[2px_0_5px_-2px_rgba(255,255,255,0.05)] truncate max-w-[250px]">
-                      {entity.name}
+                      {role === 'student' ? formatStudentDisplayName(entity.name) : entity.name}
                       {role === 'student' && entity.roll_no && <span className="text-xs text-[var(--text-secondary)] ml-2">({entity.roll_no})</span>}
                     </td>
                     {daysInMonth.map(day => {

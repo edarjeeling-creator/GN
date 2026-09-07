@@ -4,6 +4,7 @@ import { Home, MessageSquare, Menu } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useChat } from '../../context/ChatContext';
 import { useData } from '../../context/DataContext';
+import { formatStudentDisplayName } from '../../utils/studentUtils';
 
 const MobileBottomNavigation = ({ onMenuClick }) => {
   const { profile } = useAuth();
@@ -22,6 +23,11 @@ const MobileBottomNavigation = ({ onMenuClick }) => {
   // For the badge, we show "99+" if it's over 99
   const displayBadge = totalChatUnread > 99 ? '99+' : totalChatUnread;
   
+  const rawName = profile?.name || studentData?.name;
+  const isStudent = profile?.role === 'student' || (!profile?.role && studentData);
+  const formattedName = isStudent && rawName ? formatStudentDisplayName(rawName) : rawName;
+  const profileLabel = formattedName ? formattedName.split(' ')[0].toUpperCase() : 'PROFILE';
+
   const navItems = [
     { 
       id: 'menu', 
@@ -44,7 +50,7 @@ const MobileBottomNavigation = ({ onMenuClick }) => {
     },
     { 
       id: 'profile', 
-      label: profile?.name?.split(' ')[0]?.toUpperCase() || 'PROFILE', 
+      label: profileLabel, 
       to: '/m/profile',
       isProfile: true,
       image: profile?.picture_url || studentData?.picture_url

@@ -114,43 +114,43 @@ const FeeReconciliation = () => {
         </button>
       </div>
 
-      <div style={{ overflowX: 'auto' }}>
+      <div style={{ overflowX: 'auto', border: '1px solid #cbd5e1', borderRadius: '0.75rem' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
-            <tr style={{ borderBottom: '2px solid #e2e8f0', background: '#f8fafc' }}>
-              <th style={{ padding: '1rem', color: '#475569', fontWeight: 600 }}>Date</th>
-              <th style={{ padding: '1rem', color: '#475569', fontWeight: 600 }}>Student</th>
-              <th style={{ padding: '1rem', color: '#475569', fontWeight: 600 }}>Amount</th>
-              <th style={{ padding: '1rem', color: '#475569', fontWeight: 600 }}>Mode & Reference</th>
-              <th style={{ padding: '1rem', color: '#475569', fontWeight: 600 }}>Proof</th>
-              <th style={{ padding: '1rem', color: '#475569', fontWeight: 600, textAlign: 'right' }}>Actions</th>
+            <tr style={{ borderBottom: '2px solid #cbd5e1', background: '#f1f5f9' }}>
+              <th style={{ padding: '1rem', color: '#0f172a', fontWeight: 700, fontSize: '0.875rem' }}>Date</th>
+              <th style={{ padding: '1rem', color: '#0f172a', fontWeight: 700, fontSize: '0.875rem' }}>Student</th>
+              <th style={{ padding: '1rem', color: '#0f172a', fontWeight: 700, fontSize: '0.875rem' }}>Amount</th>
+              <th style={{ padding: '1rem', color: '#0f172a', fontWeight: 700, fontSize: '0.875rem' }}>Mode & Reference</th>
+              <th style={{ padding: '1rem', color: '#0f172a', fontWeight: 700, fontSize: '0.875rem' }}>Proof</th>
+              <th style={{ padding: '1rem', color: '#0f172a', fontWeight: 700, fontSize: '0.875rem', textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading records...</td>
+                <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#475569' }}>Loading records...</td>
               </tr>
             ) : payments.length === 0 ? (
               <tr>
-                <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#475569' }}>
                   No {activeTab.replace('_', ' ')} payments found.
                 </td>
               </tr>
             ) : (
               payments.map(payment => (
                 <tr key={payment.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                  <td style={{ padding: '1rem' }}>{new Date(payment.payment_date).toLocaleDateString()}</td>
+                  <td style={{ padding: '1rem', color: '#0f172a', fontWeight: 500 }}>{new Date(payment.payment_date).toLocaleDateString()}</td>
                   <td style={{ padding: '1rem' }}>
-                    <div style={{ fontWeight: 600, color: '#0f172a' }}>{payment.students?.name}</div>
-                    <div style={{ fontSize: '0.85rem', color: '#64748b' }}>UID: {payment.students?.uid} • {payment.students?.classes?.name} {payment.students?.classes?.section}</div>
+                    <div style={{ fontWeight: 700, color: '#0f172a' }}>{payment.students?.name}</div>
+                    <div style={{ fontSize: '0.85rem', color: '#475569' }}>UID: {payment.students?.uid} • {payment.students?.classes?.name} {payment.students?.classes?.section}</div>
                   </td>
                   <td style={{ padding: '1rem', fontWeight: 700, color: '#059669' }}>
                     ₹{Number(payment.amount).toLocaleString('en-IN')}
                   </td>
                   <td style={{ padding: '1rem' }}>
-                    <div style={{ textTransform: 'capitalize', fontWeight: 500 }}>{payment.payment_mode.replace('_', ' ')}</div>
-                    <div style={{ fontSize: '0.85rem', color: '#64748b', fontFamily: 'monospace' }}>Ref: {payment.reference_number || 'N/A'}</div>
+                    <div style={{ textTransform: 'capitalize', fontWeight: 700, color: '#0f172a' }}>{payment.payment_mode.replace('_', ' ')}</div>
+                    <div style={{ fontSize: '0.85rem', color: '#475569', fontFamily: 'monospace' }}>Ref: {payment.reference_number || 'N/A'}</div>
                   </td>
                   <td style={{ padding: '1rem' }}>
                     {payment.proof_url ? (

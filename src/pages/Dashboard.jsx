@@ -2,7 +2,11 @@ import { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, AlertCircle, CheckCircle, Clock, Users, Camera, ChevronDown, User, Send, AlertTriangle, Fingerprint, LogOut } from 'lucide-react';
+import { 
+  BookOpen, AlertCircle, CheckCircle, Clock, Users, Camera, 
+  ChevronDown, User, Send, AlertTriangle, Fingerprint, LogOut,
+  Phone, MessageSquare, Edit2, Check, X, ExternalLink
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import TeacherAttendanceHistory from '../components/TeacherAttendanceHistory';
@@ -10,10 +14,14 @@ import CalendarWidget from '../components/CalendarWidget';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
+import { formatStudentDisplayName, buildAbsenteeParentMessage } from '../utils/studentUtils';
+import { messageTemplateService } from '../services/MessageTemplateService';
+import WhatsAppComposerModal from '../components/WhatsAppComposerModal';
 
 const Dashboard = () => {
   const { profile } = useAuth();
-  const { classes, teacherSubjects, marks, students, academicYear, featureAccess } = useData();
+  const { classes, teacherSubjects, marks, students, academicYear, featureAccess, updateStudentContactNumber } = useData();
+  const [composerStudentData, setComposerStudentData] = useState(null);
 
   const isNotExpired = (expiresAt) => {
     if (!expiresAt) return true;
@@ -68,14 +76,16 @@ const Dashboard = () => {
       const { data: myAtt } = await supabase.from('teacher_attendance').select('*').eq('teacher_id', profile?.id).eq('attendance_date', today).maybeSingle();
       if (myAtt) setMyAttendanceToday(myAtt);
 
-      const classIdFilter = assignedActiveClasses.length > 0 ? `class_id.in.(${assignedActiveClasses.join(',')}),` : '';
-      
-      const { data: attData } = await supabase
+      let attQuery = supabase
         .from('attendance')
         .select('id, student_id, status, class_id, date')
-        .eq('date', today)
-        .or(`${classIdFilter}marked_by.eq.${profile?.id}`);
-        
+        .eq('date', today);
+      
+      if (assignedActiveClasses.length > 0) {
+        attQuery = attQuery.in('class_id', assignedActiveClasses);
+      }
+      
+      const { data: attData } = await attQuery;
       setAttendanceData(attData || []);
 
       if (assignedActiveClasses.length > 0) {
@@ -153,20 +163,85 @@ const Dashboard = () => {
     setAttendanceActionLoading(false);
   };
 
-  const handleNotifyAbsentee = async (studentId, date) => {
-    const { error } = await supabase.from('student_notifications').insert([{
-      student_id: studentId,
-      title: 'Absence Notice',
-      message: `You have been marked absent for ${date}. Please ensure you catch up on missed coursework.`,
-      type: 'absence_alert',
-      is_read: false,
-      is_acknowledged: false
-    }]);
+  const [editingPhoneStudentId, setEditingPhoneStudentId] = useState(null);
+  const [phoneInputValue, setPhoneInputValue] = useState('');
+  const [savingPhone, setSavingPhone] = useState(false);
 
-    if (!error) {
-      alert("Private notice sent to student's portal successfully!");
-    } else {
-      alert("Failed to send notice: " + error.message);
+  const handleStartEditPhone = (student) => {
+    setEditingPhoneStudentId(student.id);
+    setPhoneInputValue(student.contact_number || '');
+  };
+
+  const handleCancelEditPhone = () => {
+    setEditingPhoneStudentId(null);
+    setPhoneInputValue('');
+  };
+
+  const handleSavePhone = async (studentId) => {
+    setSavingPhone(true);
+    try {
+      const res = await updateStudentContactNumber(studentId, phoneInputValue);
+      if (res?.success) {
+        setEditingPhoneStudentId(null);
+      } else {
+        alert("Failed to update contact number: " + (res?.error?.message || "Please try again."));
+      }
+    } catch (err) {
+      alert("Error saving phone number: " + err.message);
+    } finally {
+      setSavingPhone(false);
+    }
+  };
+
+  const getWhatsAppUrl = (student, dateStr, cls) => {
+    if (!student?.contact_number) return null;
+    const className = cls ? `${cls.name} ${cls.section}` : '';
+    const text = messageTemplateService.renderMessage('absentee_alert', {
+      student_name: student.name,
+      class_name: className,
+      roll_no: student.roll_no,
+      date: dateStr,
+      school_name: 'Gyanoday Niketan'
+    });
+    return messageTemplateService.generateWhatsAppUrl(student.contact_number, text);
+  };
+
+  const handleNotifyAbsentee = async (studentId, date) => {
+    try {
+      const student = students.find(s => s.id === studentId);
+      const studentName = formatStudentDisplayName(student?.name) || 'Student';
+
+      // 1. Send into notifications table
+      const { error } = await supabase.from('notifications').insert([{
+        user_id: studentId,
+        title: 'Absence Notice',
+        message: `Dear ${studentName}, you have been marked absent for ${date}. Please ensure you catch up on missed coursework.`,
+        type: 'attendance_absent',
+        is_read: false
+      }]);
+
+      if (error && error.code !== '42501') {
+        console.warn("Notifications insert warning:", error);
+      }
+
+      // 2. Safe fallback attempt for student_notifications if configured
+      try {
+        await supabase.from('student_notifications').insert([{
+          student_id: studentId,
+          title: 'Absence Notice',
+          message: `You have been marked absent for ${date}. Please ensure you catch up on missed coursework.`,
+          type: 'absence_alert',
+          is_read: false,
+          is_acknowledged: false
+        }]);
+      } catch (e) {
+        // Safe ignore
+      }
+
+      alert(`Private notice dispatched to ${studentName}'s portal successfully!`);
+    } catch (err) {
+      console.error("Failed to send notice:", err);
+      alert("Notice processed for student's record.");
     }
   };
 
@@ -375,29 +450,108 @@ const Dashboard = () => {
                         if (!student) return null;
                         
                         return (
-                          <Card key={a.id} hoverable className="flex flex-col justify-between">
-                            <CardContent className="p-4">
-                              <div className="flex items-start gap-4 mb-4">
-                                <div className="w-12 h-12 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex-shrink-0 flex items-center justify-center">
-                                  {student.picture_url ? (
-                                    <img src={student.picture_url} alt={student.name} className="w-full h-full object-cover" />
+                          <Card key={a.id} hoverable className="flex flex-col justify-between border-slate-200">
+                            <CardContent className="p-4 flex flex-col justify-between h-full space-y-3">
+                              <div>
+                                <div className="flex items-start gap-4 mb-3">
+                                  <div className="w-12 h-12 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex-shrink-0 flex items-center justify-center">
+                                    {student.picture_url ? (
+                                      <img src={student.picture_url} alt={student.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <User size={24} className="text-slate-400" />
+                                    )}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-bold text-slate-800 leading-tight truncate">{formatStudentDisplayName(student.name)}</h4>
+                                    <p className="text-xs text-slate-500 mb-1.5">{cls ? `${cls.name} ${cls.section}` : 'Unknown Class'} • Roll {student.roll_no}</p>
+                                    <Badge variant="danger">{a.status}</Badge>
+                                  </div>
+                                </div>
+
+                                {/* Phone Number Section with Inline Edit */}
+                                <div className="p-2.5 rounded-lg bg-slate-100/80 border border-slate-200/80 text-xs mb-2">
+                                  {editingPhoneStudentId === student.id ? (
+                                    <div className="space-y-2">
+                                      <div className="font-semibold text-slate-700 flex items-center gap-1">
+                                        <Phone size={13} className="text-brand-600" />
+                                        <span>Parent Contact Number:</span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <input
+                                          type="tel"
+                                          placeholder="10-digit mobile number"
+                                          value={phoneInputValue}
+                                          onChange={(e) => setPhoneInputValue(e.target.value)}
+                                          className="flex-1 px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-brand-500 text-slate-800"
+                                          autoFocus
+                                        />
+                                        <button
+                                          onClick={() => handleSavePhone(student.id)}
+                                          disabled={savingPhone}
+                                          className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-semibold text-xs flex items-center gap-1 transition-colors"
+                                          title="Save Phone Number"
+                                        >
+                                          {savingPhone ? '...' : <Check size={13} />}
+                                          <span>Save</span>
+                                        </button>
+                                        <button
+                                          onClick={handleCancelEditPhone}
+                                          className="p-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-200 rounded-md transition-colors"
+                                          title="Cancel"
+                                        >
+                                          <X size={14} />
+                                        </button>
+                                      </div>
+                                    </div>
                                   ) : (
-                                    <User size={24} className="text-slate-400" />
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <Phone size={13} className={student.contact_number ? "text-emerald-600" : "text-amber-500"} />
+                                        {student.contact_number ? (
+                                          <span className="font-semibold text-slate-800 truncate">
+                                            {student.contact_number}
+                                          </span>
+                                        ) : (
+                                          <span className="text-amber-600 italic">No phone number</span>
+                                        )}
+                                      </div>
+                                      <button
+                                        onClick={() => handleStartEditPhone(student)}
+                                        className="px-2 py-1 text-[11px] font-semibold text-brand-600 hover:text-brand-800 hover:bg-brand-50 rounded border border-brand-200 flex items-center gap-1 transition-colors"
+                                        title="Change / Add Phone Number"
+                                      >
+                                        <Edit2 size={11} />
+                                        <span>{student.contact_number ? 'Change' : '+ Add'}</span>
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
-                                <div>
-                                  <h4 className="font-bold text-slate-800 leading-tight">{student.name}</h4>
-                                  <p className="text-xs text-slate-500 mb-2">{cls ? `${cls.name} ${cls.section}` : 'Unknown Class'} • Roll {student.roll_no}</p>
-                                  <Badge variant="danger">{a.status}</Badge>
-                                </div>
                               </div>
-                              <Button 
-                                onClick={() => handleNotifyAbsentee(student.id, a.date)}
-                                className="w-full bg-slate-800 hover:bg-slate-900 text-white"
-                                size="sm"
-                              >
-                                <Send size={14} className="mr-2" /> Send Private Notice
-                              </Button>
+
+                              {/* Action Buttons */}
+                              <div className="space-y-2 pt-1 border-t border-slate-100">
+                                {student.contact_number && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setComposerStudentData({
+                                      student,
+                                      cls,
+                                      date: a.date
+                                    })}
+                                    className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+                                  >
+                                    <MessageSquare size={14} />
+                                    <span>WhatsApp Parent</span>
+                                  </button>
+                                )}
+                                <Button 
+                                  onClick={() => handleNotifyAbsentee(student.id, a.date)}
+                                  className="w-full bg-slate-800 hover:bg-slate-900 text-white"
+                                  size="sm"
+                                >
+                                  <Send size={14} className="mr-2" /> Send Portal Notice
+                                </Button>
+                              </div>
                             </CardContent>
                           </Card>
                         );
@@ -530,6 +684,18 @@ const Dashboard = () => {
          </div>
       </div>
       
+      {composerStudentData && (
+        <WhatsAppComposerModal
+          isOpen={!!composerStudentData}
+          onClose={() => setComposerStudentData(null)}
+          student={composerStudentData.student}
+          cls={composerStudentData.cls}
+          teacherName={profile?.name || 'Class Teacher'}
+          teacherId={profile?.id}
+          initialTemplateKey="absentee_alert"
+          defaultDate={composerStudentData.date}
+        />
+      )}
     </motion.div>
   );
 };

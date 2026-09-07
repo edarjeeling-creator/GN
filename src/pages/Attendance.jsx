@@ -9,6 +9,9 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 import { useReactTable, getCoreRowModel, flexRender, getSortedRowModel, getFilteredRowModel } from '@tanstack/react-table';
+import { absenteeNotificationService } from '../services/AbsenteeNotificationService';
+import AbsenteeNotificationModal from '../components/AbsenteeNotificationModal';
+import { formatStudentDisplayName } from '../utils/studentUtils';
 
 const Attendance = () => {
   const { classes, students, academicYear } = useData();
@@ -24,6 +27,11 @@ const Attendance = () => {
   const [showOverrideModal, setShowOverrideModal] = useState(false);
   const [globalFilter, setGlobalFilter] = useState('');
   const [sorting, setSorting] = useState([]);
+
+  // Absentee Notification Modal State
+  const [absenteeModalData, setAbsenteeModalData] = useState(null);
+  const [showAbsenteeModal, setShowAbsenteeModal] = useState(false);
+
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiResults, setAiResults] = useState(null);
@@ -217,55 +225,128 @@ const Attendance = () => {
   };
 
   const triggerSaveFlow = () => {
-    if (!selectedClassId || !selectedDate) return;
-    if (isLocked && profile?.role === 'admin') setShowOverrideModal(true);
-    else executeSave();
+    if (!selectedClassId || !selectedDate) {
+      setMessage({ text: 'Please select a class and date first.', type: 'danger' });
+      return;
+    }
+    if (isLocked) {
+      if (profile?.role === 'admin') {
+        setShowOverrideModal(true);
+      } else {
+        setMessage({ text: 'Attendance window is locked for this date.', type: 'danger' });
+      }
+      return;
+    }
+    executeSave();
   };
 
   const executeSave = async (overrideData = null) => {
     setSaving(true);
     setMessage({ text: '', type: '' });
-    const recordsToUpsert = classStudents.map(student => ({
-      student_id: student.id, class_id: selectedClassId, date: selectedDate, academic_year: academicYear,
-      status: attendanceData[student.id]?.status || 'Present', remarks: attendanceData[student.id]?.remarks || null,
-      marked_by: profile?.id, marked_at: new Date().toISOString()
-    })).filter(record => record.status !== '');
+    
+    const validStatuses = ['Present', 'Absent', 'Late', 'Half Day', 'Leave'];
+
+    const recordsToUpsert = classStudents.map(student => {
+      let rawStatus = attendanceData[student.id]?.status || 'Present';
+      let remarks = attendanceData[student.id]?.remarks || null;
+
+      // Normalize 'Medical Leave' to 'Leave' with remark to satisfy DB check constraint
+      if (rawStatus === 'Medical Leave') {
+        rawStatus = 'Leave';
+        remarks = remarks ? `Medical Leave: ${remarks}` : 'Medical Leave';
+      }
+
+      const status = validStatuses.includes(rawStatus) ? rawStatus : 'Present';
+
+      return {
+        student_id: student.id,
+        class_id: selectedClassId,
+        date: selectedDate,
+        academic_year: academicYear || '2026',
+        status,
+        remarks: remarks || null
+      };
+    }).filter(record => record.status !== '');
 
     if (recordsToUpsert.length === 0) {
       setMessage({ text: 'Please mark attendance before saving.', type: 'danger' });
-      setSaving(false); return;
+      setSaving(false);
+      return;
     }
 
     try {
       const { error } = await supabase.from('attendance').upsert(recordsToUpsert, { onConflict: 'student_id,date' });
       if (error) throw error;
-      const absentStudents = recordsToUpsert.filter(r => r.status === 'Absent');
-      const presentStudents = recordsToUpsert.filter(r => r.status !== 'Absent');
+
+      const absentRecords = recordsToUpsert.filter(r => r.status === 'Absent');
+      const presentRecords = recordsToUpsert.filter(r => r.status !== 'Absent');
       const selectedClass = classes.find(c => c.id === selectedClassId);
       const className = selectedClass ? `${selectedClass.name} ${selectedClass.section}` : '';
-      const formattedDate = new Date(selectedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-');
 
-      if (presentStudents.length > 0) {
-        await supabase.from('student_notifications').update({ is_invalid: true, invalidated_at: new Date().toISOString(), invalidated_by: profile.id })
-          .eq('type', 'absence_alert').eq('attendance_date', selectedDate).in('student_id', presentStudents.map(r => r.student_id));
+      if (presentRecords.length > 0 && profile?.id) {
+        try {
+          await supabase.from('student_notifications').update({ 
+            is_invalid: true, 
+            invalidated_at: new Date().toISOString(), 
+            invalidated_by: profile.id 
+          })
+          .eq('type', 'absence_alert')
+          .eq('attendance_date', selectedDate)
+          .in('student_id', presentRecords.map(r => r.student_id));
+        } catch (e) {
+          // ignore if table does not exist
+        }
       }
 
-      if (absentStudents.length > 0) {
-        const notificationsToUpsert = absentStudents.map(record => ({ student_id: record.student_id, attendance_date: selectedDate, title: 'Attendance Alert', message: `You were marked absent on ${formattedDate} in Class ${className}. If this is incorrect, please contact the class teacher.`, type: 'absence_alert', channel: 'portal' }));
-        const { error: notificationError } = await supabase.from('student_notifications').upsert(notificationsToUpsert, { onConflict: 'student_id,attendance_date,type' });
-        if (notificationError) setMessage({ text: 'Attendance saved, but failed to send some notifications.', type: 'warning' });
-        else setMessage({ text: 'Attendance saved and absence notifications sent successfully!', type: 'success' });
-      } else setMessage({ text: 'Attendance saved successfully!', type: 'success' });
+      if (absentRecords.length > 0) {
+        const enrichedAbsentStudents = absentRecords.map(record => {
+          const studentInfo = classStudents.find(s => s.id === record.student_id) || {};
+          return {
+            ...studentInfo,
+            ...record
+          };
+        });
+
+        // Trigger comprehensive multi-channel notifications (Principal, Parents, Push)
+        const dispatchResult = await absenteeNotificationService.notifyAbsentees({
+          absentStudents: enrichedAbsentStudents,
+          className,
+          classId: selectedClassId,
+          date: selectedDate,
+          teacherName: profile?.name || 'Class Teacher',
+          teacherId: profile?.id,
+          schoolId: profile?.school_id
+        });
+
+        setAbsenteeModalData(dispatchResult);
+        setShowAbsenteeModal(true);
+
+        setMessage({ 
+          text: `Attendance saved! ${absentRecords.length} absence notification(s) dispatched.`, 
+          type: 'success' 
+        });
+      } else {
+        setMessage({ text: 'Attendance saved successfully! (100% Present)', type: 'success' });
+      }
 
       if (overrideData && overrideReason) {
         const { data } = await supabase.from('attendance').select('id').eq('class_id', selectedClassId).eq('date', selectedDate).limit(1);
-        await supabase.from('attendance_overrides').insert({ attendance_id: data ? data[0]?.id : recordsToUpsert[0].id, overridden_by: profile.id, new_status: 'Batch Override', reason: overrideReason });
-        setShowOverrideModal(false); setOverrideReason('');
+        await supabase.from('attendance_overrides').insert({ 
+          attendance_id: data ? data[0]?.id : recordsToUpsert[0].id, 
+          overridden_by: profile?.id, 
+          new_status: 'Batch Override', 
+          reason: overrideReason 
+        });
+        setShowOverrideModal(false); 
+        setOverrideReason('');
       }
     } catch (err) {
-      console.error(err); setMessage({ text: 'Failed to save attendance.', type: 'danger' });
+      console.error('Attendance save error:', err);
+      const errDetail = err?.message || err?.error_description || 'Failed to save attendance.';
+      setMessage({ text: `Failed to save: ${errDetail}`, type: 'danger' });
     } finally {
-      setSaving(false); setTimeout(() => setMessage({ text: '', type: '' }), 4000);
+      setSaving(false);
+      setTimeout(() => setMessage({ text: '', type: '' }), 5000);
     }
   };
 
@@ -297,7 +378,7 @@ const Attendance = () => {
             <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-slate-200 shrink-0 bg-slate-50 flex items-center justify-center">
               {student.picture_url ? <img src={student.picture_url} alt={student.name} className="w-full h-full object-cover" /> : <User size={20} className="text-slate-400" />}
             </div>
-            <span className="font-semibold text-slate-800">{student.name}</span>
+            <span className="font-semibold text-slate-800">{formatStudentDisplayName(student.name)}</span>
           </div>
         );
       },
@@ -388,17 +469,25 @@ const Attendance = () => {
               <Input type="date" className="w-full h-11" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} />
             </div>
             <div className="flex gap-2">
-              <Button onClick={markAllPresent} disabled={!selectedClassId || classStudents.length === 0 || (isLocked && profile?.role === 'teacher')} className="w-full h-11 shadow-sm px-2">
-                <Check size={18} className="mr-1" /> Mark All
+              <Button onClick={markAllPresent} disabled={!selectedClassId || classStudents.length === 0 || (isLocked && profile?.role === 'teacher')} className="flex-1 h-11 shadow-sm px-2 text-xs sm:text-sm font-semibold">
+                <Check size={16} className="mr-1" /> Mark All
               </Button>
               <Button 
                 onClick={() => fileInputRef.current?.click()} 
                 disabled={!selectedClassId || classStudents.length === 0 || isAnalyzing || (isLocked && profile?.role === 'teacher')} 
                 variant="outline"
-                className="w-full h-11 shadow-sm px-2 border-brand-200 text-brand-700 hover:bg-brand-50"
+                className="flex-1 h-11 shadow-sm px-2 border-brand-200 text-brand-700 hover:bg-brand-50 text-xs sm:text-sm font-semibold"
               >
-                {isAnalyzing ? <Loader2 size={18} className="animate-spin mr-1" /> : <Camera size={18} className="mr-1" />}
+                {isAnalyzing ? <Loader2 size={16} className="animate-spin mr-1" /> : <Camera size={16} className="mr-1" />}
                 Import AI
+              </Button>
+              <Button 
+                onClick={triggerSaveFlow} 
+                disabled={saving || !selectedClassId || classStudents.length === 0 || (isLocked && profile?.role === 'teacher')} 
+                className="flex-1 h-11 shadow-md px-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold"
+              >
+                {saving ? <Loader2 className="animate-spin mr-1" size={16} /> : <Save size={16} className="mr-1" />}
+                {saving ? 'Saving...' : 'Save Attendance'}
               </Button>
               <input 
                 type="file" 
@@ -477,7 +566,7 @@ const Attendance = () => {
                         >
                           <option value="">-- Select Student --</option>
                           {classStudents.map(s => (
-                            <option key={s.id} value={s.id}>{s.name} (Roll: {s.roll_no})</option>
+                            <option key={s.id} value={s.id}>{formatStudentDisplayName(s.name)} (Roll: {s.roll_no})</option>
                           ))}
                         </select>
                       </td>
@@ -564,11 +653,33 @@ const Attendance = () => {
               </table>
             </div>
             
-            <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end">
-              <Button onClick={triggerSaveFlow} disabled={saving || (isLocked && profile?.role === 'teacher')} className="h-11 px-8 shadow-sm text-sm">
-                {saving ? <Loader2 className="animate-spin mr-2" size={18} /> : <Save size={18} className="mr-2" />}
-                {saving ? 'Saving...' : 'Save Attendance'}
-              </Button>
+            <div className="p-4 border-t border-slate-200 bg-white/95 backdrop-blur flex items-center justify-between flex-wrap gap-4 sticky bottom-0 z-20 shadow-lg border-b border-slate-200">
+              <div className="flex-1 min-w-[240px]">
+                {message.text && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold ${
+                      message.type === 'success' 
+                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-sm' 
+                        : 'bg-red-50 text-red-800 border border-red-300 shadow-sm'
+                    }`}
+                  >
+                    {message.type === 'success' ? <Check size={18} className="text-emerald-600 shrink-0" /> : <AlertTriangle size={18} className="text-red-600 shrink-0" />}
+                    <span>{message.text}</span>
+                  </motion.div>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <Button 
+                  onClick={triggerSaveFlow} 
+                  disabled={saving || (isLocked && profile?.role === 'teacher')} 
+                  className="h-11 px-8 shadow-sm text-sm font-semibold transition-all"
+                >
+                  {saving ? <Loader2 className="animate-spin mr-2" size={18} /> : <Save size={18} className="mr-2" />}
+                  {saving ? 'Saving...' : 'Save Attendance'}
+                </Button>
+              </div>
             </div>
           </Card>
         )
@@ -603,6 +714,32 @@ const Attendance = () => {
                 <Button onClick={() => executeSave(true)} disabled={!overrideReason}>Confirm Override</Button>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Absentee Notification & WhatsApp Dispatch Modal */}
+      <AbsenteeNotificationModal 
+        isOpen={showAbsenteeModal} 
+        onClose={() => setShowAbsenteeModal(false)} 
+        data={absenteeModalData} 
+      />
+
+      {/* Floating Status Notification Toast */}
+      <AnimatePresence>
+        {message.text && (
+          <motion.div
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className={`fixed bottom-6 right-6 z-50 px-5 py-3.5 rounded-2xl shadow-2xl font-medium flex items-center gap-3 text-white border backdrop-blur-md ${
+              message.type === 'success' 
+                ? 'bg-emerald-600/95 border-emerald-400 shadow-emerald-900/20' 
+                : 'bg-red-600/95 border-red-400 shadow-red-900/20'
+            }`}
+          >
+            {message.type === 'success' ? <Check size={20} className="shrink-0" /> : <AlertTriangle size={20} className="shrink-0" />}
+            <span className="text-sm font-semibold tracking-wide">{message.text}</span>
           </motion.div>
         )}
       </AnimatePresence>
