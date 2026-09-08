@@ -15,15 +15,6 @@ export default defineConfig({
     target: 'es2020',
     sourcemap: false,
     reportCompressedSize: false,
-    chunkSizeWarningLimit: 3000,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules/lucide-react')) {
-            return 'lucide-icons';
-          }
-        }
-      }
-    }
+    chunkSizeWarningLimit: 6000
   }
 })

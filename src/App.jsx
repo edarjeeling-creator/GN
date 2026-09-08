@@ -1,4 +1,3 @@
-import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeProvider';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -11,53 +10,45 @@ import { Capacitor } from '@capacitor/core';
 import MobileAppShell from './mobile/layouts/MobileAppShell';
 import MobileProtectedRoute from './mobile/components/MobileProtectedRoute';
 
-// Lazy-loaded pages for optimal build performance & instant loading
-const Login = lazy(() => import('./pages/Login'));
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Classes = lazy(() => import('./pages/Classes'));
-const SubjectMarks = lazy(() => import('./pages/SubjectMarks'));
-const SubjectAcademicReport = lazy(() => import('./pages/SubjectAcademicReport'));
-const Flowsheet = lazy(() => import('./pages/Flowsheet'));
-const ReportCards = lazy(() => import('./pages/ReportCards'));
-const ResultPortal = lazy(() => import('./pages/ResultPortal'));
-const PrincipalPortal = lazy(() => import('./pages/PrincipalPortal'));
-const StudentPortal = lazy(() => import('./pages/StudentPortal'));
-const ParentPortal = lazy(() => import('./pages/ParentPortal'));
-const StudyMaterials = lazy(() => import('./pages/StudyMaterials'));
-const Assignments = lazy(() => import('./pages/Assignments'));
-const Admin = lazy(() => import('./pages/Admin'));
-const FeesDashboard = lazy(() => import('./pages/FeesDashboard'));
-const LibraryDashboard = lazy(() => import('./pages/LibraryDashboard'));
-const CommunicationHub = lazy(() => import('./pages/CommunicationHub'));
-const StudentSearch = lazy(() => import('./pages/StudentSearch'));
-const Attendance = lazy(() => import('./pages/Attendance'));
-const AttendanceReports = lazy(() => import('./pages/AttendanceReports'));
-const WeeklyTests = lazy(() => import('./pages/WeeklyTests'));
-const QRAttendanceScanner = lazy(() => import('./pages/QRAttendanceScanner'));
-const PythonTeacher = lazy(() => import('./pages/PythonTeacher'));
-const PythonStudent = lazy(() => import('./pages/PythonStudent'));
-const PublicIDForm = lazy(() => import('./pages/PublicIDForm'));
-const ClassTeacherPortal = lazy(() => import('./pages/ClassTeacherPortal'));
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Classes from './pages/Classes';
+import SubjectMarks from './pages/SubjectMarks';
+import SubjectAcademicReport from './pages/SubjectAcademicReport';
+import Flowsheet from './pages/Flowsheet';
+import ReportCards from './pages/ReportCards';
+import ResultPortal from './pages/ResultPortal';
+import PrincipalPortal from './pages/PrincipalPortal';
+import StudentPortal from './pages/StudentPortal';
+import ParentPortal from './pages/ParentPortal';
+import StudyMaterials from './pages/StudyMaterials';
+import Assignments from './pages/Assignments';
+import Admin from './pages/Admin';
+import FeesDashboard from './pages/FeesDashboard';
+import LibraryDashboard from './pages/LibraryDashboard';
+import CommunicationHub from './pages/CommunicationHub';
+import StudentSearch from './pages/StudentSearch';
+import Attendance from './pages/Attendance';
+import AttendanceReports from './pages/AttendanceReports';
+import WeeklyTests from './pages/WeeklyTests';
+import QRAttendanceScanner from './pages/QRAttendanceScanner';
+import PythonTeacher from './pages/PythonTeacher';
+import PythonStudent from './pages/PythonStudent';
+import PublicIDForm from './pages/PublicIDForm';
+import ClassTeacherPortal from './pages/ClassTeacherPortal';
 
 // HPC Module
-const HPCConfiguration = lazy(() => import('./pages/hpc/HPCConfiguration'));
-const HPCAssessmentWorkspace = lazy(() => import('./pages/hpc/HPCAssessmentWorkspace'));
-const HPCReview = lazy(() => import('./pages/hpc/HPCReview'));
-const HPCStudentProfile = lazy(() => import('./pages/hpc/HPCStudentProfile'));
+import HPCConfiguration from './pages/hpc/HPCConfiguration';
+import HPCAssessmentWorkspace from './pages/hpc/HPCAssessmentWorkspace';
+import HPCReview from './pages/hpc/HPCReview';
+import HPCStudentProfile from './pages/hpc/HPCStudentProfile';
 
 // Mobile App Shell & Pages
-const MobileHome = lazy(() => import('./mobile/pages/MobileHome'));
-const MobileProfile = lazy(() => import('./mobile/pages/MobileProfile'));
-const MobileMessages = lazy(() => import('./mobile/pages/MobileMessages'));
-const MobileSettings = lazy(() => import('./mobile/pages/MobileSettings'));
-const MobileCalendar = lazy(() => import('./mobile/pages/MobileCalendar'));
-
-const PageLoader = () => (
-  <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-    <div style={{ width: '36px', height: '36px', border: '3px solid rgba(59, 130, 246, 0.2)', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-  </div>
-);
+import MobileHome from './mobile/pages/MobileHome';
+import MobileProfile from './mobile/pages/MobileProfile';
+import MobileMessages from './mobile/pages/MobileMessages';
+import MobileSettings from './mobile/pages/MobileSettings';
+import MobileCalendar from './mobile/pages/MobileCalendar';
 
 function App() {
   const isNative = Capacitor.isNativePlatform();
@@ -66,8 +57,7 @@ function App() {
     <ThemeProvider>
       <>
         <Router>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
+          <Routes>
               {/* Mobile Native App Entry point redirection */}
               {isNative && (
                 <Route path="/" element={<Navigate to="/m/dashboard" replace />} />
@@ -157,7 +147,6 @@ function App() {
             </Route>
 
           </Routes>
-          </Suspense>
         </Router>
       </>
     </ThemeProvider>
