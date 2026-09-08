@@ -98,12 +98,79 @@ const HPCReportDocument = React.forwardRef(({ studentName, admissionNo, classNam
       )}
 
       {/* Teacher's Holistic Comment */}
-      <div className="mb-12 break-inside-avoid">
-        <h2 className="text-lg font-bold border-b pb-2 mb-4 uppercase text-gray-800">Teacher's Holistic Comment</h2>
+      <div className="mb-6 break-inside-avoid">
+        <h2 className="text-lg font-bold border-b pb-2 mb-3 uppercase text-gray-800">1. Teacher's Holistic Observation</h2>
         <p className="text-sm text-gray-700 bg-gray-50 p-4 rounded border border-gray-200">
-          {assessmentData?.overall_comment || 'No comment provided.'}
+          {assessmentData?.framework_snapshot?.teacher_remarks || assessmentData?.overall_comment || 'No specific comment provided.'}
         </p>
       </div>
+
+      {/* Student Self-Reflection */}
+      {((assessmentData?.self_ratings && assessmentData.self_ratings.length > 0) || 
+        (assessmentData?.hpc_student_self_ratings && assessmentData.hpc_student_self_ratings.length > 0)) && (
+        <div className="mb-6 break-inside-avoid">
+          <h2 className="text-lg font-bold border-b pb-2 mb-3 uppercase text-amber-900">2. Student Self-Reflection (Student's Voice)</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {(assessmentData.self_ratings || assessmentData.hpc_student_self_ratings).map((sr, idx) => (
+              <div key={idx} className="bg-amber-50/50 p-3 rounded border border-amber-200 text-xs">
+                <p className="font-bold text-amber-900">{sr.hpc_competencies?.name || sr.competency_name || 'Competency Reflection'}</p>
+                {sr.hpc_rating_scale_levels?.level_name && (
+                  <p className="font-semibold text-gray-800 mt-0.5">Rating: {sr.hpc_rating_scale_levels.level_name}</p>
+                )}
+                {sr.student_comment && <p className="italic text-gray-700 mt-1">"{sr.student_comment}"</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Peer Assessment */}
+      {assessmentData?.framework_snapshot?.peer_assessment?.peerName && (
+        <div className="mb-6 break-inside-avoid">
+          <h2 className="text-lg font-bold border-b pb-2 mb-3 uppercase text-emerald-900">3. Peer Assessment (Collaborative Learning)</h2>
+          <div className="bg-emerald-50/50 p-4 rounded border border-emerald-200 text-sm">
+            <p className="font-semibold text-emerald-900 mb-1">
+              Feedback from Classmate: <span className="font-bold text-gray-900">{assessmentData.framework_snapshot.peer_assessment.peerName}</span>
+            </p>
+            {assessmentData.framework_snapshot.peer_assessment.strengths && (
+              <p className="text-xs text-gray-700 mb-1">
+                <span className="font-bold">Collaborative Strengths:</span> {assessmentData.framework_snapshot.peer_assessment.strengths}
+              </p>
+            )}
+            {assessmentData.framework_snapshot.peer_assessment.comment && (
+              <p className="text-xs italic text-gray-800 mt-1">
+                "{assessmentData.framework_snapshot.peer_assessment.comment}"
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Parent Reflection */}
+      {(assessmentData?.hpc_parent_reflections || assessmentData?.framework_snapshot?.parent_reflection) && (
+        <div className="mb-8 break-inside-avoid">
+          <h2 className="text-lg font-bold border-b pb-2 mb-3 uppercase text-purple-900">4. Parent Reflection (Home Observations)</h2>
+          {(() => {
+            const pr = assessmentData.hpc_parent_reflections || assessmentData.framework_snapshot?.parent_reflection || {};
+            return (
+              <div className="bg-purple-50/50 p-4 rounded border border-purple-200 text-xs space-y-2">
+                {pr.strength_observed && (
+                  <p><span className="font-bold text-purple-900">Strengths Observed at Home:</span> {pr.strength_observed}</p>
+                )}
+                {pr.area_requiring_support && (
+                  <p><span className="font-bold text-purple-900">Areas Requiring Support:</span> {pr.area_requiring_support}</p>
+                )}
+                {pr.interest_talent && (
+                  <p><span className="font-bold text-purple-900">Special Interests & Talents:</span> {pr.interest_talent}</p>
+                )}
+                {pr.parent_comment && (
+                  <p><span className="font-bold text-purple-900">Parent Feedback / Note:</span> {pr.parent_comment}</p>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* Approval Information */}
       <div className="grid grid-cols-2 gap-8 mt-16 pt-8 border-t border-gray-800 break-inside-avoid text-sm">
