@@ -378,7 +378,7 @@ export default function HPCConfiguration() {
                     placeholder="e.g. 2026-2027"
                     value={yearForm.year_name}
                     onChange={e => setYearForm({ ...yearForm, year_name: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -387,7 +387,8 @@ export default function HPCConfiguration() {
                     type="date"
                     value={yearForm.start_date}
                     onChange={e => setYearForm({ ...yearForm, start_date: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm"
+                    style={{ colorScheme: 'light' }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -396,7 +397,8 @@ export default function HPCConfiguration() {
                     type="date"
                     value={yearForm.end_date}
                     onChange={e => setYearForm({ ...yearForm, end_date: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm"
+                    style={{ colorScheme: 'light' }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -453,7 +455,7 @@ export default function HPCConfiguration() {
                     required
                     value={termForm.academic_year_id}
                     onChange={e => setTermForm({ ...termForm, academic_year_id: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">-- Select Year --</option>
                     {data.academic_years?.map(y => (
@@ -469,7 +471,7 @@ export default function HPCConfiguration() {
                     placeholder="e.g. Term 1, Term 2"
                     value={termForm.term_name}
                     onChange={e => setTermForm({ ...termForm, term_name: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -524,7 +526,7 @@ export default function HPCConfiguration() {
                     required
                     value={frameworkForm.academic_year_id}
                     onChange={e => setFrameworkForm({ ...frameworkForm, academic_year_id: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">-- Select Year --</option>
                     {data.academic_years?.map(y => (
@@ -538,7 +540,7 @@ export default function HPCConfiguration() {
                     required
                     value={frameworkForm.applicable_class_id}
                     onChange={e => setFrameworkForm({ ...frameworkForm, applicable_class_id: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">-- Select Class --</option>
                     {classes?.map(c => (
@@ -554,7 +556,7 @@ export default function HPCConfiguration() {
                     placeholder="e.g. Class 6 Holistic Framework"
                     value={frameworkForm.name}
                     onChange={e => setFrameworkForm({ ...frameworkForm, name: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -564,7 +566,7 @@ export default function HPCConfiguration() {
                     placeholder="Optional details"
                     value={frameworkForm.description}
                     onChange={e => setFrameworkForm({ ...frameworkForm, description: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -621,7 +623,7 @@ export default function HPCConfiguration() {
                     required
                     value={domainForm.framework_id}
                     onChange={e => setDomainForm({ ...domainForm, framework_id: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">-- Select Framework --</option>
                     {data.frameworks?.map(f => (
@@ -637,7 +639,7 @@ export default function HPCConfiguration() {
                     placeholder="e.g. Cognitive Development"
                     value={domainForm.name}
                     onChange={e => setDomainForm({ ...domainForm, name: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -646,7 +648,7 @@ export default function HPCConfiguration() {
                     type="number"
                     value={domainForm.display_order}
                     onChange={e => setDomainForm({ ...domainForm, display_order: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -699,7 +701,7 @@ export default function HPCConfiguration() {
                     placeholder="e.g. Critical Thinking"
                     value={competencyForm.name}
                     onChange={e => setCompetencyForm({ ...competencyForm, name: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -707,7 +709,7 @@ export default function HPCConfiguration() {
                   <select
                     value={competencyForm.category}
                     onChange={e => setCompetencyForm({ ...competencyForm, category: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="Cognitive">Cognitive</option>
                     <option value="Socio-Emotional">Socio-Emotional</option>
@@ -720,7 +722,7 @@ export default function HPCConfiguration() {
                   <select
                     value={competencyForm.domain_id}
                     onChange={e => setCompetencyForm({ ...competencyForm, domain_id: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">-- Optional Domain --</option>
                     {data.domains?.map(d => (
@@ -780,7 +782,7 @@ export default function HPCConfiguration() {
                     required
                     value={indicatorForm.competency_id}
                     onChange={e => setIndicatorForm({ ...indicatorForm, competency_id: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">-- Select Competency --</option>
                     {data.competencies?.map(c => (
@@ -795,7 +797,7 @@ export default function HPCConfiguration() {
                     placeholder="e.g. CT-01"
                     value={indicatorForm.code}
                     onChange={e => setIndicatorForm({ ...indicatorForm, code: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm font-mono"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -806,7 +808,7 @@ export default function HPCConfiguration() {
                     placeholder="e.g. Identifies cause and effect"
                     value={indicatorForm.name}
                     onChange={e => setIndicatorForm({ ...indicatorForm, name: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -859,7 +861,7 @@ export default function HPCConfiguration() {
                       required
                       value={scaleForm.name}
                       onChange={e => setScaleForm({ ...scaleForm, name: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
                   <div>
@@ -867,7 +869,7 @@ export default function HPCConfiguration() {
                     <select
                       value={scaleForm.framework_id}
                       onChange={e => setScaleForm({ ...scaleForm, framework_id: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md text-sm bg-white"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">-- Optional Framework Link --</option>
                       {data.frameworks?.map(f => (
@@ -881,10 +883,10 @@ export default function HPCConfiguration() {
                   <h4 className="text-xs font-semibold uppercase text-gray-600 mb-2">Scale Levels (Default 3-Level NEP scale):</h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {scaleForm.levels.map((lvl, idx) => (
-                      <div key={idx} className="p-3 bg-white border rounded-md flex items-center space-x-3">
+                      <div key={idx} className="p-3 bg-white border border-gray-200 rounded-md flex items-center space-x-3">
                         <span className="w-4 h-4 rounded-full" style={{ backgroundColor: lvl.color_code }}></span>
                         <div>
-                          <p className="text-sm font-semibold">{lvl.level_name}</p>
+                          <p className="text-sm font-semibold text-gray-900">{lvl.level_name}</p>
                           <p className="text-xs text-gray-500">Value: {lvl.numeric_value} (Order: {lvl.display_order})</p>
                         </div>
                       </div>
