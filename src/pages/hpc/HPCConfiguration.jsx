@@ -378,7 +378,8 @@ export default function HPCConfiguration() {
                     placeholder="e.g. 2026-2027"
                     value={yearForm.year_name}
                     onChange={e => setYearForm({ ...yearForm, year_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    style={{ color: '#111827', backgroundColor: '#ffffff' }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 placeholder-gray-400 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -387,7 +388,7 @@ export default function HPCConfiguration() {
                     type="date"
                     value={yearForm.start_date}
                     onChange={e => setYearForm({ ...yearForm, start_date: e.target.value })}
-                    style={{ colorScheme: 'light' }}
+                    style={{ color: '#111827', backgroundColor: '#ffffff', colorScheme: 'light' }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -397,7 +398,7 @@ export default function HPCConfiguration() {
                     type="date"
                     value={yearForm.end_date}
                     onChange={e => setYearForm({ ...yearForm, end_date: e.target.value })}
-                    style={{ colorScheme: 'light' }}
+                    style={{ color: '#111827', backgroundColor: '#ffffff', colorScheme: 'light' }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
