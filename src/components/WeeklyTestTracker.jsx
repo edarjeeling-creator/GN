@@ -25,7 +25,7 @@ export default function WeeklyTestTracker() {
       .from('weekly_tests')
       .select(`
         *,
-        classes(name),
+        classes(name, section),
         subjects(name),
         profiles(name)
       `)
@@ -93,7 +93,7 @@ export default function WeeklyTestTracker() {
         <div className="flex justify-between items-start mb-6">
           <div>
              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Weekly Test Report</h2>
-             <p className="text-slate-600 dark:text-slate-400 mt-1">{selectedTest.classes?.name} | {selectedTest.subjects?.name} | Teacher: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedTest.profiles?.name}</span></p>
+             <p className="text-slate-600 dark:text-slate-400 mt-1">{selectedTest.classes?.name} {selectedTest.classes?.section || ''} | {selectedTest.subjects?.name} | Teacher: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedTest.profiles?.name}</span></p>
              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Date: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedTest.test_date}</span> | Max Marks: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedTest.max_marks}</span> | Status: <strong className="text-brand-600 dark:text-brand-400">{selectedTest.status}</strong></p>
           </div>
           <div className="flex gap-2">
@@ -110,7 +110,7 @@ export default function WeeklyTestTracker() {
           <div className="text-center mb-8 hidden print:block">
             <h1 className="text-2xl font-bold uppercase tracking-wider text-slate-900">Gyanoday Niketan</h1>
             <h2 className="text-xl font-semibold text-slate-800">Weekly Test Assembly Report</h2>
-            <p className="text-slate-600">{selectedTest.classes?.name} - {selectedTest.subjects?.name} ({selectedTest.test_date})</p>
+            <p className="text-slate-600">{selectedTest.classes?.name} {selectedTest.classes?.section || ''} - {selectedTest.subjects?.name} ({selectedTest.test_date})</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -216,7 +216,7 @@ export default function WeeklyTestTracker() {
              {tests.map(test => (
                <tr key={test.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
                  <td className="p-4 font-medium text-slate-700 dark:text-slate-300">{test.test_date}</td>
-                 <td className="p-4 font-bold text-slate-900 dark:text-white">{test.classes?.name}</td>
+                 <td className="p-4 font-bold text-slate-900 dark:text-white">{test.classes?.name} {test.classes?.section || ''}</td>
                  <td className="p-4 font-medium text-slate-800 dark:text-slate-200">{test.subjects?.name}</td>
                  <td className="p-4 text-slate-700 dark:text-slate-300">{test.profiles?.name}</td>
                  <td className="p-4">

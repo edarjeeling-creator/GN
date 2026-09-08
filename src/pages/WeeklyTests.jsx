@@ -24,6 +24,8 @@ export default function WeeklyTests() {
   const [marks, setMarks] = useState({}); // { student_id: { score: '', is_absent: false } }
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [teacherAssignments, setTeacherAssignments] = useState([]);
+
   useEffect(() => {
     fetchTests();
     fetchTeacherAssignments();
@@ -34,7 +36,7 @@ export default function WeeklyTests() {
       .from('weekly_tests')
       .select(`
         *,
-        classes (name),
+        classes (name, section),
         subjects (name)
       `)
       .eq('teacher_id', user.id)
@@ -46,31 +48,58 @@ export default function WeeklyTests() {
   const fetchTeacherAssignments = async () => {
     const { data } = await supabase
       .from('teacher_subjects')
-      .select('class_id, subject_id, classes(name), subjects(name)')
+      .select('class_id, subject_id, classes(id, name, section), subjects(id, name)')
       .eq('teacher_id', user.id);
     
     if (data) {
-      // Extract unique classes and subjects
+      setTeacherAssignments(data);
+      // Extract unique classes formatted with section
       const uniqueClasses = [];
-      const uniqueSubjects = [];
       const classMap = new Set();
-      const subjectMap = new Set();
       
       data.forEach(item => {
-        if (!classMap.has(item.class_id)) {
+        if (item.classes && !classMap.has(item.class_id)) {
           classMap.add(item.class_id);
-          uniqueClasses.push({ id: item.class_id, name: item.classes.name });
-        }
-        if (!subjectMap.has(item.subject_id)) {
-          subjectMap.add(item.subject_id);
-          uniqueSubjects.push({ id: item.subject_id, name: item.subjects.name });
+          const displayName = item.classes.section 
+            ? `${item.classes.name} ${item.classes.section}`.trim() 
+            : item.classes.name;
+          uniqueClasses.push({ 
+            id: item.class_id, 
+            name: displayName,
+            rawName: item.classes.name,
+            section: item.classes.section
+          });
         }
       });
       
+      uniqueClasses.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
       setClasses(uniqueClasses);
-      setSubjects(uniqueSubjects);
     }
   };
+
+  const availableSubjects = React.useMemo(() => {
+    if (!newTest.class_id) {
+      const subMap = new Set();
+      const list = [];
+      teacherAssignments.forEach(item => {
+        if (item.subjects && !subMap.has(item.subject_id)) {
+          subMap.add(item.subject_id);
+          list.push(item.subjects);
+        }
+      });
+      return list;
+    }
+    const filtered = teacherAssignments
+      .filter(item => item.class_id === newTest.class_id && item.subjects)
+      .map(item => item.subjects);
+    
+    const subMap = new Set();
+    return filtered.filter(s => {
+      if (subMap.has(s.id)) return false;
+      subMap.add(s.id);
+      return true;
+    });
+  }, [teacherAssignments, newTest.class_id]);
 
   const handleCreateTest = async (e) => {
     e.preventDefault();
@@ -202,7 +231,7 @@ export default function WeeklyTests() {
           <div>
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Weekly Test Marks Entry</h2>
             <p className="text-slate-600 dark:text-slate-400 mt-1">
-              Date: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedTest.test_date}</span> | Max Marks: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedTest.max_marks}</span> | Status: <span className="font-semibold text-brand-600 dark:text-brand-400">{selectedTest.status}</span>
+              Class: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedTest.classes?.name} {selectedTest.classes?.section || ''}</span> | Subject: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedTest.subjects?.name}</span> | Date: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedTest.test_date}</span> | Max Marks: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedTest.max_marks}</span> | Status: <span className="font-semibold text-brand-600 dark:text-brand-400">{selectedTest.status}</span>
             </p>
           </div>
           <button onClick={() => setSelectedTest(null)} className="btn-hero-outline">Back to List</button>
@@ -294,16 +323,27 @@ export default function WeeklyTests() {
           <form onSubmit={handleCreateTest} className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Class</label>
-              <select required className="input-field bg-white dark:bg-slate-800 text-slate-900 dark:text-white border-slate-300 dark:border-slate-700" value={newTest.class_id} onChange={e => setNewTest({...newTest, class_id: e.target.value})}>
+              <select 
+                required 
+                className="input-field bg-white dark:bg-slate-800 text-slate-900 dark:text-white border-slate-300 dark:border-slate-700" 
+                value={newTest.class_id} 
+                onChange={e => setNewTest({...newTest, class_id: e.target.value, subject_id: ''})}
+              >
                 <option value="">Select Class</option>
                 {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Subject</label>
-              <select required className="input-field bg-white dark:bg-slate-800 text-slate-900 dark:text-white border-slate-300 dark:border-slate-700" value={newTest.subject_id} onChange={e => setNewTest({...newTest, subject_id: e.target.value})}>
-                <option value="">Select Subject</option>
-                {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              <select 
+                required 
+                className="input-field bg-white dark:bg-slate-800 text-slate-900 dark:text-white border-slate-300 dark:border-slate-700 disabled:opacity-50" 
+                value={newTest.subject_id} 
+                onChange={e => setNewTest({...newTest, subject_id: e.target.value})}
+                disabled={!newTest.class_id}
+              >
+                <option value="">{newTest.class_id ? "Select Subject" : "First select a Class"}</option>
+                {availableSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div>
@@ -339,7 +379,7 @@ export default function WeeklyTests() {
                 {test.status}
               </span>
             </div>
-            <h3 className="font-bold text-lg text-slate-900 dark:text-white">{test.classes?.name} - {test.subjects?.name}</h3>
+            <h3 className="font-bold text-lg text-slate-900 dark:text-white">{test.classes?.name} {test.classes?.section || ''} - {test.subjects?.name}</h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{new Date(test.test_date).toLocaleDateString()}</p>
             
             <div className="flex items-center text-sm font-semibold text-brand-600 dark:text-brand-400 gap-1.5">
