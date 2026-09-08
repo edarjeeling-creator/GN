@@ -138,7 +138,7 @@ export default function HPCReview() {
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center border-b pb-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">HPC Review & Moderation</h1>
+          <h1 className="text-3xl font-bold text-[var(--text-primary)]">HPC Review & Moderation</h1>
           <p className="text-sm text-gray-500 mt-1">Review, approve, reject, or revise holistic progress cards submitted by teachers</p>
         </div>
         
