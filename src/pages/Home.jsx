@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, MapPin, Users, Phone, ArrowRight, FileText, CheckCircle, ChevronRight, Award, ImageIcon, Trophy, ChevronLeft, Shield, Megaphone, Bell, Calendar, Quote } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
+import { getCmsIcon, CMS_ICON_MAP } from '../utils/cmsIcons';
 import { supabase } from '../lib/supabase';
 import SchoolPopup from '../components/SchoolPopup';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
@@ -360,7 +360,7 @@ const Home = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
             {divisions.filter(d => d.isActive !== false).map((div, idx) => {
-              const IconComp = LucideIcons[div.icon] || LucideIcons.BookOpen;
+              const IconComp = getCmsIcon(div.icon, CMS_ICON_MAP.BookOpen);
               return (
               <Card key={idx} className="border border-slate-100 shadow-sm hover:shadow-md transition-shadow h-full flex flex-col bg-white">
                 <CardContent className="p-6 flex flex-col h-full items-start">
@@ -390,7 +390,7 @@ const Home = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {whyChooseUs.filter(w => w.isActive !== false).map((item, idx) => {
-              const IconComp = LucideIcons[item.icon] || LucideIcons.CheckCircle;
+              const IconComp = getCmsIcon(item.icon, CMS_ICON_MAP.CheckCircle);
               return (
               <div key={idx} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex gap-4 items-start hover:shadow-md transition-shadow">
                 <div className="w-12 h-12 rounded-xl bg-slate-50 text-blue-600 flex items-center justify-center flex-shrink-0">

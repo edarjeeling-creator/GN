@@ -1,19 +1,13 @@
 import React, { useState } from 'react';
-import * as LucideIcons from 'lucide-react';
-
-const ICON_LIST = [
-  'Users', 'BookOpen', 'Award', 'FileText', 'Phone', 'CheckCircle', 'Trophy', 
-  'ImageIcon', 'Shield', 'Megaphone', 'Bell', 'GraduationCap', 'Star', 'Globe', 
-  'Heart', 'Smile', 'Lightbulb', 'Briefcase', 'Target', 'Compass', 'Activity', 'Feather'
-];
+import { CMS_ICON_MAP, CMS_ICON_LIST, getCmsIcon } from '../utils/cmsIcons';
 
 export default function IconPicker({ value, onChange }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
 
-  const CurrentIcon = LucideIcons[value] || LucideIcons.HelpCircle;
+  const CurrentIcon = getCmsIcon(value, CMS_ICON_MAP.HelpCircle);
   
-  const filteredIcons = ICON_LIST.filter(icon => icon.toLowerCase().includes(search.toLowerCase()));
+  const filteredIcons = CMS_ICON_LIST.filter(icon => icon.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="relative">
@@ -37,7 +31,7 @@ export default function IconPicker({ value, onChange }) {
           />
           <div className="grid grid-cols-4 gap-2">
             {filteredIcons.map(iconName => {
-              const IconComp = LucideIcons[iconName];
+              const IconComp = CMS_ICON_MAP[iconName] || CMS_ICON_MAP.HelpCircle;
               return (
                 <button
                   key={iconName}
