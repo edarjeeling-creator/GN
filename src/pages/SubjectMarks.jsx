@@ -171,7 +171,7 @@ const SubjectMarks = () => {
   const columns = useMemo(() => {
     const isMid = selectedTerm === 'Midterm';
     return [
-      { accessorKey: 'roll_no', header: 'Roll No', cell: info => <span className="font-bold text-slate-700">{info.getValue()}</span> },
+      { accessorKey: 'roll_no', header: 'Roll No', cell: info => <span className="font-bold text-slate-800 dark:text-slate-100">{info.getValue()}</span> },
       {
         accessorKey: 'name',
         header: 'Student Name',
@@ -179,10 +179,10 @@ const SubjectMarks = () => {
           const student = info.row.original;
           return (
             <div className="flex items-center gap-4 py-2">
-              <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-slate-200 shrink-0 bg-slate-50 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-slate-200 dark:border-slate-700 shrink-0 bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
                 {student.picture_url ? <img src={student.picture_url} className="w-full h-full object-cover" /> : <User size={20} className="text-slate-400" />}
               </div>
-              <span className="font-semibold text-slate-800">{formatStudentDisplayName(student.name)}</span>
+              <span className="font-semibold text-slate-900 dark:text-white">{formatStudentDisplayName(student.name)}</span>
             </div>
           );
         },
@@ -194,7 +194,7 @@ const SubjectMarks = () => {
           const { localMarks, handleMarkChange, handleBlur, subjectId, academicYear, isLocked } = table.options.meta;
           const termKey = isMid ? 'Midterm_Exam' : 'Finalterm_Exam';
           const val = localMarks[`${row.original.id}_${subjectId}_${academicYear}_${termKey}`];
-          return <Input type="number" className="w-20 text-center font-semibold" value={val !== undefined ? val : ''} min="0" max="100" onChange={e => handleMarkChange(row.original.id, termKey, e.target.value)} onBlur={() => handleBlur(row.original.id, termKey)} disabled={isLocked} />;
+          return <Input type="number" className="w-20 text-center font-bold bg-white dark:bg-slate-950 text-slate-900 dark:text-white border-slate-300 dark:border-slate-700" value={val !== undefined ? val : ''} min="0" max="100" onChange={e => handleMarkChange(row.original.id, termKey, e.target.value)} onBlur={() => handleBlur(row.original.id, termKey)} disabled={isLocked} />;
         }
       },
       {
@@ -205,7 +205,7 @@ const SubjectMarks = () => {
           const termKey = isMid ? 'Midterm_Exam' : 'Finalterm_Exam';
           const val = localMarks[`${row.original.id}_${subjectId}_${academicYear}_${termKey}`];
           const conv = calculateConverted(val);
-          return <span className="text-slate-500 font-medium">{conv > 0 ? conv.toFixed(2) : '0'}</span>;
+          return <span className="text-slate-500 dark:text-slate-400 font-medium">{conv > 0 ? conv.toFixed(2) : '0'}</span>;
         }
       },
       {
@@ -215,7 +215,7 @@ const SubjectMarks = () => {
           const { localMarks, handleMarkChange, handleBlur, subjectId, academicYear, isLocked } = table.options.meta;
           const termKey = isMid ? 'Midterm_Test' : 'Finalterm_Test';
           const val = localMarks[`${row.original.id}_${subjectId}_${academicYear}_${termKey}`];
-          return <Input type="number" className="w-20 text-center font-semibold" value={val !== undefined ? val : ''} min="0" max={testMax} onChange={e => handleMarkChange(row.original.id, termKey, e.target.value)} onBlur={() => handleBlur(row.original.id, termKey)} disabled={isLocked} />;
+          return <Input type="number" className="w-20 text-center font-bold bg-white dark:bg-slate-950 text-slate-900 dark:text-white border-slate-300 dark:border-slate-700" value={val !== undefined ? val : ''} min="0" max={testMax} onChange={e => handleMarkChange(row.original.id, termKey, e.target.value)} onBlur={() => handleBlur(row.original.id, termKey)} disabled={isLocked} />;
         }
       },
       {
@@ -264,8 +264,8 @@ const SubjectMarks = () => {
           <Button variant="outline" size="sm" onClick={() => navigate('/classes')} className="mb-4 text-slate-500 hover:text-slate-800">
             <ArrowLeft size={16} className="mr-2" /> Back to Classes
           </Button>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Marks Entry: {subject?.name}</h1>
-          <p className="text-slate-500 mt-1">{cls?.name} {cls?.section} <span className="inline-block mx-2 text-slate-300">|</span> Exam translates to {examConv}, Test is out of {testMax}</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Marks Entry: {subject?.name}</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">{cls?.name} {cls?.section} <span className="inline-block mx-2 text-slate-300 dark:text-slate-600">|</span> Exam translates to {examConv}, Test is out of {testMax}</p>
           {isLocked && (
             <div className="mt-2 text-orange-600 bg-orange-50 px-3 py-1.5 rounded-md inline-flex items-center gap-2 font-semibold">
               <AlertCircle size={16} /> Results for this term are Locked. Editing is disabled.
@@ -281,10 +281,10 @@ const SubjectMarks = () => {
           </AnimatePresence>
           
           <input type="file" accept=".xlsx, .xls, .csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" disabled={isLocked} />
-          <Button variant="outline" onClick={() => navigate(`/classes/${classId}/subjects/${subjectId}/report?term=${selectedTerm}`)} className="shrink-0 bg-white shadow-sm text-brand-600 hover:bg-brand-50 hover:text-brand-700">
+          <Button variant="outline" onClick={() => navigate(`/classes/${classId}/subjects/${subjectId}/report?term=${selectedTerm}`)} className="shrink-0 bg-white dark:bg-slate-800 shadow-sm text-brand-600 dark:text-brand-400 hover:bg-brand-50">
             <Printer size={18} className="mr-2" /> Print Report
           </Button>
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="shrink-0 bg-white shadow-sm" disabled={isLocked}>
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="shrink-0 bg-white dark:bg-slate-800 shadow-sm" disabled={isLocked}>
             <Upload size={18} className="mr-2" /> Import Excel
           </Button>
           <Button onClick={() => {
@@ -304,21 +304,21 @@ const SubjectMarks = () => {
         </div>
       </div>
 
-      <Card className="overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-slate-200 bg-white flex flex-col md:flex-row justify-between items-center gap-4">
+      <Card className="overflow-hidden shadow-sm border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="relative w-full md:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <Input value={globalFilter ?? ''} onChange={e => setGlobalFilter(e.target.value)} placeholder="Search student..." className="pl-10 h-10 w-full bg-slate-50" />
+            <Input value={globalFilter ?? ''} onChange={e => setGlobalFilter(e.target.value)} placeholder="Search student..." className="pl-10 h-10 w-full bg-slate-50 dark:bg-slate-800/50" />
           </div>
           
           <div className="flex gap-3 w-full md:w-auto">
             {hasLanguageOptions && (
-              <select className="h-10 px-3 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 bg-white" value={languageFilter} onChange={e => setLanguageFilter(e.target.value)}>
+              <select className="h-10 px-3 rounded-lg border border-slate-300 dark:border-slate-700 text-sm focus:ring-2 focus:ring-brand-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white" value={languageFilter} onChange={e => setLanguageFilter(e.target.value)}>
                 <option value="">All Languages</option>
                 {uniqueLanguages.map(lang => <option key={lang} value={lang}>{lang}</option>)}
               </select>
             )}
-            <select className="h-10 px-4 rounded-lg border border-slate-300 text-sm font-bold bg-slate-800 text-white focus:ring-2 focus:ring-slate-500" value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>
+            <select className="h-10 px-4 rounded-lg border border-slate-300 dark:border-slate-700 text-sm font-bold bg-slate-800 dark:bg-slate-950 text-white focus:ring-2 focus:ring-slate-500" value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>
               <option value="Midterm">Mid-Term</option>
               <option value="Finalterm">Final-Term</option>
             </select>
@@ -326,12 +326,12 @@ const SubjectMarks = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-slate-50 border-b border-slate-200">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
               {table.getHeaderGroups().map(headerGroup => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map(header => (
-                    <th key={header.id} className={`p-4 font-semibold text-slate-600 text-sm whitespace-nowrap cursor-pointer select-none hover:bg-slate-100 transition-colors ${['exam', 'conv', 'test', 'total'].includes(header.id) ? 'text-center' : ''}`} onClick={header.column.getToggleSortingHandler()}>
+                    <th key={header.id} className={`p-4 font-bold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider whitespace-nowrap cursor-pointer select-none hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${['exam', 'conv', 'test', 'total'].includes(header.id) ? 'text-center' : ''}`} onClick={header.column.getToggleSortingHandler()}>
                       <div className={`flex items-center gap-2 ${['exam', 'conv', 'test', 'total'].includes(header.id) ? 'justify-center' : ''}`}>
                         {flexRender(header.column.columnDef.header, header.getContext())}
                         {{ asc: <ChevronUp size={14} />, desc: <ChevronDown size={14} /> }[header.column.getIsSorted()] ?? null}
@@ -341,9 +341,9 @@ const SubjectMarks = () => {
                 </tr>
               ))}
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 bg-white dark:bg-slate-900">
               {table.getRowModel().rows.map(row => (
-                <tr key={row.id} className="hover:bg-slate-50 transition-colors">
+                <tr key={row.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
                   {row.getVisibleCells().map(cell => (
                     <td key={cell.id} className={`p-4 align-middle ${['exam', 'conv', 'test', 'total'].includes(cell.column.id) ? 'text-center' : ''}`}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -353,7 +353,7 @@ const SubjectMarks = () => {
               ))}
               {table.getRowModel().rows.length === 0 && (
                 <tr>
-                  <td colSpan={columns.length} className="p-8 text-center text-slate-500">No matching students found.</td>
+                  <td colSpan={columns.length} className="p-8 text-center text-slate-500 dark:text-slate-400">No matching students found.</td>
                 </tr>
               )}
             </tbody>
