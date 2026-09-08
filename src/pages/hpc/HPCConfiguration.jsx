@@ -42,17 +42,17 @@ export default function HPCConfiguration() {
     setErrorMsg('');
     try {
       const [
-        { data: years },
-        { data: terms },
-        { data: competencies },
-        { data: frameworks },
-        { data: domains },
-        { data: domainComps },
-        { data: indicators },
-        { data: scaleSets },
-        { data: scaleLevels }
+        { data: years, error: yearsErr },
+        { data: terms, error: termsErr },
+        { data: competencies, error: compsErr },
+        { data: frameworks, error: frameworksErr },
+        { data: domains, error: domainsErr },
+        { data: domainComps, error: domainCompsErr },
+        { data: indicators, error: indicatorsErr },
+        { data: scaleSets, error: scaleSetsErr },
+        { data: scaleLevels, error: scaleLevelsErr }
       ] = await Promise.all([
-        supabase.from('hpc_academic_years').select('*').order('created_at', { ascending: false }),
+        supabase.from('hpc_academic_years').select('*').order('year_name', { ascending: false }),
         supabase.from('hpc_terms').select('*, hpc_academic_years(year_name)').order('term_name'),
         supabase.from('hpc_competencies').select('*').order('name'),
         supabase.from('hpc_frameworks').select('*, hpc_academic_years(year_name)').order('created_at', { ascending: false }),
@@ -62,6 +62,16 @@ export default function HPCConfiguration() {
         supabase.from('hpc_rating_scale_sets').select('*'),
         supabase.from('hpc_rating_scale_levels').select('*, hpc_rating_scale_sets(name)').order('display_order')
       ]);
+
+      if (yearsErr) console.error('Error fetching academic years:', yearsErr);
+      if (termsErr) console.error('Error fetching terms:', termsErr);
+      if (compsErr) console.error('Error fetching competencies:', compsErr);
+      if (frameworksErr) console.error('Error fetching frameworks:', frameworksErr);
+      if (domainsErr) console.error('Error fetching domains:', domainsErr);
+      if (domainCompsErr) console.error('Error fetching domain competencies:', domainCompsErr);
+      if (indicatorsErr) console.error('Error fetching indicators:', indicatorsErr);
+      if (scaleSetsErr) console.error('Error fetching scale sets:', scaleSetsErr);
+      if (scaleLevelsErr) console.error('Error fetching scale levels:', scaleLevelsErr);
 
       setData({
         academic_years: years || [],
