@@ -200,29 +200,29 @@ export default function WeeklyTests() {
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h2 className="text-2xl font-bold">Weekly Test Marks Entry</h2>
-            <p className="text-gray-600">
-              Date: {selectedTest.test_date} | Max Marks: {selectedTest.max_marks} | Status: <span className="font-semibold">{selectedTest.status}</span>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Weekly Test Marks Entry</h2>
+            <p className="text-slate-600 dark:text-slate-400 mt-1">
+              Date: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedTest.test_date}</span> | Max Marks: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedTest.max_marks}</span> | Status: <span className="font-semibold text-brand-600 dark:text-brand-400">{selectedTest.status}</span>
             </p>
           </div>
           <button onClick={() => setSelectedTest(null)} className="btn-hero-outline">Back to List</button>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-gray-50 border-b border-gray-200">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
               <tr>
-                <th className="p-4 font-semibold text-gray-600">Roll No</th>
-                <th className="p-4 font-semibold text-gray-600">Student Name</th>
-                <th className="p-4 font-semibold text-gray-600">Marks Obtained</th>
-                <th className="p-4 font-semibold text-gray-600 text-center">Absent</th>
+                <th className="p-4 font-bold text-slate-700 dark:text-slate-300 uppercase text-xs tracking-wider">Roll No</th>
+                <th className="p-4 font-bold text-slate-700 dark:text-slate-300 uppercase text-xs tracking-wider">Student Name</th>
+                <th className="p-4 font-bold text-slate-700 dark:text-slate-300 uppercase text-xs tracking-wider">Marks Obtained</th>
+                <th className="p-4 font-bold text-slate-700 dark:text-slate-300 uppercase text-xs tracking-wider text-center">Absent</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
               {students.map(student => (
-                <tr key={student.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="p-4">{student.roll_no}</td>
-                  <td className="p-4 font-medium">{formatStudentDisplayName(student.name)}</td>
+                <tr key={student.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                  <td className="p-4 font-bold text-slate-800 dark:text-slate-100">{student.roll_no}</td>
+                  <td className="p-4 font-semibold text-slate-900 dark:text-white">{formatStudentDisplayName(student.name)}</td>
                   <td className="p-4">
                     <input
                       type="number"
@@ -231,7 +231,7 @@ export default function WeeklyTests() {
                       disabled={isReadOnly || marks[student.id]?.is_absent}
                       value={marks[student.id]?.score || ''}
                       onChange={(e) => handleMarkChange(student.id, 'score', e.target.value)}
-                      className="input-field w-32"
+                      className="input-field w-32 font-bold text-center bg-white dark:bg-slate-800 text-slate-900 dark:text-white border-slate-300 dark:border-slate-700 focus:border-brand-500"
                       placeholder="e.g. 18"
                     />
                   </td>
@@ -241,7 +241,7 @@ export default function WeeklyTests() {
                       disabled={isReadOnly}
                       checked={marks[student.id]?.is_absent || false}
                       onChange={(e) => handleMarkChange(student.id, 'is_absent', e.target.checked)}
-                      className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500"
+                      className="w-5 h-5 text-brand-600 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:ring-brand-500 cursor-pointer"
                     />
                   </td>
                 </tr>
@@ -280,8 +280,8 @@ export default function WeeklyTests() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Weekly Tests</h2>
-          <p className="text-gray-600">Manage and submit weekly test marks</p>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Weekly Tests</h2>
+          <p className="text-slate-600 dark:text-slate-400">Manage and submit weekly test marks</p>
         </div>
         <button onClick={() => setIsCreating(true)} className="btn-hero-primary flex items-center gap-2">
           <Plus size={20} /> New Test
@@ -289,30 +289,30 @@ export default function WeeklyTests() {
       </div>
 
       {isCreating && (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6">
-          <h3 className="text-lg font-bold mb-4">Create New Weekly Test</h3>
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 mb-6">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Create New Weekly Test</h3>
           <form onSubmit={handleCreateTest} className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Class</label>
-              <select required className="input-field" value={newTest.class_id} onChange={e => setNewTest({...newTest, class_id: e.target.value})}>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Class</label>
+              <select required className="input-field bg-white dark:bg-slate-800 text-slate-900 dark:text-white border-slate-300 dark:border-slate-700" value={newTest.class_id} onChange={e => setNewTest({...newTest, class_id: e.target.value})}>
                 <option value="">Select Class</option>
                 {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Subject</label>
-              <select required className="input-field" value={newTest.subject_id} onChange={e => setNewTest({...newTest, subject_id: e.target.value})}>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Subject</label>
+              <select required className="input-field bg-white dark:bg-slate-800 text-slate-900 dark:text-white border-slate-300 dark:border-slate-700" value={newTest.subject_id} onChange={e => setNewTest({...newTest, subject_id: e.target.value})}>
                 <option value="">Select Subject</option>
                 {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Test Date</label>
-              <input type="date" required className="input-field" value={newTest.test_date} onChange={e => setNewTest({...newTest, test_date: e.target.value})} />
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Test Date</label>
+              <input type="date" required className="input-field bg-white dark:bg-slate-800 text-slate-900 dark:text-white border-slate-300 dark:border-slate-700" value={newTest.test_date} onChange={e => setNewTest({...newTest, test_date: e.target.value})} />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Max Marks</label>
-              <input type="number" required min="1" className="input-field" value={newTest.max_marks} onChange={e => setNewTest({...newTest, max_marks: e.target.value})} />
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Max Marks</label>
+              <input type="number" required min="1" className="input-field bg-white dark:bg-slate-800 text-slate-900 dark:text-white border-slate-300 dark:border-slate-700" value={newTest.max_marks} onChange={e => setNewTest({...newTest, max_marks: e.target.value})} />
             </div>
             <div className="md:col-span-4 flex justify-end gap-2 mt-2">
               <button type="button" onClick={() => setIsCreating(false)} className="btn-hero-outline">Cancel</button>
@@ -324,14 +324,14 @@ export default function WeeklyTests() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {tests.map(test => (
-          <div key={test.id} className="bento-card bg-white p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => openTest(test)}>
+          <div key={test.id} className="bento-card bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => openTest(test)}>
             <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+              <div className="p-3 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-xl">
                 <FileText size={24} />
               </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
-                test.status === 'Draft' ? 'bg-yellow-100 text-yellow-800' :
-                test.status === 'Submitted' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${
+                test.status === 'Draft' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50' :
+                test.status === 'Submitted' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50'
               }`}>
                 {test.status === 'Draft' && <Clock size={12} />}
                 {test.status === 'Submitted' && <CheckCircle size={12} />}
@@ -339,18 +339,18 @@ export default function WeeklyTests() {
                 {test.status}
               </span>
             </div>
-            <h3 className="font-bold text-lg">{test.classes?.name} - {test.subjects?.name}</h3>
-            <p className="text-sm text-gray-500 mb-4">{new Date(test.test_date).toLocaleDateString()}</p>
+            <h3 className="font-bold text-lg text-slate-900 dark:text-white">{test.classes?.name} - {test.subjects?.name}</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{new Date(test.test_date).toLocaleDateString()}</p>
             
-            <div className="flex items-center text-sm font-medium text-indigo-600 gap-1">
+            <div className="flex items-center text-sm font-semibold text-brand-600 dark:text-brand-400 gap-1.5">
               {test.status === 'Draft' ? <><Edit size={16}/> Continue Editing</> : <><FileText size={16}/> View Marks</>}
             </div>
           </div>
         ))}
         {tests.length === 0 && !isCreating && (
-          <div className="col-span-full text-center py-12 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
-            <FileText size={48} className="mx-auto text-gray-400 mb-4" />
-            <p className="text-gray-600">No weekly tests found. Create your first one!</p>
+          <div className="col-span-full text-center py-12 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-200 dark:border-slate-800 border-dashed">
+            <FileText size={48} className="mx-auto text-slate-400 dark:text-slate-600 mb-4" />
+            <p className="text-slate-600 dark:text-slate-400">No weekly tests found. Create your first one!</p>
           </div>
         )}
       </div>
