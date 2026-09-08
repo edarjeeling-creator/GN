@@ -225,81 +225,108 @@ const FeeDashboardView = ({ studentId }) => {
 
       {/* --- PAYMENT MODAL --- */}
       {showPaymentModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-          <div style={{ background: 'white', width: '100%', maxWidth: '600px', borderRadius: '1.5rem 1.5rem 0 0', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div className="fixed inset-0 bg-black/75 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white w-full max-w-xl rounded-t-2xl sm:rounded-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
             
             {submitSuccess ? (
-              <div style={{ padding: '3rem 2rem', textAlign: 'center' }}>
-                <CheckCircle2 size={64} color="#10b981" style={{ margin: '0 auto 1.5rem' }} />
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.5rem' }}>Declaration Submitted</h2>
-                <p style={{ color: '#64748b', lineHeight: 1.5 }}>Your payment details have been sent to the Accounts Office. Your ledger will update once verified.</p>
+              <div className="p-8 text-center">
+                <CheckCircle2 size={64} className="text-emerald-500 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Declaration Submitted</h2>
+                <p className="text-slate-600 dark:text-slate-400">Your payment details have been sent to the Accounts Office. Your ledger will update once verified.</p>
               </div>
             ) : (
               <>
-                <div style={{ padding: '1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'white', zIndex: 2 }}>
-                  <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Complete Payment</h2>
-                  <button onClick={() => setShowPaymentModal(false)} style={{ background: '#f1f5f9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', fontWeight: 700, cursor: 'pointer' }}>✕</button>
+                <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center sticky top-0 bg-white dark:bg-slate-900 z-10">
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">Complete Payment</h2>
+                  <button onClick={() => setShowPaymentModal(false)} className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 w-8 h-8 rounded-full font-bold flex items-center justify-center transition-colors">✕</button>
                 </div>
 
-                <div style={{ padding: '1.5rem' }}>
+                <div className="p-6 space-y-6">
                   
                   {/* Step 1: Bank Details & QR */}
-                  <div style={{ marginBottom: '2rem' }}>
-                    <div style={{ display: 'inline-block', background: '#e0e7ff', color: '#4338ca', padding: '0.25rem 0.75rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 700, marginBottom: '1rem' }}>STEP 1: MAKE PAYMENT</div>
+                  <div>
+                    <div className="inline-block bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 px-3 py-1 rounded-full text-xs font-bold mb-3 border border-indigo-200 dark:border-indigo-800/50">STEP 1: MAKE PAYMENT</div>
                     
-                    <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '1rem', padding: '1.5rem', textAlign: 'center', marginBottom: '1rem' }}>
-                      <p style={{ fontWeight: 600, color: '#334155', marginBottom: '1rem' }}>Scan and pay using any UPI App</p>
-                      <div style={{ width: '200px', height: '200px', background: 'white', border: '2px solid #e2e8f0', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0.5rem' }}>
-                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=${bankDetails.upiId}&pn=${encodeURIComponent(bankDetails.accountName)}&am=${paymentAmount}&cu=INR`} alt="UPI QR" />
+                    <div className="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-6 text-center mb-4">
+                      <p className="font-semibold text-slate-700 dark:text-slate-200 mb-4">Scan and pay using any UPI App</p>
+                      <div className="w-[200px] h-[200px] bg-white border-2 border-slate-200 mx-auto flex items-center justify-center rounded-lg p-2 shadow-sm">
+                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=${bankDetails.upiId}&pn=${encodeURIComponent(bankDetails.accountName)}&am=${paymentAmount}&cu=INR`} alt="UPI QR" className="w-full h-full object-contain" />
                       </div>
-                      <p style={{ fontWeight: 800, fontSize: '1.5rem', marginTop: '1rem', color: '#0f172a' }}>₹{paymentAmount.toLocaleString('en-IN')}</p>
-                      <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.25rem' }}>UPI ID: {bankDetails.upiId}</p>
+                      <p className="font-extrabold text-2xl mt-4 text-brand-600 dark:text-brand-400">₹{Number(paymentAmount || 0).toLocaleString('en-IN')}</p>
+                      <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">UPI ID: <span className="font-semibold text-slate-700 dark:text-slate-300">{bankDetails.upiId}</span></p>
                     </div>
 
-                    <div style={{ fontSize: '0.9rem' }}>
-                      <p style={{ fontWeight: 700, color: '#334155', marginBottom: '0.5rem' }}>Or Bank Transfer (NEFT/IMPS):</p>
-                      <div style={{ background: '#f1f5f9', padding: '1rem', borderRadius: '0.5rem', color: '#475569', lineHeight: 1.6 }}>
-                        <div>Account Name: <strong>{bankDetails.accountName}</strong></div>
-                        <div>Bank: <strong>{bankDetails.bankName}</strong></div>
-                        <div>Account No: <strong>{bankDetails.accountNo}</strong></div>
-                        <div>IFSC Code: <strong>{bankDetails.ifscCode}</strong></div>
+                    <div className="text-sm">
+                      <p className="font-bold text-slate-800 dark:text-slate-200 mb-2">Or Bank Transfer (NEFT/IMPS):</p>
+                      <div className="bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 p-4 rounded-xl text-slate-600 dark:text-slate-300 space-y-1">
+                        <div>Account Name: <strong className="text-slate-900 dark:text-white font-semibold">{bankDetails.accountName}</strong></div>
+                        <div>Bank: <strong className="text-slate-900 dark:text-white font-semibold">{bankDetails.bankName}</strong></div>
+                        <div>Account No: <strong className="text-slate-900 dark:text-white font-semibold">{bankDetails.accountNo}</strong></div>
+                        <div>IFSC Code: <strong className="text-slate-900 dark:text-white font-semibold">{bankDetails.ifscCode}</strong></div>
                       </div>
                     </div>
                   </div>
 
                   {/* Step 2: Declaration */}
                   <div>
-                    <div style={{ display: 'inline-block', background: '#dcfce7', color: '#166534', padding: '0.25rem 0.75rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 700, marginBottom: '1rem' }}>STEP 2: DECLARE PAYMENT</div>
+                    <div className="inline-block bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-bold mb-3 border border-emerald-200 dark:border-emerald-800/50">STEP 2: DECLARE PAYMENT</div>
                     
-                    <form onSubmit={submitDeclaration} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <form onSubmit={submitDeclaration} className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>Amount Paid (₹)</label>
-                          <input type="number" required value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontWeight: 700 }} />
+                          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Amount Paid (₹)</label>
+                          <input 
+                            type="number" 
+                            required 
+                            value={paymentAmount} 
+                            onChange={e => setPaymentAmount(e.target.value)} 
+                            className="input-field w-full font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-3 outline-none focus:ring-2 focus:ring-brand-500" 
+                          />
                         </div>
                         <div>
-                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>Payment Date</label>
-                          <input type="date" required value={paymentDate} onChange={e => setPaymentDate(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
+                          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Payment Date</label>
+                          <input 
+                            type="date" 
+                            required 
+                            value={paymentDate} 
+                            onChange={e => setPaymentDate(e.target.value)} 
+                            className="input-field w-full font-medium text-slate-900 dark:text-white bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-3 outline-none focus:ring-2 focus:ring-brand-500" 
+                          />
                         </div>
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>Method</label>
-                          <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', background: 'white' }}>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="sm:col-span-1">
+                          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Method</label>
+                          <select 
+                            value={paymentMode} 
+                            onChange={e => setPaymentMode(e.target.value)} 
+                            className="input-field w-full font-medium text-slate-900 dark:text-white bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-3 outline-none focus:ring-2 focus:ring-brand-500"
+                          >
                             <option value="upi">UPI</option>
                             <option value="neft">NEFT / IMPS</option>
                             <option value="bank_deposit">Bank Deposit</option>
                             <option value="cash">Cash</option>
                           </select>
                         </div>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>UTR / Reference Number</label>
-                          <input type="text" required placeholder="e.g. 312345678901" value={utr} onChange={e => setUtr(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
+                        <div className="sm:col-span-2">
+                          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">UTR / Reference Number</label>
+                          <input 
+                            type="text" 
+                            required 
+                            placeholder="e.g. 312345678901" 
+                            value={utr} 
+                            onChange={e => setUtr(e.target.value)} 
+                            className="input-field w-full font-medium text-slate-900 dark:text-white bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 placeholder-slate-400 dark:placeholder-slate-500 rounded-lg p-3 outline-none focus:ring-2 focus:ring-brand-500" 
+                          />
                         </div>
                       </div>
 
-                      <button disabled={submitting} type="submit" style={{ background: '#10b981', color: 'white', padding: '1.25rem', borderRadius: '0.75rem', fontWeight: 800, fontSize: '1.1rem', border: 'none', marginTop: '1rem', cursor: submitting ? 'not-allowed' : 'pointer', boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.3)' }}>
+                      <button 
+                        disabled={submitting} 
+                        type="submit" 
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white p-4 rounded-xl font-bold text-base shadow-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+                      >
                         {submitting ? 'Submitting securely...' : 'Submit Payment Declaration'}
                       </button>
                     </form>

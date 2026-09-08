@@ -432,7 +432,7 @@ const ParentPortal = () => {
             ) : (
               <>
                 <div style={{ padding: '1.5rem', borderBottom: '1px solid #1f2937', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#111827', zIndex: 2 }}>
-                  <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Complete Payment</h2>
+                  <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#f9fafb' }}>Complete Payment</h2>
                   <button onClick={() => setShowPaymentModal(false)} style={{ background: '#1f2937', border: 'none', color: '#f9fafb', width: '32px', height: '32px', borderRadius: '50%', fontWeight: 700, cursor: 'pointer' }}>✕</button>
                 </div>
 
