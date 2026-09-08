@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Play, AlertCircle, FileText, CheckCircle2, Users } from 'lucide-react';
+import { Play, AlertCircle, FileText, CheckCircle2, Users, Calendar, RotateCcw } from 'lucide-react';
+import { fetchLateFeeRules, DEFAULT_LATE_FEE_RULES, formatDueDateDisplay } from '../../services/fee/LateFeeService';
 
 const FeeGenerationEngine = () => {
   const [classes, setClasses] = useState([]);
   const [academicYear, setAcademicYear] = useState('2026');
   const [month, setMonth] = useState('April');
   const [targetClass, setTargetClass] = useState('all'); // 'all' or specific class_id
+  const [lateFeeRules, setLateFeeRules] = useState(DEFAULT_LATE_FEE_RULES);
   const [dueDate, setDueDate] = useState('');
+  const [isOverridden, setIsOverridden] = useState(false);
   
   const [previewData, setPreviewData] = useState(null);
   const [isSimulating, setIsSimulating] = useState(false);
@@ -16,19 +19,45 @@ const FeeGenerationEngine = () => {
 
   const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+  const computeDefaultDueDate = (selectedMonth, selectedAcademicYear, dueDay) => {
+    const monthIdx = months.indexOf(selectedMonth);
+    let year = parseInt(selectedAcademicYear, 10) || new Date().getFullYear();
+    // In an April-March academic session (e.g. 2026-2027), Jan, Feb, Mar are in the next calendar year
+    if (monthIdx >= 0 && monthIdx < 3) {
+      year += 1;
+    }
+    const safeMonthIdx = monthIdx >= 0 ? monthIdx : 3;
+    // Find number of days in this target month
+    const maxDaysInMonth = new Date(year, safeMonthIdx + 1, 0).getDate();
+    const clampedDay = Math.min(Math.max(1, Number(dueDay) || 20), maxDaysInMonth);
+    const dayStr = String(clampedDay).padStart(2, '0');
+    const monthStr = String(safeMonthIdx + 1).padStart(2, '0');
+    return `${year}-${monthStr}-${dayStr}`;
+  };
+
   useEffect(() => {
-    fetchClasses();
+    fetchInitialData();
   }, []);
 
-  const fetchClasses = async () => {
-    const { data } = await supabase.from('classes').select('*').order('name');
-    if (data) setClasses(data);
-    
-    // Set default due date to 15th of the current month
-    const today = new Date();
-    const defaultDue = new Date(today.getFullYear(), today.getMonth(), 15);
-    setDueDate(defaultDue.toISOString().split('T')[0]);
+  const fetchInitialData = async () => {
+    const { data: classData } = await supabase.from('classes').select('*').order('name');
+    if (classData) setClasses(classData);
+
+    const rules = await fetchLateFeeRules(supabase);
+    setLateFeeRules(rules);
+
+    const initialDue = computeDefaultDueDate(month, academicYear, rules.dueDay);
+    setDueDate(initialDue);
+    setIsOverridden(false);
   };
+
+  // When month or academic year changes, update default due date if user hasn't overridden
+  useEffect(() => {
+    if (!isOverridden && lateFeeRules) {
+      setDueDate(computeDefaultDueDate(month, academicYear, lateFeeRules.dueDay));
+    }
+  }, [month, academicYear, lateFeeRules]);
+
 
   const handleSimulate = async () => {
     if (!dueDate) return alert("Please select a due date.");
@@ -209,8 +238,47 @@ const FeeGenerationEngine = () => {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.5rem', color: '#0f172a' }}>Payment Due Date</label>
-              <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', background: '#ffffff', color: '#0f172a', fontSize: '0.9rem' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a' }}>Payment Due Date</label>
+                {isOverridden ? (
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setIsOverridden(false);
+                      setDueDate(computeDefaultDueDate(month, academicYear, lateFeeRules.dueDay));
+                    }} 
+                    style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                  >
+                    <RotateCcw size={12} /> Reset to Default ({formatDueDateDisplay(computeDefaultDueDate(month, academicYear, lateFeeRules.dueDay))})
+                  </button>
+                ) : (
+                  <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600, background: '#d1fae5', padding: '0.15rem 0.5rem', borderRadius: '0.375rem' }}>
+                    Configured Default (Day {lateFeeRules.dueDay})
+                  </span>
+                )}
+              </div>
+              <input 
+                type="date" 
+                value={dueDate} 
+                onChange={e => {
+                  setDueDate(e.target.value);
+                  setIsOverridden(e.target.value !== computeDefaultDueDate(month, academicYear, lateFeeRules.dueDay));
+                }} 
+                style={{ 
+                  width: '100%', 
+                  padding: '0.75rem', 
+                  borderRadius: '0.5rem', 
+                  border: isOverridden ? '2px solid #f59e0b' : '1px solid #cbd5e1', 
+                  background: '#ffffff', 
+                  color: '#0f172a', 
+                  fontSize: '0.9rem' 
+                }} 
+              />
+              <p style={{ fontSize: '0.75rem', color: isOverridden ? '#b45309' : '#64748b', marginTop: '0.35rem' }}>
+                {isOverridden 
+                  ? `⚠️ Overridden: Default is ${formatDueDateDisplay(computeDefaultDueDate(month, academicYear, lateFeeRules.dueDay))}. Demands in this batch will be assigned ${formatDueDateDisplay(dueDate)}.`
+                  : `Default date is automatically computed from global fee settings (Day ${lateFeeRules.dueDay}). You can override it above.`}
+              </p>
             </div>
 
             <button 
@@ -256,6 +324,11 @@ const FeeGenerationEngine = () => {
               </div>
               
               <div style={{ padding: '1.5rem' }}>
+                <div style={{ background: '#f1f5f9', padding: '0.75rem 1rem', borderRadius: '0.5rem', marginBottom: '1.5rem', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #e2e8f0' }}>
+                  <div><strong>Month:</strong> {month} {academicYear}</div>
+                  <div><strong>Assigned Due Date:</strong> <span style={{ color: '#1e40af', fontWeight: 700 }}>{formatDueDateDisplay(dueDate)}</span> {isOverridden && <span style={{ color: '#b45309', fontWeight: 600 }}>(Override)</span>}</div>
+                </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
                   <div style={{ background: '#eff6ff', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid #bfdbfe' }}>
                     <p style={{ color: '#1e3a8a', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.25rem' }}>Eligible Students</p>

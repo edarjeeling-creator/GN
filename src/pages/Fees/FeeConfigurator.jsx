@@ -303,9 +303,13 @@ const FeeStructuresManager = () => {
   );
 };
 
+import { DEFAULT_LATE_FEE_RULES, fetchLateFeeRules } from '../../services/fee/LateFeeService';
+
 const FeeSettingsManager = () => {
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [savingBank, setSavingBank] = useState(false);
+  const [savingRules, setSavingRules] = useState(false);
+  
   const [bankDetails, setBankDetails] = useState({
     accountName: '',
     bankName: '',
@@ -314,74 +318,215 @@ const FeeSettingsManager = () => {
     upiId: ''
   });
 
+  const [lateFeeRules, setLateFeeRules] = useState({ ...DEFAULT_LATE_FEE_RULES });
+
   useEffect(() => {
     fetchSettings();
   }, []);
 
   const fetchSettings = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    // Fetch bank details
+    const { data: bankData } = await supabase
       .from('fee_settings')
       .select('value')
       .eq('key', 'school_bank_details')
-      .single();
+      .maybeSingle();
     
-    if (data?.value) {
-      setBankDetails(data.value);
+    if (bankData?.value) {
+      setBankDetails(bankData.value);
     }
+
+    // Fetch late fee rules via centralized service
+    const rules = await fetchLateFeeRules(supabase);
+    setLateFeeRules(rules);
+
     setLoading(false);
   };
 
-  const handleSave = async () => {
-    setSaving(true);
+  const handleSaveBank = async () => {
+    setSavingBank(true);
     const { error } = await supabase
       .from('fee_settings')
       .upsert({ key: 'school_bank_details', value: bankDetails }, { onConflict: 'key' });
     
-    if (error) alert("Failed to save: " + error.message);
+    if (error) alert("Failed to save bank details: " + error.message);
     else alert("Bank details updated successfully!");
-    setSaving(false);
+    setSavingBank(false);
+  };
+
+  const handleSaveLateFeeRules = async () => {
+    const dueDay = Number(lateFeeRules.dueDay);
+    const lateFeeAmount = Number(lateFeeRules.lateFeeAmount);
+    const gracePeriod = Number(lateFeeRules.gracePeriod);
+
+    if (isNaN(dueDay) || dueDay < 1 || dueDay > 31) {
+      return alert("Standard Due Day must be between 1 and 31.");
+    }
+    if (isNaN(lateFeeAmount) || lateFeeAmount < 0) {
+      return alert("Late fee amount must be a positive number or zero.");
+    }
+    if (isNaN(gracePeriod) || gracePeriod < 0) {
+      return alert("Grace period must be 0 or more days.");
+    }
+
+    setSavingRules(true);
+    const payload = {
+      dueDay,
+      calculationMode: lateFeeRules.calculationMode || 'flat_monthly',
+      lateFeeAmount,
+      gracePeriod
+    };
+
+    const { error } = await supabase
+      .from('fee_settings')
+      .upsert({ key: 'late_fee_rules', value: payload }, { onConflict: 'key' });
+
+    if (error) {
+      alert("Failed to save late fee rules: " + error.message);
+    } else {
+      alert("Late fee rules saved successfully!");
+      setLateFeeRules(payload);
+    }
+    setSavingRules(false);
   };
 
   return (
     <div>
-      <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', marginBottom: '1.5rem' }}>Bank & Payment Settings</h3>
-      
-      {loading ? (
-        <div style={{ color: '#475569' }}>Loading settings...</div>
-      ) : (
-        <div style={{ background: '#ffffff', padding: '2rem', borderRadius: '1rem', border: '1px solid #cbd5e1', maxWidth: '600px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>School Account Name</label>
-              <input type="text" value={bankDetails.accountName} onChange={e => setBankDetails({...bankDetails, accountName: e.target.value})} placeholder="e.g. Gyanoday Niketan" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.9rem' }} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '2rem', alignItems: 'start' }}>
+        
+        {/* Card 1: Late Fee & Due Date Rules */}
+        <div>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', marginBottom: '1.5rem' }}>Due Date & Late Fee Rules</h3>
+          
+          {loading ? (
+            <div style={{ color: '#475569' }}>Loading rules...</div>
+          ) : (
+            <div style={{ background: '#ffffff', padding: '2rem', borderRadius: '1rem', border: '1px solid #cbd5e1', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem' }}>
+                
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.35rem' }}>
+                    Standard Due Day of Month (1 - 31)
+                  </label>
+                  <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.5rem' }}>
+                    Default due day assigned when generating monthly fee demands (e.g. 20th of the month).
+                  </p>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    max="31" 
+                    value={lateFeeRules.dueDay} 
+                    onChange={e => setLateFeeRules({ ...lateFeeRules, dueDay: e.target.value })} 
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.95rem', fontWeight: 700 }} 
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.35rem' }}>
+                    Late Fee Calculation Mode
+                  </label>
+                  <select 
+                    value={lateFeeRules.calculationMode} 
+                    onChange={e => setLateFeeRules({ ...lateFeeRules, calculationMode: e.target.value })}
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.9rem', fontWeight: 600 }}
+                  >
+                    <option value="flat_monthly">Flat Fee / Per Overdue Month (e.g. ₹100/mo)</option>
+                    <option value="daily">Per-Day Fee (e.g. ₹10/day)</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.35rem' }}>
+                      Late Fee Amount (₹)
+                    </label>
+                    <input 
+                      type="number" 
+                      min="0" 
+                      value={lateFeeRules.lateFeeAmount} 
+                      onChange={e => setLateFeeRules({ ...lateFeeRules, lateFeeAmount: e.target.value })} 
+                      placeholder="100"
+                      style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.95rem', fontWeight: 700 }} 
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.35rem' }}>
+                      Grace Period (Days)
+                    </label>
+                    <input 
+                      type="number" 
+                      min="0" 
+                      value={lateFeeRules.gracePeriod} 
+                      onChange={e => setLateFeeRules({ ...lateFeeRules, gracePeriod: e.target.value })} 
+                      placeholder="0"
+                      style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.95rem', fontWeight: 700 }} 
+                    />
+                  </div>
+                </div>
+
+                {/* Explanation / Rule Preview Box */}
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '1rem', fontSize: '0.825rem', color: '#475569', lineHeight: 1.5 }}>
+                  <strong style={{ color: '#0f172a', display: 'block', marginBottom: '0.25rem' }}>Rule Summary Preview:</strong>
+                  Fee demands will default to the <strong>{lateFeeRules.dueDay || 20}th</strong> of the fee month. If unpaid after the due date {Number(lateFeeRules.gracePeriod) > 0 ? `(+ ${lateFeeRules.gracePeriod} grace days)` : ''}, an automated late fee of <strong>₹{lateFeeRules.lateFeeAmount || 100} {lateFeeRules.calculationMode === 'daily' ? 'per day' : 'per overdue month'}</strong> will be automatically calculated on student and parent payment portals.
+                </div>
+
+              </div>
+
+              <button 
+                onClick={handleSaveLateFeeRules} 
+                disabled={savingRules}
+                style={{ width: '100%', background: '#10b981', color: '#ffffff', padding: '0.875rem 1rem', borderRadius: '0.5rem', fontWeight: 700, border: 'none', marginTop: '1.5rem', cursor: savingRules ? 'not-allowed' : 'pointer', fontSize: '0.95rem' }}
+              >
+                {savingRules ? 'Saving Rules...' : 'Save Late Fee Rules'}
+              </button>
             </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>Bank Name</label>
-              <input type="text" value={bankDetails.bankName} onChange={e => setBankDetails({...bankDetails, bankName: e.target.value})} placeholder="e.g. State Bank of India" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.9rem' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>Account Number</label>
-              <input type="text" value={bankDetails.accountNo} onChange={e => setBankDetails({...bankDetails, accountNo: e.target.value})} placeholder="e.g. 31245678901" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.9rem' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>IFSC Code</label>
-              <input type="text" value={bankDetails.ifscCode} onChange={e => setBankDetails({...bankDetails, ifscCode: e.target.value})} placeholder="e.g. SBIN0001234" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.9rem' }} />
-            </div>
-            <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1.25rem', marginTop: '0.5rem' }}>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>Official UPI ID (For QR Generation)</label>
-              <input type="text" value={bankDetails.upiId} onChange={e => setBankDetails({...bankDetails, upiId: e.target.value})} placeholder="e.g. schoolname@sbi" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.9rem' }} />
-            </div>
-          </div>
-          <button 
-            onClick={handleSave} 
-            disabled={saving}
-            style={{ width: '100%', background: '#2563eb', color: '#ffffff', padding: '0.875rem 1rem', borderRadius: '0.5rem', fontWeight: 700, border: 'none', marginTop: '1.75rem', cursor: saving ? 'not-allowed' : 'pointer', fontSize: '0.95rem' }}
-          >
-            {saving ? 'Saving...' : 'Save Bank Details'}
-          </button>
+          )}
         </div>
-      )}
+
+        {/* Card 2: Bank & Payment Settings */}
+        <div>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', marginBottom: '1.5rem' }}>Bank & Payment Settings</h3>
+          
+          {loading ? (
+            <div style={{ color: '#475569' }}>Loading settings...</div>
+          ) : (
+            <div style={{ background: '#ffffff', padding: '2rem', borderRadius: '1rem', border: '1px solid #cbd5e1', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>School Account Name</label>
+                  <input type="text" value={bankDetails.accountName} onChange={e => setBankDetails({...bankDetails, accountName: e.target.value})} placeholder="e.g. Gyanoday Niketan" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.9rem' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>Bank Name</label>
+                  <input type="text" value={bankDetails.bankName} onChange={e => setBankDetails({...bankDetails, bankName: e.target.value})} placeholder="e.g. State Bank of India" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.9rem' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>Account Number</label>
+                  <input type="text" value={bankDetails.accountNo} onChange={e => setBankDetails({...bankDetails, accountNo: e.target.value})} placeholder="e.g. 31245678901" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.9rem' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>IFSC Code</label>
+                  <input type="text" value={bankDetails.ifscCode} onChange={e => setBankDetails({...bankDetails, ifscCode: e.target.value})} placeholder="e.g. SBIN0001234" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.9rem' }} />
+                </div>
+                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1.25rem', marginTop: '0.5rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>Official UPI ID (For QR Generation)</label>
+                  <input type="text" value={bankDetails.upiId} onChange={e => setBankDetails({...bankDetails, upiId: e.target.value})} placeholder="e.g. schoolname@sbi" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', color: '#0f172a', background: '#ffffff', fontSize: '0.9rem' }} />
+                </div>
+              </div>
+              <button 
+                onClick={handleSaveBank} 
+                disabled={savingBank}
+                style={{ width: '100%', background: '#2563eb', color: '#ffffff', padding: '0.875rem 1rem', borderRadius: '0.5rem', fontWeight: 700, border: 'none', marginTop: '1.75rem', cursor: savingBank ? 'not-allowed' : 'pointer', fontSize: '0.95rem' }}
+              >
+                {savingBank ? 'Saving Bank Details...' : 'Save Bank Details'}
+              </button>
+            </div>
+          )}
+        </div>
+
+      </div>
     </div>
   );
 };

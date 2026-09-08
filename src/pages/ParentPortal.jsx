@@ -1,7 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { Shield, Lock, ChevronRight, User, AlertCircle, Phone, Calendar, CheckCircle2, History } from 'lucide-react';
+import { Shield, Lock, ChevronRight, User, AlertCircle, Phone, Calendar, CheckCircle2, History, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import { formatStudentDisplayName } from '../utils/studentUtils';
+import { 
+  calculateStudentFeeSummary, 
+  fetchLateFeeRules, 
+  DEFAULT_LATE_FEE_RULES, 
+  formatFeeCurrency, 
+  formatDueDateDisplay 
+} from '../services/fee/LateFeeService';
 
 const ParentPortal = () => {
   const [session, setSession] = useState(null);
@@ -22,8 +29,12 @@ const ParentPortal = () => {
   const [studentDetails, setStudentDetails] = useState(null);
   const [demands, setDemands] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [lateFeeRules, setLateFeeRules] = useState(DEFAULT_LATE_FEE_RULES);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState(0);
+  const [showItemizedDetails, setShowItemizedDetails] = useState(true);
+  const [expandedDemandIds, setExpandedDemandIds] = useState({});
+
 
   // Declaration Form State
   const [utr, setUtr] = useState('');
@@ -160,21 +171,33 @@ const ParentPortal = () => {
       setBankDetails(prev => ({ ...prev, ...settingsData.value }));
     }
 
-    // Calculate total payable (Billed - Paid/Pending Verification)
-    let totalBilled = 0;
-    let totalPaidOrPending = 0;
-
-    fetchedDemands?.forEach(d => {
-      if (d.status !== 'cancelled') totalBilled += Number(d.total_amount);
-    });
-
-    fetchedPayments?.forEach(p => {
-      if (p.status !== 'rejected') totalPaidOrPending += Number(p.amount);
-    });
-
-    const outstanding = totalBilled - totalPaidOrPending;
-    setPaymentAmount(outstanding > 0 ? outstanding : 0);
+    // Fetch Late Fee Rules
+    const rules = await fetchLateFeeRules(supabase);
+    setLateFeeRules(rules);
   };
+
+  // Centralized single source of truth for late fees
+  const feeSummary = useMemo(() => {
+    return calculateStudentFeeSummary({
+      demands,
+      payments,
+      lateFeeRules,
+      currentDate: new Date()
+    });
+  }, [demands, payments, lateFeeRules]);
+
+  // Keep payment amount synced with total payable amount
+  useEffect(() => {
+    setPaymentAmount(feeSummary.totalPayableAmount);
+  }, [feeSummary.totalPayableAmount]);
+
+  const toggleDemandExpand = (demandId) => {
+    setExpandedDemandIds(prev => ({
+      ...prev,
+      [demandId]: !prev[demandId]
+    }));
+  };
+
 
   const submitDeclaration = async (e) => {
     e.preventDefault();
@@ -344,50 +367,253 @@ const ParentPortal = () => {
           </div>
         </div>
 
-        {/* Financial Summary */}
-        <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '1rem', overflow: 'hidden', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.2)', marginBottom: '2rem' }}>
-          <div style={{ padding: '1.5rem', background: 'rgba(37, 99, 235, 0.08)', borderBottom: '1px solid rgba(37, 99, 235, 0.15)' }}>
-            <p style={{ color: '#93c5fd', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem' }}>Total Amount Payable</p>
-            <h1 style={{ fontSize: '3rem', fontWeight: 850, color: '#3b82f6', lineHeight: 1 }}>₹{paymentAmount.toLocaleString('en-IN')}</h1>
-          </div>
-          
-          <div style={{ padding: '1.5rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 750, color: '#e5e7eb', marginBottom: '1rem' }}>Fees Breakdown</h3>
-            
-            {activeDemands.length === 0 ? (
-              <p style={{ color: '#34d399', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><CheckCircle2 size={18} /> All dues are cleared.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {activeDemands.map(d => (
-                  <div key={d.id} style={{ borderBottom: '1px dashed #1f2937', paddingBottom: '1rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, color: '#f9fafb', marginBottom: '0.5rem' }}>
-                      <span>{d.month} {d.academic_year} Fees</span>
-                      <span>₹{Number(d.total_amount).toLocaleString('en-IN')}</span>
-                    </div>
-                    {d.fee_demand_items?.map(item => (
-                      <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
-                        <span>• {item.fee_heads?.name}</span>
-                        <span>₹{Number(item.amount).toLocaleString('en-IN')}</span>
-                      </div>
-                    ))}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#f87171', marginTop: '0.5rem', fontWeight: 500 }}>
-                      <span>Due Date: {new Date(d.due_date).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+        {/* --- REDESIGNED FEES SUMMARY (Inspired by Loreto Convent Darjeeling reference) --- */}
+        <div style={{ 
+          background: '#111827', 
+          borderRadius: '1rem', 
+          border: '1px solid #1f2937', 
+          borderLeft: '5px solid #0284c7', 
+          boxShadow: '0 10px 15px -3px rgba(0,0,0,0.2)', 
+          overflow: 'hidden', 
+          marginBottom: '2rem' 
+        }}>
+          {/* Card Header Title */}
+          <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #1f2937', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#38bdf8', letterSpacing: '0.025em' }}>Fees Summary</span>
+            {feeSummary.hasActiveDues && (
+              <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>
+                Academic Session: <strong style={{ color: '#f3f4f6' }}>2026-2027</strong>
+              </span>
             )}
           </div>
 
-          <div style={{ padding: '1.5rem', background: '#0e131f', borderTop: '1px solid #1f2937' }}>
+          {/* Card Hero Row (Amount Payable | Amount | Due Date | Late Fees | Total Amount | Details Button) */}
+          <div style={{ padding: '1.5rem', background: '#0b1120', display: 'grid', gridTemplateColumns: 'auto 1fr 1fr 1fr 1fr auto', gap: '1.5rem', alignItems: 'center', borderBottom: '1px solid #1f2937' }}>
+            {/* Circular Badge */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '2px solid #0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8', fontWeight: 800, fontSize: '1.1rem' }}>
+                ₹
+              </div>
+              <span style={{ fontWeight: 700, color: '#38bdf8', fontSize: '1rem' }}>Amount Payable</span>
+            </div>
+
+            {/* Amount */}
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#f9fafb' }}>
+                {formatFeeCurrency(feeSummary.totalBaseAmount)}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600, marginTop: '0.15rem' }}>Amount</div>
+            </div>
+
+            {/* Due Date */}
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#f9fafb' }}>
+                {feeSummary.earliestDueDate}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600, marginTop: '0.15rem' }}>Due Date</div>
+            </div>
+
+            {/* Late Fees */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ fontWeight: 800, fontSize: '1.1rem', color: feeSummary.totalLateFees > 0 ? '#f87171' : '#f9fafb' }}>
+                  {formatFeeCurrency(feeSummary.totalLateFees)}
+                </span>
+                {feeSummary.totalLateFees > 0 && (
+                  <span style={{ fontSize: '0.65rem', background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', padding: '0.1rem 0.4rem', borderRadius: '0.25rem', fontWeight: 800 }}>
+                    OVERDUE
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600, marginTop: '0.15rem' }}>Late Fees</div>
+            </div>
+
+            {/* Total Amount */}
+            <div>
+              <div style={{ fontWeight: 900, fontSize: '1.25rem', color: '#38bdf8' }}>
+                {formatFeeCurrency(feeSummary.totalPayableAmount)}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600, marginTop: '0.15rem' }}>Total Amount</div>
+            </div>
+
+            {/* Toggle Details Button */}
+            <div>
+              <button 
+                type="button"
+                onClick={() => setShowItemizedDetails(!showItemizedDetails)}
+                style={{
+                  background: '#0284c7',
+                  color: 'white',
+                  border: 'none',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '0.375rem',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem'
+                }}
+              >
+                <FileText size={14} /> Details
+              </button>
+            </div>
+          </div>
+
+          {/* --- ITEMIZED FEE BREAKDOWN TABLE --- */}
+          {showItemizedDetails && (
+            <div style={{ padding: '1rem 1.5rem' }}>
+              {!feeSummary.hasActiveDues ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: '#34d399', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                  <CheckCircle2 size={24} /> All dues have been cleared! No pending demands found.
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #1f2937', color: '#9ca3af', textAlign: 'left' }}>
+                        <th style={{ padding: '0.75rem', fontWeight: 700 }}>Fees Category / Month</th>
+                        <th style={{ padding: '0.75rem', fontWeight: 700, textAlign: 'right' }}>Amount</th>
+                        <th style={{ padding: '0.75rem', fontWeight: 700, textAlign: 'center' }}>Due Date</th>
+                        <th style={{ padding: '0.75rem', fontWeight: 700, textAlign: 'right' }}>Late Fees</th>
+                        <th style={{ padding: '0.75rem', fontWeight: 700, textAlign: 'right' }}>Total</th>
+                        <th style={{ padding: '0.75rem', width: '40px' }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeDemands.map((demand) => {
+                        const isExpanded = expandedDemandIds[demand.id] !== false; // default expanded
+                        return (
+                          <React.Fragment key={demand.id}>
+                            {/* Demand Master Row */}
+                            <tr style={{ borderBottom: '1px solid #1f2937', background: demand.isOverdue ? 'rgba(239, 68, 68, 0.05)' : 'transparent' }}>
+                              <td style={{ padding: '0.85rem 0.75rem', fontWeight: 600, color: '#f9fafb' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <span>Session Fees - {demand.month} {demand.academic_year}</span>
+                                  <span style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '0.25rem', fontWeight: 700 }}>
+                                    {demand.month}
+                                  </span>
+                                </div>
+                              </td>
+                              <td style={{ padding: '0.85rem 0.75rem', textAlign: 'right', fontWeight: 700, color: '#f9fafb' }}>
+                                {formatFeeCurrency(demand.baseAmount)}
+                              </td>
+                              <td style={{ padding: '0.85rem 0.75rem', textAlign: 'center', color: '#9ca3af', fontWeight: 600 }}>
+                                {demand.formattedDueDate}
+                              </td>
+                              <td style={{ padding: '0.85rem 0.75rem', textAlign: 'right', fontWeight: 700, color: demand.lateFee > 0 ? '#f87171' : '#9ca3af' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.35rem' }}>
+                                  <span>{formatFeeCurrency(demand.lateFee)}</span>
+                                  {demand.isOverdue && (
+                                    <span style={{ fontSize: '0.65rem', background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', padding: '0.1rem 0.35rem', borderRadius: '0.25rem', fontWeight: 800 }}>
+                                      +{demand.overdueMonths}m
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td style={{ padding: '0.85rem 0.75rem', textAlign: 'right', fontWeight: 800, color: '#38bdf8' }}>
+                                {formatFeeCurrency(demand.totalAmountWithLateFee)}
+                              </td>
+                              <td style={{ padding: '0.85rem 0.5rem', textAlign: 'center' }}>
+                                {demand.items?.length > 0 && (
+                                  <button 
+                                    type="button" 
+                                    onClick={() => toggleDemandExpand(demand.id)}
+                                    style={{ background: '#059669', color: 'white', border: 'none', width: '22px', height: '22px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}
+                                    title="Toggle itemized heads"
+                                  >
+                                    {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+
+                            {/* Sub-table for fee heads under this demand */}
+                            {isExpanded && demand.items?.length > 0 && (
+                              <tr>
+                                <td colSpan={6} style={{ padding: '0', background: '#0b1120' }}>
+                                  <div style={{ borderLeft: '3px solid #374151', margin: '0.5rem 1rem 0.75rem 1.5rem', background: '#111827', borderRadius: '0.375rem', border: '1px solid #1f2937', overflow: 'hidden' }}>
+                                    <div style={{ background: '#1e293b', color: '#f8fafc', padding: '0.4rem 0.75rem', fontSize: '0.75rem', fontWeight: 700, display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr' }}>
+                                      <div>Fee Head Description</div>
+                                      <div style={{ textAlign: 'right' }}>Payable Amount</div>
+                                      <div style={{ textAlign: 'center' }}>Due Date</div>
+                                      <div style={{ textAlign: 'right' }}>Late Fees</div>
+                                    </div>
+                                    {demand.items.map((item, idx) => (
+                                      <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', padding: '0.5rem 0.75rem', fontSize: '0.8rem', borderBottom: idx !== demand.items.length - 1 ? '1px solid #1f2937' : 'none' }}>
+                                        <div style={{ color: '#cbd5e1', fontWeight: 600 }}>• {item.name}</div>
+                                        <div style={{ textAlign: 'right', color: '#f9fafb', fontWeight: 600 }}>{formatFeeCurrency(item.amount)}</div>
+                                        <div style={{ textAlign: 'center', color: '#9ca3af' }}>{demand.formattedDueDate}</div>
+                                        <div style={{ textAlign: 'right', color: '#9ca3af' }}>
+                                          {idx === 0 && demand.lateFee > 0 ? (
+                                            <span style={{ color: '#f87171', fontWeight: 700 }}>{formatFeeCurrency(demand.lateFee)}</span>
+                                          ) : '₹0.00'}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ borderTop: '2px solid #374151', background: '#0b1120' }}>
+                        <td style={{ padding: '0.85rem 0.75rem', fontWeight: 800, color: '#f9fafb' }}>Total</td>
+                        <td style={{ padding: '0.85rem 0.75rem', textAlign: 'right', fontWeight: 800, color: '#f9fafb' }}>
+                          {formatFeeCurrency(feeSummary.totalBaseAmount)}
+                        </td>
+                        <td style={{ padding: '0.85rem 0.75rem', textAlign: 'center' }}></td>
+                        <td style={{ padding: '0.85rem 0.75rem', textAlign: 'right', fontWeight: 800, color: feeSummary.totalLateFees > 0 ? '#f87171' : '#f9fafb' }}>
+                          {formatFeeCurrency(feeSummary.totalLateFees)}
+                        </td>
+                        <td style={{ padding: '0.85rem 0.75rem', textAlign: 'right', fontWeight: 900, color: '#38bdf8', fontSize: '1rem' }}>
+                          {formatFeeCurrency(feeSummary.totalPayableAmount)}
+                        </td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action Button: Initiate Payment */}
+          <div style={{ padding: '1rem 1.5rem', background: '#0b1120', borderTop: '1px solid #1f2937' }}>
             <button 
-              onClick={() => setShowPaymentModal(true)}
-              disabled={paymentAmount <= 0}
-              style={{ width: '100%', background: paymentAmount > 0 ? '#2563eb' : '#374151', color: 'white', padding: '1.25rem', borderRadius: '0.75rem', fontWeight: 700, fontSize: '1.1rem', border: 'none', cursor: paymentAmount > 0 ? 'pointer' : 'not-allowed', transition: 'all 0.2s', boxShadow: paymentAmount > 0 ? '0 4px 12px rgba(37, 99, 235, 0.25)' : 'none' }}
+              onClick={() => {
+                setPaymentAmount(feeSummary.totalPayableAmount);
+                setShowPaymentModal(true);
+              }}
+              disabled={feeSummary.totalPayableAmount <= 0}
+              style={{ 
+                width: '100%', 
+                background: feeSummary.totalPayableAmount > 0 ? '#0284c7' : '#374151', 
+                color: 'white', 
+                padding: '1rem', 
+                borderRadius: '0.5rem', 
+                fontWeight: 800, 
+                fontSize: '1.05rem', 
+                border: 'none', 
+                cursor: feeSummary.totalPayableAmount > 0 ? 'pointer' : 'not-allowed', 
+                boxShadow: feeSummary.totalPayableAmount > 0 ? '0 4px 12px rgba(2, 132, 199, 0.25)' : 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.75rem'
+              }}
             >
-              Pay Now (Gateway-Free)
+              <span>Initiate Payment</span>
+              <span style={{ background: 'rgba(255, 255, 255, 0.2)', padding: '0.2rem 0.6rem', borderRadius: '0.25rem', fontSize: '1.05rem' }}>
+                {formatFeeCurrency(feeSummary.totalPayableAmount)}
+              </span>
             </button>
-            <p style={{ textAlign: 'center', fontSize: '0.8rem', color: '#9ca3af', marginTop: '0.75rem' }}>Supports Google Pay, PhonePe, Paytm, and NEFT.</p>
+            <p style={{ textAlign: 'center', fontSize: '0.8rem', color: '#9ca3af', marginTop: '0.75rem' }}>
+              Supports UPI (Google Pay, PhonePe, Paytm), NEFT, and Net Banking.
+            </p>
           </div>
         </div>
 
@@ -438,19 +664,40 @@ const ParentPortal = () => {
 
                 <div style={{ padding: '1.5rem' }}>
                   
+                  {/* Fee Breakdown Summary */}
+                  <div style={{ background: '#090d16', border: '1px solid #1f2937', borderRadius: '0.75rem', padding: '1rem', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#9ca3af', marginBottom: '0.4rem' }}>
+                      <span>Outstanding Fees</span>
+                      <span style={{ fontWeight: 700, color: '#f3f4f6' }}>{formatFeeCurrency(feeSummary.totalBaseAmount)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#9ca3af', marginBottom: '0.4rem' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        Late Fee {feeSummary.totalLateFees > 0 && <span style={{ fontSize: '0.65rem', background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', padding: '0.1rem 0.4rem', borderRadius: '0.25rem', fontWeight: 800 }}>OVERDUE</span>}
+                      </span>
+                      <span style={{ fontWeight: 700, color: feeSummary.totalLateFees > 0 ? '#f87171' : '#f3f4f6' }}>
+                        {formatFeeCurrency(feeSummary.totalLateFees)}
+                      </span>
+                    </div>
+                    <div style={{ borderTop: '1px solid #1f2937', paddingTop: '0.5rem', marginTop: '0.5rem', display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '1.05rem' }}>
+                      <span style={{ color: '#f9fafb' }}>Amount Payable</span>
+                      <span style={{ color: '#38bdf8' }}>{formatFeeCurrency(feeSummary.totalPayableAmount)}</span>
+                    </div>
+                  </div>
+
                   {/* Step 1: Bank Details & QR */}
                   <div style={{ marginBottom: '2rem' }}>
                     <div style={{ display: 'inline-block', background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', padding: '0.25rem 0.75rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 700, marginBottom: '1rem' }}>STEP 1: MAKE PAYMENT</div>
                     
                     <div style={{ background: '#090d16', border: '1px solid #1f2937', borderRadius: '1rem', padding: '1.5rem', textAlign: 'center', marginBottom: '1rem' }}>
                       <p style={{ fontWeight: 600, color: '#e5e7eb', marginBottom: '1rem' }}>Scan and pay using any UPI App</p>
-                      {/* Fake QR Code UI for Demo */}
+                      {/* QR Code UI */}
                       <div style={{ width: '200px', height: '200px', background: 'white', border: '2px solid #e2e8f0', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0.5rem' }}>
                         <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=${bankDetails.upiId}&pn=${encodeURIComponent(bankDetails.accountName)}&am=${paymentAmount}&cu=INR`} alt="UPI QR" />
                       </div>
-                      <p style={{ fontWeight: 900, fontSize: '1.8rem', marginTop: '1rem', color: '#3b82f6' }}>₹{paymentAmount.toLocaleString('en-IN')}</p>
+                      <p style={{ fontWeight: 900, fontSize: '1.8rem', marginTop: '1rem', color: '#38bdf8' }}>{formatFeeCurrency(paymentAmount)}</p>
                       <p style={{ color: '#9ca3af', fontSize: '0.9rem', marginTop: '0.25rem' }}>UPI ID: {bankDetails.upiId}</p>
                     </div>
+
 
                     <div style={{ fontSize: '0.9rem' }}>
                       <p style={{ fontWeight: 700, color: '#cbd5e1', marginBottom: '0.5rem' }}>Or Bank Transfer (NEFT/IMPS):</p>
