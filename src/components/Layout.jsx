@@ -468,7 +468,7 @@ const Layout = ({ children }) => {
           <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', fontWeight: 600, padding: '0 0.5rem 0.5rem' }}>Menu</p>
           
           {(() => {
-            const isTeachingPrincipal = profile?.role === 'principal' && (!profile.designation || ['Principal', 'Headmaster'].includes(profile.designation));
+            const isTeachingPrincipal = profile?.role === 'principal';
             const isTeacherOrAdminOrTeachingPrincipal = profile?.role === 'teacher' || profile?.role === 'admin' || isTeachingPrincipal;
             return (
               <>

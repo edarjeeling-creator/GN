@@ -26,7 +26,7 @@ export const LibrarianRoute = ({ children }) => {
 export const TeacherRoute = ({ children }) => {
   const { profile, loading } = useAuth();
   if (loading) return <div>Loading...</div>;
-  const isTeachingPrincipal = profile?.role === 'principal' && (!profile.designation || ['Principal', 'Headmaster'].includes(profile.designation));
+  const isTeachingPrincipal = profile?.role === 'principal';
   if (!profile || (profile.role !== 'teacher' && profile.role !== 'admin' && !isTeachingPrincipal)) return <Navigate to={profile?.role === 'principal' ? "/principal" : "/dashboard"} />;
   return children;
 };

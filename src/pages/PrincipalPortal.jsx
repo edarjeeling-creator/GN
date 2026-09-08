@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Search, Users, BookOpen, Bell, Send, Shield, User, Calendar, CheckCircle, XCircle, AlertTriangle, Printer, Clock, AlertCircle, FileText, ChevronDown, Settings, Upload, Phone, X } from 'lucide-react';
@@ -366,11 +366,19 @@ const PrincipalPortal = () => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6 print:space-y-0">
-      <div className="no-print">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
-          <Shield className="text-brand-600 dark:text-brand-400" size={32} /> {profile?.designation || 'Principal'} Dashboard
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-1">School administration and oversight.</p>
+      <div className="no-print flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+            <Shield className="text-brand-600 dark:text-brand-400" size={32} /> {profile?.designation || 'Principal'} Dashboard
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">School administration, oversight, and teaching management.</p>
+        </div>
+        <Link 
+          to="/classes" 
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-sm transition-all self-start sm:self-auto"
+        >
+          <BookOpen size={18} /> My Teaching Classes & Subjects
+        </Link>
       </div>
 
       {realtimeAlert && (
@@ -444,6 +452,29 @@ const PrincipalPortal = () => {
 
         {activeTab === 'overview' && (
           <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+            {/* Teaching Assignments Quick Action */}
+            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-900 dark:to-blue-950/30 border border-blue-200 dark:border-blue-900/40 shadow-sm">
+              <CardContent className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="bg-blue-600 p-3 rounded-2xl text-white shadow-md shrink-0">
+                    <BookOpen size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">Teaching Classes & Subject Selection</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">
+                      Teaching a class (such as Class 5)? Open <strong>My Classes</strong> to select subjects, enter marks, mark attendance, and manage student flowsheets.
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  to="/classes"
+                  className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl shadow-sm transition-all whitespace-nowrap text-center shrink-0"
+                >
+                  Manage My Classes & Subjects →
+                </Link>
+              </CardContent>
+            </Card>
+
             <div>
               <h2 className="text-xl font-bold mb-4 text-slate-900 dark:text-white flex items-center gap-2">
                 <Shield className="text-brand-500" /> Operational Dashboard
