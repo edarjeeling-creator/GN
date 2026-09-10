@@ -1,0 +1,11 @@
+node_modules
+.git
+.github
+android
+android_build
+*.apk
+*.idsig
+*.jar
+*.pdf
+scratch
+dist
