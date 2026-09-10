@@ -380,9 +380,23 @@ const Layout = ({ children }) => {
         boxShadow: '4px 0 24px rgba(0,0,0,0.02)', 
         background: 'var(--surface-color)',
         borderRight: '1px solid rgba(0,0,0,0.05)',
-        zIndex: 40
+        zIndex: 40,
+        overflowY: 'auto',
+        overflowX: 'hidden'
       }}>
-        <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '1.5rem', background: 'linear-gradient(to right, rgba(37, 99, 235, 0.03), transparent)' }}>
+        <div className="sidebar-header" style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between', 
+          gap: '0.75rem', 
+          padding: '1.25rem 1.5rem', 
+          background: 'var(--surface-color)', 
+          position: 'sticky',
+          top: 0,
+          zIndex: 20,
+          borderBottom: '1px solid var(--border-color)',
+          flexShrink: 0
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <img src={siteBranding?.logoUrl || "/logo.png"} alt="School Logo" style={{ width: '48px', height: '48px', objectFit: 'contain', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.15))' }} />
             <span style={{ fontSize: '1.1rem', fontWeight: '850', letterSpacing: '-0.02em', color: 'var(--primary-color)' }}>{siteBranding?.siteName || 'Gyanoday Niketan'}</span>
@@ -397,7 +411,7 @@ const Layout = ({ children }) => {
           )}
         </div>
         
-        <div style={{ padding: '1.5rem', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+        <div style={{ padding: '1.5rem', borderBottom: '1px solid rgba(0,0,0,0.05)', flexShrink: 0 }}>
            <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.5rem' }}>Account</p>
            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', position: 'relative' }}>
              {profile?.picture_url ? (
@@ -464,7 +478,7 @@ const Layout = ({ children }) => {
            </div>
         </div>
 
-        <nav className="sidebar-nav" style={{ padding: '1rem' }}>
+        <nav className="sidebar-nav custom-scrollbar" style={{ padding: '1rem', paddingBottom: '3.5rem', flex: 1 }}>
           <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', fontWeight: 600, padding: '0 0.5rem 0.5rem' }}>Menu</p>
           
           {(() => {
@@ -539,7 +553,7 @@ const Layout = ({ children }) => {
                       <CalendarCheck size={18} /> Attendance
                     </NavLink>
                     <NavLink to="/weekly-tests" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
-                      <FileText size={18} /> Weekly Tests
+                      <FileText size={18} /> Surprise Test
                     </NavLink>
                     <NavLink to="/hpc/workspace" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
                       <ClipboardCheck size={18} /> HPC Workspace
@@ -597,7 +611,7 @@ const Layout = ({ children }) => {
              </NavLink>
           )}
 
-          <div className="nav-item" style={{ marginTop: 'auto', cursor: 'pointer', borderRadius: '0.5rem', color: '#ef4444' }} onClick={handleLogout}>
+          <div className="nav-item" style={{ marginTop: '1.5rem', cursor: 'pointer', borderRadius: '0.5rem', color: '#ef4444' }} onClick={handleLogout}>
             <LogOut size={18} /> Secure Logout
           </div>
         </nav>

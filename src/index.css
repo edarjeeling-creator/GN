@@ -117,7 +117,45 @@
 @layer utilities {
   /* Layout legacy overrides */
   .app-layout { @apply flex min-h-screen bg-[var(--bg-color)]; }
-  .sidebar { @apply w-[var(--sidebar-width)] bg-[var(--surface-color)] border-r border-[var(--border-color)] flex flex-col fixed h-screen z-40 transition-transform duration-300; }
+  .sidebar { 
+    @apply w-[var(--sidebar-width)] bg-[var(--surface-color)] border-r border-[var(--border-color)] flex flex-col fixed h-screen z-40 transition-transform duration-300 overflow-y-auto overflow-x-hidden; 
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+  }
+  .sidebar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .sidebar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .sidebar::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.35);
+    border-radius: 9999px;
+  }
+  .sidebar::-webkit-scrollbar-thumb:hover {
+    background-color: #3b82f6;
+  }
+
+  /* Custom scrollbar utility */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.35);
+    border-radius: 9999px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: #3b82f6;
+  }
+
   .main-content { @apply flex-1 ml-[var(--sidebar-width)] p-8 flex flex-col gap-8 min-w-0 transition-all duration-300; }
   
   @media (max-width: 1024px) {

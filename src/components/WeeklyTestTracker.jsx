@@ -92,7 +92,7 @@ export default function WeeklyTestTracker() {
       <div className="p-6">
         <div className="flex justify-between items-start mb-6">
           <div>
-             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Weekly Test Report</h2>
+             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Surprise Test Report</h2>
              <p className="text-slate-600 dark:text-slate-400 mt-1">{selectedTest.classes?.name} {selectedTest.classes?.section || ''} | {selectedTest.subjects?.name} | Teacher: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedTest.profiles?.name}</span></p>
              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Date: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedTest.test_date}</span> | Max Marks: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedTest.max_marks}</span> | Status: <strong className="text-brand-600 dark:text-brand-400">{selectedTest.status}</strong></p>
           </div>
@@ -109,7 +109,7 @@ export default function WeeklyTestTracker() {
         <div className="printable-report">
           <div className="text-center mb-8 hidden print:block">
             <h1 className="text-2xl font-bold uppercase tracking-wider text-slate-900">Gyanoday Niketan</h1>
-            <h2 className="text-xl font-semibold text-slate-800">Weekly Test Assembly Report</h2>
+            <h2 className="text-xl font-semibold text-slate-800">Surprise Test Assembly Report</h2>
             <p className="text-slate-600">{selectedTest.classes?.name} {selectedTest.classes?.section || ''} - {selectedTest.subjects?.name} ({selectedTest.test_date})</p>
           </div>
 
@@ -192,7 +192,7 @@ export default function WeeklyTestTracker() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Weekly Test Tracker</h2>
+         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Surprise Test Tracker</h2>
          <div className="flex gap-4">
             <div className="bg-white dark:bg-slate-900 px-4 py-2 rounded-lg shadow-sm text-sm border-l-4 border-yellow-400 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200"><span className="font-bold">{tests.filter(t=>t.status==='Draft').length}</span> Draft</div>
             <div className="bg-white dark:bg-slate-900 px-4 py-2 rounded-lg shadow-sm text-sm border-l-4 border-red-500 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200"><span className="font-bold">{tests.filter(t=>t.status==='Submitted').length}</span> Pending Approval</div>
@@ -239,7 +239,7 @@ export default function WeeklyTestTracker() {
              ))}
              {tests.length === 0 && (
                <tr>
-                 <td colSpan="6" className="p-8 text-center text-slate-500 dark:text-slate-400">No weekly tests recorded yet.</td>
+                 <td colSpan="6" className="p-8 text-center text-slate-500 dark:text-slate-400">No surprise tests recorded yet.</td>
                </tr>
              )}
           </tbody>

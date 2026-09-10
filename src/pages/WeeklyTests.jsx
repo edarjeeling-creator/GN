@@ -229,7 +229,7 @@ export default function WeeklyTests() {
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Weekly Test Marks Entry</h2>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Surprise Test Marks Entry</h2>
             <p className="text-slate-600 dark:text-slate-400 mt-1">
               Class: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedTest.classes?.name} {selectedTest.classes?.section || ''}</span> | Subject: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedTest.subjects?.name}</span> | Date: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedTest.test_date}</span> | Max Marks: <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedTest.max_marks}</span> | Status: <span className="font-semibold text-brand-600 dark:text-brand-400">{selectedTest.status}</span>
             </p>
@@ -309,8 +309,8 @@ export default function WeeklyTests() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Weekly Tests</h2>
-          <p className="text-slate-600 dark:text-slate-400">Manage and submit weekly test marks</p>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Surprise Tests</h2>
+          <p className="text-slate-600 dark:text-slate-400">Manage and submit surprise test marks</p>
         </div>
         <button onClick={() => setIsCreating(true)} className="btn-hero-primary flex items-center gap-2">
           <Plus size={20} /> New Test
@@ -319,7 +319,7 @@ export default function WeeklyTests() {
 
       {isCreating && (
         <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 mb-6">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Create New Weekly Test</h3>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Create New Surprise Test</h3>
           <form onSubmit={handleCreateTest} className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Class</label>
@@ -390,7 +390,7 @@ export default function WeeklyTests() {
         {tests.length === 0 && !isCreating && (
           <div className="col-span-full text-center py-12 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-200 dark:border-slate-800 border-dashed">
             <FileText size={48} className="mx-auto text-slate-400 dark:text-slate-600 mb-4" />
-            <p className="text-slate-600 dark:text-slate-400">No weekly tests found. Create your first one!</p>
+            <p className="text-slate-600 dark:text-slate-400">No surprise tests found. Create your first one!</p>
           </div>
         )}
       </div>
