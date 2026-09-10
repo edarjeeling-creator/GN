@@ -32,8 +32,12 @@ CREATE INDEX IF NOT EXISTS idx_attendance_qr_lookup
   ON public.attendance_qr_sessions (session_token, is_active, expires_at);
 
 ALTER TABLE public.attendance_qr_sessions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow authenticated read attendance_qr_sessions" ON public.attendance_qr_sessions;
 CREATE POLICY "Allow authenticated read attendance_qr_sessions" 
   ON public.attendance_qr_sessions FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Allow admin all attendance_qr_sessions" ON public.attendance_qr_sessions;
 CREATE POLICY "Allow admin all attendance_qr_sessions" 
   ON public.attendance_qr_sessions FOR ALL TO authenticated 
   USING (
@@ -65,14 +69,20 @@ CREATE INDEX IF NOT EXISTS idx_corr_req_status
   ON public.attendance_correction_requests (status);
 
 ALTER TABLE public.attendance_correction_requests ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow teachers to view own correction requests" ON public.attendance_correction_requests;
 CREATE POLICY "Allow teachers to view own correction requests"
   ON public.attendance_correction_requests FOR SELECT TO authenticated
   USING (teacher_id = auth.uid() OR EXISTS (
     SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'principal')
   ));
+
+DROP POLICY IF EXISTS "Allow teachers to insert own correction requests" ON public.attendance_correction_requests;
 CREATE POLICY "Allow teachers to insert own correction requests"
   ON public.attendance_correction_requests FOR INSERT TO authenticated
   WITH CHECK (teacher_id = auth.uid());
+
+DROP POLICY IF EXISTS "Allow admin to update correction requests" ON public.attendance_correction_requests;
 CREATE POLICY "Allow admin to update correction requests"
   ON public.attendance_correction_requests FOR UPDATE TO authenticated
   USING (EXISTS (
@@ -506,6 +516,7 @@ $$;
 -- 9. RLS LOCKDOWN: PREVENT DIRECT UNAUTHORIZED MUTATIONS FROM CLIENT BROWSER
 DROP POLICY IF EXISTS "Allow authenticated all teacher_attendance" ON public.teacher_attendance;
 DROP POLICY IF EXISTS "Allow authenticated read teacher_attendance" ON public.teacher_attendance;
+DROP POLICY IF EXISTS "Allow admin all teacher_attendance" ON public.teacher_attendance;
 
 -- Authenticated users can view attendance
 CREATE POLICY "Allow authenticated read teacher_attendance" 
