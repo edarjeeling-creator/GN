@@ -1,13 +1,14 @@
 providers = ["node"]
 
 [variables]
-NODE_OPTIONS = "--max-old-space-size=2048"
+NODE_OPTIONS = "--max-old-space-size=1536"
 
 [phases.install]
-cmds = ['npm ci --no-audit --prefer-offline']
+cmds = ['npm ci --no-audit']
 
 [phases.build]
 cmds = ['npm run build']
 
 [start]
 cmd = 'npm run preview'
+

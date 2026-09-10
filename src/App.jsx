@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeProvider';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -9,46 +10,47 @@ import MandatoryDisclosures from './pages/MandatoryDisclosures';
 import { Capacitor } from '@capacitor/core';
 import MobileAppShell from './mobile/layouts/MobileAppShell';
 import MobileProtectedRoute from './mobile/components/MobileProtectedRoute';
-
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Classes from './pages/Classes';
-import SubjectMarks from './pages/SubjectMarks';
-import SubjectAcademicReport from './pages/SubjectAcademicReport';
-import Flowsheet from './pages/Flowsheet';
-import ReportCards from './pages/ReportCards';
-import ResultPortal from './pages/ResultPortal';
-import PrincipalPortal from './pages/PrincipalPortal';
-import StudentPortal from './pages/StudentPortal';
-import ParentPortal from './pages/ParentPortal';
-import StudyMaterials from './pages/StudyMaterials';
-import Assignments from './pages/Assignments';
-import Admin from './pages/Admin';
-import FeesDashboard from './pages/FeesDashboard';
-import LibraryDashboard from './pages/LibraryDashboard';
-import CommunicationHub from './pages/CommunicationHub';
-import StudentSearch from './pages/StudentSearch';
-import Attendance from './pages/Attendance';
-import AttendanceReports from './pages/AttendanceReports';
-import WeeklyTests from './pages/WeeklyTests';
-import QRAttendanceScanner from './pages/QRAttendanceScanner';
-import PythonTeacher from './pages/PythonTeacher';
-import PythonStudent from './pages/PythonStudent';
-import PublicIDForm from './pages/PublicIDForm';
-import ClassTeacherPortal from './pages/ClassTeacherPortal';
 
-// HPC Module
-import HPCConfiguration from './pages/hpc/HPCConfiguration';
-import HPCAssessmentWorkspace from './pages/hpc/HPCAssessmentWorkspace';
-import HPCReview from './pages/hpc/HPCReview';
-import HPCStudentProfile from './pages/hpc/HPCStudentProfile';
+// Lazy-loaded Dashboard & Feature Pages
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Classes = lazy(() => import('./pages/Classes'));
+const SubjectMarks = lazy(() => import('./pages/SubjectMarks'));
+const SubjectAcademicReport = lazy(() => import('./pages/SubjectAcademicReport'));
+const Flowsheet = lazy(() => import('./pages/Flowsheet'));
+const ReportCards = lazy(() => import('./pages/ReportCards'));
+const ResultPortal = lazy(() => import('./pages/ResultPortal'));
+const PrincipalPortal = lazy(() => import('./pages/PrincipalPortal'));
+const StudentPortal = lazy(() => import('./pages/StudentPortal'));
+const ParentPortal = lazy(() => import('./pages/ParentPortal'));
+const StudyMaterials = lazy(() => import('./pages/StudyMaterials'));
+const Assignments = lazy(() => import('./pages/Assignments'));
+const Admin = lazy(() => import('./pages/Admin'));
+const FeesDashboard = lazy(() => import('./pages/FeesDashboard'));
+const LibraryDashboard = lazy(() => import('./pages/LibraryDashboard'));
+const CommunicationHub = lazy(() => import('./pages/CommunicationHub'));
+const StudentSearch = lazy(() => import('./pages/StudentSearch'));
+const Attendance = lazy(() => import('./pages/Attendance'));
+const AttendanceReports = lazy(() => import('./pages/AttendanceReports'));
+const WeeklyTests = lazy(() => import('./pages/WeeklyTests'));
+const QRAttendanceScanner = lazy(() => import('./pages/QRAttendanceScanner'));
+const PythonTeacher = lazy(() => import('./pages/PythonTeacher'));
+const PythonStudent = lazy(() => import('./pages/PythonStudent'));
+const PublicIDForm = lazy(() => import('./pages/PublicIDForm'));
+const ClassTeacherPortal = lazy(() => import('./pages/ClassTeacherPortal'));
 
-// Mobile App Shell & Pages
-import MobileHome from './mobile/pages/MobileHome';
-import MobileProfile from './mobile/pages/MobileProfile';
-import MobileMessages from './mobile/pages/MobileMessages';
-import MobileSettings from './mobile/pages/MobileSettings';
-import MobileCalendar from './mobile/pages/MobileCalendar';
+// HPC Module (Lazy-loaded)
+const HPCConfiguration = lazy(() => import('./pages/hpc/HPCConfiguration'));
+const HPCAssessmentWorkspace = lazy(() => import('./pages/hpc/HPCAssessmentWorkspace'));
+const HPCReview = lazy(() => import('./pages/hpc/HPCReview'));
+const HPCStudentProfile = lazy(() => import('./pages/hpc/HPCStudentProfile'));
+
+// Mobile App Shell & Pages (Lazy-loaded)
+const MobileHome = lazy(() => import('./mobile/pages/MobileHome'));
+const MobileProfile = lazy(() => import('./mobile/pages/MobileProfile'));
+const MobileMessages = lazy(() => import('./mobile/pages/MobileMessages'));
+const MobileSettings = lazy(() => import('./mobile/pages/MobileSettings'));
+const MobileCalendar = lazy(() => import('./mobile/pages/MobileCalendar'));
 
 function App() {
   const isNative = Capacitor.isNativePlatform();
@@ -57,7 +59,15 @@ function App() {
     <ThemeProvider>
       <>
         <Router>
-          <Routes>
+          <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-sm font-medium text-slate-400">Loading Gyanoday Niketan...</p>
+              </div>
+            </div>
+          }>
+            <Routes>
               {/* Mobile Native App Entry point redirection */}
               {isNative && (
                 <Route path="/" element={<Navigate to="/m/dashboard" replace />} />
@@ -147,6 +157,7 @@ function App() {
             </Route>
 
           </Routes>
+          </Suspense>
         </Router>
       </>
     </ThemeProvider>
