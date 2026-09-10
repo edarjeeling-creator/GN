@@ -34,6 +34,7 @@ const Attendance = lazy(() => import('./pages/Attendance'));
 const AttendanceReports = lazy(() => import('./pages/AttendanceReports'));
 const WeeklyTests = lazy(() => import('./pages/WeeklyTests'));
 const QRAttendanceScanner = lazy(() => import('./pages/QRAttendanceScanner'));
+const AttendanceQRDisplay = lazy(() => import('./pages/Admin/AttendanceQRDisplay'));
 const PythonTeacher = lazy(() => import('./pages/PythonTeacher'));
 const PythonStudent = lazy(() => import('./pages/PythonStudent'));
 const PublicIDForm = lazy(() => import('./pages/PublicIDForm'));
@@ -92,6 +93,7 @@ function App() {
             
             {/* Standalone Protected Kiosk Routes (No Layout) */}
             <Route path="/kiosk/attendance" element={<TeacherRoute><QRAttendanceScanner /></TeacherRoute>} />
+            <Route path="/kiosk/teacher-qr" element={<TeacherRoute><AttendanceQRDisplay /></TeacherRoute>} />
 
             {/* Protected Dashboard Routes */}
             <Route element={<ProtectedRoute />}>
@@ -126,6 +128,7 @@ function App() {
               
               {/* Admin Only Routes */}
               <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+              <Route path="/admin/attendance-qr" element={<AdminRoute><AttendanceQRDisplay /></AdminRoute>} />
               
               {/* HPC Routes */}
               <Route path="/hpc/config" element={<AdminRoute><HPCConfiguration /></AdminRoute>} />

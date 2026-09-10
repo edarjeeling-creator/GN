@@ -124,6 +124,7 @@ const TeacherAttendanceHistory = ({ teacherId }) => {
                 <th className="p-4 font-semibold">Check In</th>
                 <th className="p-4 font-semibold">Check Out</th>
                 <th className="p-4 font-semibold">Hours</th>
+                <th className="p-4 font-semibold">Verification</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/80">
@@ -144,10 +145,44 @@ const TeacherAttendanceHistory = ({ teacherId }) => {
                     {record.check_in_time ? new Date(record.check_in_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-'}
                   </td>
                   <td className="p-4 text-slate-400 text-sm font-medium font-mono">
-                    {record.check_out_time ? new Date(record.check_out_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-'}
+                    {record.check_out_time ? (
+                      new Date(record.check_out_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                    ) : record.check_in_time ? (
+                      <span className="text-amber-400 font-bold text-xs bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                        Missing Checkout
+                      </span>
+                    ) : (
+                      '-'
+                    )}
                   </td>
                   <td className="p-4 text-slate-200 text-sm font-mono font-medium">
-                    {record.working_hours || '-'}
+                    {record.working_hours || (
+                      record.check_in_time && record.check_out_time
+                        ? (() => {
+                            const diff = new Date(record.check_out_time) - new Date(record.check_in_time);
+                            const h = Math.floor(diff / 3600000);
+                            const m = Math.floor((diff % 3600000) / 60000);
+                            return `${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m`;
+                          })()
+                        : '-'
+                    )}
+                  </td>
+                  <td className="p-4">
+                    {record.check_in_verification_status === 'VERIFIED' ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-bold">
+                        <CheckCircle size={12} /> Verified
+                      </span>
+                    ) : record.check_in_method === 'MANUAL_CORRECTION' ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 font-medium">
+                        Correction Approved
+                      </span>
+                    ) : record.check_in_time ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700 text-xs">
+                        Legacy / Unverified
+                      </span>
+                    ) : (
+                      <span className="text-slate-500 text-xs">-</span>
+                    )}
                   </td>
                 </tr>
               ))}

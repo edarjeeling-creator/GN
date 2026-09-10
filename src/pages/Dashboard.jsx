@@ -5,11 +5,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BookOpen, AlertCircle, CheckCircle, Clock, Users, Camera, 
   ChevronDown, User, Send, AlertTriangle, Fingerprint, LogOut,
-  Phone, MessageSquare, Edit2, Check, X, ExternalLink
+  Phone, MessageSquare, Edit2, Check, X, ExternalLink,
+  QrCode, ShieldCheck, MapPin, Sparkles, AlertOctagon, HelpCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import TeacherAttendanceHistory from '../components/TeacherAttendanceHistory';
+import AttendanceScannerModal from '../components/AttendanceScannerModal';
+import AttendanceCorrectionModal from '../components/AttendanceCorrectionModal';
 import CalendarWidget from '../components/CalendarWidget';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -117,50 +120,26 @@ const Dashboard = () => {
 
   const isLibrarian = profile?.role === 'librarian';
 
+  // Verified Hybrid Teacher Attendance Modals
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scannerActionType, setScannerActionType] = useState('CHECK_IN');
+  const [isCorrectionOpen, setIsCorrectionOpen] = useState(false);
 
-
-  const handleCheckIn = async () => {
-    setAttendanceActionLoading(true);
-    
-    const today = new Date().toISOString().split('T')[0];
-    const timeStr = new Date().toISOString();
-    
-    const { data, error } = await supabase.from('teacher_attendance').insert({
-        teacher_id: profile.id, 
-        attendance_date: today, 
-        status: 'Present', 
-        check_in_time: timeStr
-    }).select().single();
-
-    if (error) {
-      if (error.code === '23505') { // Unique constraint violation, already exists
-        const { data: myAtt } = await supabase.from('teacher_attendance').select('*').eq('teacher_id', profile.id).eq('attendance_date', today).maybeSingle();
-        if (myAtt) setMyAttendanceToday(myAtt);
-      } else {
-        alert("Failed to check in: " + error.message);
-      }
-    } else {
-      setMyAttendanceToday(data);
-    }
-    setAttendanceActionLoading(false);
+  const handleOpenCheckInScanner = () => {
+    setScannerActionType('CHECK_IN');
+    setIsScannerOpen(true);
   };
 
-  const handleCheckOut = async () => {
-    if (!myAttendanceToday || !myAttendanceToday.check_in_time) return;
-    setAttendanceActionLoading(true);
-    
-    const timeStr = new Date().toISOString();
+  const handleOpenCheckOutScanner = () => {
+    setScannerActionType('CHECK_OUT');
+    setIsScannerOpen(true);
+  };
 
-    const { data, error } = await supabase.from('teacher_attendance').update({
-        check_out_time: timeStr
-    }).eq('id', myAttendanceToday.id).select().single();
-
-    if (error) {
-      alert("Failed to check out: " + error.message);
-    } else {
-      setMyAttendanceToday(data);
+  const handleScannerSuccess = (result) => {
+    if (result?.record) {
+      setMyAttendanceToday(result.record);
     }
-    setAttendanceActionLoading(false);
+    fetchDashboardData();
   };
 
   const [editingPhoneStudentId, setEditingPhoneStudentId] = useState(null);
@@ -288,60 +267,223 @@ const Dashboard = () => {
         </div>
       </div>
       
-      {/* Teacher Attendance Check-In Widget */}
-      <Card className="bg-slate-900 text-white border-0 shadow-xl overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/20 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
-        <CardContent className="p-6 relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-4">
-            <div className="bg-slate-800 p-4 rounded-full border border-slate-700 shadow-inner">
-              <Fingerprint size={32} className={myAttendanceToday ? 'text-emerald-400' : 'text-slate-400'} />
-            </div>
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold mb-1">My Daily Attendance</h2>
-              <p className="text-slate-400 text-sm">
-                Reporting Time: <strong className="text-slate-300">{reportingTimeConfig.time}</strong>
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex flex-col items-end gap-2 w-full md:w-auto">
-            {!myAttendanceToday ? (
-              <Button 
-                onClick={handleCheckIn} 
-                isLoading={attendanceActionLoading}
-                className="w-full md:w-auto bg-emerald-500 hover:bg-emerald-600 text-white h-12 px-8 text-lg shadow-lg hover:shadow-emerald-500/20"
-              >
-                <Fingerprint size={20} className="mr-2" /> Check In Now
-              </Button>
-            ) : !myAttendanceToday.check_out_time ? (
-              <div className="flex flex-col md:flex-row items-center gap-4 w-full">
-                <div className="bg-slate-800 border border-slate-700 px-4 py-2 rounded-lg text-center w-full md:w-auto">
-                  <span className="block text-xs text-slate-400 uppercase font-bold mb-1">Status</span>
-                  <span className={`font-bold ${myAttendanceToday.status.includes('Late') ? 'text-amber-400' : 'text-emerald-400'}`}>
-                    Checked In: {new Date(myAttendanceToday.check_in_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+      {/* Verified Hybrid Teacher Attendance Card */}
+      <Card className="bg-slate-900 text-white border border-slate-800 shadow-2xl overflow-hidden relative rounded-2xl">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-brand-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+        <div className="p-6 relative z-10">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
+            <div className="flex items-center gap-3.5">
+              <div className="p-3 bg-slate-800 border border-slate-700 rounded-2xl text-brand-400 shadow-inner">
+                <ShieldCheck size={26} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold tracking-tight text-white">Today's Attendance</h2>
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    Live Verified
                   </span>
                 </div>
-                <Button 
-                  onClick={handleCheckOut} 
-                  isLoading={attendanceActionLoading}
-                  variant="danger"
-                  className="w-full md:w-auto h-12 px-8 text-lg shadow-lg hover:shadow-red-500/20"
-                >
-                  <LogOut size={20} className="mr-2" /> Check Out
-                </Button>
+                <p className="text-slate-400 text-xs mt-0.5 flex items-center gap-1.5">
+                  <MapPin size={12} className="text-emerald-400" />
+                  Gyanoday Niketan Geofence • Standard Reporting: <strong className="text-slate-200">{reportingTimeConfig.time}</strong>
+                </p>
               </div>
-            ) : (
-              <div className="flex items-center gap-4 w-full bg-slate-800 border border-slate-700 p-4 rounded-xl">
-                <div className="bg-emerald-500/20 p-2 rounded-full"><CheckCircle className="text-emerald-400" size={24} /></div>
-                <div>
-                  <h4 className="font-bold text-slate-200">Shift Completed</h4>
-                  <p className="text-sm text-slate-400">Total Hours: <strong className="text-white">{myAttendanceToday.working_hours || (myAttendanceToday.check_in_time && myAttendanceToday.check_out_time ? ((new Date(myAttendanceToday.check_out_time) - new Date(myAttendanceToday.check_in_time)) / (1000 * 60 * 60)).toFixed(1) + ' hrs' : 'N/A')}</strong></p>
-                </div>
-              </div>
-            )}
+            </div>
+
+            <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+              <button
+                type="button"
+                onClick={() => setIsCorrectionOpen(true)}
+                className="text-xs text-slate-400 hover:text-brand-300 flex items-center gap-1 px-3 py-1.5 rounded-xl hover:bg-slate-800/60 border border-transparent hover:border-slate-700 transition-colors"
+              >
+                <HelpCircle size={13} /> Request Correction
+              </button>
+            </div>
           </div>
-        </CardContent>
+
+          {/* Attendance State Machine Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 my-5">
+            {/* Check-In */}
+            <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5 flex flex-col justify-between">
+              <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Check-In</span>
+              <div className="my-1.5">
+                <span className="text-lg md:text-xl font-black font-mono text-white">
+                  {myAttendanceToday?.check_in_time 
+                    ? new Date(myAttendanceToday.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : '--:--'}
+                </span>
+              </div>
+              <div>
+                {myAttendanceToday?.check_in_time ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                    <CheckCircle size={10} />
+                    {myAttendanceToday.check_in_verification_status === 'VERIFIED' 
+                      ? '✓ Verified — Dynamic QR'
+                      : myAttendanceToday.check_in_method === 'MANUAL_CORRECTION'
+                        ? 'Approved Correction'
+                        : 'Unverified / Legacy'}
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-slate-500 font-medium">Pending morning scan</span>
+                )}
+              </div>
+            </div>
+
+            {/* Check-Out */}
+            <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5 flex flex-col justify-between">
+              <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Check-Out</span>
+              <div className="my-1.5">
+                <span className="text-lg md:text-xl font-black font-mono text-white">
+                  {myAttendanceToday?.check_out_time 
+                    ? new Date(myAttendanceToday.check_out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : '--:--'}
+                </span>
+              </div>
+              <div>
+                {myAttendanceToday?.check_out_time ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20">
+                    <CheckCircle size={10} />
+                    {myAttendanceToday.check_out_verification_status === 'VERIFIED' 
+                      ? '✓ Verified — Dynamic QR'
+                      : 'Recorded'}
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    {myAttendanceToday?.check_in_time ? 'Not yet checked out' : 'Pending check-in'}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Working Hours */}
+            <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5 flex flex-col justify-between">
+              <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Working Hours</span>
+              <div className="my-1.5">
+                <span className="text-lg md:text-xl font-black font-mono text-emerald-400">
+                  {myAttendanceToday?.working_hours || (
+                    myAttendanceToday?.check_in_time && myAttendanceToday?.check_out_time
+                      ? (() => {
+                          const diffMs = new Date(myAttendanceToday.check_out_time) - new Date(myAttendanceToday.check_in_time);
+                          const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                          const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                          return `${String(hours).padStart(2, '0')}h ${String(mins).padStart(2, '0')}m`;
+                        })()
+                      : '--'
+                  )}
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-500">
+                {myAttendanceToday?.check_out_time ? 'Official shift duration' : 'Calculated at checkout'}
+              </span>
+            </div>
+
+            {/* Status */}
+            <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5 flex flex-col justify-between">
+              <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Status</span>
+              <div className="my-1.5">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider ${
+                  !myAttendanceToday 
+                    ? 'bg-slate-800 text-slate-400' 
+                    : myAttendanceToday.status.includes('Present') 
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+                      : myAttendanceToday.status === 'Late' 
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' 
+                        : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                }`}>
+                  {myAttendanceToday?.status || 'NOT MARKED'}
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-500">
+                {myAttendanceToday?.status === 'Late' ? 'Grace window exceeded' : 'Official status'}
+              </span>
+            </div>
+
+            {/* Verification */}
+            <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5 flex flex-col justify-between col-span-2 md:col-span-1">
+              <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Verification</span>
+              <div className="my-1.5">
+                <span className="text-xs font-black text-white flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${
+                    myAttendanceToday?.check_in_verification_status === 'VERIFIED'
+                      ? 'bg-emerald-400 animate-pulse'
+                      : myAttendanceToday
+                        ? 'bg-amber-400'
+                        : 'bg-slate-600'
+                  }`} />
+                  {myAttendanceToday?.check_in_verification_status === 'VERIFIED'
+                    ? '✓ VERIFIED'
+                    : myAttendanceToday
+                      ? 'UNVERIFIED'
+                      : 'PENDING'}
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-400 truncate">
+                {myAttendanceToday?.check_in_distance_meters != null 
+                  ? `Campus GPS (${myAttendanceToday.check_in_distance_meters}m)`
+                  : 'Server validation'}
+              </span>
+            </div>
+          </div>
+
+          {/* Action Trigger Row */}
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-800/80">
+            <p className="text-xs text-slate-400">
+              {!myAttendanceToday ? (
+                <span>Scan the dynamic QR displayed at school entrance/staffroom to record morning arrival.</span>
+              ) : !myAttendanceToday.check_out_time ? (
+                <span>Checked in successfully. Please scan the dynamic afternoon QR before leaving campus.</span>
+              ) : (
+                <span className="text-emerald-400 flex items-center gap-1.5">
+                  <CheckCircle size={14} /> Full daily attendance cycle completed and verified for today.
+                </span>
+              )}
+            </p>
+
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              {!myAttendanceToday ? (
+                <Button 
+                  onClick={handleOpenCheckInScanner} 
+                  className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 text-white h-11 px-6 text-sm font-bold shadow-lg hover:shadow-emerald-500/20 flex items-center gap-2"
+                >
+                  <QrCode size={18} /> Scan QR to Check In
+                </Button>
+              ) : !myAttendanceToday.check_out_time ? (
+                <Button 
+                  onClick={handleOpenCheckOutScanner} 
+                  variant="danger"
+                  className="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white h-11 px-6 text-sm font-bold shadow-lg hover:shadow-rose-600/20 flex items-center gap-2"
+                >
+                  <QrCode size={18} /> Scan QR to Check Out
+                </Button>
+              ) : (
+                <Button 
+                  disabled
+                  className="w-full sm:w-auto bg-slate-800 text-slate-400 h-11 px-6 text-sm font-bold border border-slate-700 cursor-default"
+                >
+                  <CheckCircle size={18} className="text-emerald-400 mr-2" /> Shift Completed
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
       </Card>
+
+      {/* Attendance Scanner Modal */}
+      <AttendanceScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        actionType={scannerActionType}
+        teacherProfile={profile}
+        onSuccess={handleScannerSuccess}
+      />
+
+      {/* Attendance Correction Modal */}
+      <AttendanceCorrectionModal
+        isOpen={isCorrectionOpen}
+        onClose={() => setIsCorrectionOpen(false)}
+        teacherId={profile?.id}
+        onSubmitted={() => fetchDashboardData()}
+      />
 
       {/* Teacher Attendance History */}
       <TeacherAttendanceHistory teacherId={profile?.id} />
