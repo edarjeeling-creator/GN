@@ -76,6 +76,14 @@ export async function getCurrentDevicePosition() {
   });
 }
 
+/**
+ * FAIL-CLOSED AUTHORITATIVE ATTENDANCE VERIFICATION SERVICE
+ *
+ * All verified attendance creation and state transitions MUST execute
+ * through server-side PostgreSQL SECURITY DEFINER RPCs.
+ * 
+ * NO CLIENT-SIDE MUTATION FALLBACK IS PERMITTED.
+ */
 class AttendanceVerificationServiceImpl {
   /**
    * Fetch live school attendance configuration from school_settings
@@ -126,7 +134,7 @@ class AttendanceVerificationServiceImpl {
 
       return { location, windows, qrExpiry, reportingTime, graceMins };
     } catch (err) {
-      console.warn('Failed to load settings from DB, using fallback defaults:', err);
+      console.warn('Failed to load settings from DB, using defaults:', err);
       return {
         location: DEFAULT_SCHOOL_LOCATION,
         windows: DEFAULT_ATTENDANCE_WINDOWS,
@@ -138,414 +146,196 @@ class AttendanceVerificationServiceImpl {
   }
 
   /**
-   * Generate a dynamic, cryptographically random QR session for administrative display
+   * Generate a dynamic, cryptographically random QR session for administrative display.
+   * Authoritatively enforced by PostgreSQL RPC generate_attendance_qr_session.
+   * Only authorized roles (admin, principal) can execute this RPC.
    */
   async generateQRSession(actionType = 'CHECK_IN', expirySeconds = DEFAULT_QR_EXPIRY_SECONDS) {
-    // 1. Try server RPC first
-    try {
-      const { data, error } = await supabase.rpc('generate_attendance_qr_session', {
-        p_action_type: actionType,
-        p_expiry_seconds: expirySeconds
-      });
+    const { data, error } = await supabase.rpc('generate_attendance_qr_session', {
+      p_action_type: actionType,
+      p_expiry_seconds: expirySeconds
+    });
 
-      if (!error && data) {
-        return {
-          sessionId: data.sessionId,
-          sessionToken: data.sessionToken,
-          actionType: data.actionType,
-          expiresAt: data.expiresAt,
-          serverTime: data.serverTime
-        };
-      }
-    } catch (err) {
-      console.warn('generate_attendance_qr_session RPC not available, using fallback:', err);
+    if (error) {
+      console.error('Server error generating attendance QR session:', error);
+      throw new Error(error.message || 'UNAUTHORIZED_QR_GENERATION: Server rejected QR generation');
     }
 
-    // 2. Direct client fallback (for dev/resilience)
-    const { data: { user } } = await supabase.auth.getUser();
-    const token = `GNQR_${actionType}_${Math.random().toString(36).substring(2, 15)}_${Date.now().toString(36)}`;
-    const expiresAt = new Date(Date.now() + expirySeconds * 1000).toISOString();
-
-    // Deactivate older active sessions
-    await supabase
-      .from('attendance_qr_sessions')
-      .update({ is_active: false })
-      .eq('action_type', actionType)
-      .eq('is_active', true);
-
-    const { data: newSession, error: insErr } = await supabase
-      .from('attendance_qr_sessions')
-      .insert({
-        session_token: token,
-        action_type: actionType,
-        created_by: user?.id || null,
-        expires_at: expiresAt,
-        is_active: true
-      })
-      .select()
-      .single();
-
-    if (insErr) {
-      // If table doesn't exist yet, return a local transient token for display
-      return {
-        sessionId: 'local-' + Date.now(),
-        sessionToken: token,
-        actionType,
-        expiresAt,
-        serverTime: new Date().toISOString()
-      };
+    if (!data || !data.sessionToken) {
+      throw new Error('FAILED_TO_GENERATE_QR: Empty session response from server');
     }
+
+    const payloadObject = {
+      prefix: 'GN-ATT',
+      token: data.sessionToken,
+      action: data.actionType || actionType,
+      created_at: data.serverTime,
+      expires_at: data.expiresAt
+    };
 
     return {
-      sessionId: newSession.id,
-      sessionToken: newSession.session_token,
-      actionType: newSession.action_type,
-      expiresAt: newSession.expires_at,
-      serverTime: newSession.created_at
+      success: true,
+      session: {
+        id: data.sessionId,
+        token: data.sessionToken,
+        actionType: data.actionType || actionType,
+        expiresAt: data.expiresAt,
+        serverTime: data.serverTime,
+        payloadString: JSON.stringify(payloadObject)
+      }
     };
   }
 
   /**
-   * Verify QR and record teacher attendance via Atomic Server Authority
+   * Verify live QR session, location, and record teacher attendance via Atomic Server RPC.
+   * 
+   * SECURITY ENFORCEMENT:
+   * - Server determines identity via auth.uid()
+   * - Server determines official timestamp (NOW())
+   * - Server verifies geofence distance against school settings
+   * - Server enforces valid state transitions
+   * - System FAILS CLOSED if RPC cannot execute. No client table insertion.
    */
   async verifyAndRecordAttendance({ sessionToken, actionType, latitude, longitude, deviceInfo }) {
     if (!sessionToken) {
-      throw new Error('INVALID_QR_PAYLOAD');
+      throw new Error('INVALID_QR_PAYLOAD: Missing session token in scanned code.');
     }
 
-    // 1. Try atomic server RPC
-    try {
-      const { data, error } = await supabase.rpc('verify_and_record_teacher_attendance', {
-        p_session_token: sessionToken,
-        p_action_type: actionType,
-        p_lat: latitude || null,
-        p_lng: longitude || null,
-        p_device_info: deviceInfo || 'Teacher Mobile Browser'
-      });
-
-      if (error) {
-        throw new Error(error.message || 'SERVER_VERIFICATION_FAILED');
-      }
-
-      if (data && data.success) {
-        return data;
-      }
-    } catch (rpcErr) {
-      const msg = rpcErr.message || '';
-      // If error is a recognized business exception, bubble it up directly
-      if (
-        msg.includes('ALREADY_CHECKED_IN') ||
-        msg.includes('ALREADY_CHECKED_OUT') ||
-        msg.includes('NO_CHECK_IN_FOUND') ||
-        msg.includes('QR_EXPIRED') ||
-        msg.includes('QR_ACTION_MISMATCH') ||
-        msg.includes('GEOFENCE_EXCEEDED') ||
-        msg.includes('INVALID_QR_TOKEN') ||
-        msg.includes('CHECK_IN_WINDOW_CLOSED') ||
-        msg.includes('CHECK_OUT_WINDOW_CLOSED')
-      ) {
-        throw rpcErr;
-      }
-
-      console.warn('RPC verify_and_record_teacher_attendance failed or not deployed, running secure fallback flow:', rpcErr);
-    }
-
-    // 2. Client-side verified fallback flow (when RPC is not deployed yet)
-    return await this._fallbackVerifyAndRecord({
-      sessionToken,
-      actionType,
-      latitude,
-      longitude,
-      deviceInfo
+    // Call atomic PostgreSQL RPC
+    const { data, error } = await supabase.rpc('verify_and_record_teacher_attendance', {
+      p_session_token: sessionToken,
+      p_action_type: actionType,
+      p_lat: latitude != null ? Number(latitude) : null,
+      p_lng: longitude != null ? Number(longitude) : null,
+      p_device_info: deviceInfo || 'Teacher Mobile Browser (Verified QR)'
     });
+
+    if (error) {
+      const msg = error.message || '';
+      console.error('Server RPC attendance verification rejected:', error);
+
+      // Translate database exceptions into high-clarity error messages
+      if (msg.includes('LOCATION_REQUIRED')) {
+        throw new Error('GPS location is required to verify attendance on school campus. Please enable location permissions.');
+      }
+      if (msg.includes('GEOFENCE_EXCEEDED')) {
+        throw new Error('Verification Failed: You are outside the school campus geofence. Please mark attendance inside school grounds.');
+      }
+      if (msg.includes('QR_EXPIRED')) {
+        throw new Error('This QR code has expired. Please scan the current live QR on the school display.');
+      }
+      if (msg.includes('QR_ACTION_MISMATCH')) {
+        throw new Error(`This QR code cannot be used for ${actionType === 'CHECK_IN' ? 'Check-In' : 'Check-Out'}. Please scan the correct QR.`);
+      }
+      if (msg.includes('QR_ALREADY_USED')) {
+        throw new Error('This QR token has already been consumed. Please scan the new live code.');
+      }
+      if (msg.includes('ALREADY_CHECKED_IN')) {
+        throw new Error('You have already checked in for today.');
+      }
+      if (msg.includes('ALREADY_CHECKED_OUT')) {
+        throw new Error('You have already checked out for today.');
+      }
+      if (msg.includes('NO_CHECK_IN_FOUND')) {
+        throw new Error('Cannot check out without a valid morning check-in.');
+      }
+      if (msg.includes('CHECK_IN_WINDOW_CLOSED')) {
+        throw new Error('Morning check-in window is currently closed.');
+      }
+      if (msg.includes('CHECK_OUT_WINDOW_CLOSED')) {
+        throw new Error('Afternoon check-out window is not open yet or has closed.');
+      }
+      if (msg.includes('UNAUTHENTICATED')) {
+        throw new Error('Session expired. Please log in again.');
+      }
+      if (msg.includes('ONLY_TEACHERS_PERMITTED')) {
+        throw new Error('Unauthorized role. Only active teachers can mark teacher attendance.');
+      }
+
+      throw new Error(msg || 'Server verification failed. Please try again or request attendance correction.');
+    }
+
+    if (!data || !data.success) {
+      throw new Error('Server returned an unsuccessful verification response.');
+    }
+
+    return {
+      success: true,
+      action: data.action,
+      status: data.status,
+      checkInTime: data.checkInTime,
+      checkOutTime: data.checkOutTime,
+      workingHours: data.workingHours,
+      verificationStatus: data.verificationStatus,
+      distanceMeters: data.distanceMeters,
+      record: {
+        id: data.recordId,
+        status: data.status,
+        check_in_time: data.checkInTime,
+        check_out_time: data.checkOutTime,
+        working_hours: data.workingHours,
+        check_in_verification_status: data.verificationStatus,
+        check_in_method: 'DYNAMIC_QR',
+        check_in_distance_meters: data.distanceMeters
+      }
+    };
   }
 
   /**
-   * Fallback implementation for environments where RPC functions are waiting to be deployed
+   * Submit an official attendance correction request via server RPC.
    */
-  async _fallbackVerifyAndRecord({ sessionToken, actionType, latitude, longitude, deviceInfo }) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('UNAUTHENTICATED');
-
-    const config = await this.getSettings();
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-
-    // Verify Geofence
-    let distanceMeters = null;
-    if (latitude && longitude && config.location) {
-      distanceMeters = calculateHaversineDistance(
-        latitude,
-        longitude,
-        config.location.latitude,
-        config.location.longitude
-      );
-      if (distanceMeters > (config.location.allowed_radius_meters || 150)) {
-        throw new Error(`GEOFENCE_EXCEEDED: Distance (${distanceMeters}m) exceeds allowed radius (${config.location.allowed_radius_meters}m)`);
-      }
+  async submitCorrectionRequest({ attendanceDate, requestType, requestedCheckInTime, requestedCheckOutTime, reason }) {
+    if (!reason || reason.trim().length < 8) {
+      throw new Error('REASON_REQUIRED: Please provide a detailed reason (at least 8 characters).');
     }
 
-    // Verify Session Token from attendance_qr_sessions
-    const { data: qrSession } = await supabase
-      .from('attendance_qr_sessions')
-      .select('*')
-      .eq('session_token', sessionToken)
-      .maybeSingle();
+    let pReqType = 'CHECK_IN';
+    if (requestType === 'CHECK_OUT_MISSED') pReqType = 'CHECK_OUT';
+    else if (requestType === 'DUTY_TRAVEL' || requestType === 'LOCATION_ISSUE') pReqType = 'FULL_DAY';
 
-    if (qrSession) {
-      if (qrSession.action_type !== actionType) {
-        throw new Error('QR_ACTION_MISMATCH');
-      }
-      if (new Date() > new Date(qrSession.expires_at)) {
-        throw new Error('QR_EXPIRED');
-      }
-    } else {
-      // Validate token prefix format
-      if (!sessionToken.includes(actionType)) {
-        throw new Error('QR_ACTION_MISMATCH');
-      }
+    let requestedTimeIso = null;
+    if (requestedCheckInTime) {
+      requestedTimeIso = `${attendanceDate}T${requestedCheckInTime}:00+05:30`;
     }
 
-    // Check existing attendance for today
-    const { data: existing } = await supabase
-      .from('teacher_attendance')
-      .select('*')
-      .eq('teacher_id', user.id)
-      .eq('attendance_date', today)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc('request_attendance_correction', {
+      p_attendance_date: attendanceDate,
+      p_request_type: pReqType,
+      p_requested_time: requestedTimeIso,
+      p_reason: reason.trim()
+    });
 
-    if (actionType === 'CHECK_IN') {
-      if (existing && existing.check_in_time) {
-        throw new Error('ALREADY_CHECKED_IN');
-      }
-
-      // Check reporting time for Late vs Present
-      const [rHour, rMin] = (config.reportingTime || '08:15').split(':').map(Number);
-      const limitDate = new Date();
-      limitDate.setHours(rHour, rMin + (config.graceMins || 10), 0, 0);
-
-      const status = now > limitDate ? 'Late' : 'Present';
-
-      let resRecord;
-      if (existing) {
-        const { data, error } = await supabase
-          .from('teacher_attendance')
-          .update({
-            check_in_time: now.toISOString(),
-            status,
-            check_in_method: 'DYNAMIC_QR',
-            check_in_verification_status: 'VERIFIED',
-            check_in_lat: latitude || null,
-            check_in_lng: longitude || null,
-            check_in_distance_meters: distanceMeters
-          })
-          .eq('id', existing.id)
-          .select()
-          .single();
-        if (error) throw error;
-        resRecord = data;
-      } else {
-        const { data, error } = await supabase
-          .from('teacher_attendance')
-          .insert({
-            teacher_id: user.id,
-            attendance_date: today,
-            status,
-            check_in_time: now.toISOString(),
-            check_in_method: 'DYNAMIC_QR',
-            check_in_verification_status: 'VERIFIED',
-            check_in_lat: latitude || null,
-            check_in_lng: longitude || null,
-            check_in_distance_meters: distanceMeters
-          })
-          .select()
-          .single();
-        if (error) throw error;
-        resRecord = data;
-      }
-
-      // Insert into attendance_logs
-      await supabase.from('attendance_logs').insert([{
-        person_type: 'teacher',
-        person_id: user.id,
-        status,
-        device_name: deviceInfo || 'Teacher Mobile (Verified QR)',
-        remarks: `Dynamic QR Check-In Verified. Distance: ${distanceMeters || 'N/A'}m`
-      }]);
-
-      return {
-        success: true,
-        action: 'CHECK_IN',
-        status: resRecord.status,
-        checkInTime: resRecord.check_in_time,
-        verificationStatus: 'VERIFIED',
-        distanceMeters
-      };
-    } else if (actionType === 'CHECK_OUT') {
-      if (!existing || !existing.check_in_time) {
-        throw new Error('NO_CHECK_IN_FOUND');
-      }
-      if (existing.check_out_time) {
-        throw new Error('ALREADY_CHECKED_OUT');
-      }
-
-      // Calculate working hours
-      const checkInDate = new Date(existing.check_in_time);
-      const diffMs = now - checkInDate;
-      const hours = Math.floor(diffMs / (1000 * 60 * 60));
-      const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-      const workingHoursStr = `${hours.toString().padStart(2, '0')}h ${mins.toString().padStart(2, '0')}m`;
-
-      const { data: resRecord, error } = await supabase
-        .from('teacher_attendance')
-        .update({
-          check_out_time: now.toISOString(),
-          check_out_method: 'DYNAMIC_QR',
-          check_out_verification_status: 'VERIFIED',
-          check_out_lat: latitude || null,
-          check_out_lng: longitude || null,
-          check_out_distance_meters: distanceMeters,
-          working_hours: workingHoursStr
-        })
-        .eq('id', existing.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Log checkout event
-      await supabase.from('attendance_logs').insert([{
-        person_type: 'teacher',
-        person_id: user.id,
-        status: 'Checked Out',
-        device_name: deviceInfo || 'Teacher Mobile (Verified QR)',
-        remarks: `Dynamic QR Check-Out Verified. Duration: ${workingHoursStr}`
-      }]);
-
-      return {
-        success: true,
-        action: 'CHECK_OUT',
-        status: resRecord.status,
-        checkInTime: resRecord.check_in_time,
-        checkOutTime: resRecord.check_out_time,
-        workingHours: workingHoursStr,
-        verificationStatus: 'VERIFIED',
-        distanceMeters
-      };
+    if (error) {
+      console.error('request_attendance_correction RPC error:', error);
+      throw new Error(error.message || 'Failed to submit correction request.');
     }
+
+    return { success: true, requestId: data?.requestId };
   }
 
   /**
-   * Submit an attendance correction request
+   * Coordinator/Principal review of an attendance correction request via server RPC.
    */
-  async submitCorrectionRequest({ attendanceDate, requestType, requestedTime, reason }) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('UNAUTHENTICATED');
-
-    if (!reason || reason.trim().length < 5) {
-      throw new Error('REASON_REQUIRED: Please provide a detailed explanation of the issue.');
+  async reviewCorrectionRequest({ requestId, decision, action, adminNotes, reviewNotes }) {
+    const act = (action || decision || '').toUpperCase();
+    if (act !== 'APPROVE' && act !== 'REJECT' && act !== 'APPROVED' && act !== 'REJECTED') {
+      throw new Error('Invalid review action. Must be APPROVE or REJECT.');
     }
 
-    try {
-      const { data, error } = await supabase.rpc('request_attendance_correction', {
-        p_attendance_date: attendanceDate,
-        p_request_type: requestType,
-        p_requested_time: requestedTime || null,
-        p_reason: reason
-      });
+    const normalizedAction = act.startsWith('APPROV') ? 'APPROVE' : 'REJECT';
 
-      if (!error && data) return data;
-    } catch (e) {
-      console.warn('request_attendance_correction RPC fallback:', e);
+    const { data, error } = await supabase.rpc('review_attendance_correction', {
+      p_request_id: requestId,
+      p_action: normalizedAction,
+      p_review_notes: (adminNotes || reviewNotes || '').trim() || null
+    });
+
+    if (error) {
+      console.error('review_attendance_correction RPC error:', error);
+      throw new Error(error.message || 'Failed to review correction request.');
     }
 
-    // Direct table insert fallback
-    const { data, error } = await supabase
-      .from('attendance_correction_requests')
-      .insert({
-        teacher_id: user.id,
-        attendance_date: attendanceDate,
-        request_type: requestType,
-        requested_time: requestedTime || null,
-        reason,
-        status: 'PENDING'
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return { success: true, requestId: data.id };
-  }
-
-  /**
-   * Coordinator review of an attendance correction request
-   */
-  async reviewCorrectionRequest({ requestId, action, reviewNotes }) {
-    try {
-      const { data, error } = await supabase.rpc('review_attendance_correction', {
-        p_request_id: requestId,
-        p_action: action,
-        p_review_notes: reviewNotes || null
-      });
-
-      if (!error && data) return data;
-    } catch (e) {
-      console.warn('review_attendance_correction RPC fallback:', e);
-    }
-
-    // Direct table update fallback
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data: req, error: reqErr } = await supabase
-      .from('attendance_correction_requests')
-      .select('*')
-      .eq('id', requestId)
-      .single();
-
-    if (reqErr) throw reqErr;
-
-    const newStatus = action === 'APPROVE' ? 'APPROVED' : 'REJECTED';
-    await supabase
-      .from('attendance_correction_requests')
-      .update({
-        status: newStatus,
-        reviewed_by: user.id,
-        reviewed_at: new Date().toISOString(),
-        review_notes: reviewNotes
-      })
-      .eq('id', requestId);
-
-    if (action === 'APPROVE') {
-      // Apply correction
-      const { data: att } = await supabase
-        .from('teacher_attendance')
-        .select('*')
-        .eq('teacher_id', req.teacher_id)
-        .eq('attendance_date', req.attendance_date)
-        .maybeSingle();
-
-      if (att) {
-        await supabase
-          .from('teacher_attendance')
-          .update({
-            status: 'Present',
-            check_in_verification_status: 'MANUALLY_APPROVED',
-            check_in_method: 'APPROVED_CORRECTION'
-          })
-          .eq('id', att.id);
-      } else {
-        await supabase
-          .from('teacher_attendance')
-          .insert({
-            teacher_id: req.teacher_id,
-            attendance_date: req.attendance_date,
-            status: 'Present',
-            check_in_verification_status: 'MANUALLY_APPROVED',
-            check_in_method: 'APPROVED_CORRECTION'
-          });
-      }
-    }
-
-    return { success: true, status: newStatus };
+    return { success: true, status: normalizedAction === 'APPROVE' ? 'APPROVED' : 'REJECTED' };
   }
 }
 

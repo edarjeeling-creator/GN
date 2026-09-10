@@ -89,7 +89,34 @@ CREATE POLICY "Allow admin to update correction requests"
     SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'principal')
   ));
 
--- 4. CONFIGURE DEFAULT SCHOOL SETTINGS FOR GEOFENCE & ATTENDANCE WINDOWS
+-- 4. CREATE ATTENDANCE AUDIT LOGS TABLE
+CREATE TABLE IF NOT EXISTS public.attendance_audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  record_id UUID,
+  modified_by UUID REFERENCES public.profiles(id),
+  original_status TEXT,
+  new_status TEXT,
+  reason TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.attendance_audit_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow authenticated read attendance_audit_logs" ON public.attendance_audit_logs;
+CREATE POLICY "Allow authenticated read attendance_audit_logs"
+  ON public.attendance_audit_logs FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Allow admin all attendance_audit_logs" ON public.attendance_audit_logs;
+CREATE POLICY "Allow admin all attendance_audit_logs"
+  ON public.attendance_audit_logs FOR ALL TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles 
+      WHERE id = auth.uid() AND role IN ('admin', 'principal')
+    )
+  );
+
+-- 5. CONFIGURE DEFAULT SCHOOL SETTINGS FOR GEOFENCE & ATTENDANCE WINDOWS
 INSERT INTO public.school_settings (setting_key, setting_value, description)
 VALUES 
   ('attendance_location', '{"latitude": 27.036007, "longitude": 88.262672, "allowed_radius_meters": 150, "name": "Gyanoday Niketan Campus"}', 'GPS coordinates and allowed radius in meters for teacher attendance geofence'),
@@ -98,7 +125,7 @@ VALUES
 ON CONFLICT (setting_key) DO UPDATE 
 SET description = EXCLUDED.description;
 
--- 5. FUNCTION: GENERATE DYNAMIC QR SESSION
+-- 6. FUNCTION: GENERATE DYNAMIC QR SESSION
 CREATE OR REPLACE FUNCTION public.generate_attendance_qr_session(
   p_action_type TEXT,
   p_expiry_seconds INT DEFAULT 45
@@ -106,6 +133,7 @@ CREATE OR REPLACE FUNCTION public.generate_attendance_qr_session(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_caller_role TEXT;
@@ -120,8 +148,8 @@ BEGIN
   END IF;
 
   SELECT role INTO v_caller_role FROM public.profiles WHERE id = auth.uid();
-  IF v_caller_role NOT IN ('admin', 'principal', 'teacher') THEN
-    RAISE EXCEPTION 'UNAUTHORIZED_ROLE';
+  IF v_caller_role NOT IN ('admin', 'principal') THEN
+    RAISE EXCEPTION 'UNAUTHORIZED: Only administrative roles can generate attendance QR sessions';
   END IF;
 
   IF p_action_type NOT IN ('CHECK_IN', 'CHECK_OUT') THEN
@@ -139,7 +167,7 @@ BEGIN
   WHERE action_type = p_action_type AND is_active = TRUE;
 
   -- Generate secure token using md5 + random uuid + epoch microsecond
-  v_token := 'GNQR_' || p_action_type || '_' || encode(gen_random_bytes(16), 'hex');
+  v_token := 'GNQR_' || p_action_type || '_' || md5(gen_random_uuid()::TEXT || clock_timestamp()::TEXT);
   v_expires_at := NOW() + (v_expiry_sec || ' seconds')::INTERVAL;
 
   INSERT INTO public.attendance_qr_sessions (
@@ -171,6 +199,7 @@ CREATE OR REPLACE FUNCTION public.verify_and_record_teacher_attendance(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_teacher_id UUID;
@@ -217,6 +246,9 @@ BEGIN
   v_today := (v_now AT TIME ZONE 'Asia/Kolkata')::DATE;
   v_now_time_str := to_char(v_now AT TIME ZONE 'Asia/Kolkata', 'HH24:MI');
 
+  -- Concurrency Guard: Serialize simultaneous requests for same teacher on today's date
+  PERFORM pg_advisory_xact_lock(hashtext('attendance_' || v_teacher_id::TEXT || '_' || v_today::TEXT));
+
   -- 1. VALIDATE QR SESSION TOKEN
   SELECT * INTO v_session FROM public.attendance_qr_sessions
   WHERE session_token = p_session_token;
@@ -257,14 +289,18 @@ BEGIN
     END IF;
   END IF;
 
-  -- 3. VALIDATE GEOFENCE (IF COORDINATES PROVIDED OR REQUIRED)
+  -- 3. VALIDATE GEOFENCE (AUTHORITATIVE SERVER VALIDATION)
   SELECT setting_value INTO v_loc_setting FROM public.school_settings WHERE setting_key = 'attendance_location';
   IF v_loc_setting.setting_value IS NOT NULL THEN
     v_school_lat := (v_loc_setting.setting_value->>'latitude')::DOUBLE PRECISION;
     v_school_lng := (v_loc_setting.setting_value->>'longitude')::DOUBLE PRECISION;
     v_allowed_radius := COALESCE((v_loc_setting.setting_value->>'allowed_radius_meters')::DOUBLE PRECISION, 150.0);
 
-    IF p_lat IS NOT NULL AND p_lng IS NOT NULL AND v_school_lat IS NOT NULL AND v_school_lng IS NOT NULL THEN
+    IF v_school_lat IS NOT NULL AND v_school_lng IS NOT NULL THEN
+      IF p_lat IS NULL OR p_lng IS NULL THEN
+        RAISE EXCEPTION 'LOCATION_REQUIRED: GPS location is required to verify attendance within campus geofence.';
+      END IF;
+
       -- Haversine formula distance calculation in meters
       v_distance_meters := 6371000 * 2 * asin(sqrt(
         power(sin(radians((p_lat - v_school_lat) / 2)), 2) +
@@ -390,6 +426,7 @@ CREATE OR REPLACE FUNCTION public.request_attendance_correction(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_teacher_id UUID;
@@ -425,6 +462,7 @@ CREATE OR REPLACE FUNCTION public.review_attendance_correction(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_reviewer_id UUID;
