@@ -91,9 +91,9 @@ function App() {
             <Route path="/result" element={<ResultPortal />} />
             <Route path="/id-form/:role/:id" element={<PublicIDForm />} />
             
-            {/* Standalone Protected Kiosk Routes (No Layout) */}
+            {/* Standalone Kiosk Routes (No Layout, Zero-Admin Tablet Mode) */}
             <Route path="/kiosk/attendance" element={<TeacherRoute><QRAttendanceScanner /></TeacherRoute>} />
-            <Route path="/kiosk/teacher-qr" element={<TeacherRoute><AttendanceQRDisplay /></TeacherRoute>} />
+            <Route path="/kiosk/teacher-qr" element={<AttendanceQRDisplay isKioskMode={true} />} />
 
             {/* Protected Dashboard Routes */}
             <Route element={<ProtectedRoute />}>

@@ -187,16 +187,75 @@ class AttendanceVerificationServiceImpl {
   }
 
   /**
+   * Dedicated Kiosk QR session generator.
+   * Authenticates the physical tablet using scoped device credentials via kiosk_generate_qr_session.
+   * Requires ZERO admin user login on the physical tablet device.
+   * Fails closed if device is revoked, invalid, or offline.
+   */
+  async generateKioskQRSession({ deviceId, secretKey, actionType = 'CHECK_IN', expirySeconds = DEFAULT_QR_EXPIRY_SECONDS }) {
+    if (!deviceId || !secretKey) {
+      throw new Error('UNAUTHORIZED_KIOSK: Missing kiosk device credentials');
+    }
+
+    const { data, error } = await supabase.rpc('kiosk_generate_qr_session', {
+      p_device_id: deviceId,
+      p_kiosk_secret: secretKey,
+      p_action_type: actionType,
+      p_expiry_seconds: expirySeconds
+    });
+
+    if (error) {
+      console.error('Server error generating kiosk QR session:', error);
+      throw new Error(error.message || 'UNAUTHORIZED_KIOSK: Device authorization rejected by server');
+    }
+
+    if (!data || !data.sessionToken) {
+      throw new Error('FAILED_TO_GENERATE_QR: Empty session response from server');
+    }
+
+    return {
+      success: true,
+      session: {
+        id: data.sessionId,
+        token: data.sessionToken,
+        actionType: data.actionType || actionType,
+        expiresAt: data.expiresAt,
+        serverTime: data.serverTime,
+        deviceId: data.deviceId,
+        deviceName: data.deviceName,
+        campusId: data.campusId,
+        campusName: data.campusName,
+        locationName: data.locationName,
+        checkedInCount: data.checkedInCount || 0,
+        checkedOutCount: data.checkedOutCount || 0,
+        payloadString: data.payloadString || JSON.stringify({
+          prefix: 'GN-ATT',
+          token: data.sessionToken,
+          action: data.actionType || actionType,
+          kiosk: data.deviceId,
+          campus: data.campusId,
+          campus_name: data.campusName,
+          created_at: data.serverTime,
+          expires_at: data.expiresAt
+        })
+      }
+    };
+  }
+
+  /**
    * Verify live QR session, location, and record teacher attendance via Atomic Server RPC.
    * 
-   * SECURITY ENFORCEMENT:
+   * MULTI-CAMPUS SECURITY ENFORCEMENT:
    * - Server determines identity via auth.uid()
-   * - Server determines official timestamp (NOW())
-   * - Server verifies geofence distance against school settings
+   * - Server determines official timestamp (PostgreSQL NOW())
+   * - Server derives campus strictly from QR session record (client cannot pick campus)
+   * - Server verifies teacher_campus_assignments
+   * - Server calculates Haversine distance against campus center
+   * - Server verifies GPS accuracy against campus threshold
    * - Server enforces valid state transitions
    * - System FAILS CLOSED if RPC cannot execute. No client table insertion.
    */
-  async verifyAndRecordAttendance({ sessionToken, actionType, latitude, longitude, deviceInfo }) {
+  async verifyAndRecordAttendance({ sessionToken, actionType, latitude, longitude, accuracy, deviceInfo }) {
     if (!sessionToken) {
       throw new Error('INVALID_QR_PAYLOAD: Missing session token in scanned code.');
     }
@@ -207,6 +266,7 @@ class AttendanceVerificationServiceImpl {
       p_action_type: actionType,
       p_lat: latitude != null ? Number(latitude) : null,
       p_lng: longitude != null ? Number(longitude) : null,
+      p_accuracy: accuracy != null ? Number(accuracy) : null,
       p_device_info: deviceInfo || 'Teacher Mobile Browser (Verified QR)'
     });
 
@@ -218,8 +278,20 @@ class AttendanceVerificationServiceImpl {
       if (msg.includes('LOCATION_REQUIRED')) {
         throw new Error('GPS location is required to verify attendance on school campus. Please enable location permissions.');
       }
+      if (msg.includes('UNAUTHORIZED_CAMPUS')) {
+        throw new Error(msg.replace(/^.*?UNAUTHORIZED_CAMPUS:\s*/, ''));
+      }
+      if (msg.includes('NO_ACTIVE_CAMPUS_ASSIGNMENT')) {
+        throw new Error('No Active Campus Assignment: You have not been assigned to a school campus in the ERP. Please contact the administrator.');
+      }
+      if (msg.includes('GPS_ACCURACY_INSUFFICIENT')) {
+        throw new Error(msg.replace(/^.*?GPS_ACCURACY_INSUFFICIENT:\s*/, ''));
+      }
       if (msg.includes('GEOFENCE_EXCEEDED')) {
-        throw new Error('Verification Failed: You are outside the school campus geofence. Please mark attendance inside school grounds.');
+        throw new Error(msg.replace(/^.*?GEOFENCE_EXCEEDED:\s*/, ''));
+      }
+      if (msg.includes('CAMPUS_INACTIVE')) {
+        throw new Error('This school campus is currently marked inactive for attendance.');
       }
       if (msg.includes('QR_EXPIRED')) {
         throw new Error('This QR code has expired. Please scan the current live QR on the school display.');
@@ -263,23 +335,142 @@ class AttendanceVerificationServiceImpl {
       success: true,
       action: data.action,
       status: data.status,
+      campusId: data.campusId,
+      campusName: data.campusName,
       checkInTime: data.checkInTime,
       checkOutTime: data.checkOutTime,
       workingHours: data.workingHours,
-      verificationStatus: data.verificationStatus,
       distanceMeters: data.distanceMeters,
+      accuracyMeters: data.accuracyMeters,
+      serverTimestamp: data.serverTimestamp,
       record: {
         id: data.recordId,
         status: data.status,
+        campus_id: data.campusId,
+        campus_name: data.campusName,
         check_in_time: data.checkInTime,
         check_out_time: data.checkOutTime,
         working_hours: data.workingHours,
-        check_in_verification_status: data.verificationStatus,
+        check_in_verification_status: 'VERIFIED',
         check_in_method: 'DYNAMIC_QR',
         check_in_distance_meters: data.distanceMeters
       }
     };
   }
+
+  /**
+   * Fetch all registered campuses
+   */
+  async getCampuses() {
+    const { data, error } = await supabase.rpc('admin_manage_campuses', { p_action: 'LIST' });
+    if (error) throw error;
+    return data?.campuses || [];
+  }
+
+  /**
+   * Update campus coordinates, radius, or status
+   */
+  async updateCampus({ campusId, campusName, latitude, longitude, radiusMeters, maxAccuracy, status }) {
+    const { data, error } = await supabase.rpc('admin_manage_campuses', {
+      p_action: 'UPDATE',
+      p_campus_id: campusId,
+      p_campus_name: campusName,
+      p_latitude: latitude != null ? Number(latitude) : null,
+      p_longitude: longitude != null ? Number(longitude) : null,
+      p_radius_meters: radiusMeters != null ? Number(radiusMeters) : null,
+      p_max_accuracy: maxAccuracy != null ? Number(maxAccuracy) : null,
+      p_status: status
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  /**
+   * Fetch teacher campus assignments
+   */
+  async getTeacherAssignments() {
+    const { data, error } = await supabase.rpc('admin_manage_teacher_assignments', { p_action: 'LIST' });
+    if (error) throw error;
+    return data?.assignments || [];
+  }
+
+  /**
+   * Assign or update a teacher's campus
+   */
+  async assignTeacherCampus({ teacherId, campusId, isPrimary = true, active = true }) {
+    const { data, error } = await supabase.rpc('admin_manage_teacher_assignments', {
+      p_action: 'ASSIGN',
+      p_teacher_id: teacherId,
+      p_campus_id: campusId,
+      p_is_primary: isPrimary,
+      p_active: active
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  /**
+   * Revoke a teacher's campus assignment
+   */
+  async revokeTeacherCampus({ teacherId, campusId }) {
+    const { data, error } = await supabase.rpc('admin_manage_teacher_assignments', {
+      p_action: 'REVOKE',
+      p_teacher_id: teacherId,
+      p_campus_id: campusId
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  /**
+   * Fetch registered kiosks with their campus bindings
+   */
+  async getKiosks() {
+    const { data, error } = await supabase.rpc('admin_manage_kiosks', { p_action: 'LIST' });
+    if (error) throw error;
+    return data?.kiosks || [];
+  }
+
+  /**
+   * Register or update a kiosk with campus binding
+   */
+  async registerKiosk({ deviceId, deviceName, locationName, campusId, secretKey }) {
+    const { data, error } = await supabase.rpc('admin_manage_kiosks', {
+      p_action: 'REGISTER',
+      p_device_id: deviceId,
+      p_device_name: deviceName,
+      p_location_name: locationName,
+      p_campus_id: campusId,
+      p_secret_key: secretKey
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  /**
+   * Revoke kiosk authorization
+   */
+  async revokeKiosk(deviceId) {
+    const { data, error } = await supabase.rpc('admin_manage_kiosks', {
+      p_action: 'REVOKE',
+      p_device_id: deviceId
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  /**
+   * Activate kiosk authorization
+   */
+  async activateKiosk(deviceId) {
+    const { data, error } = await supabase.rpc('admin_manage_kiosks', {
+      p_action: 'ACTIVATE',
+      p_device_id: deviceId
+    });
+    if (error) throw error;
+    return data;
+  }
+
 
   /**
    * Submit an official attendance correction request via server RPC.

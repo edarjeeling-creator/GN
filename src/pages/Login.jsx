@@ -6,7 +6,7 @@ import { useTheme } from '../context/ThemeProvider';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
-import { LogIn, ArrowLeft, Loader2 } from 'lucide-react';
+import { LogIn, ArrowLeft, Loader2, Tablet } from 'lucide-react';
 
 const Login = () => {
   const [name, setName] = useState('');
@@ -175,11 +175,21 @@ const Login = () => {
               </div>
             </form>
             
-            <div className="mt-8 text-center">
+            <div className="mt-6 text-center flex flex-col items-center gap-3">
               <Link to="/" className="inline-flex items-center text-sm font-semibold text-slate-400 hover:text-slate-200 transition-colors">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Campus Home
               </Link>
+
+              <div className="pt-3 border-t border-slate-800/80 w-full flex justify-center">
+                <Link 
+                  to="/kiosk/teacher-qr" 
+                  className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-emerald-300 transition-all border border-slate-800/80 shadow-sm"
+                >
+                  <Tablet className="w-3.5 h-3.5 text-emerald-400" />
+                  Launch Attendance Tablet Kiosk
+                </Link>
+              </div>
             </div>
           </Card>
         </motion.div>

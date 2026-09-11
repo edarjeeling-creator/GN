@@ -1,9 +1,5 @@
 {
-  "appId": "cloud.gyanodayniketan.results",
+  "appId": "com.gyanodayniketan.erp",
   "appName": "Gyanoday",
-  "webDir": "dist",
-  "server": {
-    "url": "https://results.gyanodayniketan.cloud",
-    "cleartext": true
-  }
+  "webDir": "dist"
 }

@@ -41,6 +41,8 @@ const StaffAttendance = () => {
   const [reviewingRequest, setReviewingRequest] = useState(null);
   const [adminNotes, setAdminNotes] = useState('');
   const [processingReview, setProcessingReview] = useState(false);
+  const [campusesList, setCampusesList] = useState([]);
+  const [campusFilter, setCampusFilter] = useState('ALL');
 
   useEffect(() => {
     fetchData();
@@ -65,8 +67,15 @@ const StaffAttendance = () => {
       setSettings({ reporting_time: rTime, grace_mins: gMins });
     }
 
-    // Fetch attendance for date
-    const { data: aData } = await supabase.from('teacher_attendance').select('*').eq('attendance_date', dateFilter);
+    // Fetch campuses
+    const { data: cData } = await supabase.from('campuses').select('*').order('campus_name');
+    if (cData) setCampusesList(cData);
+
+    // Fetch attendance for date with campus metadata
+    const { data: aData } = await supabase
+      .from('teacher_attendance')
+      .select('*, campus:campus_id(id, campus_id, campus_name)')
+      .eq('attendance_date', dateFilter);
     if (aData) setStaffAttData(aData);
     setLoading(false);
   };
@@ -238,6 +247,17 @@ const StaffAttendance = () => {
             onChange={(e) => setDateFilter(e.target.value)}
           />
 
+          <select 
+            className="input-field max-w-[180px]" 
+            value={campusFilter} 
+            onChange={(e) => setCampusFilter(e.target.value)}
+          >
+            <option value="ALL">All Campuses</option>
+            {campusesList.map(c => (
+              <option key={c.id} value={c.id}>{c.campus_name}</option>
+            ))}
+          </select>
+
           <button 
             className="btn-secondary flex items-center gap-2"
             onClick={() => setShowSettings(true)}
@@ -346,6 +366,7 @@ const StaffAttendance = () => {
             <thead>
               <tr>
                 <th>Teacher</th>
+                <th>Campus</th>
                 <th>Status</th>
                 <th>Check In</th>
                 <th>Check Out</th>
@@ -356,9 +377,23 @@ const StaffAttendance = () => {
               </tr>
             </thead>
             <tbody>
-              {feed.map(f => (
+              {feed
+                .filter(f => {
+                  if (campusFilter === 'ALL') return true;
+                  return f.record?.campus_id === campusFilter;
+                })
+                .map(f => (
                 <tr key={f.teacher.id}>
                   <td className="font-medium text-[var(--text-primary)]">{f.teacher.name}</td>
+                  <td>
+                    {f.record?.campus?.campus_name ? (
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        {f.record.campus.campus_name}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 text-xs">-</span>
+                    )}
+                  </td>
                   <td>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold uppercase
                       ${f.status.includes('Present') ? 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400' : 

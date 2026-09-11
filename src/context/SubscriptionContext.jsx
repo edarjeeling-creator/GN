@@ -19,8 +19,8 @@ export const SubscriptionProvider = ({ children }) => {
         const params = new URLSearchParams(window.location.search);
         let domain = params.get('school_domain') || window.location.hostname;
         
-        // If local development, skip domain resolution and just load the first school
-        const isLocalDev = domain === '127.0.0.1' || domain === 'localhost';
+        // If local development or native mobile container, skip domain resolution and load the first school
+        const isLocalDev = domain === '127.0.0.1' || domain === 'localhost' || domain === 'capacitor' || domain.includes('gyanodayniketan') || !domain;
 
         let schoolData = null;
 

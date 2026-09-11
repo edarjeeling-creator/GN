@@ -32,3 +32,16 @@ dist-ssr
 /fetch_schema.*
 /run_*.cjs
 .temp/
+
+# Android Signing & Local Build Configuration
+*.keystore
+*.jks
+local.properties
+android/local.properties
+android/.gradle/
+android/app/build/
+android/build/
+*.apk
+*.aab
+*.idsig
+releases/

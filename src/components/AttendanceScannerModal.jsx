@@ -124,6 +124,7 @@ const AttendanceScannerModal = ({ isOpen, onClose, actionType = 'CHECK_IN', onSu
         actionType,
         latitude: userLocation?.latitude || null,
         longitude: userLocation?.longitude || null,
+        accuracy: userLocation?.accuracy || null,
         deviceInfo: navigator.userAgent
       });
 
@@ -138,25 +139,31 @@ const AttendanceScannerModal = ({ isOpen, onClose, actionType = 'CHECK_IN', onSu
       setStep('ERROR');
 
       const msg = err.message || '';
-      if (msg.includes('ALREADY_CHECKED_IN')) {
+      if (msg.includes('UNAUTHORIZED_CAMPUS') || msg.includes('Cross-Campus') || msg.includes('assigned campus')) {
+        setErrorMessage('Cross-Campus Restriction');
+        setErrorHint(msg);
+      } else if (msg.includes('NO_ACTIVE_CAMPUS_ASSIGNMENT') || msg.includes('No Active Campus Assignment')) {
+        setErrorMessage('No Campus Assignment');
+        setErrorHint('You are not assigned to any campus in the ERP. Please contact the administrator.');
+      } else if (msg.includes('GPS_ACCURACY_INSUFFICIENT') || msg.includes('accuracy')) {
+        setErrorMessage('GPS Accuracy Insufficient');
+        setErrorHint(msg);
+      } else if (msg.includes('GEOFENCE_EXCEEDED') || msg.includes('outside')) {
+        setErrorMessage('Outside Campus Geofence');
+        setErrorHint(msg);
+      } else if (msg.includes('ALREADY_CHECKED_IN')) {
         setErrorMessage('Already Checked In Today');
         setErrorHint('Your attendance has already been recorded for today. You cannot check in twice.');
       } else if (msg.includes('ALREADY_CHECKED_OUT')) {
         setErrorMessage('Already Checked Out Today');
-        setErrorHint('You have already completed your shift checkout for today.');
+        setErrorHint('Your afternoon departure has already been logged. Have a good evening!');
       } else if (msg.includes('NO_CHECK_IN_FOUND')) {
-        setErrorMessage('No Morning Check-In Found');
-        setErrorHint('You must have a verified Check-In before you can Check Out.');
+        setErrorMessage('No Morning Check-In');
+        setErrorHint('You cannot check out because no verified morning arrival was recorded for today.');
       } else if (msg.includes('QR_EXPIRED')) {
         setErrorMessage('QR Code Expired');
-        setErrorHint('The displayed school QR has expired. Please scan the current live QR code on the office screen.');
+        setErrorHint('This attendance code has expired. Please scan the current live QR on the school display.');
       } else if (msg.includes('QR_ACTION_MISMATCH')) {
-        setErrorMessage('Wrong QR Code Type');
-        setErrorHint(actionType === 'CHECK_IN' 
-          ? 'You scanned a Check-Out QR code. Please scan the designated CHECK-IN QR.' 
-          : 'You scanned a Check-In QR code. Please scan the designated CHECK-OUT QR.');
-      } else if (msg.includes('GEOFENCE_EXCEEDED')) {
-        setErrorMessage('Location Verification Failed');
         setErrorHint('Your device is detected outside the official school perimeter. Please scan the QR while physically inside the school.');
       } else if (msg.includes('CHECK_IN_WINDOW_CLOSED')) {
         setErrorMessage('Check-In Window Closed');
@@ -336,6 +343,14 @@ const AttendanceScannerModal = ({ isOpen, onClose, actionType = 'CHECK_IN', onSu
                     {successData?.status || 'Present'}
                   </span>
                 </div>
+                {successData?.campusName && (
+                  <div className="flex justify-between items-center text-slate-300">
+                    <span className="text-slate-400">Verified Campus:</span>
+                    <span className="font-semibold text-emerald-300 flex items-center gap-1">
+                      <MapPin size={13} className="text-emerald-400" /> {successData.campusName}
+                    </span>
+                  </div>
+                )}
                 {actionType === 'CHECK_IN' && successData?.checkInTime && (
                   <div className="flex justify-between items-center text-slate-300">
                     <span className="text-slate-400">Recorded Check-In:</span>

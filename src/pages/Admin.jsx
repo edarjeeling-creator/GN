@@ -867,14 +867,24 @@ const Admin = () => {
               <ShieldCheck className="text-indigo-600" size={32} />
               System Administration
             </h1>
-            <Link 
-              to="/kiosk/attendance" 
-              target="_blank"
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-medium transition-colors shadow-sm mb-6"
-            >
-              <QrCode size={20} />
-              Open QR Attendance Scanner
-            </Link>
+            <div className="flex flex-wrap items-center gap-3 mb-6">
+              <Link 
+                to="/admin/attendance-qr" 
+                target="_blank"
+                className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-semibold transition-colors shadow-sm"
+              >
+                <Building2 size={20} />
+                Manage Campuses & Attendance Kiosks
+              </Link>
+              <Link 
+                to="/kiosk/attendance" 
+                target="_blank"
+                className="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl font-medium transition-colors border border-slate-700 shadow-sm"
+              >
+                <QrCode size={18} />
+                Student Scanner
+              </Link>
+            </div>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--text-primary)' }}>Bulk Import Students</h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
               Select a class and upload an Excel (.xlsx or .csv) file with columns <strong>Name</strong> and <strong>Roll No</strong>.
