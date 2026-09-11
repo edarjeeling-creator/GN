@@ -275,10 +275,17 @@ BEGIN
   -- 2. VALIDATE TIME WINDOWS FROM SCHOOL SETTINGS
   SELECT setting_value INTO v_win_setting FROM public.school_settings WHERE setting_key = 'attendance_windows';
   IF v_win_setting.setting_value IS NOT NULL THEN
-    v_win_in_start := COALESCE(v_win_setting.setting_value->>'check_in_start', '06:00');
-    v_win_in_end := COALESCE(v_win_setting.setting_value->>'check_in_end', '12:00');
-    v_win_out_start := COALESCE(v_win_setting.setting_value->>'check_out_start', '13:00');
-    v_win_out_end := COALESCE(v_win_setting.setting_value->>'check_out_end', '19:00');
+    BEGIN
+      v_win_in_start := COALESCE((v_win_setting.setting_value::jsonb)->>'check_in_start', '06:00');
+      v_win_in_end := COALESCE((v_win_setting.setting_value::jsonb)->>'check_in_end', '12:00');
+      v_win_out_start := COALESCE((v_win_setting.setting_value::jsonb)->>'check_out_start', '13:00');
+      v_win_out_end := COALESCE((v_win_setting.setting_value::jsonb)->>'check_out_end', '19:00');
+    EXCEPTION WHEN OTHERS THEN
+      v_win_in_start := '06:00';
+      v_win_in_end := '12:00';
+      v_win_out_start := '13:00';
+      v_win_out_end := '19:00';
+    END;
 
     IF p_action_type = 'CHECK_IN' AND (v_now_time_str < v_win_in_start OR v_now_time_str > v_win_in_end) THEN
       RAISE EXCEPTION 'CHECK_IN_WINDOW_CLOSED';
@@ -292,9 +299,15 @@ BEGIN
   -- 3. VALIDATE GEOFENCE (AUTHORITATIVE SERVER VALIDATION)
   SELECT setting_value INTO v_loc_setting FROM public.school_settings WHERE setting_key = 'attendance_location';
   IF v_loc_setting.setting_value IS NOT NULL THEN
-    v_school_lat := (v_loc_setting.setting_value->>'latitude')::DOUBLE PRECISION;
-    v_school_lng := (v_loc_setting.setting_value->>'longitude')::DOUBLE PRECISION;
-    v_allowed_radius := COALESCE((v_loc_setting.setting_value->>'allowed_radius_meters')::DOUBLE PRECISION, 150.0);
+    BEGIN
+      v_school_lat := ((v_loc_setting.setting_value::jsonb)->>'latitude')::DOUBLE PRECISION;
+      v_school_lng := ((v_loc_setting.setting_value::jsonb)->>'longitude')::DOUBLE PRECISION;
+      v_allowed_radius := COALESCE(((v_loc_setting.setting_value::jsonb)->>'allowed_radius_meters')::DOUBLE PRECISION, 150.0);
+    EXCEPTION WHEN OTHERS THEN
+      v_school_lat := NULL;
+      v_school_lng := NULL;
+      v_allowed_radius := 150.0;
+    END;
 
     IF v_school_lat IS NOT NULL AND v_school_lng IS NOT NULL THEN
       IF p_lat IS NULL OR p_lng IS NULL THEN

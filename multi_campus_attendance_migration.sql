@@ -808,10 +808,17 @@ BEGIN
   -- 7. Validate Time Windows
   SELECT setting_value INTO v_win_setting FROM public.school_settings WHERE setting_key = 'attendance_windows';
   IF v_win_setting.setting_value IS NOT NULL THEN
-    v_win_in_start := COALESCE(v_win_setting.setting_value->>'check_in_start', '06:00');
-    v_win_in_end := COALESCE(v_win_setting.setting_value->>'check_in_end', '12:00');
-    v_win_out_start := COALESCE(v_win_setting.setting_value->>'check_out_start', '13:00');
-    v_win_out_end := COALESCE(v_win_setting.setting_value->>'check_out_end', '19:00');
+    BEGIN
+      v_win_in_start := COALESCE((v_win_setting.setting_value::jsonb)->>'check_in_start', '06:00');
+      v_win_in_end := COALESCE((v_win_setting.setting_value::jsonb)->>'check_in_end', '12:00');
+      v_win_out_start := COALESCE((v_win_setting.setting_value::jsonb)->>'check_out_start', '13:00');
+      v_win_out_end := COALESCE((v_win_setting.setting_value::jsonb)->>'check_out_end', '19:00');
+    EXCEPTION WHEN OTHERS THEN
+      v_win_in_start := '06:00';
+      v_win_in_end := '12:00';
+      v_win_out_start := '13:00';
+      v_win_out_end := '19:00';
+    END;
 
     IF p_action_type = 'CHECK_IN' AND (v_now_time_str < v_win_in_start OR v_now_time_str > v_win_in_end) THEN
       RAISE EXCEPTION 'CHECK_IN_WINDOW_CLOSED';
