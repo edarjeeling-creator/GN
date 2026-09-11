@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import { supabase } from '../../lib/supabase';
 import { AttendanceVerificationService } from '../../services/AttendanceVerificationService';
@@ -70,7 +71,22 @@ const AttendanceQRDisplay = () => {
   const [exitError, setExitError] = useState('');
 
   // Admin ERP Tabs: 'display' | 'kiosks' | 'campuses' | 'teachers'
-  const [activeTab, setActiveTab] = useState('display');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(
+    tabFromUrl && ['display', 'kiosks', 'campuses', 'teachers'].includes(tabFromUrl) ? tabFromUrl : 'display'
+  );
+
+  useEffect(() => {
+    if (tabFromUrl && ['display', 'kiosks', 'campuses', 'teachers'].includes(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setSearchParams(tab === 'display' ? {} : { tab });
+  };
 
   // Multi-Campus Management State
   const [campuses, setCampuses] = useState([]);
@@ -455,25 +471,25 @@ const AttendanceQRDisplay = () => {
           {!isKioskMode && (
             <div className="bg-slate-900/90 border border-slate-700/80 p-1 rounded-xl flex items-center gap-1 shadow-inner text-xs font-semibold">
               <button
-                onClick={() => setActiveTab('display')}
+                onClick={() => handleTabChange('display')}
                 className={`px-3 py-1.5 rounded-lg transition-colors ${activeTab === 'display' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
               >
                 Live QR Display
               </button>
               <button
-                onClick={() => setActiveTab('kiosks')}
+                onClick={() => handleTabChange('kiosks')}
                 className={`px-3 py-1.5 rounded-lg transition-colors ${activeTab === 'kiosks' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
               >
                 Kiosk Devices
               </button>
               <button
-                onClick={() => setActiveTab('campuses')}
+                onClick={() => handleTabChange('campuses')}
                 className={`px-3 py-1.5 rounded-lg transition-colors ${activeTab === 'campuses' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
               >
                 Campuses
               </button>
               <button
-                onClick={() => setActiveTab('teachers')}
+                onClick={() => handleTabChange('teachers')}
                 className={`px-3 py-1.5 rounded-lg transition-colors ${activeTab === 'teachers' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
               >
                 Staff Assignments

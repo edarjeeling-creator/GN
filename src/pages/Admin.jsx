@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase, getClientSchoolId } from '../lib/supabase';
 import { motion } from 'framer-motion';
-import { Users, BookOpen, Shield, Layers, LogOut, QrCode, ShieldCheck, Loader2 } from 'lucide-react';
+import { Users, BookOpen, Shield, Layers, LogOut, QrCode, ShieldCheck, Loader2, Building2, MapPin } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
@@ -641,42 +641,105 @@ const Admin = () => {
           <h1 style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>Admin Dashboard</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>System Management and Analytics</p>
         </div>
-        <button
-          onClick={async () => {
-            await logout();
-            navigate('/login');
-          }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.625rem 1.25rem',
-            borderRadius: '0.5rem',
-            border: '1.5px solid #ef4444',
-            background: 'transparent',
-            color: '#ef4444',
-            fontWeight: '600',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease-in-out',
-            boxShadow: '0 2px 4px rgba(239, 68, 68, 0.05)'
-          }}
-          onMouseOver={e => {
-            e.currentTarget.style.background = '#ef4444';
-            e.currentTarget.style.color = 'white';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.2)';
-          }}
-          onMouseOut={e => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.color = '#ef4444';
-            e.currentTarget.style.boxShadow = '0 2px 4px rgba(239, 68, 68, 0.05)';
-          }}
-        >
-          <LogOut size={16} />
-          Logout
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <Link
+            to="/admin/attendance-qr?tab=campuses"
+            target="_blank"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.625rem 1.25rem',
+              borderRadius: '0.5rem',
+              background: '#10b981',
+              color: 'white',
+              fontWeight: '600',
+              textDecoration: 'none',
+              boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)',
+              fontSize: '0.9rem'
+            }}
+          >
+            <MapPin size={16} />
+            Campus Geofence (Lat/Long)
+          </Link>
+
+          <Link
+            to="/admin/attendance-qr"
+            target="_blank"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.625rem 1.25rem',
+              borderRadius: '0.5rem',
+              background: '#4f46e5',
+              color: 'white',
+              fontWeight: '600',
+              textDecoration: 'none',
+              boxShadow: '0 2px 4px rgba(79, 70, 229, 0.2)',
+              fontSize: '0.9rem'
+            }}
+          >
+            <Building2 size={16} />
+            Attendance Kiosks
+          </Link>
+
+          <button
+            onClick={async () => {
+              await logout();
+              navigate('/login');
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.625rem 1.25rem',
+              borderRadius: '0.5rem',
+              border: '1.5px solid #ef4444',
+              background: 'transparent',
+              color: '#ef4444',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease-in-out',
+              boxShadow: '0 2px 4px rgba(239, 68, 68, 0.05)'
+            }}
+            onMouseOver={e => {
+              e.currentTarget.style.background = '#ef4444';
+              e.currentTarget.style.color = 'white';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.2)';
+            }}
+            onMouseOut={e => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.color = '#ef4444';
+              e.currentTarget.style.boxShadow = '0 2px 4px rgba(239, 68, 68, 0.05)';
+            }}
+          >
+            <LogOut size={16} />
+            Logout
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', overflowX: 'auto', whiteSpace: 'nowrap', WebkitOverflowScrolling: 'touch', paddingBottom: '2px' }}>
+        <Link 
+          to="/admin/attendance-qr?tab=campuses" 
+          target="_blank"
+          style={{ 
+            padding: '0.75rem 1.5rem', 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: '0.5rem', 
+            background: 'rgba(16, 185, 129, 0.12)', 
+            border: '1px solid rgba(16, 185, 129, 0.3)', 
+            borderRadius: '0.5rem', 
+            color: '#10b981', 
+            fontWeight: 'bold', 
+            textDecoration: 'none', 
+            fontSize: '0.95rem' 
+          }}
+        >
+          <MapPin size={16} /> Campus Geofence (Lat/Long)
+        </Link>
         <button 
           onClick={() => setActiveTab('dashboard')} 
           style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'dashboard' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'dashboard' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: activeTab === 'dashboard' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '1rem' }}
@@ -777,7 +840,7 @@ const Admin = () => {
               <option value="users">Manage Users & Teachers</option>
               <option value="academics">Manage Classes & Subjects</option>
               <option value="routine">Routine & Substitution Engine</option>
-              <option value="data">Data Import & Export</option>
+              <option value="data">Data Import & Campus Geofence (Lat/Long)</option>
               <option value="marks">Marks Manager</option>
               <option value="report_cms">Report Configuration (CMS)</option>
               <option value="calendar">Manage Calendar Events</option>
@@ -800,6 +863,35 @@ const Admin = () => {
 
           {managementSection === 'overview' && (
             <>
+              {/* Quick Geofence & Kiosk Bar */}
+              <div style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(59, 130, 246, 0.08))', border: '1.5px solid rgba(16, 185, 129, 0.3)', borderRadius: '1rem', padding: '1.25rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <MapPin className="text-emerald-500" size={20} />
+                    Attendance Geofence & Multi-Campus GPS Settings
+                  </h4>
+                  <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                    Configure GPS Latitude, Longitude, and geofence boundary radii for Senior & Junior Campuses.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <Link 
+                    to="/admin/attendance-qr?tab=campuses" 
+                    target="_blank"
+                    className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-sm transition-colors"
+                  >
+                    <MapPin size={16} /> Edit Lat & Long Coordinates
+                  </Link>
+                  <Link 
+                    to="/admin/attendance-qr" 
+                    target="_blank"
+                    className="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl font-medium text-sm border border-slate-700 shadow-sm transition-colors"
+                  >
+                    <Building2 size={16} /> Manage Kiosks
+                  </Link>
+                </div>
+              </div>
+
               <div className="bento-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', marginBottom: '2rem' }}>
         <motion.div whileHover={{ y: -5 }} className="bento-card" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: '4px solid #3b82f6' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -869,9 +961,17 @@ const Admin = () => {
             </h1>
             <div className="flex flex-wrap items-center gap-3 mb-6">
               <Link 
-                to="/admin/attendance-qr" 
+                to="/admin/attendance-qr?tab=campuses" 
                 target="_blank"
                 className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-semibold transition-colors shadow-sm"
+              >
+                <MapPin size={20} />
+                Campus Geofence (Lat & Long)
+              </Link>
+              <Link 
+                to="/admin/attendance-qr" 
+                target="_blank"
+                className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-semibold transition-colors shadow-sm"
               >
                 <Building2 size={20} />
                 Manage Campuses & Attendance Kiosks

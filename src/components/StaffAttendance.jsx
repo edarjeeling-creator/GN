@@ -232,6 +232,15 @@ const StaffAttendance = () => {
 
         <div className="flex flex-wrap items-center gap-3">
           <Link
+            to="/admin/attendance-qr?tab=campuses"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold shadow-sm transition-colors"
+          >
+            <MapPin size={15} /> Geofence (Lat/Long) <ExternalLink size={12} />
+          </Link>
+
+          <Link
             to="/admin/attendance-qr"
             target="_blank"
             rel="noopener noreferrer"
