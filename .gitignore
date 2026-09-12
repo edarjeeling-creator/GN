@@ -43,6 +43,7 @@ android/app/build/
 android/build/
 *.apk
 !public/Gyanoday-release.apk
+!public/Gyanoday-update.apk
 *.aab
 *.idsig
 releases/

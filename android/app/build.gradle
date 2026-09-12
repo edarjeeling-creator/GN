@@ -22,6 +22,8 @@ android {
             storePassword project.hasProperty('RELEASE_STORE_PASSWORD') ? project.property('RELEASE_STORE_PASSWORD') : (System.getenv('RELEASE_STORE_PASSWORD') ?: 'gyanoday123')
             keyAlias project.hasProperty('RELEASE_KEY_ALIAS') ? project.property('RELEASE_KEY_ALIAS') : (System.getenv('RELEASE_KEY_ALIAS') ?: 'gyanoday')
             keyPassword project.hasProperty('RELEASE_KEY_PASSWORD') ? project.property('RELEASE_KEY_PASSWORD') : (System.getenv('RELEASE_KEY_PASSWORD') ?: 'gyanoday123')
+            v1SigningEnabled true
+            v2SigningEnabled true
         }
     }
     buildTypes {

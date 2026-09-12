@@ -152,35 +152,45 @@
     <p class="subtitle">Official Mobile Application for Gyanoday Niketan School ERP (Unified Cloud-Synced ERP Layout)</p>
 
     <div class="grid">
-      <!-- Pilot APK Card -->
-      <div class="card">
-        <h3>Release APK</h3>
-        <p class="meta">15.6 MB &bull; Signed (v2) &bull; Pilot & Tablet Testing</p>
-        <a href="/Gyanoday-release.apk" download="Gyanoday-release.apk" class="btn btn-primary">
+      <!-- Direct Update APK Card -->
+      <div class="card" style="border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.05);">
+        <span style="display:inline-block; font-size: 11px; font-weight:700; color: #34d399; margin-bottom: 4px; text-transform:uppercase; letter-spacing:0.5px;">Recommended For Existing Users</span>
+        <h3>Direct Update APK</h3>
+        <p class="meta">16.6 MB &bull; Android 14 Compatible &bull; Preserves Data</p>
+        <a href="/Gyanoday-update.apk" download="Gyanoday-update.apk" class="btn btn-primary" style="background: linear-gradient(135deg, #059669, #10b981);">
           <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-          Download APK
+          Download Update APK
         </a>
-        <div class="device-install">Install directly on Android Phone or Attendance Tablet</div>
+        <div class="device-install" style="color: #a7f3d0;">Installs directly over existing app (No need to uninstall)</div>
       </div>
 
-      <!-- Play Console AAB Card -->
+      <!-- Clean Release APK Card -->
       <div class="card">
-        <h3>Play Store Bundle</h3>
-        <p class="meta">15.3 MB &bull; Signed AAB &bull; Play Console Submission</p>
-        <a href="/Gyanoday-release.aab" download="Gyanoday-release.aab" class="btn btn-secondary">
-          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/></svg>
-          Download AAB
+        <span style="display:inline-block; font-size: 11px; font-weight:700; color: #60a5fa; margin-bottom: 4px; text-transform:uppercase; letter-spacing:0.5px;">Fresh Install</span>
+        <h3>Production Release APK</h3>
+        <p class="meta">14.9 MB &bull; Signed (v2, v3) &bull; Target SDK 34</p>
+        <a href="/Gyanoday-release.apk" download="Gyanoday-release.apk" class="btn btn-primary">
+          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          Download Release APK
         </a>
-        <div class="device-install">Upload to Google Play Console (Production Track)</div>
+        <div class="device-install">For new devices (Uninstall older app first if installed)</div>
       </div>
+    </div>
+
+    <div class="info-box" style="margin-bottom: 16px; border-color: rgba(234, 179, 8, 0.4); background: rgba(234, 179, 8, 0.08);">
+      <strong style="color: #facc15;">⚠️ Seeing "There's a problem with the app file"?</strong><br>
+      Android prevents installing new production-signed APKs over older debug-signed apps with conflicting keys. To resolve this:
+      <ul style="text-align: left; margin-top: 8px; margin-left: 20px; line-height: 1.6;">
+        <li><strong>Option A (Easiest):</strong> Download the green <strong>"Direct Update APK"</strong> above — it matches your existing app signature and updates seamlessly.</li>
+        <li><strong>Option B:</strong> Uninstall (delete) the old Gyanoday app from your phone first, then download and install the <strong>Production Release APK</strong>.</li>
+      </ul>
     </div>
 
     <div class="info-box">
       <strong>Package ID:</strong> <code>com.gyanodayniketan.erp</code><br>
-      <strong>Target SDK:</strong> Android 16 (API 36) | <strong>Min SDK:</strong> Android 7.0 (API 24)<br>
+      <strong>Target SDK:</strong> Android 14 (API 34) | <strong>Min SDK:</strong> Android 7.0 (API 24)<br>
       <strong>Multi-Campus Kiosks:</strong> <code>GN-SENIOR-001</code> (Senior School) &amp; <code>GN-JUNIOR-001</code> (Junior School)<br>
-      <strong>Default Pairing Secret:</strong> <code>GyanodayKiosk@2026</code> | <strong>Admin PIN:</strong> <code>8254</code><br>
-      <strong>Build Verified:</strong> Multi-Campus Geofencing + Scoped Kiosk Authorization Active
+      <strong>Default Pairing Secret:</strong> <code>GyanodayKiosk@2026</code> | <strong>Admin PIN:</strong> <code>8254</code>
     </div>
   </div>
 </body>
