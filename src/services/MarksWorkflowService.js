@@ -274,7 +274,7 @@ export class MarksWorkflowService {
         .from('class_subject_mark_submissions')
         .select(`
           *,
-          teacher:profiles!teacher_id(id, name, email)
+          teacher:profiles!teacher_id(id, name)
         `)
         .eq('academic_year', academicYear);
 
