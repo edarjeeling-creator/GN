@@ -235,39 +235,39 @@ export default function CoordinatorMarksReview() {
       </div>
 
       {/* Header Info Banner */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="bg-slate-900 rounded-2xl p-6 border border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+            <h1 className="text-2xl font-bold text-white">
               {cls?.name} {cls?.section} — {sub?.name}
             </h1>
             <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-              isLocked ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300' :
-              isApproved ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300' :
-              isReturned ? 'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300' :
-              'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
+              isLocked ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-500/50' :
+              isApproved ? 'bg-blue-950/60 text-blue-300 border border-blue-500/50' :
+              isReturned ? 'bg-rose-950/60 text-rose-300 border border-rose-500/50' :
+              'bg-amber-950/60 text-amber-300 border border-amber-500/50'
             }`}>
               {submission.status}
             </span>
           </div>
 
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Term: <strong className="text-slate-700 dark:text-slate-200">{submission.term}</strong> • 
-            Academic Year: <strong className="text-slate-700 dark:text-slate-200">{submission.academic_year}</strong> • 
-            Scheme: <strong className="text-slate-700 dark:text-slate-200">{pattern?.pattern_name || 'Standard'}</strong> (v{pattern?.version || 1})
+          <p className="text-sm text-slate-300">
+            Term: <strong className="text-white">{submission.term}</strong> • 
+            Academic Year: <strong className="text-white">{submission.academic_year}</strong> • 
+            Scheme: <strong className="text-white">{pattern?.pattern_name || 'Standard'}</strong> (v{pattern?.version || 1})
           </p>
 
           {submission.submission_notes && (
-            <div className="mt-2 text-xs bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
-              <strong>Teacher Notes:</strong> {submission.submission_notes}
+            <div className="mt-2 text-xs bg-slate-950 p-2.5 rounded-lg border border-slate-700 text-slate-300">
+              <strong className="text-white">Teacher Notes:</strong> {submission.submission_notes}
             </div>
           )}
 
           {isReturned && submission.return_reason && (
-            <div className="mt-2 text-xs bg-rose-50 dark:bg-rose-950/40 p-2.5 rounded-lg border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 flex items-start gap-2">
-              <RotateCcw size={14} className="mt-0.5 shrink-0" />
+            <div className="mt-2 text-xs bg-rose-950/60 p-2.5 rounded-lg border border-rose-500 text-rose-200 flex items-start gap-2">
+              <RotateCcw size={14} className="mt-0.5 shrink-0 text-rose-400" />
               <div>
-                <strong>Active Return Reason:</strong> {submission.return_reason}
+                <strong className="text-white">Active Return Reason:</strong> {submission.return_reason}
               </div>
             </div>
           )}
@@ -280,7 +280,7 @@ export default function CoordinatorMarksReview() {
               <button
                 onClick={() => setShowReturnModal(true)}
                 disabled={actionLoading}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-sm border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300 transition"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-sm border border-rose-500 text-rose-300 bg-rose-950/40 hover:bg-rose-900/60 transition cursor-pointer"
               >
                 <RotateCcw size={16} />
                 <span>Return for Correction</span>
@@ -290,7 +290,7 @@ export default function CoordinatorMarksReview() {
                 <button
                   onClick={handleApprove}
                   disabled={actionLoading}
-                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-semibold text-sm bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition"
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-semibold text-sm bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition cursor-pointer"
                 >
                   <CheckCircle2 size={16} />
                   <span>Approve Marks</span>
@@ -299,7 +299,7 @@ export default function CoordinatorMarksReview() {
                 <button
                   onClick={handleLock}
                   disabled={actionLoading}
-                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-semibold text-sm bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition"
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-semibold text-sm bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition cursor-pointer"
                 >
                   <Lock size={16} />
                   <span>Lock Marks for Official Report</span>
@@ -309,7 +309,7 @@ export default function CoordinatorMarksReview() {
           )}
 
           {isLocked && (
-            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-sm font-semibold">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-950/60 text-emerald-300 border border-emerald-500/50 text-sm font-semibold">
               <Lock size={16} />
               <span>Marks Locked & Verified</span>
             </div>
@@ -319,22 +319,22 @@ export default function CoordinatorMarksReview() {
 
       {/* Messages */}
       {errorMsg && (
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm font-medium flex items-center gap-2">
-          <AlertTriangle size={18} />
+        <div className="p-4 rounded-xl bg-rose-950/60 border border-rose-500 text-rose-200 text-sm font-medium flex items-center gap-2">
+          <AlertTriangle size={18} className="text-rose-400" />
           <span>{errorMsg}</span>
         </div>
       )}
       {successMsg && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium flex items-center gap-2">
-          <CheckCircle2 size={18} />
+        <div className="p-4 rounded-xl bg-emerald-950/60 border border-emerald-500 text-emerald-200 text-sm font-medium flex items-center gap-2">
+          <CheckCircle2 size={18} className="text-emerald-400" />
           <span>{successMsg}</span>
         </div>
       )}
 
       {/* Student Roster Table */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
-        <div className="p-4 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-          <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+      <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-lg">
+        <div className="p-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+          <div className="text-sm font-bold text-white">
             Student Marks Matrix ({studentRows.length} Enrolled Students)
           </div>
           <div className="text-xs text-slate-400">
@@ -345,30 +345,30 @@ export default function CoordinatorMarksReview() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50/70 dark:bg-slate-900/30 border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                <th className="py-3 px-4 w-16 text-center">Roll</th>
-                <th className="py-3 px-4">Student Name</th>
+              <tr className="bg-slate-800 text-slate-200 border-b border-slate-700 text-xs font-semibold uppercase tracking-wider">
+                <th className="py-3 px-4 w-16 text-center text-slate-300">Roll</th>
+                <th className="py-3 px-4 text-slate-200 font-bold">Student Name</th>
                 {pattern?.components?.map(comp => (
-                  <th key={comp.id} className="py-3 px-4 text-center">
-                    <div>{comp.component_name}</div>
-                    <div className="text-[10px] text-slate-400 lowercase font-normal">
+                  <th key={comp.id} className="py-3 px-4 text-center text-slate-200">
+                    <div className="font-bold">{comp.component_name}</div>
+                    <div className="text-[10px] text-slate-400 lowercase font-normal mt-0.5">
                       raw /{comp.raw_max_marks} {comp.converted_max_marks !== comp.raw_max_marks ? `→ conv /${comp.converted_max_marks}` : ''}
                     </div>
                   </th>
                 ))}
-                <th className="py-3 px-4 text-center">Final Total</th>
-                <th className="py-3 px-4 text-center">Percentage</th>
-                <th className="py-3 px-4 text-center">Grade</th>
-                <th className="py-3 px-4 text-center">Trace</th>
+                <th className="py-3 px-4 text-center text-slate-200 font-bold">Final Total</th>
+                <th className="py-3 px-4 text-center text-slate-200 font-bold">Percentage</th>
+                <th className="py-3 px-4 text-center text-slate-200 font-bold">Grade</th>
+                <th className="py-3 px-4 text-center text-slate-200 font-bold">Trace</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+            <tbody className="divide-y divide-slate-800">
               {studentRows.map(({ student, componentScores, calc }) => (
-                <tr key={student.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors">
-                  <td className="py-3 px-4 text-center font-semibold text-slate-600 dark:text-slate-300">
+                <tr key={student.id} className="hover:bg-slate-800/60 transition-colors">
+                  <td className="py-3 px-4 text-center font-semibold text-slate-400">
                     {student.roll_no || '—'}
                   </td>
-                  <td className="py-3 px-4 font-medium text-slate-900 dark:text-white">
+                  <td className="py-3 px-4 font-semibold text-white">
                     {student.name}
                   </td>
 
@@ -381,44 +381,44 @@ export default function CoordinatorMarksReview() {
                     return (
                       <td key={comp.id} className="py-3 px-4 text-center">
                         {isAbsent ? (
-                          <span className="px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
+                          <span className="px-2 py-0.5 rounded text-xs font-bold bg-rose-950/60 text-rose-300 border border-rose-500/50">
                             ABS
                           </span>
                         ) : isNA ? (
-                          <span className="px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                          <span className="px-2 py-0.5 rounded text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700">
                             N/A
                           </span>
                         ) : score?.rawScore !== null && score?.rawScore !== undefined ? (
                           <div>
-                            <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            <span className="font-semibold text-white">
                               {score.rawScore}
                             </span>
                             {comp.converted_max_marks !== comp.raw_max_marks && (
-                              <span className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold ml-1.5">
+                              <span className="text-xs text-indigo-400 font-semibold ml-1.5">
                                 ({score.convertedScore})
                               </span>
                             )}
                           </div>
                         ) : (
-                          <span className="text-slate-300 dark:text-slate-600">—</span>
+                          <span className="text-slate-600">—</span>
                         )}
                       </td>
                     );
                   })}
 
                   {/* Final Total */}
-                  <td className="py-3 px-4 text-center font-bold text-slate-900 dark:text-white">
+                  <td className="py-3 px-4 text-center font-bold text-white">
                     {calc.totalMarks !== null ? `${calc.totalMarks} / ${calc.maxTotal}` : '—'}
                   </td>
 
                   {/* Percentage */}
-                  <td className="py-3 px-4 text-center font-semibold text-indigo-600 dark:text-indigo-400">
+                  <td className="py-3 px-4 text-center font-semibold text-indigo-400">
                     {calc.percentage !== null ? `${calc.percentage}%` : '—'}
                   </td>
 
                   {/* Grade */}
                   <td className="py-3 px-4 text-center">
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                       {calc.grade || '—'}
                     </span>
                   </td>
@@ -427,10 +427,10 @@ export default function CoordinatorMarksReview() {
                   <td className="py-3 px-4 text-center">
                     <button
                       onClick={() => setCalculationModalStudent({ student, componentScores, calc })}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition"
-                      title="View Calculation Breakdown"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-slate-800 transition cursor-pointer"
+                      title="Inspect Calculation Trace"
                     >
-                      <HelpCircle size={16} />
+                      <Info size={16} />
                     </button>
                   </td>
                 </tr>

@@ -305,29 +305,34 @@ const SubjectMarks = () => {
       {/* Top Navigation */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/classes')}>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate('/classes')}
+            className="text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-750"
+          >
             <ArrowLeft size={18} className="mr-1" /> Back to Classes
           </Button>
           <div>
-            <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+            <h1 className="text-2xl font-black text-white tracking-tight">
               {cls?.name} — {subject?.name}
             </h1>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
+            <p className="text-xs text-slate-300 font-medium mt-0.5">
               Authoritative Student Marks Entry & Automated ERP Calculation
             </p>
           </div>
         </div>
 
         {/* Term Switcher */}
-        <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+        <div className="flex items-center gap-2 bg-slate-900 p-1.5 rounded-xl border border-slate-700">
           {['Midterm', 'Finalterm'].map(t => (
             <button
               key={t}
               onClick={() => setSelectedTerm(t)}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 selectedTerm === t 
-                  ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-emerald-400 shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-blue-600 text-white shadow-md' 
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
             >
               {t === 'Midterm' ? 'Mid-Term Exam' : 'Final-Term Exam'}
@@ -340,22 +345,22 @@ const SubjectMarks = () => {
       {submission && (
         <div className={`p-4 rounded-2xl border flex items-center justify-between gap-4 transition-all ${
           submission.status === 'LOCKED'
-            ? 'bg-slate-900 border-slate-800 text-white'
+            ? 'bg-slate-900 border-slate-700 text-white'
             : submission.status === 'APPROVED'
-            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200'
+            ? 'bg-emerald-950/50 border-emerald-500/50 text-emerald-100'
             : submission.status === 'RETURNED_FOR_CORRECTION'
-            ? 'bg-rose-500/10 border-rose-500/30 text-rose-900 dark:text-rose-200'
+            ? 'bg-rose-950/50 border-rose-500/50 text-rose-100'
             : submission.status === 'SUBMITTED' || submission.status === 'RESUBMITTED'
-            ? 'bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200'
-            : 'bg-blue-500/10 border-blue-500/30 text-blue-900 dark:text-blue-200'
+            ? 'bg-amber-950/50 border-amber-500/50 text-amber-100'
+            : 'bg-blue-950/50 border-blue-500/50 text-blue-100'
         }`}>
           <div className="flex items-center gap-3">
             <div className={`p-2.5 rounded-xl ${
-              submission.status === 'LOCKED' ? 'bg-slate-800 text-amber-400' :
-              submission.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-500' :
-              submission.status === 'RETURNED_FOR_CORRECTION' ? 'bg-rose-500/20 text-rose-500' :
-              submission.status === 'SUBMITTED' || submission.status === 'RESUBMITTED' ? 'bg-amber-500/20 text-amber-500' :
-              'bg-blue-500/20 text-blue-500'
+              submission.status === 'LOCKED' ? 'bg-slate-800 text-amber-400 border border-slate-700' :
+              submission.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+              submission.status === 'RETURNED_FOR_CORRECTION' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
+              submission.status === 'SUBMITTED' || submission.status === 'RESUBMITTED' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+              'bg-blue-500/20 text-blue-400 border border-blue-500/30'
             }`}>
               {submission.status === 'LOCKED' ? <Lock size={20} /> :
                submission.status === 'APPROVED' ? <CheckCircle2 size={20} /> :
@@ -364,12 +369,12 @@ const SubjectMarks = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs uppercase tracking-wider font-bold opacity-75">Workflow State:</span>
-                <span className="font-mono font-black text-sm px-2 py-0.5 rounded bg-black/10 dark:bg-white/10">
+                <span className="text-xs uppercase tracking-wider font-bold text-slate-300">Workflow State:</span>
+                <span className="font-mono font-black text-xs px-2.5 py-1 rounded-md bg-slate-800 text-white border border-slate-700">
                   {submission.status}
                 </span>
               </div>
-              <p className="text-xs mt-0.5">
+              <p className="text-xs mt-1 text-slate-300">
                 {submission.status === 'DRAFT' && 'You can enter raw marks and save drafts. When ready, submit to Coordinator Sir.'}
                 {(submission.status === 'SUBMITTED' || submission.status === 'RESUBMITTED') && 'Marks submitted. Awaiting Coordinator verification and approval.'}
                 {submission.status === 'APPROVED' && 'Approved by Coordinator. Awaiting formal locking for report card printing.'}
@@ -383,25 +388,24 @@ const SubjectMarks = () => {
           <div className="flex items-center gap-2">
             {!isReadOnly && (
               <>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <button 
+                  type="button"
                   onClick={handleSaveDraft}
                   disabled={saveStatus === 'saving'}
-                  className="flex items-center gap-1.5"
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 flex items-center gap-1.5 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
                 >
                   <Save size={14} />
                   {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Draft Saved' : 'Save Draft'}
-                </Button>
-                <Button 
-                  size="sm" 
+                </button>
+                <button 
+                  type="button"
                   onClick={handleSubmitForReview}
                   disabled={isSubmitting}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1.5"
+                  className="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 transition-all shadow-md disabled:opacity-50 cursor-pointer"
                 >
                   <Send size={14} />
                   {isSubmitting ? 'Submitting...' : 'Submit to Coordinator'}
-                </Button>
+                </button>
               </>
             )}
           </div>
@@ -410,11 +414,11 @@ const SubjectMarks = () => {
 
       {/* Return Reason Alert (If returned for correction) */}
       {submission?.status === 'RETURNED_FOR_CORRECTION' && submission.return_reason && (
-        <div className="p-4 rounded-2xl bg-rose-50 border-2 border-rose-300 dark:bg-rose-950/40 dark:border-rose-800 text-rose-900 dark:text-rose-200 space-y-1 shadow-sm">
-          <div className="flex items-center gap-2 font-bold text-sm text-rose-700 dark:text-rose-400">
+        <div className="p-4 rounded-2xl bg-rose-950/60 border border-rose-500 text-rose-100 space-y-1 shadow-sm">
+          <div className="flex items-center gap-2 font-bold text-sm text-rose-300">
             <AlertTriangle size={16} /> Coordinator's Correction Request:
           </div>
-          <p className="text-sm font-medium pl-6 leading-relaxed">
+          <p className="text-sm font-medium pl-6 leading-relaxed text-rose-200">
             "{submission.return_reason}"
           </p>
         </div>
@@ -422,49 +426,49 @@ const SubjectMarks = () => {
 
       {/* Assessment Pattern Information Card */}
       {!activePattern ? (
-        <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 dark:bg-amber-950/40 dark:border-amber-800 text-amber-900 dark:text-amber-200 flex items-center gap-3 shadow-sm">
-          <AlertTriangle size={24} className="text-amber-600 shrink-0" />
+        <div className="p-4 rounded-2xl bg-amber-950/50 border border-amber-500/50 text-amber-100 flex items-center gap-3 shadow-sm">
+          <AlertTriangle size={24} className="text-amber-400 shrink-0" />
           <div>
-            <div className="font-bold text-sm text-amber-800 dark:text-amber-300">
+            <div className="font-bold text-sm text-amber-300">
               Assessment configuration incomplete. Please contact Administrator.
             </div>
-            <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+            <p className="text-xs text-amber-200 mt-0.5">
               No active assessment scheme or component rules found for this class and academic year. Evaluation conversions and grading cannot proceed without administrative configuration.
             </p>
           </div>
         </div>
       ) : (
-        <Card className="bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800">
-          <CardContent className="p-4 flex items-center justify-between flex-wrap gap-4 text-xs">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center justify-between flex-wrap gap-4 text-xs">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-brand-500/10 text-brand-500 dark:text-emerald-400">
+              <div className="p-2 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30">
                 <Info size={18} />
               </div>
               <div>
-                <span className="font-bold text-slate-800 dark:text-slate-200">
-                  Active Assessment Pattern: {activePattern.pattern_name} (v{activePattern.version || 1})
+                <span className="font-bold text-white text-sm">
+                  Active Assessment Pattern: <span className="text-blue-400">{activePattern.pattern_name}</span> (v{activePattern.version || 1})
                 </span>
-                <p className="text-slate-500 mt-0.5">
+                <p className="text-slate-300 mt-1 font-medium">
                   Components:{' '}
                   {components.map(c => `${c.component_name} (Raw Max: ${c.raw_max_marks} → Converted: ${c.converted_max_marks})`).join(' | ')}
                 </p>
               </div>
             </div>
-            <div className="text-slate-400 font-mono text-[11px] flex items-center gap-1.5">
-              <ShieldCheck size={13} className="text-emerald-500" />
+            <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-mono text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+              <ShieldCheck size={14} className="text-emerald-400" />
               Formula: Converted = Raw × ConvertedMax / RawMax
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Student Marks Table */}
-      <Card className="border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-        <CardHeader className="p-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
+        <div className="p-4 border-b border-slate-800 bg-slate-900 flex justify-between items-center flex-wrap gap-3">
           <div className="flex items-center gap-2">
-            <CardTitle className="text-base font-bold">
+            <h2 className="text-base font-bold text-white tracking-tight">
               Student Roster ({filteredStudents.length} Students Enrolled)
-            </CardTitle>
+            </h2>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -474,38 +478,38 @@ const SubjectMarks = () => {
                 value={globalFilter}
                 onChange={e => setGlobalFilter(e.target.value)}
                 placeholder="Search student or roll no..."
-                className="pl-8 pr-3 py-1.5 text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="pl-8 pr-3 py-1.5 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 w-56"
               />
             </div>
           </div>
-        </CardHeader>
+        </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
+            <thead className="bg-slate-800 text-slate-200 font-bold border-b border-slate-700">
               <tr>
-                <th className="p-3 w-16 text-center">Roll</th>
-                <th className="p-3">Student Name</th>
+                <th className="p-3 w-16 text-center text-slate-300">Roll</th>
+                <th className="p-3 text-slate-200 font-bold">Student Name</th>
                 {components.map(comp => (
-                  <th key={comp.id} className="p-3 text-center min-w-[140px]">
-                    <div>{comp.component_name}</div>
-                    <div className="text-[10px] font-mono text-slate-400 font-normal">
+                  <th key={comp.id} className="p-3 text-center min-w-[140px] text-slate-200">
+                    <div className="font-bold">{comp.component_name}</div>
+                    <div className="text-[10px] font-mono text-slate-400 font-normal mt-0.5">
                       Raw /{comp.raw_max_marks} (Weight: /{comp.converted_max_marks})
                     </div>
                   </th>
                 ))}
-                <th className="p-3 text-center min-w-[100px] bg-slate-200/50 dark:bg-slate-800">
-                  <div>Calculated Total</div>
-                  <div className="text-[10px] font-mono text-slate-400 font-normal">
+                <th className="p-3 text-center min-w-[110px] bg-slate-850 text-slate-200">
+                  <div className="font-bold">Calculated Total</div>
+                  <div className="text-[10px] font-mono text-slate-400 font-normal mt-0.5">
                     /{components.reduce((acc, c) => acc + (c.converted_max_marks || c.raw_max_marks), 0)}
                   </div>
                 </th>
-                <th className="p-3 text-center w-20 bg-slate-200/50 dark:bg-slate-800">
+                <th className="p-3 text-center w-24 bg-slate-850 text-slate-200 font-bold">
                   Grade
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody className="divide-y divide-slate-800">
               {filteredStudents.map((student, idx) => {
                 // Collect scores and statuses for this student
                 const studentScores = {};
@@ -528,14 +532,14 @@ const SubjectMarks = () => {
                 return (
                   <tr 
                     key={student.id} 
-                    className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors ${
-                      idx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/30 dark:bg-slate-900/30'
+                    className={`hover:bg-slate-800/70 transition-colors ${
+                      idx % 2 === 0 ? 'bg-slate-900' : 'bg-slate-900/50'
                     }`}
                   >
-                    <td className="p-3 text-center font-mono font-bold text-slate-500">
+                    <td className="p-3 text-center font-mono font-bold text-slate-400">
                       {student.roll_no}
                     </td>
-                    <td className="p-3 font-semibold text-slate-900 dark:text-white">
+                    <td className="p-3 font-semibold text-white">
                       {formatStudentDisplayName(student.name)}
                     </td>
 
@@ -560,14 +564,14 @@ const SubjectMarks = () => {
                                   value={rawVal}
                                   onChange={e => handleScoreChange(student.id, comp.component_code, e.target.value, comp.raw_max_marks)}
                                   placeholder={`0 - ${comp.raw_max_marks}`}
-                                  className={`w-24 text-center py-1.5 px-2 font-mono font-bold text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all ${
+                                  className={`w-24 text-center py-1.5 px-2 font-mono font-bold text-xs rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all ${
                                     isReadOnly 
-                                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700 cursor-not-allowed'
-                                      : 'bg-white dark:bg-slate-950 text-slate-900 dark:text-white border-slate-300 dark:border-slate-700 shadow-sm'
+                                      ? 'bg-slate-800 text-slate-400 border-slate-700 cursor-not-allowed'
+                                      : 'bg-slate-950 text-white border-slate-700 hover:border-slate-500 shadow-inner'
                                   }`}
                                 />
                                 {comp.raw_max_marks !== comp.converted_max_marks && rawVal !== '' && (
-                                  <span className="block text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
+                                  <span className="block text-[10px] font-mono text-emerald-400 mt-0.5">
                                     ={converted}
                                   </span>
                                 )}
@@ -575,8 +579,8 @@ const SubjectMarks = () => {
                             ) : (
                               <span className={`px-3 py-1 font-bold text-[11px] rounded-lg font-mono ${
                                 stStatus === 'ABSENT' 
-                                  ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30'
-                                  : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                                  ? 'bg-rose-950/60 text-rose-300 border border-rose-500/50'
+                                  : 'bg-slate-800 text-slate-400 border border-slate-700'
                               }`}>
                                 {stStatus}
                               </span>
@@ -584,13 +588,15 @@ const SubjectMarks = () => {
 
                             {/* Status Toggle buttons (Absent / N/A) */}
                             {!isReadOnly && (
-                              <div className="flex flex-col gap-0.5">
+                              <div className="flex flex-col gap-1">
                                 <button
                                   type="button"
                                   title="Toggle Absent"
                                   onClick={() => handleStatusChange(student.id, comp.component_code, stStatus === 'ABSENT' ? 'MARKED' : 'ABSENT')}
-                                  className={`px-1.5 py-0.5 text-[9px] font-black rounded ${
-                                    stStatus === 'ABSENT' ? 'bg-rose-600 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                                  className={`px-1.5 py-0.5 text-[9px] font-black rounded border transition-colors cursor-pointer ${
+                                    stStatus === 'ABSENT' 
+                                      ? 'bg-rose-600 text-white border-rose-500' 
+                                      : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
                                   }`}
                                 >
                                   AB
@@ -599,8 +605,10 @@ const SubjectMarks = () => {
                                   type="button"
                                   title="Toggle Not Applicable"
                                   onClick={() => handleStatusChange(student.id, comp.component_code, stStatus === 'NOT_APPLICABLE' ? 'MARKED' : 'NOT_APPLICABLE')}
-                                  className={`px-1.5 py-0.5 text-[9px] font-black rounded ${
-                                    stStatus === 'NOT_APPLICABLE' ? 'bg-slate-600 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                                  className={`px-1.5 py-0.5 text-[9px] font-black rounded border transition-colors cursor-pointer ${
+                                    stStatus === 'NOT_APPLICABLE' 
+                                      ? 'bg-amber-600 text-white border-amber-500' 
+                                      : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
                                   }`}
                                 >
                                   NA
@@ -613,25 +621,25 @@ const SubjectMarks = () => {
                     })}
 
                     {/* Calculated Total */}
-                    <td className="p-3 text-center bg-slate-50/80 dark:bg-slate-800/40">
-                      <span className="font-mono font-bold text-sm text-slate-900 dark:text-emerald-300">
-                        {result.hasAnyMark ? result.totalConverted : '-'}
+                    <td className="p-3 text-center bg-slate-900/80">
+                      <span className="font-mono font-bold text-sm text-white">
+                        {result.hasAnyMark ? result.totalConverted : '—'}
                       </span>
                       {result.percentage !== null && (
-                        <span className="block text-[10px] text-slate-400 font-mono">
+                        <span className="block text-[10px] text-slate-400 font-mono font-medium">
                           {result.percentage}%
                         </span>
                       )}
                     </td>
 
                     {/* Grade */}
-                    <td className="p-3 text-center bg-slate-50/80 dark:bg-slate-800/40">
+                    <td className="p-3 text-center bg-slate-900/80">
                       {result.grade ? (
-                        <Badge variant="success" className="font-black text-xs px-2 py-0.5">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                           {result.grade}
-                        </Badge>
+                        </span>
                       ) : (
-                        <span className="text-slate-400">-</span>
+                        <span className="text-slate-500">—</span>
                       )}
                     </td>
                   </tr>
@@ -650,16 +658,16 @@ const SubjectMarks = () => {
         </div>
 
         {/* Footer Note */}
-        <div className="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+        <div className="p-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
           <div className="flex items-center gap-2">
-            <Check size={14} className="text-emerald-500" />
+            <Check size={14} className="text-emerald-400" />
             <span>Calculated automatically by Gyanoday ERP based on configured assessment scheme.</span>
           </div>
-          <div className="font-mono text-[11px]">
+          <div className="font-mono text-[11px] text-slate-400 font-semibold">
             {filteredStudents.length} Students Listed
           </div>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };

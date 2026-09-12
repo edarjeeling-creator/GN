@@ -162,16 +162,16 @@ export default function CoordinatorControlRoom() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-800">
         <div>
-          <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-semibold text-sm">
+          <div className="flex items-center gap-2 text-indigo-400 font-semibold text-sm">
             <ShieldCheck size={18} />
             <span>Academic Supervision & Quality Control</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+          <h1 className="text-2xl font-bold text-white mt-1">
             Coordinator Marks Control Room
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-sm text-slate-300 mt-0.5">
             Real-time verification, approval workflow, and report readiness tracking across all sections.
           </p>
         </div>
@@ -179,14 +179,14 @@ export default function CoordinatorControlRoom() {
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => navigate('/coordinator/reports')}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition-all cursor-pointer"
           >
             <Printer size={16} />
             <span>Report Printing Gatekeeper</span>
           </button>
           <button
             onClick={loadSubmissions}
-            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300 transition"
+            className="p-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 transition cursor-pointer"
             title="Refresh Data"
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -200,54 +200,54 @@ export default function CoordinatorControlRoom() {
           onClick={() => setFilterStatus('ALL')}
           className={`cursor-pointer p-4 rounded-xl border transition-all ${
             filterStatus === 'ALL'
-              ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-700 ring-2 ring-indigo-500/20'
-              : 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700 hover:border-slate-300'
+              ? 'bg-indigo-950/60 border-indigo-500 text-white ring-2 ring-indigo-500/30'
+              : 'bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-300'
           }`}
         >
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Modules</div>
-          <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{overviewStats.total}</div>
+          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Modules</div>
+          <div className="text-2xl font-bold text-white mt-1">{overviewStats.total}</div>
         </div>
 
         <div 
           onClick={() => setFilterStatus('SUBMITTED')}
           className={`cursor-pointer p-4 rounded-xl border transition-all ${
             filterStatus === 'SUBMITTED'
-              ? 'bg-amber-50 border-amber-300 dark:bg-amber-950/40 dark:border-amber-700 ring-2 ring-amber-500/20'
-              : 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700 hover:border-amber-300'
+              ? 'bg-amber-950/60 border-amber-500 text-amber-200 ring-2 ring-amber-500/30'
+              : 'bg-slate-900 border-slate-800 hover:border-amber-500/50 text-slate-300'
           }`}
         >
-          <div className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1">
+          <div className="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-1">
             <Clock size={12} /> Awaiting Review
           </div>
-          <div className="text-2xl font-bold text-amber-700 dark:text-amber-300 mt-1">{overviewStats.submitted}</div>
+          <div className="text-2xl font-bold text-amber-300 mt-1">{overviewStats.submitted}</div>
         </div>
 
         <div 
           onClick={() => setFilterStatus('APPROVED')}
           className={`cursor-pointer p-4 rounded-xl border transition-all ${
             filterStatus === 'APPROVED'
-              ? 'bg-blue-50 border-blue-300 dark:bg-blue-950/40 dark:border-blue-700 ring-2 ring-blue-500/20'
-              : 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700 hover:border-blue-300'
+              ? 'bg-blue-950/60 border-blue-500 text-blue-200 ring-2 ring-blue-500/30'
+              : 'bg-slate-900 border-slate-800 hover:border-blue-500/50 text-slate-300'
           }`}
         >
-          <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex items-center gap-1">
+          <div className="text-xs font-semibold text-blue-400 uppercase tracking-wider flex items-center gap-1">
             <CheckCircle2 size={12} /> Approved
           </div>
-          <div className="text-2xl font-bold text-blue-700 dark:text-blue-300 mt-1">{overviewStats.approved}</div>
+          <div className="text-2xl font-bold text-blue-300 mt-1">{overviewStats.approved}</div>
         </div>
 
         <div 
           onClick={() => setFilterStatus('LOCKED')}
           className={`cursor-pointer p-4 rounded-xl border transition-all ${
             filterStatus === 'LOCKED'
-              ? 'bg-emerald-50 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-700 ring-2 ring-emerald-500/20'
-              : 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700 hover:border-emerald-300'
+              ? 'bg-emerald-950/60 border-emerald-500 text-emerald-200 ring-2 ring-emerald-500/30'
+              : 'bg-slate-900 border-slate-800 hover:border-emerald-500/50 text-slate-300'
           }`}
         >
-          <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+          <div className="text-xs font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
             <Lock size={12} /> Locked
           </div>
-          <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300 mt-1">{overviewStats.locked}</div>
+          <div className="text-2xl font-bold text-emerald-300 mt-1">{overviewStats.locked}</div>
         </div>
 
         <div 
@@ -280,13 +280,13 @@ export default function CoordinatorControlRoom() {
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          {/* Year */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-slate-900 p-4 rounded-xl border border-slate-800">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Academic Year */}
           <select
-            value={selectedYear}
-            onChange={e => setSelectedYear(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm font-medium"
+            value={selectedAcademicYear}
+            onChange={e => setSelectedAcademicYear(e.target.value)}
+            className="px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-white text-sm font-medium focus:outline-none focus:border-indigo-500"
           >
             <option value="2026">Academic Year 2026-27</option>
             <option value="2025">Academic Year 2025-26</option>
@@ -296,7 +296,7 @@ export default function CoordinatorControlRoom() {
           <select
             value={selectedTerm}
             onChange={e => setSelectedTerm(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm font-medium"
+            className="px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-white text-sm font-medium focus:outline-none focus:border-indigo-500"
           >
             <option value="Midterm">Mid-Term Examination</option>
             <option value="Finalterm">Final-Term Examination</option>
@@ -306,7 +306,7 @@ export default function CoordinatorControlRoom() {
           <select
             value={filterClass}
             onChange={e => setFilterClass(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm font-medium"
+            className="px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-white text-sm font-medium focus:outline-none focus:border-indigo-500"
           >
             <option value="ALL">All Classes</option>
             {classes?.map(c => (
@@ -318,7 +318,7 @@ export default function CoordinatorControlRoom() {
           <select
             value={filterStatus}
             onChange={e => setFilterStatus(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm font-medium"
+            className="px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-white text-sm font-medium focus:outline-none focus:border-indigo-500"
           >
             <option value="ALL">All Statuses</option>
             <option value="SUBMITTED">Awaiting Review (Submitted)</option>
@@ -338,29 +338,29 @@ export default function CoordinatorControlRoom() {
             placeholder="Search class, subject, teacher..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-700 bg-slate-950 text-white placeholder-slate-400 text-sm focus:outline-none focus:border-indigo-500"
           />
         </div>
       </div>
 
       {/* Main Table */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+      <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-lg">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                <th className="py-3.5 px-4">Class & Section</th>
-                <th className="py-3.5 px-4">Subject</th>
-                <th className="py-3.5 px-4">Teacher</th>
-                <th className="py-3.5 px-4 text-center">Status</th>
-                <th className="py-3.5 px-4 text-center">Students Marked</th>
-                <th className="py-3.5 px-4 text-right">Action</th>
+              <tr className="bg-slate-800 text-slate-200 border-b border-slate-700 text-xs font-semibold uppercase tracking-wider">
+                <th className="py-3.5 px-4 text-slate-200 font-bold">Class & Section</th>
+                <th className="py-3.5 px-4 text-slate-200 font-bold">Subject</th>
+                <th className="py-3.5 px-4 text-slate-200 font-bold">Teacher</th>
+                <th className="py-3.5 px-4 text-center text-slate-200 font-bold">Status</th>
+                <th className="py-3.5 px-4 text-center text-slate-200 font-bold">Students Marked</th>
+                <th className="py-3.5 px-4 text-right text-slate-200 font-bold">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+            <tbody className="divide-y divide-slate-800">
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="py-12 text-center text-slate-400">
+                  <td colSpan="6" className="py-12 text-center text-slate-400 font-medium">
                     No subject marksheets match the selected filters.
                   </td>
                 </tr>
@@ -368,15 +368,15 @@ export default function CoordinatorControlRoom() {
                 filteredRows.map(row => (
                   <tr 
                     key={row.key} 
-                    className="hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors"
+                    className="hover:bg-slate-800/60 transition-colors"
                   >
-                    <td className="py-3.5 px-4 font-semibold text-slate-900 dark:text-white">
+                    <td className="py-3.5 px-4 font-semibold text-white">
                       {row.className} <span className="text-slate-400 font-normal">({row.section})</span>
                     </td>
-                    <td className="py-3.5 px-4 text-slate-700 dark:text-slate-300 font-medium">
+                    <td className="py-3.5 px-4 text-slate-200 font-medium">
                       {row.subjectName}
                     </td>
-                    <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400">
+                    <td className="py-3.5 px-4 text-slate-400">
                       {row.teacherName}
                     </td>
                     <td className="py-3.5 px-4 text-center">

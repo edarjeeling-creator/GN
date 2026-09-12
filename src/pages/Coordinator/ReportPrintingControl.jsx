@@ -107,22 +107,22 @@ export default function ReportPrintingControl() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-800">
         <div>
           <button
             onClick={() => navigate('/coordinator/marks')}
-            className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-indigo-600 mb-2 transition"
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white mb-2 transition cursor-pointer"
           >
             <ArrowLeft size={14} /> Back to Coordinator Control Room
           </button>
-          <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-semibold text-sm">
+          <div className="flex items-center gap-2 text-indigo-400 font-semibold text-sm">
             <ShieldCheck size={18} />
             <span>Official Report Printing Gatekeeper</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+          <h1 className="text-2xl font-bold text-white mt-1">
             Report Card Generation & Print Controls
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-sm text-slate-300 mt-0.5">
             Strict server gatekeeping: Report printing is blocked until 100% of subject marks are verified, approved, and locked.
           </p>
         </div>
@@ -131,7 +131,7 @@ export default function ReportPrintingControl() {
           <select
             value={selectedYear}
             onChange={e => setSelectedYear(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm font-medium"
+            className="px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-white text-sm font-medium focus:outline-none focus:border-indigo-500"
           >
             <option value="2026">Academic Year 2026-27</option>
             <option value="2025">Academic Year 2025-26</option>
@@ -140,7 +140,7 @@ export default function ReportPrintingControl() {
           <select
             value={selectedTerm}
             onChange={e => setSelectedTerm(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm font-medium"
+            className="px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-white text-sm font-medium focus:outline-none focus:border-indigo-500"
           >
             <option value="Midterm">Mid-Term Examination</option>
             <option value="Finalterm">Final-Term Examination</option>
@@ -148,7 +148,7 @@ export default function ReportPrintingControl() {
 
           <button
             onClick={loadClassReadiness}
-            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition"
+            className="p-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 transition cursor-pointer"
             title="Refresh Status"
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -163,25 +163,25 @@ export default function ReportPrintingControl() {
             key={item.classId}
             className={`rounded-2xl p-5 border transition-all flex flex-col justify-between ${
               item.isReady
-                ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800 shadow-sm'
-                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm'
+                ? 'bg-emerald-950/40 border-emerald-500/50 shadow-md'
+                : 'bg-slate-900 border-slate-800 shadow-sm'
             }`}
           >
             <div className="space-y-3">
               <div className="flex items-start justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                  <h2 className="text-lg font-bold text-white">
                     {item.className}
                   </h2>
-                  <span className="text-xs text-slate-500 font-medium">Section {item.section}</span>
+                  <span className="text-xs text-slate-400 font-medium">Section {item.section}</span>
                 </div>
 
                 {item.isReady ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                     <CheckCircle2 size={13} /> READY TO PRINT
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
                     <Lock size={13} /> LOCKED GATE
                   </span>
                 )}
@@ -189,16 +189,16 @@ export default function ReportPrintingControl() {
 
               {/* Progress Indicator */}
               <div className="space-y-1.5">
-                <div className="flex justify-between text-xs font-medium text-slate-600 dark:text-slate-400">
+                <div className="flex justify-between text-xs font-medium text-slate-300">
                   <span>Subject Lock Completion:</span>
-                  <span className="font-bold text-slate-900 dark:text-white">
+                  <span className="font-bold text-white">
                     {item.lockedSubjects} / {item.totalSubjects} Subjects
                   </span>
                 </div>
-                <div className="w-full h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
                   <div
                     className={`h-full transition-all duration-500 ${
-                      item.isReady ? 'bg-emerald-500' : 'bg-amber-500'
+                      item.isReady ? 'bg-emerald-400' : 'bg-amber-400'
                     }`}
                     style={{
                       width: `${item.totalSubjects > 0 ? (item.lockedSubjects / item.totalSubjects) * 100 : 0}%`
@@ -209,21 +209,21 @@ export default function ReportPrintingControl() {
 
               {/* Status Message / Pending Subjects List */}
               {item.isReady ? (
-                <div className="text-xs bg-emerald-100/60 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 p-3 rounded-xl border border-emerald-200 dark:border-emerald-800 flex items-center gap-2">
-                  <CheckCircle2 size={16} className="shrink-0" />
+                <div className="text-xs bg-emerald-900/30 text-emerald-200 p-3 rounded-xl border border-emerald-500/30 flex items-center gap-2">
+                  <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
                   <span>All required subjects approved and locked by Coordinator.</span>
                 </div>
               ) : (
-                <div className="space-y-2 text-xs bg-amber-50 dark:bg-amber-950/30 p-3 rounded-xl border border-amber-200 dark:border-amber-800/60">
-                  <div className="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-400">
-                    <AlertTriangle size={14} className="shrink-0" />
+                <div className="space-y-2 text-xs bg-amber-950/40 p-3 rounded-xl border border-amber-500/30 text-amber-200">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-300">
+                    <AlertTriangle size={14} className="shrink-0 text-amber-400" />
                     <span>Awaiting Coordinator Approval — {item.pendingCount} subject(s) pending</span>
                   </div>
                   {item.unlockedSubjects.length > 0 && (
-                    <ul className="pl-4 list-disc text-slate-600 dark:text-slate-400 space-y-0.5">
+                    <ul className="pl-4 list-disc text-slate-300 space-y-0.5">
                       {item.unlockedSubjects.slice(0, 4).map((sub, i) => (
                         <li key={i}>
-                          <span className="font-medium text-slate-800 dark:text-slate-200">{sub.subjectName}</span> ({sub.status})
+                          <span className="font-medium text-white">{sub.subjectName}</span> ({sub.status})
                         </li>
                       ))}
                       {item.unlockedSubjects.length > 4 && (
@@ -238,10 +238,10 @@ export default function ReportPrintingControl() {
             </div>
 
             {/* Action Buttons */}
-            <div className="pt-4 mt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between gap-2">
+            <div className="pt-4 mt-3 border-t border-slate-800 flex items-center justify-between gap-2">
               <button
                 onClick={() => navigate(`/classes/${item.classId}/flowsheet`)}
-                className="text-xs font-semibold text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                className="text-xs font-semibold text-slate-400 hover:text-indigo-400 transition cursor-pointer"
               >
                 View Flowsheet
               </button>
@@ -249,7 +249,7 @@ export default function ReportPrintingControl() {
               {item.isReady ? (
                 <button
                   onClick={() => handlePrintOfficial(item)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition cursor-pointer"
                 >
                   <Printer size={14} />
                   <span>Print Official Reports</span>
@@ -257,7 +257,7 @@ export default function ReportPrintingControl() {
               ) : (
                 <button
                   disabled
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-700/50 text-slate-400 cursor-not-allowed"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-500 border border-slate-700/60 cursor-not-allowed"
                   title="Printing blocked until all subjects are locked"
                 >
                   <Lock size={14} />
@@ -270,10 +270,10 @@ export default function ReportPrintingControl() {
       </div>
 
       {/* Official Print History Audit Trail */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
-        <div className="p-4 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-white">
-            <FileText size={18} className="text-indigo-600 dark:text-indigo-400" />
+      <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-lg">
+        <div className="p-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm font-bold text-white">
+            <FileText size={18} className="text-indigo-400" />
             <span>Permanent Report Card Print History & Versioning</span>
           </div>
           <div className="text-xs text-slate-400">
@@ -284,41 +284,41 @@ export default function ReportPrintingControl() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-900/30 border-b border-slate-200 dark:border-slate-700 text-slate-500 uppercase tracking-wider font-semibold">
-                <th className="py-3 px-4">Class</th>
-                <th className="py-3 px-4">Term & Year</th>
-                <th className="py-3 px-4">Report Version</th>
-                <th className="py-3 px-4">Printed By</th>
-                <th className="py-3 px-4">Timestamp</th>
-                <th className="py-3 px-4">Notes</th>
+              <tr className="bg-slate-800 text-slate-200 border-b border-slate-700 uppercase tracking-wider font-semibold">
+                <th className="py-3 px-4 text-slate-200 font-bold">Class</th>
+                <th className="py-3 px-4 text-slate-200 font-bold">Term & Year</th>
+                <th className="py-3 px-4 text-slate-200 font-bold">Report Version</th>
+                <th className="py-3 px-4 text-slate-200 font-bold">Printed By</th>
+                <th className="py-3 px-4 text-slate-200 font-bold">Timestamp</th>
+                <th className="py-3 px-4 text-slate-200 font-bold">Notes</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+            <tbody className="divide-y divide-slate-800">
               {printLogs.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="py-8 text-center text-slate-400">
+                  <td colSpan="6" className="py-8 text-center text-slate-400 font-medium">
                     No official report card print events recorded for this term.
                   </td>
                 </tr>
               ) : (
                 printLogs.map(log => (
-                  <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                    <td className="py-3 px-4 font-bold text-slate-800 dark:text-white">
+                  <tr key={log.id} className="hover:bg-slate-800/60 transition-colors">
+                    <td className="py-3 px-4 font-bold text-white">
                       {log.classes?.name} {log.classes?.section}
                     </td>
-                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
+                    <td className="py-3 px-4 text-slate-300">
                       {log.term} ({log.academic_year})
                     </td>
-                    <td className="py-3 px-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                    <td className="py-3 px-4 font-mono font-bold text-indigo-400">
                       {log.report_version}
                     </td>
-                    <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
+                    <td className="py-3 px-4 text-slate-200">
                       {log.profiles?.name || 'Administrator'}
                     </td>
-                    <td className="py-3 px-4 text-slate-500">
+                    <td className="py-3 px-4 text-slate-400">
                       {new Date(log.printed_at).toLocaleString()}
                     </td>
-                    <td className="py-3 px-4 text-slate-500 italic">
+                    <td className="py-3 px-4 text-slate-400 italic">
                       {log.notes || 'Official Batch Print'}
                     </td>
                   </tr>
