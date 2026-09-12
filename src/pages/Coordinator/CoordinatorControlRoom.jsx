@@ -121,38 +121,38 @@ export default function CoordinatorControlRoom() {
     switch (status) {
       case 'LOCKED':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-500/50 shadow-sm">
             <Lock size={12} /> Locked
           </span>
         );
       case 'APPROVED':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-950/80 text-blue-300 border border-blue-500/50 shadow-sm">
             <CheckCircle2 size={12} /> Approved
           </span>
         );
       case 'SUBMITTED':
       case 'RESUBMITTED':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-950/80 text-amber-300 border border-amber-500/50 shadow-sm">
             <Clock size={12} /> Awaiting Review
           </span>
         );
       case 'RETURNED_FOR_CORRECTION':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-950/80 text-rose-300 border border-rose-500/50 shadow-sm">
             <RotateCcw size={12} /> Returned
           </span>
         );
       case 'DRAFT':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 shadow-sm">
             <FileText size={12} /> Draft
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800/80 text-slate-400 border border-slate-700">
             Not Started
           </span>
         );
@@ -383,11 +383,11 @@ export default function CoordinatorControlRoom() {
                       {getStatusBadge(row.status)}
                     </td>
                     <td className="py-3.5 px-4 text-center">
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      <span className="font-bold text-slate-200">
                         {row.markedStudents}
                       </span>
                       {row.totalStudents > 0 && (
-                        <span className="text-xs text-slate-400 ml-1">
+                        <span className="text-xs text-slate-400 ml-1 font-medium">
                           / {row.totalStudents}
                         </span>
                       )}
@@ -402,7 +402,7 @@ export default function CoordinatorControlRoom() {
                               navigate(`/classes/${row.class_id}/subjects/${row.subject_id}`);
                             }
                           }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 dark:text-indigo-300 transition"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition cursor-pointer"
                         >
                           <Eye size={14} />
                           <span>Review Marks</span>
@@ -410,7 +410,7 @@ export default function CoordinatorControlRoom() {
                       ) : (
                         <button
                           onClick={() => navigate(`/classes/${row.class_id}/subjects/${row.subject_id}`)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400 transition"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition cursor-pointer"
                         >
                           <span>Open Sheet</span>
                         </button>
