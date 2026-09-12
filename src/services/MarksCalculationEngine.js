@@ -58,6 +58,86 @@ export class MarksCalculationEngine {
   }
 
   /**
+   * Calculate student totals, percentage and grade from components and componentScores
+   * Used by CoordinatorMarksReview and audit views
+   */
+  static calculateStudentScores(components = [], componentScores = {}, pattern = null) {
+    const roundingRule = pattern?.rounding_rule || 'ROUND_2_DECIMALS';
+    const gradeBoundaries = pattern?.grade_boundaries || [];
+
+    let totalRaw = 0;
+    let totalMarks = 0;
+    let maxTotal = 0;
+    let hasAnyMark = false;
+    let isAllAbsent = true;
+
+    components.forEach(comp => {
+      const scoreData = componentScores[comp.id] || componentScores[comp.component_code] || {};
+      const status = scoreData.status || 'MARKED';
+      const rawVal = scoreData.rawScore !== undefined ? scoreData.rawScore : scoreData.raw_score;
+      let convVal = scoreData.convertedScore !== undefined ? scoreData.convertedScore : scoreData.converted_score;
+
+      const rawMax = Number(comp.raw_max_marks || 100);
+      const convMax = Number(comp.converted_max_marks || rawMax);
+
+      if (status === 'MARKED' && rawVal !== null && rawVal !== undefined && rawVal !== '') {
+        hasAnyMark = true;
+        isAllAbsent = false;
+        const numRaw = Number(rawVal);
+        totalRaw += numRaw;
+
+        if (convVal === null || convVal === undefined || convVal === '') {
+          convVal = this.convertComponentScore(numRaw, comp, roundingRule);
+        } else {
+          convVal = Number(convVal);
+        }
+
+        if (comp.contributes_to_total !== false) {
+          totalMarks += (convVal || 0);
+          maxTotal += convMax;
+        }
+      } else if (status === 'ABSENT') {
+        hasAnyMark = true;
+        if (comp.contributes_to_total !== false) {
+          maxTotal += convMax;
+        }
+      } else if (status === 'NOT_APPLICABLE') {
+        // Excluded from total and max
+      }
+    });
+
+    totalMarks = this.applyRounding(totalMarks, roundingRule);
+    totalRaw = this.applyRounding(totalRaw, roundingRule);
+
+    let percentage = null;
+    if (maxTotal > 0 && hasAnyMark && !isAllAbsent) {
+      percentage = this.applyRounding((totalMarks / maxTotal) * 100, 'ROUND_2_DECIMALS');
+    } else if (isAllAbsent && hasAnyMark) {
+      percentage = 0;
+    }
+
+    let grade = null;
+    if (percentage !== null && gradeBoundaries && gradeBoundaries.length > 0) {
+      const matched = gradeBoundaries.find(b =>
+        percentage >= Number(b.min_percentage) && percentage <= Number(b.max_percentage)
+      );
+      if (matched) grade = matched.grade_name;
+    }
+
+    return {
+      totalMarks,
+      totalConverted: totalMarks,
+      maxTotal,
+      maxPossibleConverted: maxTotal,
+      totalRaw,
+      percentage,
+      grade,
+      hasAnyMark,
+      isAllAbsent
+    };
+  }
+
+  /**
    * Apply rounding rule to numeric score
    */
   static applyRounding(value, rule = 'ROUND_2_DECIMALS') {

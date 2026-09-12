@@ -111,7 +111,12 @@ export default function CoordinatorMarksReview() {
         };
       });
 
-      const calc = MarksCalculationEngine.calculateStudentScores(components, componentScores, pattern);
+      const calc = MarksCalculationEngine.calculateStudentScores(components, componentScores, pattern) || {
+        totalMarks: null,
+        maxTotal: 0,
+        percentage: null,
+        grade: null
+      };
 
       return {
         student,
