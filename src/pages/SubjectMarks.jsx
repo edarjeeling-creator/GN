@@ -426,7 +426,7 @@ const SubjectMarks = () => {
 
       {/* Assessment Pattern Information Card */}
       {!activePattern ? (
-        <div className="p-4 rounded-2xl bg-amber-950/50 border border-amber-500/50 text-amber-100 flex items-center gap-3 shadow-sm">
+        <div className="p-4 rounded-2xl bg-amber-950/60 border border-amber-500 text-amber-100 flex items-center gap-3 shadow-md">
           <AlertTriangle size={24} className="text-amber-400 shrink-0" />
           <div>
             <div className="font-bold text-sm text-amber-300">
@@ -438,23 +438,23 @@ const SubjectMarks = () => {
           </div>
         </div>
       ) : (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm">
+        <div className="bg-slate-900 border border-slate-700/80 rounded-2xl p-4 shadow-md">
           <div className="flex items-center justify-between flex-wrap gap-4 text-xs">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30">
+              <div className="p-2.5 rounded-xl bg-blue-500/20 text-blue-300 border border-blue-500/40">
                 <Info size={18} />
               </div>
               <div>
-                <span className="font-bold text-white text-sm">
-                  Active Assessment Pattern: <span className="text-blue-400">{activePattern.pattern_name}</span> (v{activePattern.version || 1})
-                </span>
+                <div className="font-bold text-white text-sm flex items-center gap-1.5">
+                  Active Assessment Pattern: <span className="text-blue-300 font-semibold">{activePattern.pattern_name}</span> <span className="text-xs text-slate-400 font-normal">(v{activePattern.version || 1})</span>
+                </div>
                 <p className="text-slate-300 mt-1 font-medium">
                   Components:{' '}
                   {components.map(c => `${c.component_name} (Raw Max: ${c.raw_max_marks} → Converted: ${c.converted_max_marks})`).join(' | ')}
                 </p>
               </div>
             </div>
-            <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-mono text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+            <div className="bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 font-mono text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold shadow-inner">
               <ShieldCheck size={14} className="text-emerald-400" />
               Formula: Converted = Raw × ConvertedMax / RawMax
             </div>
@@ -463,10 +463,10 @@ const SubjectMarks = () => {
       )}
 
       {/* Student Marks Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
+      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl overflow-hidden shadow-xl">
         <div className="p-4 border-b border-slate-800 bg-slate-900 flex justify-between items-center flex-wrap gap-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-base font-bold text-white tracking-tight">
+            <h2 className="text-base font-extrabold text-white tracking-tight">
               Student Roster ({filteredStudents.length} Students Enrolled)
             </h2>
           </div>
@@ -478,33 +478,33 @@ const SubjectMarks = () => {
                 value={globalFilter}
                 onChange={e => setGlobalFilter(e.target.value)}
                 placeholder="Search student or roll no..."
-                className="pl-8 pr-3 py-1.5 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 w-56"
+                className="pl-8 pr-3 py-1.5 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 w-56 font-medium"
               />
             </div>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-800 text-slate-200 font-bold border-b border-slate-700">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead className="bg-slate-800 text-slate-100 font-bold border-b border-slate-700">
               <tr>
-                <th className="p-3 w-16 text-center text-slate-300">Roll</th>
-                <th className="p-3 text-slate-200 font-bold">Student Name</th>
+                <th className="p-3 w-16 text-center text-slate-300 font-bold">Roll</th>
+                <th className="p-3 text-slate-100 font-bold text-sm">Student Name</th>
                 {components.map(comp => (
-                  <th key={comp.id} className="p-3 text-center min-w-[140px] text-slate-200">
-                    <div className="font-bold">{comp.component_name}</div>
-                    <div className="text-[10px] font-mono text-slate-400 font-normal mt-0.5">
+                  <th key={comp.id} className="p-3 text-center min-w-[140px] text-slate-100 font-bold">
+                    <div className="text-xs">{comp.component_name}</div>
+                    <div className="text-[11px] font-mono text-slate-300 font-medium mt-0.5">
                       Raw /{comp.raw_max_marks} (Weight: /{comp.converted_max_marks})
                     </div>
                   </th>
                 ))}
-                <th className="p-3 text-center min-w-[110px] bg-slate-850 text-slate-200">
-                  <div className="font-bold">Calculated Total</div>
-                  <div className="text-[10px] font-mono text-slate-400 font-normal mt-0.5">
+                <th className="p-3 text-center min-w-[110px] text-slate-100 font-bold">
+                  <div className="text-xs">Calculated Total</div>
+                  <div className="text-[11px] font-mono text-slate-300 font-medium mt-0.5">
                     /{components.reduce((acc, c) => acc + (c.converted_max_marks || c.raw_max_marks), 0)}
                   </div>
                 </th>
-                <th className="p-3 text-center w-24 bg-slate-850 text-slate-200 font-bold">
+                <th className="p-3 text-center w-24 text-slate-100 font-bold text-xs">
                   Grade
                 </th>
               </tr>
@@ -532,14 +532,12 @@ const SubjectMarks = () => {
                 return (
                   <tr 
                     key={student.id} 
-                    className={`hover:bg-slate-800/70 transition-colors ${
-                      idx % 2 === 0 ? 'bg-slate-900' : 'bg-slate-900/50'
-                    }`}
+                    className="border-b border-slate-800 bg-slate-900 hover:bg-slate-800/80 transition-colors"
                   >
-                    <td className="p-3 text-center font-mono font-bold text-slate-400">
+                    <td className="p-3 text-center font-mono font-bold text-slate-300 text-sm">
                       {student.roll_no}
                     </td>
-                    <td className="p-3 font-semibold text-white">
+                    <td className="p-3 font-bold text-white text-sm">
                       {formatStudentDisplayName(student.name)}
                     </td>
 
@@ -567,11 +565,11 @@ const SubjectMarks = () => {
                                   className={`w-24 text-center py-1.5 px-2 font-mono font-bold text-xs rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all ${
                                     isReadOnly 
                                       ? 'bg-slate-800 text-slate-400 border-slate-700 cursor-not-allowed'
-                                      : 'bg-slate-950 text-white border-slate-700 hover:border-slate-500 shadow-inner'
+                                      : 'bg-slate-950 text-white border-slate-600 hover:border-slate-400 shadow-inner'
                                   }`}
                                 />
                                 {comp.raw_max_marks !== comp.converted_max_marks && rawVal !== '' && (
-                                  <span className="block text-[10px] font-mono text-emerald-400 mt-0.5">
+                                  <span className="block text-[11px] font-mono text-emerald-400 font-semibold mt-0.5">
                                     ={converted}
                                   </span>
                                 )}
@@ -579,8 +577,8 @@ const SubjectMarks = () => {
                             ) : (
                               <span className={`px-3 py-1 font-bold text-[11px] rounded-lg font-mono ${
                                 stStatus === 'ABSENT' 
-                                  ? 'bg-rose-950/60 text-rose-300 border border-rose-500/50'
-                                  : 'bg-slate-800 text-slate-400 border border-slate-700'
+                                  ? 'bg-rose-950 text-rose-300 border border-rose-500/60'
+                                  : 'bg-slate-800 text-slate-300 border border-slate-600'
                               }`}>
                                 {stStatus}
                               </span>
@@ -621,25 +619,25 @@ const SubjectMarks = () => {
                     })}
 
                     {/* Calculated Total */}
-                    <td className="p-3 text-center bg-slate-900/80">
+                    <td className="p-3 text-center bg-slate-900">
                       <span className="font-mono font-bold text-sm text-white">
                         {result.hasAnyMark ? result.totalConverted : '—'}
                       </span>
                       {result.percentage !== null && (
-                        <span className="block text-[10px] text-slate-400 font-mono font-medium">
+                        <span className="block text-[11px] text-slate-300 font-mono font-semibold">
                           {result.percentage}%
                         </span>
                       )}
                     </td>
 
                     {/* Grade */}
-                    <td className="p-3 text-center bg-slate-900/80">
+                    <td className="p-3 text-center bg-slate-900">
                       {result.grade ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                           {result.grade}
                         </span>
                       ) : (
-                        <span className="text-slate-500">—</span>
+                        <span className="text-slate-500 font-semibold">—</span>
                       )}
                     </td>
                   </tr>
