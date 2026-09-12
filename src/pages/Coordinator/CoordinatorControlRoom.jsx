@@ -1,17 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
-import { useAuth } from '../../context/AuthContext';
 import { MarksWorkflowService } from '../../services/MarksWorkflowService';
 import { 
-  CheckCircle2, Lock, Clock, AlertTriangle, RotateCcw, 
+  CheckCircle2, Lock, Clock, RotateCcw, 
   FileText, Search, Eye, Printer, ShieldCheck, 
-  BarChart3, RefreshCw
+  RefreshCw
 } from 'lucide-react';
 
 export default function CoordinatorControlRoom() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
   const { classes, subjects, teacherSubjects, academicYear } = useData();
 
   const [selectedTerm, setSelectedTerm] = useState('Midterm');
@@ -268,14 +266,14 @@ export default function CoordinatorControlRoom() {
           onClick={() => setFilterStatus('DRAFT')}
           className={`cursor-pointer p-4 rounded-xl border transition-all ${
             filterStatus === 'DRAFT'
-              ? 'bg-slate-100 border-slate-300 dark:bg-slate-700 dark:border-slate-600'
-              : 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700'
+              ? 'bg-slate-800 border-slate-500 text-white ring-2 ring-slate-500/30'
+              : 'bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-300'
           }`}
         >
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
             <FileText size={12} /> In Draft
           </div>
-          <div className="text-2xl font-bold text-slate-700 dark:text-slate-300 mt-1">{overviewStats.draft}</div>
+          <div className="text-2xl font-bold text-slate-200 mt-1">{overviewStats.draft}</div>
         </div>
       </div>
 
@@ -284,8 +282,8 @@ export default function CoordinatorControlRoom() {
         <div className="flex flex-wrap items-center gap-3">
           {/* Academic Year */}
           <select
-            value={selectedAcademicYear}
-            onChange={e => setSelectedAcademicYear(e.target.value)}
+            value={selectedYear}
+            onChange={e => setSelectedYear(e.target.value)}
             className="px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-white text-sm font-medium focus:outline-none focus:border-indigo-500"
           >
             <option value="2026">Academic Year 2026-27</option>
