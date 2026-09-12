@@ -8,8 +8,7 @@ import Home from './pages/Home';
 import { About, Academics, Admissions, Faculty, Contact, Gallery } from './pages/PublicPages';
 import MandatoryDisclosures from './pages/MandatoryDisclosures';
 import { Capacitor } from '@capacitor/core';
-import MobileAppShell from './mobile/layouts/MobileAppShell';
-import MobileProtectedRoute from './mobile/components/MobileProtectedRoute';
+import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 
 // Lazy-loaded Dashboard & Feature Pages
@@ -49,12 +48,36 @@ const HPCAssessmentWorkspace = lazy(() => import('./pages/hpc/HPCAssessmentWorks
 const HPCReview = lazy(() => import('./pages/hpc/HPCReview'));
 const HPCStudentProfile = lazy(() => import('./pages/hpc/HPCStudentProfile'));
 
-// Mobile App Shell & Pages (Lazy-loaded)
-const MobileHome = lazy(() => import('./mobile/pages/MobileHome'));
-const MobileProfile = lazy(() => import('./mobile/pages/MobileProfile'));
-const MobileMessages = lazy(() => import('./mobile/pages/MobileMessages'));
-const MobileSettings = lazy(() => import('./mobile/pages/MobileSettings'));
-const MobileCalendar = lazy(() => import('./mobile/pages/MobileCalendar'));
+/**
+ * Entry point handler for Capacitor native mobile platform.
+ * Directly routes authenticated users to their ERP dashboard / role portal,
+ * or to login if unauthenticated — avoiding the public website on mobile devices.
+ */
+function NativeAppEntry() {
+  const { session, profile, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm font-medium text-slate-400">Loading Gyanoday Niketan...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session && profile?.role !== 'student') {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (profile?.role === 'student') return <Navigate to="/student-portal" replace />;
+  if (profile?.role === 'principal') return <Navigate to="/principal" replace />;
+  if (profile?.role === 'admin') return <Navigate to="/admin" replace />;
+  if (profile?.role === 'accountant') return <Navigate to="/fees" replace />;
+  if (profile?.role === 'librarian') return <Navigate to="/library" replace />;
+  return <Navigate to="/dashboard" replace />;
+}
 
 function App() {
   const isNative = Capacitor.isNativePlatform();
@@ -72,13 +95,17 @@ function App() {
             </div>
           }>
             <Routes>
-              {/* Mobile Native App Entry point redirection */}
-              {isNative && (
-                <Route path="/" element={<Navigate to="/m/dashboard" replace />} />
-              )}
-            
-            {/* Public Routes with PublicLayout */}
-            {!isNative && <Route path="/" element={<PublicLayout><Home /></PublicLayout>} /> }
+              {/* Root Route: On native app goes directly to ERP dashboard / login; on web shows public school website */}
+              <Route 
+                path="/" 
+                element={
+                  isNative ? (
+                    <NativeAppEntry />
+                  ) : (
+                    <PublicLayout><Home /></PublicLayout>
+                  )
+                } 
+              />
             <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
             <Route path="/academics" element={<PublicLayout><Academics /></PublicLayout>} />
             <Route path="/admissions" element={<PublicLayout><Admissions /></PublicLayout>} />
@@ -151,21 +178,8 @@ function App() {
               <Route path="/library" element={<LibrarianRoute><LibraryDashboard /></LibrarianRoute>} />
             </Route>
 
-            {/* Mobile App Specific Routes */}
-            <Route path="/m" element={<MobileProtectedRoute />}>
-              <Route element={<MobileAppShell />}>
-                <Route path="dashboard" element={<MobileHome />} />
-                <Route path="profile" element={<MobileProfile />} />
-                <Route path="messages" element={<MobileMessages />} />
-                <Route path="settings" element={<MobileSettings />} />
-                
-                {/* Fallbacks for features not yet implemented in mobile */}
-                <Route path="assignments" element={<div style={{padding: '24px'}}>Assignments coming soon</div>} />
-                <Route path="syllabus" element={<div style={{padding: '24px'}}>Syllabus coming soon</div>} />
-                <Route path="timetable" element={<div style={{padding: '24px'}}>Timetable coming soon</div>} />
-                <Route path="calendar" element={<MobileCalendar />} />
-              </Route>
-            </Route>
+            {/* Legacy mobile routes: redirect to unified ERP dashboard */}
+            <Route path="/m/*" element={<Navigate to="/dashboard" replace />} />
 
           </Routes>
           </Suspense>
