@@ -51,7 +51,8 @@ export default function CoordinatorMarksReview() {
       // 2. Fetch pattern with components and boundaries
       const patterns = await MarksWorkflowService.getAssessmentPatterns(sub.academic_year);
       const cls = classes.find(c => c.id === sub.class_id);
-      const activePattern = MarksCalculationEngine.resolvePatternForClass(patterns, cls?.name);
+      const activePattern = (sub.pattern_id ? patterns.find(p => p.id === sub.pattern_id) : null) || 
+                            MarksCalculationEngine.resolvePattern(cls?.name, sub.academic_year, patterns);
       setPattern(activePattern);
 
       // 3. Fetch detailed marks
@@ -87,8 +88,8 @@ export default function CoordinatorMarksReview() {
   // Roster of students for this class
   const classStudents = useMemo(() => {
     if (!submission?.class_id) return [];
-    return students
-      .filter(s => s.class_id === submission.class_id && s.status !== 'inactive')
+    return (students || [])
+      .filter(s => (s.class_id === submission.class_id || s.classId === submission.class_id) && s.status !== 'inactive')
       .sort((a, b) => (Number(a.roll_no) || 0) - (Number(b.roll_no) || 0));
   }, [students, submission]);
 

@@ -45,6 +45,19 @@ export class MarksCalculationEngine {
   }
 
   /**
+   * Alias helper: resolvePatternForClass
+   */
+  static resolvePatternForClass(arg1, arg2, academicYear = '2026') {
+    if (Array.isArray(arg1)) {
+      return this.resolvePattern(arg2, academicYear, arg1);
+    }
+    if (Array.isArray(arg2)) {
+      return this.resolvePattern(arg1, academicYear, arg2);
+    }
+    return this.resolvePattern(arg1, academicYear, arg2);
+  }
+
+  /**
    * Apply rounding rule to numeric score
    */
   static applyRounding(value, rule = 'ROUND_2_DECIMALS') {
