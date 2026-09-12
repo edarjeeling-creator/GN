@@ -10,7 +10,7 @@ import {
 
 export default function CoordinatorControlRoom() {
   const navigate = useNavigate();
-  const { classes, subjects, teacherSubjects, academicYear } = useData();
+  const { classes, subjects, teacherSubjects, students, academicYear } = useData();
 
   const [selectedTerm, setSelectedTerm] = useState('Midterm');
   const [selectedYear, setSelectedYear] = useState(academicYear || '2026');
@@ -18,6 +18,7 @@ export default function CoordinatorControlRoom() {
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [allYearSubmissions, setAllYearSubmissions] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [overviewStats, setOverviewStats] = useState({
     total: 0,
@@ -33,17 +34,23 @@ export default function CoordinatorControlRoom() {
   const loadSubmissions = async () => {
     setLoading(true);
     try {
-      const data = await MarksWorkflowService.getCoordinatorOverview(selectedYear, selectedTerm);
-      setSubmissions(data);
+      // Fetch all submissions for the academic year to support cross-term detection & filtering
+      const allData = await MarksWorkflowService.getCoordinatorOverview(selectedYear, 'ALL');
+      setAllYearSubmissions(allData || []);
+
+      const relevantData = selectedTerm === 'ALL'
+        ? (allData || [])
+        : (allData || []).filter(s => s.term === selectedTerm);
+      setSubmissions(relevantData);
 
       const stats = {
-        total: data.length,
-        draft: data.filter(s => s.status === 'DRAFT').length,
-        submitted: data.filter(s => s.status === 'SUBMITTED' || s.status === 'RESUBMITTED').length,
-        underReview: data.filter(s => s.status === 'UNDER_REVIEW').length,
-        returned: data.filter(s => s.status === 'RETURNED_FOR_CORRECTION').length,
-        approved: data.filter(s => s.status === 'APPROVED').length,
-        locked: data.filter(s => s.status === 'LOCKED').length,
+        total: relevantData.length,
+        draft: relevantData.filter(s => s.status === 'DRAFT').length,
+        submitted: relevantData.filter(s => s.status === 'SUBMITTED' || s.status === 'RESUBMITTED').length,
+        underReview: relevantData.filter(s => s.status === 'UNDER_REVIEW').length,
+        returned: relevantData.filter(s => s.status === 'RETURNED_FOR_CORRECTION').length,
+        approved: relevantData.filter(s => s.status === 'APPROVED').length,
+        locked: relevantData.filter(s => s.status === 'LOCKED').length,
       };
       setOverviewStats(stats);
     } catch (err) {
@@ -57,41 +64,100 @@ export default function CoordinatorControlRoom() {
     loadSubmissions();
   }, [selectedYear, selectedTerm]);
 
+  // Alert if pending submissions exist in another term
+  const otherTermAlert = useMemo(() => {
+    if (selectedTerm === 'ALL') return null;
+    const otherTerm = selectedTerm === 'Midterm' ? 'Finalterm' : 'Midterm';
+    const otherTermLabel = otherTerm === 'Midterm' ? 'Mid-Term Examination' : 'Final-Term Examination';
+    const pendingCount = (allYearSubmissions || []).filter(s => 
+      s.term === otherTerm && (s.status === 'SUBMITTED' || s.status === 'RESUBMITTED')
+    ).length;
+    
+    if (pendingCount > 0) {
+      return {
+        term: otherTerm,
+        label: otherTermLabel,
+        count: pendingCount
+      };
+    }
+    return null;
+  }, [allYearSubmissions, selectedTerm]);
+
   // Combine loaded submissions with all registered class subjects so empty/not-yet-entered subjects show up
   const fullRosterMatrix = useMemo(() => {
     const list = [];
     if (!classes || !subjects) return list;
 
+    const matchedSubmissionIds = new Set();
+
     classes.forEach(cls => {
       const assignedSubjectIds = teacherSubjects?.[cls.id] || [];
-      subjects.forEach(sub => {
-        // If subject is assigned or class is relevant
-        const isAssigned = assignedSubjectIds.includes(sub.id);
-        if (!isAssigned && assignedSubjectIds.length > 0) return;
+      const classStudents = (students || []).filter(s => (s.class_id === cls.id || s.classId === cls.id) && s.status !== 'inactive');
+      const totalStudentsCount = classStudents.length;
 
-        // Find existing submission
-        const existing = submissions.find(s => s.class_id === cls.id && s.subject_id === sub.id);
+      subjects.forEach(sub => {
+        const isAssigned = assignedSubjectIds.includes(sub.id);
+        const existing = (submissions || []).find(s => 
+          s.class_id === cls.id && 
+          s.subject_id === sub.id && 
+          (selectedTerm === 'ALL' || s.term === selectedTerm)
+        );
+
+        // If not assigned and no submission exists, skip if specific subjects are mapped
+        if (!isAssigned && assignedSubjectIds.length > 0 && !existing) return;
+
+        if (existing) {
+          matchedSubmissionIds.add(existing.id);
+        }
+
         list.push({
-          key: `${cls.id}_${sub.id}`,
+          key: `${cls.id}_${sub.id}_${existing?.term || selectedTerm}`,
           class_id: cls.id,
           className: cls.name,
           section: cls.section || 'A',
           subject_id: sub.id,
           subjectName: sub.name,
+          term: existing?.term || selectedTerm,
           teacherName: existing?.teacher_name || 'Assigned Subject Teacher',
           submissionId: existing?.id,
           status: existing?.status || 'NOT_STARTED',
           submittedAt: existing?.submitted_at,
           returnedReason: existing?.return_reason,
           lockedAt: existing?.locked_at,
-          totalStudents: existing?.total_students || 0,
+          totalStudents: totalStudentsCount || existing?.total_students || 0,
           markedStudents: existing?.marked_students || 0
         });
       });
     });
 
+    // Also include any submissions returned by the database that weren't matched in classes/subjects loops
+    (submissions || []).forEach(subm => {
+      if (!matchedSubmissionIds.has(subm.id)) {
+        const cls = classes.find(c => c.id === subm.class_id);
+        const sub = subjects.find(s => s.id === subm.subject_id);
+        const classStudents = (students || []).filter(s => (s.class_id === subm.class_id || s.classId === subm.class_id) && s.status !== 'inactive');
+        list.push({
+          key: subm.id,
+          class_id: subm.class_id,
+          className: cls?.name || subm.className || 'Class',
+          section: cls?.section || subm.section || 'A',
+          subject_id: subm.subject_id,
+          subjectName: sub?.name || subm.subjectName || 'Subject',
+          term: subm.term,
+          teacherName: subm.teacher_name || 'Assigned Subject Teacher',
+          submissionId: subm.id,
+          status: subm.status || 'SUBMITTED',
+          submittedAt: subm.submitted_at,
+          returnedReason: subm.return_reason,
+          lockedAt: subm.locked_at,
+          totalStudents: classStudents.length || subm.total_students || 0,
+          markedStudents: subm.marked_students || 0
+        });
+      }
+    });
+
     return list;
-  }, [classes, subjects, teacherSubjects, submissions]);
+  }, [classes, subjects, teacherSubjects, students, submissions, selectedTerm]);
 
   // Filtered rows
   const filteredRows = useMemo(() => {
@@ -108,7 +174,8 @@ export default function CoordinatorControlRoom() {
         const q = searchQuery.toLowerCase();
         const matchName = row.className.toLowerCase().includes(q) || 
                           row.subjectName.toLowerCase().includes(q) ||
-                          row.teacherName.toLowerCase().includes(q);
+                          row.teacherName.toLowerCase().includes(q) ||
+                          row.term?.toLowerCase().includes(q);
         if (!matchName) return false;
       }
       return true;
@@ -277,6 +344,30 @@ export default function CoordinatorControlRoom() {
         </div>
       </div>
 
+      {/* Cross-Term Pending Alert */}
+      {otherTermAlert && (
+        <div className="bg-amber-950/40 border border-amber-500/60 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-200 shadow-md">
+          <div className="flex items-center gap-3">
+            <Clock className="text-amber-400 shrink-0" size={20} />
+            <div>
+              <div className="text-sm font-bold text-amber-200">
+                {otherTermAlert.count} Marksheet Submission(s) Awaiting Review in {otherTermAlert.label}
+              </div>
+              <div className="text-xs text-amber-300/80">
+                You are currently viewing {selectedTerm === 'Midterm' ? 'Mid-Term Examination' : 'Final-Term Examination'}. Switch term to verify and approve.
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSelectedTerm(otherTermAlert.term)}
+            className="self-start sm:self-auto px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold transition shadow shrink-0 cursor-pointer"
+          >
+            Switch to {otherTermAlert.label}
+          </button>
+        </div>
+      )}
+
       {/* Filter Bar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-slate-900 p-4 rounded-xl border border-slate-800">
         <div className="flex flex-wrap items-center gap-3">
@@ -298,6 +389,7 @@ export default function CoordinatorControlRoom() {
           >
             <option value="Midterm">Mid-Term Examination</option>
             <option value="Finalterm">Final-Term Examination</option>
+            <option value="ALL">All Terms (Mid & Final)</option>
           </select>
 
           {/* Class */}
@@ -372,7 +464,12 @@ export default function CoordinatorControlRoom() {
                       {row.className} <span className="text-slate-400 font-normal">({row.section})</span>
                     </td>
                     <td className="py-3.5 px-4 text-slate-200 font-medium">
-                      {row.subjectName}
+                      <div>{row.subjectName}</div>
+                      {selectedTerm === 'ALL' && (
+                        <span className="inline-block mt-0.5 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-indigo-300 border border-slate-700">
+                          {row.term === 'Midterm' ? 'Mid-Term' : 'Final-Term'}
+                        </span>
+                      )}
                     </td>
                     <td className="py-3.5 px-4 text-slate-400">
                       {row.teacherName}

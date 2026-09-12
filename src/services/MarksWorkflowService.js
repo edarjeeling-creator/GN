@@ -264,6 +264,93 @@ export class MarksWorkflowService {
 
     return data;
   }
+
+  /**
+   * Fetch all submissions for coordinator control room with teacher names and mark counts
+   */
+  static async getCoordinatorOverview(academicYear = '2026', term = null) {
+    try {
+      let query = supabase
+        .from('class_subject_mark_submissions')
+        .select(`
+          *,
+          teacher:profiles!teacher_id(id, name, email)
+        `)
+        .eq('academic_year', academicYear);
+
+      if (term && term !== 'ALL') {
+        query = query.eq('term', term);
+      }
+
+      let { data: submissions, error } = await query.order('updated_at', { ascending: false });
+
+      if (error) {
+        console.warn('Joined query for submissions failed, trying direct select:', error.message);
+        let fbQuery = supabase
+          .from('class_subject_mark_submissions')
+          .select('*')
+          .eq('academic_year', academicYear);
+
+        if (term && term !== 'ALL') {
+          fbQuery = fbQuery.eq('term', term);
+        }
+
+        const { data: fbData, error: fbErr } = await fbQuery.order('updated_at', { ascending: false });
+        if (fbErr) {
+          console.error('Error in fallback submissions query:', fbErr);
+          return [];
+        }
+        submissions = fbData || [];
+
+        // Fetch teacher names
+        const teacherIds = [...new Set(submissions.map(s => s.teacher_id).filter(Boolean))];
+        if (teacherIds.length > 0) {
+          const { data: teachers } = await supabase
+            .from('profiles')
+            .select('id, name')
+            .in('id', teacherIds);
+          const tMap = {};
+          (teachers || []).forEach(t => { tMap[t.id] = t.name; });
+          submissions = submissions.map(s => ({
+            ...s,
+            teacher_name: tMap[s.teacher_id] || 'Assigned Subject Teacher'
+          }));
+        }
+      }
+
+      if (!submissions || submissions.length === 0) {
+        return [];
+      }
+
+      // Fetch marked student counts for these submissions
+      const subIds = submissions.map(s => s.id);
+      const { data: detailedMarks, error: dErr } = await supabase
+        .from('student_marks_detailed')
+        .select('submission_id, student_id, raw_score, status')
+        .in('submission_id', subIds);
+
+      const markedCounts = {};
+      if (!dErr && detailedMarks) {
+        detailedMarks.forEach(dm => {
+          if ((dm.raw_score !== null && dm.raw_score !== undefined && dm.raw_score !== '') || dm.status === 'ABSENT') {
+            if (!markedCounts[dm.submission_id]) {
+              markedCounts[dm.submission_id] = new Set();
+            }
+            markedCounts[dm.submission_id].add(dm.student_id);
+          }
+        });
+      }
+
+      return submissions.map(s => ({
+        ...s,
+        teacher_name: s.teacher?.name || s.teacher_name || 'Assigned Subject Teacher',
+        marked_students: markedCounts[s.id] ? markedCounts[s.id].size : 0
+      }));
+    } catch (err) {
+      console.error('Unexpected error in getCoordinatorOverview:', err);
+      return [];
+    }
+  }
 }
 
 export default MarksWorkflowService;
