@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
-import { supabase } from '../lib/supabase';
-import { ArrowLeft, Printer, User } from 'lucide-react';
+import { ArrowLeft, Printer, User, Lock, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { MarksWorkflowService } from '../services/MarksWorkflowService';
 import { getConversionConstants } from './SubjectMarks';
 import { getGroupsForClass, getDynamicSubjectName, calculateAttendancePercentage, getGrade, getGradeColor } from '../utils/reportUtils';
 import { formatStudentDisplayName } from '../utils/studentUtils';
@@ -11,11 +12,14 @@ const ReportCards = () => {
   const { classId } = useParams();
   const navigate = useNavigate();
   const { classes, subjects, students, teacherSubjects, marks, attendance, academicYear } = useData();
+  const { profile } = useAuth();
 
   const cls = classes.find(c => c.id === classId);
   const classStudents = students.filter(s => s.class_id === classId);
   const [templates, setTemplates] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [readiness, setReadiness] = useState({ isReady: true, pendingSubjectsCount: 0, unlockedSubjects: [] });
+  const [checkingReadiness, setCheckingReadiness] = useState(true);
   
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -29,6 +33,48 @@ const ReportCards = () => {
     };
     fetchTemplates();
   }, []);
+
+  useEffect(() => {
+    const checkReadiness = async () => {
+      if (!classId) return;
+      setCheckingReadiness(true);
+      try {
+        const termPrefix = activeTemplate.type === 'Final-Term' ? 'Finalterm' : 'Midterm';
+        const res = await MarksWorkflowService.verifyReportReadiness({
+          classId,
+          academicYear: settings.academicYear || academicYear,
+          term: termPrefix
+        });
+        setReadiness(res);
+      } catch (err) {
+        console.warn('Readiness check notice:', err);
+      } finally {
+        setCheckingReadiness(false);
+      }
+    };
+    checkReadiness();
+  }, [classId, activeTemplate?.type, academicYear]);
+
+  const handlePrintCards = async () => {
+    if (!readiness.isReady) {
+      alert(`Official report printing is locked. ${readiness.pendingSubjectsCount} subject(s) are awaiting Coordinator approval and lock.`);
+      return;
+    }
+    try {
+      const termPrefix = activeTemplate.type === 'Final-Term' ? 'Finalterm' : 'Midterm';
+      await MarksWorkflowService.logPrintEvent({
+        classId,
+        academicYear: settings.academicYear || academicYear,
+        term: termPrefix,
+        reportVersion: `${termPrefix.toUpperCase()}-${academicYear}-V1`,
+        studentCount: reportCardsData.length,
+        notes: `Printed from ReportCards screen by ${profile?.name || 'Staff'}`
+      });
+    } catch (err) {
+      console.warn('Print log notice:', err);
+    }
+    window.print();
+  };
 
   const activeTemplate = templates.find(t => t.id === selectedTemplateId) || {
     settings: {
@@ -174,11 +220,43 @@ const ReportCards = () => {
               {templates.map(t => <option key={t.id} value={t.id}>{t.name} ({t.type})</option>)}
             </select>
           )}
-          <button className="btn btn-primary" onClick={() => window.print()}>
-            <Printer size={18} /> Print All Cards
-          </button>
+          {readiness.isReady ? (
+            <button className="btn btn-primary" onClick={handlePrintCards}>
+              <Printer size={18} /> Print All Cards
+            </button>
+          ) : (
+            <button 
+              disabled 
+              className="btn bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed flex items-center gap-1.5"
+              title="Official printing is locked until all subjects are approved and locked by Coordinator"
+            >
+              <Lock size={16} /> Official Printing Locked
+            </button>
+          )}
         </div>
       </div>
+
+      {!readiness.isReady && (
+        <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 p-4 rounded-xl mb-6 text-xs text-amber-900 dark:text-amber-200 no-print flex items-start gap-3 shadow-sm">
+          <AlertTriangle size={20} className="text-amber-600 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <div className="font-bold text-sm text-amber-800 dark:text-amber-300">
+              Official Report Printing Locked by Coordinator
+            </div>
+            <div>
+              Server Gatekeeper: Official report card generation and printing is blocked until 100% of required subjects are verified, approved, and locked by the School Coordinator.
+            </div>
+            <div className="font-semibold text-amber-700 dark:text-amber-400 mt-1">
+              {readiness.pendingSubjectsCount} Subject(s) Currently Pending Lock:
+            </div>
+            <ul className="list-disc pl-4 space-y-0.5 text-slate-700 dark:text-slate-300">
+              {readiness.unlockedSubjects?.map((s, idx) => (
+                <li key={idx}><strong>{s.subjectName}</strong> — Status: <span className="uppercase font-semibold">{s.status}</span></li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @media print {

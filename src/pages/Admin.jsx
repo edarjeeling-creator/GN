@@ -25,6 +25,7 @@ import MonthlyAttendanceReport from './Admin/MonthlyAttendanceReport';
 import CalendarManager from './Admin/CalendarManager';
 import DiscussionPanel from '../components/chat/DiscussionPanel';
 import MessageCMS from './Admin/MessageCMS';
+import AcademicAssessmentConfig from './Admin/AcademicAssessmentConfig';
 
 const Admin = () => {
   const { logout, profile } = useAuth();
@@ -775,6 +776,12 @@ const Admin = () => {
           style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'message_cms' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'message_cms' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: activeTab === 'message_cms' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '1rem' }}
         >
           Message CMS
+        </button>
+        <button 
+          onClick={() => setActiveTab('assessment_config')}
+          style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'assessment_config' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'assessment_config' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: activeTab === 'assessment_config' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '1rem' }}
+        >
+          Assessment Schemes
         </button>
       </div>
 
@@ -1633,6 +1640,9 @@ const Admin = () => {
 
       {/* Message CMS */}
       {activeTab === 'message_cms' && <MessageCMS />}
+
+      {/* Academic Assessment Configuration */}
+      {activeTab === 'assessment_config' && <AcademicAssessmentConfig />}
 
       <input 
         type="file" 

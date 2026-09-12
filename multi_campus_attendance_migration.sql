@@ -273,6 +273,7 @@ CREATE TABLE IF NOT EXISTS public.teacher_attendance (
 );
 
 ALTER TABLE public.teacher_attendance 
+  ADD COLUMN IF NOT EXISTS working_hours TEXT,
   ADD COLUMN IF NOT EXISTS check_in_method TEXT DEFAULT 'DIRECT',
   ADD COLUMN IF NOT EXISTS check_out_method TEXT,
   ADD COLUMN IF NOT EXISTS check_in_verification_status TEXT DEFAULT 'UNVERIFIED',
@@ -932,7 +933,7 @@ BEGIN
     'checkOutTime', v_record.check_out_time,
     'distanceMeters', ROUND(v_distance_meters::NUMERIC, 1),
     'accuracyMeters', ROUND(p_accuracy::NUMERIC, 1),
-    'workingHours', v_record.working_hours,
+    'workingHours', v_working_hours_str,
     'serverTimestamp', v_now
   );
 END;

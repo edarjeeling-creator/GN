@@ -4,6 +4,7 @@
 
 -- 1. EXTEND TEACHER_ATTENDANCE TABLE SAFELY
 ALTER TABLE public.teacher_attendance 
+  ADD COLUMN IF NOT EXISTS working_hours TEXT,
   ADD COLUMN IF NOT EXISTS check_in_method TEXT DEFAULT 'DIRECT',
   ADD COLUMN IF NOT EXISTS check_out_method TEXT,
   ADD COLUMN IF NOT EXISTS check_in_verification_status TEXT DEFAULT 'UNVERIFIED',
@@ -422,7 +423,7 @@ BEGIN
     'status', v_record.status,
     'checkInTime', v_record.check_in_time,
     'checkOutTime', v_record.check_out_time,
-    'workingHours', v_record.working_hours,
+    'workingHours', v_working_hours_str,
     'verificationStatus', 'VERIFIED',
     'distanceMeters', v_distance_meters
   );

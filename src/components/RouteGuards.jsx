@@ -45,6 +45,19 @@ export const PrincipalRoute = ({ children }) => {
   return children;
 };
 
+export const CoordinatorRoute = ({ children }) => {
+  const { profile, loading } = useAuth();
+  if (loading) return <div>Loading...</div>;
+  const isCoordinator = profile && (
+    profile.role === 'coordinator' || 
+    profile.role === 'admin' || 
+    profile.role === 'principal' ||
+    (profile.designation && profile.designation.toLowerCase().includes('coordinator'))
+  );
+  if (!isCoordinator) return <Navigate to="/dashboard" />;
+  return children;
+};
+
 export const ParentRoute = ({ children }) => {
   const { profile, loading } = useAuth();
   if (loading) return <div>Loading...</div>;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, User, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText, AlertTriangle, Lock, Menu, X, Wallet, MessageSquare, ClipboardCheck } from 'lucide-react';
+import { LayoutDashboard, Users, User, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText, AlertTriangle, Lock, Menu, X, Wallet, MessageSquare, ClipboardCheck, CheckCircle2, Printer } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeProvider';
@@ -563,6 +563,17 @@ const Layout = ({ children }) => {
               </>
             );
           })()}
+
+          {(profile?.role === 'coordinator' || profile?.role === 'admin' || profile?.role === 'principal' || (profile?.designation && profile.designation.toLowerCase().includes('coordinator'))) && (
+            <>
+              <NavLink to="/coordinator/marks" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                <CheckCircle2 size={18} /> Marks Control Room
+              </NavLink>
+              <NavLink to="/coordinator/reports" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                <Printer size={18} /> Report Gatekeeper
+              </NavLink>
+            </>
+          )}
 
           {(profile?.role === 'principal' || profile?.role === 'admin') && (
             <>

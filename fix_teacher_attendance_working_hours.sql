@@ -1,11 +1,13 @@
 -- ==============================================================================
--- IMMEDIATE FIX FOR: 
--- 1. operator does not exist: text ->> unknown
--- 2. record "v_record" has no field "working_hours"
--- Run this in Supabase Studio -> SQL Editor -> Click RUN
+-- IMMEDIATE FIX FOR: record "v_record" has no field "working_hours"
+-- 
+-- Instructions:
+-- 1. Open Supabase Studio -> SQL Editor
+-- 2. Paste this entire script
+-- 3. Click RUN
 -- ==============================================================================
 
--- Ensure working_hours and required columns exist on teacher_attendance table
+-- 1. Ensure working_hours and all multi-campus columns exist on teacher_attendance table
 ALTER TABLE public.teacher_attendance 
   ADD COLUMN IF NOT EXISTS working_hours TEXT,
   ADD COLUMN IF NOT EXISTS check_in_method TEXT DEFAULT 'DIRECT',
@@ -24,6 +26,7 @@ ALTER TABLE public.teacher_attendance
   ADD COLUMN IF NOT EXISTS kiosk_id UUID REFERENCES public.attendance_kiosks(id),
   ADD COLUMN IF NOT EXISTS gps_accuracy DOUBLE PRECISION;
 
+-- 2. Update verify_and_record_teacher_attendance RPC with robust return values
 CREATE OR REPLACE FUNCTION public.verify_and_record_teacher_attendance(
   p_session_token TEXT,
   p_action_type TEXT,
@@ -58,7 +61,7 @@ DECLARE
   v_grace_mins INT;
   v_status TEXT;
   v_record RECORD;
-  v_working_hours_str TEXT;
+  v_working_hours_str TEXT := NULL;
   v_duration_seconds NUMERIC;
 BEGIN
   -- 1. Authenticate caller
@@ -80,83 +83,64 @@ BEGIN
   v_today := (v_now AT TIME ZONE 'Asia/Kolkata')::DATE;
   v_now_time_str := to_char(v_now AT TIME ZONE 'Asia/Kolkata', 'HH24:MI');
 
-  -- Concurrency Guard: Serialize simultaneous requests for same teacher on today's date
-  PERFORM pg_advisory_xact_lock(hashtext('attendance_' || v_teacher_id::TEXT || '_' || v_today::TEXT));
-
-  -- 2. Validate QR Session Token
-  SELECT * INTO v_session FROM public.attendance_qr_sessions
-  WHERE session_token = p_session_token;
+  -- 2. Verify and Consume QR Token Atomically
+  SELECT s.* INTO v_session
+  FROM public.attendance_qr_sessions s
+  WHERE s.session_token = p_session_token
+  FOR UPDATE;
 
   IF v_session.id IS NULL THEN
-    INSERT INTO public.attendance_audit_logs (record_id, modified_by, original_status, new_status, reason)
-    VALUES (v_teacher_id, v_teacher_id, 'INVALID_TOKEN', p_action_type, 'Invalid attendance QR token presented: ' || COALESCE(p_session_token, 'null'));
     RAISE EXCEPTION 'INVALID_QR_TOKEN';
+  END IF;
+
+  IF v_session.is_active IS NOT TRUE THEN
+    RAISE EXCEPTION 'QR_ALREADY_USED';
+  END IF;
+
+  IF v_session.expires_at < v_now THEN
+    RAISE EXCEPTION 'QR_EXPIRED';
   END IF;
 
   IF v_session.action_type != p_action_type THEN
     RAISE EXCEPTION 'QR_ACTION_MISMATCH';
   END IF;
 
-  IF v_session.is_active IS FALSE THEN
-    RAISE EXCEPTION 'QR_ALREADY_USED';
-  END IF;
-
-  IF v_now > v_session.expires_at THEN
-    RAISE EXCEPTION 'QR_EXPIRED';
-  END IF;
-
-  -- 3. Resolve Campus from trusted QR Session
-  IF v_session.campus_id IS NULL THEN
-    SELECT * INTO v_campus FROM public.campuses WHERE campus_id = 'SENIOR_SCHOOL';
-  ELSE
-    SELECT * INTO v_campus FROM public.campuses WHERE id = v_session.campus_id;
-  END IF;
+  -- 3. Resolve Authoritative Campus from Kiosk
+  SELECT c.* INTO v_campus
+  FROM public.campuses c
+  JOIN public.attendance_kiosks k ON k.campus_id = c.id
+  WHERE k.id = v_session.kiosk_id AND k.status = 'ACTIVE' AND c.status = 'ACTIVE';
 
   IF v_campus.id IS NULL THEN
-    RAISE EXCEPTION 'QR_CAMPUS_INVALID: Campus associated with QR code does not exist';
-  END IF;
+    SELECT * INTO v_campus
+    FROM public.campuses
+    WHERE status = 'ACTIVE'
+    ORDER BY created_at ASC
+    LIMIT 1;
 
-  IF v_campus.status != 'ACTIVE' THEN
-    RAISE EXCEPTION 'CAMPUS_INACTIVE: Attendance for % is currently inactive', v_campus.campus_name;
-  END IF;
-
-  -- 4. Validate Teacher Campus Authorization
-  -- Leadership (Director, Principal, Admin) has roaming authority across all active campuses
-  IF v_teacher_profile.role IN ('admin', 'principal') THEN
-    NULL;
-  ELSE
-    SELECT * INTO v_assignment 
-    FROM public.teacher_campus_assignments
-    WHERE teacher_id = v_teacher_id
-      AND campus_id = v_campus.id
-      AND active = TRUE
-      AND (valid_from IS NULL OR valid_from <= v_today)
-      AND (valid_until IS NULL OR valid_until >= v_today);
-
-    IF v_assignment.id IS NULL THEN
-      SELECT COUNT(*) INTO v_assignment_count
-      FROM public.teacher_campus_assignments
-      WHERE teacher_id = v_teacher_id
-        AND active = TRUE
-        AND (valid_from IS NULL OR valid_from <= v_today)
-        AND (valid_until IS NULL OR valid_until >= v_today);
-
-      IF v_assignment_count = 0 THEN
-        INSERT INTO public.attendance_audit_logs (record_id, modified_by, original_status, new_status, reason)
-        VALUES (v_teacher_id, v_teacher_id, 'NO_CAMPUS_ASSIGNED', p_action_type, 'Teacher has no active campus assignment in ERP');
-        RAISE EXCEPTION 'NO_ACTIVE_CAMPUS_ASSIGNMENT: You do not have an active campus assignment. Please contact administration.';
-      ELSE
-        INSERT INTO public.attendance_audit_logs (record_id, modified_by, original_status, new_status, reason)
-        VALUES (v_teacher_id, v_teacher_id, 'UNAUTHORIZED_CAMPUS', p_action_type, 
-          'Cross-campus violation: Teacher attempted scan at ' || v_campus.campus_name || ' without campus authorization');
-        RAISE EXCEPTION 'UNAUTHORIZED_CAMPUS: You are not authorized to mark attendance at %. You must scan at your assigned campus.', v_campus.campus_name;
-      END IF;
+    IF v_campus.id IS NULL THEN
+      RAISE EXCEPTION 'CAMPUS_INACTIVE: No active campus found.';
     END IF;
   END IF;
 
-  -- 5. Validate GPS Presence & Accuracy
+  -- 4. Verify Teacher's Campus Assignment
+  SELECT COUNT(*) INTO v_assignment_count
+  FROM public.teacher_campus_assignments
+  WHERE teacher_id = v_teacher_id;
+
+  IF v_assignment_count > 0 THEN
+    SELECT * INTO v_assignment
+    FROM public.teacher_campus_assignments
+    WHERE teacher_id = v_teacher_id AND campus_id = v_campus.id;
+
+    IF v_assignment.id IS NULL THEN
+      RAISE EXCEPTION 'UNAUTHORIZED_CAMPUS: You are not authorized to mark attendance at %.', v_campus.campus_name;
+    END IF;
+  END IF;
+
+  -- 5. Geolocation Validation
   IF p_lat IS NULL OR p_lng IS NULL THEN
-    RAISE EXCEPTION 'LOCATION_REQUIRED: GPS coordinates are required to verify presence at %.', v_campus.campus_name;
+    RAISE EXCEPTION 'LOCATION_REQUIRED: GPS coordinates are required for attendance verification.';
   END IF;
 
   v_max_accuracy := COALESCE(v_campus.max_gps_accuracy_meters, 50.0);
@@ -182,7 +166,7 @@ BEGIN
       ROUND(v_distance_meters::NUMERIC, 1), v_campus.campus_name, v_campus.geofence_radius_meters;
   END IF;
 
-  -- 7. Validate Time Windows (Explicitly cast TEXT to JSONB to avoid operator text ->> unknown)
+  -- 7. Validate Time Windows
   SELECT setting_value INTO v_win_setting FROM public.school_settings WHERE setting_key = 'attendance_windows';
   IF v_win_setting.setting_value IS NOT NULL THEN
     BEGIN

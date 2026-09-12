@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeProvider';
 import ProtectedRoute from './components/ProtectedRoute';
-import { AdminRoute, TeacherRoute, StudentRoute, PrincipalRoute, FeatureRoute, ParentRoute, AccountantRoute, LibrarianRoute } from './components/RouteGuards';
+import { AdminRoute, TeacherRoute, StudentRoute, PrincipalRoute, FeatureRoute, ParentRoute, AccountantRoute, LibrarianRoute, CoordinatorRoute } from './components/RouteGuards';
 import PublicLayout from './components/PublicLayout';
 import Home from './pages/Home';
 import { About, Academics, Admissions, Faculty, Contact, Gallery } from './pages/PublicPages';
@@ -21,6 +21,9 @@ const Flowsheet = lazy(() => import('./pages/Flowsheet'));
 const ReportCards = lazy(() => import('./pages/ReportCards'));
 const ResultPortal = lazy(() => import('./pages/ResultPortal'));
 const PrincipalPortal = lazy(() => import('./pages/PrincipalPortal'));
+const CoordinatorControlRoom = lazy(() => import('./pages/Coordinator/CoordinatorControlRoom'));
+const CoordinatorMarksReview = lazy(() => import('./pages/Coordinator/CoordinatorMarksReview'));
+const ReportPrintingControl = lazy(() => import('./pages/Coordinator/ReportPrintingControl'));
 const StudentPortal = lazy(() => import('./pages/StudentPortal'));
 const ParentPortal = lazy(() => import('./pages/ParentPortal'));
 const StudyMaterials = lazy(() => import('./pages/StudyMaterials'));
@@ -120,6 +123,11 @@ function App() {
               <Route path="/classes/:classId/reports" element={<TeacherRoute><ReportCards /></TeacherRoute>} />
               <Route path="/attendance" element={<TeacherRoute><Attendance /></TeacherRoute>} />
               <Route path="/weekly-tests" element={<TeacherRoute><WeeklyTests /></TeacherRoute>} />
+
+              {/* Coordinator Routes */}
+              <Route path="/coordinator/marks" element={<CoordinatorRoute><CoordinatorControlRoom /></CoordinatorRoute>} />
+              <Route path="/coordinator/review/:submissionId" element={<CoordinatorRoute><CoordinatorMarksReview /></CoordinatorRoute>} />
+              <Route path="/coordinator/reports" element={<CoordinatorRoute><ReportPrintingControl /></CoordinatorRoute>} />
 
               {/* Principal & Admin Routes */}
               <Route path="/principal" element={<PrincipalRoute><PrincipalPortal /></PrincipalRoute>} />
