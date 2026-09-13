@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
 import { Trophy, AlertCircle, Frown, Printer } from 'lucide-react';
 import { getConversionConstants } from '../pages/SubjectMarks';
-import { getStudentHouse } from '../utils/houseData';
+import { getStudentHouse, getHouseBadgeColor } from '../utils/houseData';
 
 const AcademicReports = ({ preselectedClassId, preselectedSubjectId, preselectedTerm, hideControls }) => {
   const { classes, subjects, students, marks, academicYear } = useData();
@@ -83,6 +83,7 @@ const AcademicReports = ({ preselectedClassId, preselectedSubjectId, preselected
   }, [selectedClassId, selectedSubjectId, selectedTerm, academicYear]);
 
   const selectedClass = classes.find(c => c.id === selectedClassId);
+  const selectedClassName = selectedClass ? `${selectedClass.name || ''} ${selectedClass.section || ''}`.trim() : '';
   const classStudents = students.filter(s => s.class_id === selectedClassId || s.classId === selectedClassId);
 
   const { examConv } = getConversionConstants(selectedClass?.name);
@@ -241,13 +242,16 @@ const AcademicReports = ({ preselectedClassId, preselectedSubjectId, preselected
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white shadow-sm ${scoreObj.rank === 1 ? 'bg-yellow-500' : scoreObj.rank === 2 ? 'bg-slate-400' : 'bg-amber-600'} print:shadow-none print:border print:border-slate-300 print:text-slate-800 print:bg-white`}>
                           {scoreObj.rank}
                         </div>
-                        <div className="flex flex-col">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-[var(--text-primary)] print:text-black">{scoreObj.student.name}</span>
-                          {getStudentHouse(scoreObj.student.name) && (
-                            <span className="text-xs font-medium text-slate-500 print:text-slate-600">
-                              House: {getStudentHouse(scoreObj.student.name)}
-                            </span>
-                          )}
+                          {(() => {
+                            const house = scoreObj.student.house || getStudentHouse(scoreObj.student.name, selectedClassName);
+                            return house ? (
+                              <span className={`text-[11px] px-2 py-0.5 rounded-md font-semibold border ${getHouseBadgeColor(house)} print:border print:text-slate-800 print:bg-slate-100`}>
+                                {house}
+                              </span>
+                            ) : null;
+                          })()}
                         </div>
                       </div>
                       <div className="font-black text-emerald-600 dark:text-emerald-400 print:text-emerald-700 text-lg">{scoreObj.total}</div>
@@ -275,13 +279,16 @@ const AcademicReports = ({ preselectedClassId, preselectedSubjectId, preselected
                     <li key={scoreObj.student.id} className="flex justify-between items-center p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 print:hover:bg-transparent print:break-inside-avoid print:border-b">
                       <div className="flex items-center gap-3">
                         <Frown className="text-slate-400 dark:text-slate-500 print:text-slate-400" size={20} />
-                        <div className="flex flex-col">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-[var(--text-primary)] print:text-black">{scoreObj.student.name}</span>
-                          {getStudentHouse(scoreObj.student.name) && (
-                            <span className="text-xs font-medium text-slate-500 print:text-slate-600">
-                              House: {getStudentHouse(scoreObj.student.name)}
-                            </span>
-                          )}
+                          {(() => {
+                            const house = scoreObj.student.house || getStudentHouse(scoreObj.student.name, selectedClassName);
+                            return house ? (
+                              <span className={`text-[11px] px-2 py-0.5 rounded-md font-semibold border ${getHouseBadgeColor(house)} print:border print:text-slate-800 print:bg-slate-100`}>
+                                {house}
+                              </span>
+                            ) : null;
+                          })()}
                         </div>
                       </div>
                       {scoreObj.isAbsent ? (
