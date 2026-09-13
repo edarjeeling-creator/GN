@@ -1,14 +1,14 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { 
   Trophy, AlertCircle, Printer, Users, Phone, MessageSquare, 
-  Edit2, Check, X, ExternalLink, Search, CheckCircle2 
+  Edit2, Check, X, Search, CheckCircle2 
 } from 'lucide-react';
 import { getConversionConstants } from './SubjectMarks';
-import { getGrade, getGradeColor } from '../utils/reportUtils';
+import { getGrade } from '../utils/reportUtils';
 import { formatStudentDisplayName } from '../utils/studentUtils';
 import WhatsAppComposerModal from '../components/WhatsAppComposerModal';
 import TeacherMessageCMS from '../components/TeacherMessageCMS';
@@ -16,7 +16,7 @@ import TeacherMessageCMS from '../components/TeacherMessageCMS';
 const ClassTeacherPortal = () => {
   const { classId } = useParams();
   const { profile } = useAuth();
-  const { classes, subjects, students, marks, academicYear, updateStudentContactNumber } = useData();
+  const { classes, subjects, students, marks, academicYear, updateStudentContactNumber, loadingData } = useData();
 
   const [activeTab, setActiveTab] = useState('directory'); // 'directory' | 'marks' | 'messages'
   const [directorySearch, setDirectorySearch] = useState('');
@@ -73,7 +73,17 @@ const ClassTeacherPortal = () => {
   });
 
   const portalData = useMemo(() => {
-    if (!cls || classStudents.length === 0) return null;
+    if (!cls || classStudents.length === 0) {
+      return {
+        studentScores: [],
+        classAverage: '0.0',
+        highestPercentage: '0.0',
+        lowestPercentage: '0.0',
+        studentsWithMissingMarks: [],
+        topScorers: [],
+        hasMarks: false,
+      };
+    }
 
     let classTotalPercentage = 0;
     let totalMarksCounted = 0;
@@ -206,7 +216,7 @@ const ClassTeacherPortal = () => {
     // Restore Roll No order for display
     studentScores.sort((a, b) => a.roll_no - b.roll_no);
 
-    const classAverage = totalMarksCounted > 0 ? (classTotalPercentage / totalMarksCounted).toFixed(1) : 0;
+    const classAverage = totalMarksCounted > 0 ? (classTotalPercentage / totalMarksCounted).toFixed(1) : '0.0';
 
     const topScorers = studentScores.filter((s) => s.rank <= 3 && s.maxPossibleTotal !== 0).slice(0, 5);
 
@@ -214,24 +224,12 @@ const ClassTeacherPortal = () => {
       studentScores,
       classAverage,
       highestPercentage: highestPercentage.toFixed(1),
-      lowestPercentage: lowestPercentage === 100 ? 0 : lowestPercentage.toFixed(1),
+      lowestPercentage: lowestPercentage === 100 ? '0.0' : lowestPercentage.toFixed(1),
       studentsWithMissingMarks,
       topScorers,
       hasMarks: classHasAnyMarksForTerm,
     };
   }, [classStudents, classSubjects, marks, academicYear, examConv, selectedTerm, cls]);
-
-  if (!cls) {
-    return <div className="p-8 text-center text-slate-500">Class not found.</div>;
-  }
-
-  if (!isClassTeacher && !isAdminOrPrincipal) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  if (!portalData) {
-    return <div className="p-8 text-center text-slate-500">No data available for this class.</div>;
-  }
 
   const filteredDirectoryStudents = useMemo(() => {
     return classStudents
@@ -250,6 +248,23 @@ const ClassTeacherPortal = () => {
 
   const studentsWithPhone = classStudents.filter(s => s.contact_number).length;
   const studentsWithoutPhone = classStudents.length - studentsWithPhone;
+
+  if (loadingData) {
+    return (
+      <div className="flex items-center justify-center p-12 text-slate-400">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500 mr-3"></div>
+        <span>Loading Class Teacher Portal...</span>
+      </div>
+    );
+  }
+
+  if (!cls) {
+    return <div className="p-8 text-center text-slate-400">Class not found.</div>;
+  }
+
+  if (!isClassTeacher && !isAdminOrPrincipal) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <div className="space-y-6">
