@@ -4,7 +4,8 @@ import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { 
   ArrowLeft, Save, AlertCircle, CheckCircle2, Upload, Search, 
-  Send, Lock, RefreshCw, AlertTriangle, ShieldCheck, Check, Info, FileText 
+  Send, Lock, RefreshCw, AlertTriangle, ShieldCheck, Check, Info, FileText,
+  Trophy, Copy, Printer, Frown, Sparkles, MessageCircle, CheckCheck
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { motion } from 'framer-motion';
@@ -14,6 +15,7 @@ import { Badge } from '../components/ui/Badge';
 import { formatStudentDisplayName } from '../utils/studentUtils';
 import { MarksCalculationEngine } from '../services/MarksCalculationEngine';
 import { MarksWorkflowService } from '../services/MarksWorkflowService';
+import { getStudentHouse, getHouseBadgeColor } from '../utils/houseData';
 
 // Backward compatibility helper for legacy views, flowsheets, and reports
 export const getConversionConstants = (className) => {
@@ -196,6 +198,150 @@ const SubjectMarks = () => {
       setRawScores(prev => ({ ...prev, [key]: '' }));
     }
     setSaveStatus('pending');
+  };
+
+  // Live calculation of 1st, 2nd, 3rd Rankers and Requires Attention for Tuesday Assembly
+  const assemblySummary = useMemo(() => {
+    if (!filteredStudents.length || !components.length) {
+      return { topScorers: [], requiresAttention: [], totalEvaluated: 0 };
+    }
+
+    const currentClassName = cls ? `${cls.name || ''} ${cls.section || ''}`.trim() : '';
+
+    const scoredStudents = filteredStudents.map(student => {
+      const studentScores = {};
+      const studentStatuses = {};
+      let hasAnyAbsent = false;
+
+      components.forEach(comp => {
+        const key = `${student.id}_${comp.component_code}`;
+        const rawVal = rawScores[key];
+        const stStatus = statuses[key] || 'MARKED';
+        studentScores[comp.component_code] = rawVal;
+        studentStatuses[comp.component_code] = stStatus;
+        if (stStatus === 'ABSENT' || String(rawVal).toUpperCase() === 'A' || String(rawVal).toUpperCase() === 'ABS') {
+          hasAnyAbsent = true;
+        }
+      });
+
+      const result = MarksCalculationEngine.calculateStudentResult({
+        components,
+        rawScores: studentScores,
+        statuses: studentStatuses,
+        gradeBoundaries: activePattern?.grade_boundaries || [],
+        roundingRule: activePattern?.rounding_rule || 'ROUND_2_DECIMALS'
+      });
+
+      const isAbsent = hasAnyAbsent || result.isAllAbsent;
+      
+      // Skip students with completely blank marks who are not marked absent
+      if (!result.hasAnyMark && !isAbsent) {
+        return null;
+      }
+
+      const total = isAbsent ? 0 : (result.totalConverted !== null && result.totalConverted !== undefined ? result.totalConverted : 0);
+      const house = student.house || getStudentHouse(student.name, currentClassName);
+
+      return {
+        student,
+        total,
+        isAbsent,
+        house,
+        grade: result.grade
+      };
+    }).filter(Boolean);
+
+    // Sort: non-absent by total descending, absentees at the end
+    scoredStudents.sort((a, b) => {
+      if (a.isAbsent && !b.isAbsent) return 1;
+      if (!a.isAbsent && b.isAbsent) return -1;
+      return b.total - a.total;
+    });
+
+    // Requires attention: score < 10 (pass threshold) or ABSENT
+    const requiresAttention = scoredStudents.filter(s => s.total < 10 || s.isAbsent);
+
+    // Calculate unique scores to determine rank (ties receive the exact same rank)
+    const nonAbsent = scoredStudents.filter(s => !s.isAbsent);
+    const uniqueScores = [...new Set(nonAbsent.map(s => s.total))].sort((a, b) => b - a);
+
+    const topScorers = [];
+    for (const scoreObj of nonAbsent) {
+      const rank = uniqueScores.indexOf(scoreObj.total) + 1;
+      if (rank <= 3) {
+        topScorers.push({
+          ...scoreObj,
+          rank
+        });
+      }
+    }
+
+    return {
+      topScorers,
+      requiresAttention,
+      totalEvaluated: scoredStudents.length
+    };
+  }, [filteredStudents, components, rawScores, statuses, activePattern, cls]);
+
+  const [copiedAssembly, setCopiedAssembly] = useState(false);
+
+  // Standardized text for WhatsApp and Clipboard
+  const generateAssemblyText = () => {
+    const className = cls ? `${cls.name || ''} ${cls.section || ''}`.trim() : 'Class';
+    const subjectName = subject?.name || 'Subject';
+    const termLabel = selectedTerm === 'Midterm' ? 'Mid-Term Exam' : 'Final-Term Exam';
+    const teacherName = profile?.name || 'Subject Teacher';
+
+    const topText = assemblySummary.topScorers.length === 0
+      ? '_(No marks entered yet)_'
+      : assemblySummary.topScorers.map(s => {
+          const medal = s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : '🥉';
+          const rankSuffix = s.rank === 1 ? '1st' : s.rank === 2 ? '2nd' : '3rd';
+          const houseStr = s.house ? ` (${s.house})` : '';
+          return `${medal} *${rankSuffix} Rank:* ${formatStudentDisplayName(s.student.name)}${houseStr} — *${s.total}*`;
+        }).join('\n');
+
+    const attText = assemblySummary.requiresAttention.length === 0
+      ? '• _None — All students present and scoring ≥ 10._'
+      : assemblySummary.requiresAttention.map(s => {
+          const houseStr = s.house ? ` (${s.house})` : '';
+          const statusStr = s.isAbsent ? '*ABSENT*' : `*${s.total}* (Below 10)`;
+          return `• ${formatStudentDisplayName(s.student.name)}${houseStr} — ${statusStr}`;
+        }).join('\n');
+
+    return `🏫 *GYANODAY NIKETAN — TUESDAY ASSEMBLY HONOURS*
+━━━━━━━━━━━━━━━━━━━━━━━━━
+📅 *Term:* ${termLabel} ${academicYear}
+🏫 *Class:* ${className}
+📖 *Subject:* ${subjectName}
+👨‍🏫 *Teacher:* ${teacherName}
+━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🏆 *TOP SCORERS (Assembly Honours)*:
+${topText}
+
+⚠️ *ABSENT / REQUIRES ATTENTION*:
+${attText}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━
+_Sent via Gyanoday Niketan ERP_`;
+  };
+
+  const handleCopyAssembly = () => {
+    const text = generateAssemblyText();
+    navigator.clipboard.writeText(text);
+    setCopiedAssembly(true);
+    setTimeout(() => setCopiedAssembly(false), 2500);
+  };
+
+  const handleWhatsAppToPrincipal = () => {
+    const text = generateAssemblyText();
+    const encoded = encodeURIComponent(text);
+    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+  };
+
+  const handlePrintAssemblySlip = () => {
+    window.print();
   };
 
   // Save Draft
@@ -510,7 +656,7 @@ const SubjectMarks = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
-              {filteredStudents.map((student, idx) => {
+              {filteredStudents.map(student => {
                 // Collect scores and statuses for this student
                 const studentScores = {};
                 const studentStatuses = {};
@@ -663,6 +809,284 @@ const SubjectMarks = () => {
           </div>
           <div className="font-mono text-[11px] text-slate-400 font-semibold">
             {filteredStudents.length} Students Listed
+          </div>
+        </div>
+      </div>
+
+      {/* Tuesday Assembly Honours & Attention Summary Card */}
+      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-xl overflow-hidden mb-8 no-print">
+        {/* Header with Title & Quick Share Actions */}
+        <div className="p-5 border-b border-slate-800 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-850 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 shadow-inner">
+              <Trophy size={22} className="animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-black text-white tracking-tight">
+                  Tuesday Assembly Honours & Attention Summary
+                </h3>
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                  Live Preview
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Automatically calculated for Principal's Tuesday morning assembly announcements & monitoring.
+              </p>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleWhatsAppToPrincipal}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-2 transition-all shadow-md shadow-emerald-950/30 active:scale-95 cursor-pointer"
+              title="Open WhatsApp with pre-formatted assembly honours text"
+            >
+              <MessageCircle size={15} />
+              <span>WhatsApp to Principal</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleCopyAssembly}
+              className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all border cursor-pointer active:scale-95 ${
+                copiedAssembly 
+                  ? 'bg-emerald-900/60 text-emerald-300 border-emerald-500/50' 
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+              }`}
+              title="Copy formatted markdown text to clipboard"
+            >
+              {copiedAssembly ? <CheckCheck size={15} className="text-emerald-400" /> : <Copy size={15} />}
+              <span>{copiedAssembly ? 'Copied to Clipboard!' : 'Copy Briefing'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handlePrintAssemblySlip}
+              className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+              title="Print podium slip for assembly"
+            >
+              <Printer size={15} />
+              <span>Print Slip</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 2-Column Grid: Top Scorers & Requires Attention */}
+        <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-6 bg-slate-950/40">
+          {/* Top Scorers (1st, 2nd, 3rd) */}
+          <div className="rounded-xl border border-emerald-500/30 bg-slate-900/90 overflow-hidden shadow-sm">
+            <div className="px-4 py-3 bg-emerald-950/40 border-b border-emerald-500/20 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+                <Trophy size={17} className="text-emerald-400" />
+                <span>Top Scorers (Assembly Honours)</span>
+              </div>
+              <span className="text-[11px] font-mono font-bold text-emerald-300/80 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                {assemblySummary.topScorers.length} Student{assemblySummary.topScorers.length === 1 ? '' : 's'}
+              </span>
+            </div>
+
+            <div className="p-0 divide-y divide-slate-800">
+              {assemblySummary.topScorers.length === 0 ? (
+                <div className="p-6 text-center text-xs text-slate-400 font-medium">
+                  No marks entered yet. Marks entered in the roster above will automatically populate top 1st, 2nd, and 3rd rankers here.
+                </div>
+              ) : (
+                assemblySummary.topScorers.map(s => (
+                  <div key={s.student.id} className="p-3.5 px-4 flex items-center justify-between gap-3 hover:bg-slate-850/60 transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-xs text-white shadow-sm shrink-0 ${
+                        s.rank === 1 ? 'bg-yellow-500 ring-2 ring-yellow-400/30' :
+                        s.rank === 2 ? 'bg-slate-400 ring-2 ring-slate-300/30' :
+                        'bg-amber-600 ring-2 ring-amber-500/30'
+                      }`}>
+                        {s.rank}
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap min-w-0">
+                        <span className="font-bold text-sm text-white truncate">
+                          {formatStudentDisplayName(s.student.name)}
+                        </span>
+                        {s.house && (
+                          <span className={`text-[11px] px-2 py-0.5 rounded-md font-semibold border ${getHouseBadgeColor(s.house)}`}>
+                            {s.house}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {s.grade && (
+                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                          {s.grade}
+                        </span>
+                      )}
+                      <div className="font-mono font-black text-lg text-emerald-400">
+                        {s.total}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Requires Attention (Below 10 / Absent) */}
+          <div className="rounded-xl border border-rose-500/30 bg-slate-900/90 overflow-hidden shadow-sm">
+            <div className="px-4 py-3 bg-rose-950/40 border-b border-rose-500/20 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-rose-300 font-bold text-sm">
+                <AlertCircle size={17} className="text-rose-400" />
+                <span>Requires Attention (Below 10 / Absent)</span>
+              </div>
+              <span className="text-[11px] font-mono font-bold text-rose-300/80 bg-rose-950/80 px-2 py-0.5 rounded-full border border-rose-500/30">
+                {assemblySummary.requiresAttention.length} Student{assemblySummary.requiresAttention.length === 1 ? '' : 's'}
+              </span>
+            </div>
+
+            <div className="p-0 divide-y divide-slate-800">
+              {assemblySummary.requiresAttention.length === 0 ? (
+                <div className="p-6 text-center text-xs text-emerald-400/90 font-medium">
+                  ✓ All evaluated students are marked present and scoring ≥ 10.
+                </div>
+              ) : (
+                assemblySummary.requiresAttention.map(s => (
+                  <div key={s.student.id} className="p-3.5 px-4 flex items-center justify-between gap-3 hover:bg-slate-850/60 transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Frown size={18} className="text-slate-400 shrink-0" />
+                      <div className="flex items-center gap-2 flex-wrap min-w-0">
+                        <span className="font-bold text-sm text-slate-200 truncate">
+                          {formatStudentDisplayName(s.student.name)}
+                        </span>
+                        {s.house && (
+                          <span className={`text-[11px] px-2 py-0.5 rounded-md font-semibold border ${getHouseBadgeColor(s.house)}`}>
+                            {s.house}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      {s.isAbsent ? (
+                        <span className="text-xs font-black px-2.5 py-1 rounded-md bg-rose-950/90 text-rose-300 border border-rose-600/70 tracking-wide">
+                          ABSENT
+                        </span>
+                      ) : (
+                        <span className="font-mono font-black text-base text-rose-400">
+                          {s.total}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Print-Only Tuesday Assembly Podium Slip */}
+      <div className="hidden print:block font-sans text-black p-4">
+        <style>{`
+          @media print {
+            @page {
+              margin: 10mm;
+              size: portrait;
+            }
+            .no-print {
+              display: none !important;
+            }
+          }
+        `}</style>
+        <div className="text-center border-b-2 border-black pb-3 mb-4">
+          <h1 className="text-xl font-black uppercase tracking-wider">Gyanoday Niketan</h1>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-800 mt-0.5">
+            Tuesday Morning Assembly Honours & Attention Slip
+          </h2>
+          <div className="flex justify-center items-center gap-4 text-xs font-semibold mt-2 text-slate-700 flex-wrap">
+            <span><strong>Class:</strong> {cls?.name} {cls?.section}</span>
+            <span>•</span>
+            <span><strong>Subject:</strong> {subject?.name}</span>
+            <span>•</span>
+            <span><strong>Term:</strong> {selectedTerm === 'Midterm' ? 'Mid-Term Exam' : 'Final-Term Exam'} {academicYear}</span>
+            <span>•</span>
+            <span><strong>Teacher:</strong> {profile?.name || 'Faculty Member'}</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6">
+          {/* Top Scorers Column */}
+          <div className="border border-slate-400 rounded p-3">
+            <h3 className="font-black text-xs uppercase tracking-wider pb-1.5 border-b border-slate-300 text-slate-900 mb-2">
+              🏆 Top Scorers (Assembly Honours)
+            </h3>
+            {assemblySummary.topScorers.length === 0 ? (
+              <p className="text-xs italic text-slate-500">No marks entered yet</p>
+            ) : (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b text-slate-600 text-left">
+                    <th className="pb-1 w-12">Rank</th>
+                    <th className="pb-1">Student Name</th>
+                    <th className="pb-1 w-20">House</th>
+                    <th className="pb-1 text-right w-12">Marks</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {assemblySummary.topScorers.map((s, i) => (
+                    <tr key={i} className="py-1">
+                      <td className="py-1 font-bold">
+                        {s.rank === 1 ? '1st' : s.rank === 2 ? '2nd' : '3rd'}
+                      </td>
+                      <td className="py-1 font-semibold">{s.student.name}</td>
+                      <td className="py-1 text-slate-700">{s.house || '—'}</td>
+                      <td className="py-1 text-right font-black">{s.total}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Requires Attention Column */}
+          <div className="border border-slate-400 rounded p-3">
+            <h3 className="font-black text-xs uppercase tracking-wider pb-1.5 border-b border-slate-300 text-slate-900 mb-2">
+              ⚠️ Requires Attention (Below 10 / Absent)
+            </h3>
+            {assemblySummary.requiresAttention.length === 0 ? (
+              <p className="text-xs italic text-slate-500">All evaluated students present & scored ≥ 10</p>
+            ) : (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b text-slate-600 text-left">
+                    <th className="pb-1">Student Name</th>
+                    <th className="pb-1 w-20">House</th>
+                    <th className="pb-1 text-right w-16">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {assemblySummary.requiresAttention.map((s, i) => (
+                    <tr key={i} className="py-1">
+                      <td className="py-1 font-semibold">{s.student.name}</td>
+                      <td className="py-1 text-slate-700">{s.house || '—'}</td>
+                      <td className="py-1 text-right font-bold">
+                        {s.isAbsent ? 'ABSENT' : s.total}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-8 pt-4 border-t border-slate-300 flex justify-between text-xs text-slate-700">
+          <div>
+            <span>Date: {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+          </div>
+          <div>
+            <span>Teacher Signature: _______________________</span>
+          </div>
+          <div>
+            <span>Principal Initials: __________</span>
           </div>
         </div>
       </div>
