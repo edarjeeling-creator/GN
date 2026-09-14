@@ -258,8 +258,8 @@ const SubjectMarks = () => {
       return b.total - a.total;
     });
 
-    // Requires attention: score < 10 (pass threshold) or ABSENT
-    const requiresAttention = scoredStudents.filter(s => s.total < 10 || s.isAbsent);
+    // Requires attention: score < 10 (pass threshold), excluding absent students
+    const requiresAttention = scoredStudents.filter(s => !s.isAbsent && s.total < 10);
 
     // Calculate unique scores to determine rank (ties receive the exact same rank)
     const nonAbsent = scoredStudents.filter(s => !s.isAbsent);
@@ -302,11 +302,10 @@ const SubjectMarks = () => {
         }).join('\n');
 
     const attText = assemblySummary.requiresAttention.length === 0
-      ? '• _None — All students present and scoring ≥ 10._'
+      ? '• _None — All evaluated students scored ≥ 10._'
       : assemblySummary.requiresAttention.map(s => {
           const houseStr = s.house ? ` (${s.house})` : '';
-          const statusStr = s.isAbsent ? '*ABSENT*' : `*${s.total}* (Below 10)`;
-          return `• ${formatStudentDisplayName(s.student.name)}${houseStr} — ${statusStr}`;
+          return `• ${formatStudentDisplayName(s.student.name)}${houseStr} — *${s.total}* (Below 10)`;
         }).join('\n');
 
     return `🏫 *GYANODAY NIKETAN — TUESDAY ASSEMBLY HONOURS*
@@ -320,7 +319,7 @@ const SubjectMarks = () => {
 🏆 *TOP SCORERS (Assembly Honours)*:
 ${topText}
 
-⚠️ *ABSENT / REQUIRES ATTENTION*:
+⚠️ *REQUIRES ATTENTION*:
 ${attText}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -931,12 +930,12 @@ _Sent via Gyanoday Niketan ERP_`;
             </div>
           </div>
 
-          {/* Requires Attention (Below 10 / Absent) */}
+          {/* Requires Attention (Below 10) */}
           <div className="rounded-xl border border-rose-500/30 bg-slate-900/90 overflow-hidden shadow-sm">
             <div className="px-4 py-3 bg-rose-950/40 border-b border-rose-500/20 flex items-center justify-between">
               <div className="flex items-center gap-2 text-rose-300 font-bold text-sm">
                 <AlertCircle size={17} className="text-rose-400" />
-                <span>Requires Attention (Below 10 / Absent)</span>
+                <span>Requires Attention (Below 10)</span>
               </div>
               <span className="text-[11px] font-mono font-bold text-rose-300/80 bg-rose-950/80 px-2 py-0.5 rounded-full border border-rose-500/30">
                 {assemblySummary.requiresAttention.length} Student{assemblySummary.requiresAttention.length === 1 ? '' : 's'}
@@ -946,7 +945,7 @@ _Sent via Gyanoday Niketan ERP_`;
             <div className="p-0 divide-y divide-slate-800">
               {assemblySummary.requiresAttention.length === 0 ? (
                 <div className="p-6 text-center text-xs text-emerald-400/90 font-medium">
-                  ✓ All evaluated students are marked present and scoring ≥ 10.
+                  ✓ All evaluated students scored ≥ 10.
                 </div>
               ) : (
                 assemblySummary.requiresAttention.map(s => (
@@ -965,15 +964,9 @@ _Sent via Gyanoday Niketan ERP_`;
                       </div>
                     </div>
                     <div>
-                      {s.isAbsent ? (
-                        <span className="text-xs font-black px-2.5 py-1 rounded-md bg-rose-950/90 text-rose-300 border border-rose-600/70 tracking-wide">
-                          ABSENT
-                        </span>
-                      ) : (
-                        <span className="font-mono font-black text-base text-rose-400">
-                          {s.total}
-                        </span>
-                      )}
+                      <span className="font-mono font-black text-base text-rose-400">
+                        {s.total}
+                      </span>
                     </div>
                   </div>
                 ))
@@ -1049,17 +1042,17 @@ _Sent via Gyanoday Niketan ERP_`;
           {/* Requires Attention Column */}
           <div className="border border-slate-400 rounded p-3">
             <h3 className="font-black text-xs uppercase tracking-wider pb-1.5 border-b border-slate-300 text-slate-900 mb-2">
-              ⚠️ Requires Attention (Below 10 / Absent)
+              ⚠️ Requires Attention (Below 10)
             </h3>
             {assemblySummary.requiresAttention.length === 0 ? (
-              <p className="text-xs italic text-slate-500">All evaluated students present & scored ≥ 10</p>
+              <p className="text-xs italic text-slate-500">All evaluated students scored ≥ 10</p>
             ) : (
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b text-slate-600 text-left">
                     <th className="pb-1">Student Name</th>
                     <th className="pb-1 w-20">House</th>
-                    <th className="pb-1 text-right w-16">Status</th>
+                    <th className="pb-1 text-right w-16">Marks</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -1068,7 +1061,7 @@ _Sent via Gyanoday Niketan ERP_`;
                       <td className="py-1 font-semibold">{s.student.name}</td>
                       <td className="py-1 text-slate-700">{s.house || '—'}</td>
                       <td className="py-1 text-right font-bold">
-                        {s.isAbsent ? 'ABSENT' : s.total}
+                        {s.total}
                       </td>
                     </tr>
                   ))}

@@ -316,7 +316,7 @@ const AcademicReports = ({ preselectedClassId, preselectedSubjectId, preselected
           return b.total - a.total;
         });
 
-        const requiresAttention = scoredStudents.filter(s => s.total < 10 || s.isAbsent);
+        const requiresAttention = scoredStudents.filter(s => !s.isAbsent && s.total < 10);
 
         // Ties receive the same rank
         const nonAbsent = scoredStudents.filter(s => !s.isAbsent);
@@ -381,7 +381,7 @@ const AcademicReports = ({ preselectedClassId, preselectedSubjectId, preselected
             text += `  ⚠️ *Requires Attention (${sb.requiresAttention.length}):*\n`;
             sb.requiresAttention.forEach(s => {
               const houseStr = s.house ? ` (${s.house})` : '';
-              const statStr = s.isAbsent ? 'ABSENT' : `${s.total} (Below 10)`;
+              const statStr = `${s.total} (Below 10)`;
               text += `    • ${formatStudentDisplayName(s.student.name)}${houseStr} — ${statStr}\n`;
             });
           }
@@ -877,7 +877,7 @@ const AcademicReports = ({ preselectedClassId, preselectedSubjectId, preselected
                             <div className="pt-2 border-t border-slate-800/80 print:border-slate-200">
                               <div className="text-[11px] font-bold text-rose-400 print:text-rose-800 uppercase tracking-wider flex items-center gap-1 mb-1">
                                 <AlertCircle size={13} />
-                                <span>Attention / Absent ({subEntry.requiresAttention.length})</span>
+                                <span>Requires Attention (Below 10) ({subEntry.requiresAttention.length})</span>
                               </div>
                               <div className="space-y-1">
                                 {subEntry.requiresAttention.map(s => (
@@ -892,12 +892,8 @@ const AcademicReports = ({ preselectedClassId, preselectedSubjectId, preselected
                                         </span>
                                       )}
                                     </div>
-                                    <span className={`font-mono text-[11px] font-bold ${
-                                      s.isAbsent 
-                                        ? 'text-rose-400 print:text-rose-800' 
-                                        : 'text-amber-400 print:text-amber-800'
-                                    }`}>
-                                      {s.isAbsent ? 'ABSENT' : s.total}
+                                    <span className="font-mono text-[11px] font-bold text-amber-400 print:text-amber-800">
+                                      {s.total}
                                     </span>
                                   </div>
                                 ))}

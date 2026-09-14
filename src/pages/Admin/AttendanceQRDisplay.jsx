@@ -37,6 +37,7 @@ const AttendanceQRDisplay = () => {
 
   // Core Display State
   const [actionType, setActionType] = useState('CHECK_IN'); // 'CHECK_IN' | 'CHECK_OUT'
+  const [selectedCampusId, setSelectedCampusId] = useState('SENIOR_SCHOOL'); // 'SENIOR_SCHOOL' | 'JUNIOR_SCHOOL'
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -248,7 +249,7 @@ const AttendanceQRDisplay = () => {
   };
 
   // Generate dynamic QR session
-  const generateNewSession = async (type = actionType) => {
+  const generateNewSession = async (type = actionType, campus = selectedCampusId) => {
     if (isRevoked) return;
     if (!navigator.onLine) {
       setIsOffline(true);
@@ -285,8 +286,8 @@ const AttendanceQRDisplay = () => {
           }));
         }
       } else {
-        // Admin ERP Mode
-        const result = await AttendanceVerificationService.generateQRSession(type, expiryDuration);
+        // Admin ERP Mode - explicit campus binding (Senior vs Junior)
+        const result = await AttendanceVerificationService.generateQRSession(type, expiryDuration, campus);
         if (!result.success) {
           throw new Error(result.error || 'Failed to generate attendance QR');
         }
@@ -369,15 +370,21 @@ const AttendanceQRDisplay = () => {
   const handleActionChange = (newType) => {
     if (newType === actionType) return;
     setActionType(newType);
-    generateNewSession(newType);
+    generateNewSession(newType, selectedCampusId);
+  };
+
+  const handleCampusChange = (newCampus) => {
+    if (newCampus === selectedCampusId) return;
+    setSelectedCampusId(newCampus);
+    generateNewSession(actionType, newCampus);
   };
 
   // Trigger initial session
   useEffect(() => {
     if (!checkingKioskAuth && (!isKioskMode || kioskCreds?.deviceId)) {
-      generateNewSession(actionType);
+      generateNewSession(actionType, selectedCampusId);
     }
-  }, [actionType, kioskCreds?.deviceId, checkingKioskAuth]);
+  }, [actionType, selectedCampusId, kioskCreds?.deviceId, checkingKioskAuth]);
 
   // Countdown timer for rotating QR
   useEffect(() => {
@@ -388,7 +395,7 @@ const AttendanceQRDisplay = () => {
     timerRef.current = setInterval(() => {
       setSecondsRemaining(prev => {
         if (prev <= 1) {
-          generateNewSession(actionType);
+          generateNewSession(actionType, selectedCampusId);
           return expiryDuration;
         }
         return prev - 1;
@@ -398,7 +405,7 @@ const AttendanceQRDisplay = () => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [session?.token, actionType, isRevoked, isOffline, activeTab]);
+  }, [session?.token, actionType, selectedCampusId, isRevoked, isOffline, activeTab]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -498,27 +505,56 @@ const AttendanceQRDisplay = () => {
           )}
 
           {activeTab === 'display' && (
-            <div className="bg-slate-900/90 border border-slate-700/80 p-1 rounded-xl flex items-center gap-1 shadow-inner">
-              <button
-                onClick={() => handleActionChange('CHECK_IN')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all ${
-                  isCheckIn 
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/40' 
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
-              >
-                <Sun size={14} /> Morning In
-              </button>
-              <button
-                onClick={() => handleActionChange('CHECK_OUT')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all ${
-                  !isCheckIn 
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-900/40' 
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
-              >
-                <Moon size={14} /> Departure
-              </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Campus Selector (Admin Portal Mode) */}
+              {!isKioskMode && (
+                <div className="bg-slate-900/90 border border-slate-700/80 p-1 rounded-xl flex items-center gap-1 shadow-inner">
+                  <button
+                    onClick={() => handleCampusChange('SENIOR_SCHOOL')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all ${
+                      selectedCampusId === 'SENIOR_SCHOOL'
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/40'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <Building2 size={14} /> Senior School
+                  </button>
+                  <button
+                    onClick={() => handleCampusChange('JUNIOR_SCHOOL')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all ${
+                      selectedCampusId === 'JUNIOR_SCHOOL'
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-900/40'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <Building2 size={14} /> Junior School
+                  </button>
+                </div>
+              )}
+
+              {/* Action Type Selector (Check In / Check Out) */}
+              <div className="bg-slate-900/90 border border-slate-700/80 p-1 rounded-xl flex items-center gap-1 shadow-inner">
+                <button
+                  onClick={() => handleActionChange('CHECK_IN')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all ${
+                    isCheckIn 
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/40' 
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Sun size={14} /> Morning In
+                </button>
+                <button
+                  onClick={() => handleActionChange('CHECK_OUT')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all ${
+                    !isCheckIn 
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-900/40' 
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Moon size={14} /> Departure
+                </button>
+              </div>
             </div>
           )}
 
@@ -550,11 +586,19 @@ const AttendanceQRDisplay = () => {
           <div className="text-center max-w-xl mb-4">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold mb-2 border backdrop-blur-md bg-slate-800/60 text-slate-300 border-slate-700/80">
               <ShieldCheck size={14} className={isCheckIn ? "text-emerald-400" : "text-blue-400"} />
-              {session?.campusName ? `${session.campusName.toUpperCase()} • 150m GEOFENCE` : 'GYANODAY ATTENDANCE'}
+              {session?.campusName 
+                ? `${session.campusName.toUpperCase()} • 150m GEOFENCE` 
+                : !isKioskMode 
+                  ? `${selectedCampusId === 'JUNIOR_SCHOOL' ? 'JUNIOR SCHOOL' : 'SENIOR SCHOOL'} • 150m GEOFENCE`
+                  : 'GYANODAY ATTENDANCE'}
             </div>
 
             <h2 className="text-3xl md:text-5xl font-black tracking-tight uppercase">
-              {session?.campusName ? `${session.campusName} Kiosk` : 'Attendance Kiosk'}
+              {session?.campusName 
+                ? `${session.campusName} Kiosk` 
+                : !isKioskMode 
+                  ? `${selectedCampusId === 'JUNIOR_SCHOOL' ? 'Junior School' : 'Senior School'} QR`
+                  : 'Attendance Kiosk'}
             </h2>
 
             <p className="text-emerald-400 font-bold text-base md:text-lg mt-1">
@@ -1121,13 +1165,39 @@ const AttendanceQRDisplay = () => {
 
             <form onSubmit={handlePairDevice} className="space-y-3">
               <div>
-                <label className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Device ID</label>
+                <label className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Device ID & Campus</label>
+                <div className="grid grid-cols-2 gap-2 mt-1 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setPairingForm({ ...pairingForm, deviceId: 'GN-SENIOR-001', locationName: 'Senior School Main Entrance' })}
+                    className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all text-left flex flex-col ${
+                      pairingForm.deviceId === 'GN-SENIOR-001'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-sm'
+                        : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="text-white font-bold">Senior School</span>
+                    <span className="font-mono text-[10px] text-emerald-400 mt-0.5">GN-SENIOR-001</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPairingForm({ ...pairingForm, deviceId: 'GN-JUNIOR-001', locationName: 'Junior School Main Entrance' })}
+                    className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all text-left flex flex-col ${
+                      pairingForm.deviceId === 'GN-JUNIOR-001'
+                        ? 'bg-blue-500/20 text-blue-300 border-blue-500/50 shadow-sm'
+                        : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="text-white font-bold">Junior School</span>
+                    <span className="font-mono text-[10px] text-blue-400 mt-0.5">GN-JUNIOR-001</span>
+                  </button>
+                </div>
                 <input 
                   type="text"
                   value={pairingForm.deviceId}
                   onChange={(e) => setPairingForm({ ...pairingForm, deviceId: e.target.value })}
                   placeholder="e.g. GN-SENIOR-001 or GN-JUNIOR-001"
-                  className="w-full mt-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500"
                   required
                 />
               </div>

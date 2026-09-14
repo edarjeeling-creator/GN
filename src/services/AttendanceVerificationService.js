@@ -150,11 +150,22 @@ class AttendanceVerificationServiceImpl {
    * Authoritatively enforced by PostgreSQL RPC generate_attendance_qr_session.
    * Only authorized roles (admin, principal) can execute this RPC.
    */
-  async generateQRSession(actionType = 'CHECK_IN', expirySeconds = DEFAULT_QR_EXPIRY_SECONDS) {
-    const { data, error } = await supabase.rpc('generate_attendance_qr_session', {
+  async generateQRSession(actionType = 'CHECK_IN', expirySeconds = DEFAULT_QR_EXPIRY_SECONDS, campusId = 'SENIOR_SCHOOL') {
+    let result = await supabase.rpc('generate_attendance_qr_session', {
       p_action_type: actionType,
-      p_expiry_seconds: expirySeconds
+      p_expiry_seconds: expirySeconds,
+      p_campus_id: campusId
     });
+
+    // Backward compatibility fallback if 3-arg RPC is not yet applied
+    if (result.error && (result.error.message?.includes('function public.generate_attendance_qr_session') || result.error.code === 'PGRST202')) {
+      result = await supabase.rpc('generate_attendance_qr_session', {
+        p_action_type: actionType,
+        p_expiry_seconds: expirySeconds
+      });
+    }
+
+    const { data, error } = result;
 
     if (error) {
       console.error('Server error generating attendance QR session:', error);
@@ -169,6 +180,8 @@ class AttendanceVerificationServiceImpl {
       prefix: 'GN-ATT',
       token: data.sessionToken,
       action: data.actionType || actionType,
+      campus: data.campusId || campusId,
+      campus_name: data.campusName || (campusId === 'JUNIOR_SCHOOL' ? 'Junior School' : 'Senior School'),
       created_at: data.serverTime,
       expires_at: data.expiresAt
     };
@@ -179,6 +192,8 @@ class AttendanceVerificationServiceImpl {
         id: data.sessionId,
         token: data.sessionToken,
         actionType: data.actionType || actionType,
+        campusId: data.campusId || campusId,
+        campusName: data.campusName || (campusId === 'JUNIOR_SCHOOL' ? 'Junior School' : 'Senior School'),
         expiresAt: data.expiresAt,
         serverTime: data.serverTime,
         payloadString: JSON.stringify(payloadObject)

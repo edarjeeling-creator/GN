@@ -148,9 +148,13 @@ const AttendanceScannerModal = ({ isOpen, onClose, actionType = 'CHECK_IN', onSu
       } else if (msg.includes('GPS_ACCURACY_INSUFFICIENT') || msg.includes('accuracy')) {
         setErrorMessage('GPS Accuracy Insufficient');
         setErrorHint(msg);
-      } else if (msg.includes('GEOFENCE_EXCEEDED') || msg.includes('outside')) {
+      } else if (msg.includes('GEOFENCE_EXCEEDED') || msg.includes('outside') || msg.includes('allowed radius') || msg.includes('allowed_radius')) {
         setErrorMessage('Outside Campus Geofence');
-        setErrorHint(msg);
+        if (msg.includes('Junior School') || msg.includes('Senior School')) {
+          setErrorHint(`${msg}\n\nNote: If you are at ${msg.includes('Junior School') ? 'Senior School' : 'Junior School'}, please make sure the display screen is showing the ${msg.includes('Junior School') ? 'Senior School' : 'Junior School'} QR code.`);
+        } else {
+          setErrorHint(msg);
+        }
       } else if (msg.includes('ALREADY_CHECKED_IN')) {
         setErrorMessage('Already Checked In Today');
         setErrorHint('Your attendance has already been recorded for today. You cannot check in twice.');
@@ -164,7 +168,8 @@ const AttendanceScannerModal = ({ isOpen, onClose, actionType = 'CHECK_IN', onSu
         setErrorMessage('QR Code Expired');
         setErrorHint('This attendance code has expired. Please scan the current live QR on the school display.');
       } else if (msg.includes('QR_ACTION_MISMATCH')) {
-        setErrorHint('Your device is detected outside the official school perimeter. Please scan the QR while physically inside the school.');
+        setErrorMessage('Action Type Mismatch');
+        setErrorHint(msg || 'This QR code cannot be used for the selected action.');
       } else if (msg.includes('CHECK_IN_WINDOW_CLOSED')) {
         setErrorMessage('Check-In Window Closed');
         setErrorHint('The morning check-in window has passed for today. Please contact the coordinator if you need an attendance correction.');
