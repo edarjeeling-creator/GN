@@ -11,7 +11,16 @@
 --    allowing Admin display to explicitly broadcast Senior School vs Junior School
 -- ==============================================================================
 
--- 1. OVERLOADED / UPDATED generate_attendance_qr_session WITH CAMPUS SUPPORT
+-- ==============================================================================
+-- 0. Cleanly drop previous function signatures to prevent parameter default & ambiguity conflicts (ERROR 42P13)
+DROP FUNCTION IF EXISTS public.generate_attendance_qr_session(TEXT, INT, TEXT);
+DROP FUNCTION IF EXISTS public.generate_attendance_qr_session(TEXT, INT);
+DROP FUNCTION IF EXISTS public.generate_attendance_qr_session(TEXT);
+DROP FUNCTION IF EXISTS public.verify_and_record_teacher_attendance(TEXT, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, TEXT);
+
+-- 1. AUTHORITATIVE generate_attendance_qr_session WITH CAMPUS SUPPORT
+-- Note: With parameter defaults (p_expiry_seconds = 45, p_campus_id = 'SENIOR_SCHOOL'),
+-- this single function gracefully handles 1-arg, 2-arg, and 3-arg calls from both SQL & PostgREST RPC.
 CREATE OR REPLACE FUNCTION public.generate_attendance_qr_session(
   p_action_type TEXT,
   p_expiry_seconds INT DEFAULT 45,
@@ -96,23 +105,6 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.generate_attendance_qr_session(TEXT, INT, TEXT) TO authenticated;
-
--- Maintain 2-argument signature forwarder for existing clients
-CREATE OR REPLACE FUNCTION public.generate_attendance_qr_session(
-  p_action_type TEXT,
-  p_expiry_seconds INT
-)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, extensions
-AS $$
-BEGIN
-  RETURN public.generate_attendance_qr_session(p_action_type, p_expiry_seconds, 'SENIOR_SCHOOL');
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.generate_attendance_qr_session(TEXT, INT) TO authenticated;
 
 
 -- 2. AUTHORITATIVE ATTENDANCE VERIFICATION RPC WITH ROBUST CAMPUS RESOLUTION
