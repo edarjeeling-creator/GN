@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Search, Users, BookOpen, Bell, Send, Shield, User, Calendar, CheckCircle, XCircle, AlertTriangle, Printer, Clock, AlertCircle, FileText, ChevronDown, Settings, Upload, Phone, X } from 'lucide-react';
+import { Search, Users, BookOpen, Bell, Send, Shield, User, Calendar, CheckCircle, XCircle, AlertTriangle, Printer, Clock, AlertCircle, FileText, ChevronDown, Settings, Upload, Phone, X, Check, CheckCheck, CheckCircle2 } from 'lucide-react';
 import Editor, { 
   Toolbar, BtnUndo, BtnRedo, BtnBold, BtnItalic, BtnUnderline, BtnStrikeThrough,
   BtnNumberedList, BtnBulletList, BtnLink, BtnClearFormatting, HtmlButton, Separator, BtnStyles
@@ -166,39 +166,120 @@ const PrincipalPortal = () => {
     }
   };
 
+  // Resolve a single alert
+  const handleResolveAlert = async (alertId) => {
+    try {
+      await supabase.from('notifications').update({ is_read: true }).eq('id', alertId);
+      setSystemAlerts(prev => prev.map(a => a.id === alertId ? { ...a, status: 'resolved' } : a));
+      setMetrics(prev => ({
+        ...prev,
+        openAlerts: Math.max(0, (prev.openAlerts || 1) - 1),
+        criticalAlerts: Math.max(0, (prev.criticalAlerts || 1) - 1)
+      }));
+    } catch (err) {
+      console.error('Error resolving alert:', err);
+    }
+  };
+
+  // Clear all open alerts
+  const handleClearAllOpenAlerts = async () => {
+    try {
+      const openAlertIds = systemAlerts.filter(a => a.status === 'open').map(a => a.id);
+      if (openAlertIds.length > 0) {
+        await supabase.from('notifications').update({ is_read: true }).in('id', openAlertIds);
+      }
+      fetchClassesAndStudents();
+    } catch (err) {
+      console.error('Error clearing alerts:', err);
+    }
+  };
+
   const fetchClassesAndStudents = async () => {
     const { data: cls } = await supabase.from('classes').select('*');
     if (cls) setClassesData(cls);
     const { data: std } = await supabase.from('students').select('id, name, roll_no, class_id, uid, picture_url, contact_number, father_name');
     if (std) setStudentsData(std);
 
+    // Compute start of today in local date
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStartISO = todayStart.toISOString();
+
+    // 1. Automatically clear/resolve past daily absence alerts in database so dashboard stays clean
     try {
-      let query = supabase.from('system_alerts').select('*, students(name), classes(name, section)').order('created_at', { ascending: false });
-      if (alertFilter === 'open') query = query.eq('status', 'open');
-      if (alertFilter === 'resolved') query = query.eq('status', 'resolved');
-      if (alertFilter === 'critical') query = query.eq('priority', 'critical');
-      if (alertFilter === 'attendance') query = query.eq('category', 'attendance');
-      const { data: alertsData, error: alertErr } = await query.limit(50);
-      if (!alertErr && alertsData) setSystemAlerts(alertsData);
-      else throw alertErr;
-    } catch (e) {
-      // Fallback query to notifications table (e.g. attendance_absent alerts)
-      const { data: notifs } = await supabase
+      await supabase
         .from('notifications')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-      if (notifs) {
-        setSystemAlerts(notifs.map(n => ({
+        .update({ is_read: true })
+        .eq('type', 'attendance_absent')
+        .eq('is_read', false)
+        .lt('created_at', todayStartISO);
+    } catch (cleanErr) {
+      console.warn('Auto-cleanup of past absence alerts skipped:', cleanErr);
+    }
+
+    // 2. Fetch notifications table (system alerts)
+    const { data: notifs } = await supabase
+      .from('notifications')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (notifs) {
+      // Map notifications:
+      // Any daily absence alert older than today is automatically marked as resolved
+      const mapped = notifs.map(n => {
+        const isAbsence = n.type === 'attendance_absent' || n.title?.includes('Absence Alert');
+        const isPastAbsence = isAbsence && new Date(n.created_at) < todayStart;
+        const isResolved = Boolean(n.is_read) || isPastAbsence;
+
+        return {
           id: n.id,
           title: n.title,
           description: n.message,
-          priority: n.type === 'attendance_absent' ? 'critical' : 'normal',
-          category: n.type === 'attendance_absent' ? 'attendance' : 'general',
-          status: n.is_read ? 'resolved' : 'open',
+          priority: isAbsence ? 'critical' : (n.priority || 'normal'),
+          category: isAbsence ? 'attendance' : (n.category || 'general'),
+          status: isResolved ? 'resolved' : 'open',
           created_at: n.created_at
-        })));
+        };
+      });
+
+      // Deduplicate: If multiple open absence alerts exist for the same class today,
+      // keep only the newest one open; earlier ones from today are marked resolved
+      const seenOpenClassesToday = new Set();
+      const deduplicated = mapped.map(alert => {
+        if (alert.status === 'open' && alert.category === 'attendance') {
+          const match = alert.title?.match(/Class\s+([^-\n]+)/i);
+          const classKey = match ? match[1].trim() : alert.title;
+          if (seenOpenClassesToday.has(classKey)) {
+            return { ...alert, status: 'resolved' };
+          }
+          seenOpenClassesToday.add(classKey);
+        }
+        return alert;
+      });
+
+      // Update KPI metrics with accurate real-time open and critical alert counts
+      const openCount = deduplicated.filter(a => a.status === 'open').length;
+      const criticalCount = deduplicated.filter(a => a.status === 'open' && a.priority === 'critical').length;
+      setMetrics(prev => ({
+        ...prev,
+        openAlerts: openCount,
+        criticalAlerts: criticalCount
+      }));
+
+      // Apply alertFilter
+      let filtered = deduplicated;
+      if (alertFilter === 'open') {
+        filtered = deduplicated.filter(a => a.status === 'open');
+      } else if (alertFilter === 'resolved') {
+        filtered = deduplicated.filter(a => a.status === 'resolved');
+      } else if (alertFilter === 'critical') {
+        filtered = deduplicated.filter(a => a.priority === 'critical' && a.status === 'open');
+      } else if (alertFilter === 'attendance') {
+        filtered = deduplicated.filter(a => a.category === 'attendance');
       }
+
+      setSystemAlerts(filtered);
     }
   };
 
@@ -255,19 +336,36 @@ const PrincipalPortal = () => {
     const { count: tchCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['teacher', 'admin']);
     const { data: attData } = await supabase.from('attendance').select('status, class_id').eq('date', today);
     const { count: assCount } = await supabase.from('assignments').select('*', { count: 'exact', head: true });
+    const { data: allCls } = await supabase.from('classes').select('id');
 
-    let attPercentage = 0;
+    let attPerc = 0;
+    let presentCount = 0;
+    let absentCount = 0;
+    let medLeaveCount = 0;
+
     if (attData && attData.length > 0) {
-      const presentCount = attData.filter(a => ['Present', 'Late', 'Half Day'].includes(a.status)).length;
-      attPercentage = Math.round((presentCount / attData.length) * 100);
+      presentCount = attData.filter(a => ['Present', 'Late', 'Half Day'].includes(a.status)).length;
+      absentCount = attData.filter(a => a.status === 'Absent').length;
+      medLeaveCount = attData.filter(a => ['Medical Leave', 'Leave', 'On Leave'].includes(a.status)).length;
+      attPerc = Math.round((presentCount / attData.length) * 100);
     }
 
-    setMetrics({
+    const submittedClassIds = new Set((attData || []).map(a => a.class_id));
+    const totalClassCount = allCls?.length || 0;
+    const pendingClasses = Math.max(0, totalClassCount - submittedClassIds.size);
+
+    setMetrics(prev => ({
+      ...prev,
       students: stdCount || 0,
       teachers: tchCount || 0,
       assignments: assCount || 0,
-      attendancePercentage: attPercentage
-    });
+      attendancePercentage: attPerc,
+      attPerc,
+      presentCount,
+      absentCount,
+      medLeaveCount,
+      pendingClasses
+    }));
   };
 
   const fetchNotices = async () => {
@@ -543,20 +641,31 @@ const PrincipalPortal = () => {
                   <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-white text-lg font-bold">
                     <AlertTriangle className="text-amber-500 shrink-0" size={22} /> System Alerts & Anomalies
                   </CardTitle>
-                  <div className="flex gap-1 bg-slate-200/80 dark:bg-slate-800/90 p-1 rounded-xl border border-slate-300/60 dark:border-slate-700">
-                    {['all', 'open', 'critical', 'attendance', 'resolved'].map(filter => (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {(metrics.openAlerts || 0) > 0 && (
                       <button
-                        key={filter}
-                        onClick={() => setAlertFilter(filter)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${
-                          alertFilter === filter 
-                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
+                        onClick={handleClearAllOpenAlerts}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition-all flex items-center gap-1.5 shadow-sm"
+                        title="Mark all open alerts as resolved"
                       >
-                        {filter}
+                        <CheckCheck size={14} className="text-emerald-500" /> Clear All Open
                       </button>
-                    ))}
+                    )}
+                    <div className="flex gap-1 bg-slate-200/80 dark:bg-slate-800/90 p-1 rounded-xl border border-slate-300/60 dark:border-slate-700">
+                      {['all', 'open', 'critical', 'attendance', 'resolved'].map(filter => (
+                        <button
+                          key={filter}
+                          onClick={() => setAlertFilter(filter)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${
+                            alertFilter === filter 
+                              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                          }`}
+                        >
+                          {filter}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </CardHeader>
@@ -570,12 +679,13 @@ const PrincipalPortal = () => {
                         <th className="p-4">Category</th>
                         <th className="p-4">Time</th>
                         <th className="p-4">Status</th>
+                        <th className="p-4 text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
                       {systemAlerts.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="p-8 text-center text-slate-500 dark:text-slate-400 font-medium">
+                          <td colSpan={6} className="p-8 text-center text-slate-500 dark:text-slate-400 font-medium">
                             No alerts matching filter.
                           </td>
                         </tr>
@@ -651,6 +761,21 @@ const PrincipalPortal = () => {
                                 >
                                   {alert.status}
                                 </Badge>
+                              </td>
+                              <td className="p-4 align-middle text-right">
+                                {alert.status === 'open' ? (
+                                  <button
+                                    onClick={() => handleResolveAlert(alert.id)}
+                                    className="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-950/70 dark:hover:bg-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 transition-all inline-flex items-center gap-1 shadow-sm"
+                                    title="Mark this alert as resolved"
+                                  >
+                                    <Check size={13} /> Dismiss
+                                  </button>
+                                ) : (
+                                  <span className="text-xs text-slate-400 font-medium inline-flex items-center gap-1">
+                                    <CheckCircle2 size={13} className="text-emerald-500" /> Resolved
+                                  </span>
+                                )}
                               </td>
                             </tr>
                           );

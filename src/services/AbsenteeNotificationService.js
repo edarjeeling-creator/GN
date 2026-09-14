@@ -192,6 +192,31 @@ class AbsenteeNotificationService {
 
       if (!principalError && principalProfiles && principalProfiles.length > 0) {
         result.principalProfiles = principalProfiles;
+        // Automatically resolve older unread absence alerts from previous dates
+        try {
+          await supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('type', 'attendance_absent')
+            .eq('is_read', false)
+            .lt('created_at', todayStart);
+        } catch (cleanOldErr) {
+          // ignore
+        }
+
+        // Also supersede previous unread absence alerts for this exact class today if re-saving
+        try {
+          await supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('type', 'attendance_absent')
+            .eq('is_read', false)
+            .gte('created_at', todayStart)
+            .ilike('title', `%Class ${className}%`);
+        } catch (supersedeErr) {
+          // ignore
+        }
+
         const principalTitle = `🚨 Daily Absence Alert - Class ${className}`;
         const principalBody = `${absentStudents.length} student(s) marked absent in ${className} on ${formattedDate} by ${teacherName || 'Teacher'}: ${absentStudents.map(s => s.name).join(', ')}.`;
         const linkUrl = '/principal?tab=attendance';
