@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 import { ArrowLeft, Download, Printer, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { getConversionConstants } from './SubjectMarks';
@@ -8,8 +9,16 @@ import { getConversionConstants } from './SubjectMarks';
 const Flowsheet = () => {
   const { classId } = useParams();
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const { classes, subjects, students, teacherSubjects, marks, academicYear } = useData();
   const [selectedTerm, setSelectedTerm] = useState('Midterm'); // 'Midterm', 'Finalterm', 'Combined'
+
+  const isAdminOrHead = profile && (
+    profile.role === 'admin' ||
+    profile.role === 'principal' ||
+    profile.role === 'coordinator' ||
+    (profile.designation && profile.designation.toLowerCase().includes('coordinator'))
+  );
 
   const cls = classes.find(c => c.id === classId);
   const classStudents = students.filter(s => s.class_id === classId);
@@ -235,9 +244,11 @@ const Flowsheet = () => {
           <button className="btn btn-outline" style={{ borderColor: '#107c41', color: '#107c41' }} onClick={handleExportExcel}>
             <FileSpreadsheet size={18} /> Excel
           </button>
-          <button className="btn btn-primary" onClick={() => navigate(`/classes/${classId}/reports?term=${selectedTerm}`)}>
-            <Printer size={18} /> Print Reports
-          </button>
+          {isAdminOrHead && (
+            <button className="btn btn-primary" onClick={() => navigate(`/classes/${classId}/reports?term=${selectedTerm}`)}>
+              <Printer size={18} /> Print Reports
+            </button>
+          )}
         </div>
       </div>
 

@@ -147,7 +147,7 @@ function App() {
               <Route path="/classes/:classId/subjects/:subjectId" element={<TeacherRoute><SubjectMarks /></TeacherRoute>} />
               <Route path="/classes/:classId/subjects/:subjectId/report" element={<TeacherRoute><SubjectAcademicReport /></TeacherRoute>} />
               <Route path="/classes/:classId/flowsheet" element={<TeacherRoute><Flowsheet /></TeacherRoute>} />
-              <Route path="/classes/:classId/reports" element={<TeacherRoute><ReportCards /></TeacherRoute>} />
+              <Route path="/classes/:classId/reports" element={<CoordinatorRoute><ReportCards /></CoordinatorRoute>} />
               <Route path="/attendance" element={<TeacherRoute><Attendance /></TeacherRoute>} />
               <Route path="/weekly-tests" element={<TeacherRoute><WeeklyTests /></TeacherRoute>} />
 

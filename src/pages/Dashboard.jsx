@@ -6,7 +6,8 @@ import {
   BookOpen, AlertCircle, CheckCircle, Clock, Users, Camera, 
   ChevronDown, User, Send, AlertTriangle, Fingerprint, LogOut,
   Phone, MessageSquare, Edit2, Check, X, ExternalLink,
-  QrCode, ShieldCheck, MapPin, Sparkles, AlertOctagon, HelpCircle
+  QrCode, ShieldCheck, MapPin, Sparkles, AlertOctagon, HelpCircle,
+  Printer
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -119,6 +120,12 @@ const Dashboard = () => {
   }
 
   const isLibrarian = profile?.role === 'librarian';
+  const isAdminOrHead = profile && (
+    profile.role === 'admin' ||
+    profile.role === 'principal' ||
+    profile.role === 'coordinator' ||
+    (profile.designation && profile.designation.toLowerCase().includes('coordinator'))
+  );
 
   // Verified Hybrid Teacher Attendance Modals
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -778,17 +785,19 @@ const Dashboard = () => {
                    </CardContent>
                 </Card>
                 
-                <Card hoverable className="cursor-pointer group" onClick={() => window.location.href='/classes'}>
-                   <CardContent className="p-5 flex items-center gap-4">
-                     <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                       <CheckCircle size={28} />
-                     </div>
-                     <div>
-                       <strong className="block text-lg font-semibold text-slate-800 group-hover:text-emerald-600 transition-colors">Reports</strong>
-                       <span className="text-sm text-slate-500">Generate report cards</span>
-                     </div>
-                   </CardContent>
-                </Card>
+                {isAdminOrHead && (
+                  <Card hoverable className="cursor-pointer group" onClick={() => window.location.href='/coordinator/reports'}>
+                     <CardContent className="p-5 flex items-center gap-4">
+                       <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                         <Printer size={28} />
+                       </div>
+                       <div>
+                         <strong className="block text-lg font-semibold text-slate-800 group-hover:text-emerald-600 transition-colors">Reports</strong>
+                         <span className="text-sm text-slate-500">Generate report cards</span>
+                       </div>
+                     </CardContent>
+                  </Card>
+                )}
               </>
             )}
 

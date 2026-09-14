@@ -18,6 +18,13 @@ const ClassTeacherPortal = () => {
   const { profile } = useAuth();
   const { classes, subjects, students, marks, academicYear, updateStudentContactNumber, loadingData } = useData();
 
+  const isAdminOrHead = profile && (
+    profile.role === 'admin' ||
+    profile.role === 'principal' ||
+    profile.role === 'coordinator' ||
+    (profile.designation && profile.designation.toLowerCase().includes('coordinator'))
+  );
+
   const [activeTab, setActiveTab] = useState('directory'); // 'directory' | 'marks' | 'messages'
   const [directorySearch, setDirectorySearch] = useState('');
   const [editingStudentId, setEditingStudentId] = useState(null);
@@ -277,11 +284,13 @@ const ClassTeacherPortal = () => {
             {cls.name} {cls.section} - {academicYear}
           </p>
         </div>
-        <div className="flex gap-3">
-          <Link to={`/classes/${classId}/reports`} className="btn btn-primary flex items-center gap-2">
-            <Printer size={18} /> Print All Report Cards
-          </Link>
-        </div>
+        {isAdminOrHead && (
+          <div className="flex gap-3">
+            <Link to={`/classes/${classId}/reports`} className="btn btn-primary flex items-center gap-2">
+              <Printer size={18} /> Print All Report Cards
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Tab Navigation */}

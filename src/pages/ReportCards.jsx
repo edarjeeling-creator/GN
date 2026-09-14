@@ -14,6 +14,19 @@ const ReportCards = () => {
   const { classes, subjects, students, teacherSubjects, marks, attendance, academicYear } = useData();
   const { profile } = useAuth();
 
+  const isAdminOrHead = profile && (
+    profile.role === 'admin' ||
+    profile.role === 'principal' ||
+    profile.role === 'coordinator' ||
+    (profile.designation && profile.designation.toLowerCase().includes('coordinator'))
+  );
+
+  useEffect(() => {
+    if (profile && !isAdminOrHead) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [profile, isAdminOrHead, navigate]);
+
   const cls = classes.find(c => c.id === classId);
   const classStudents = students.filter(s => s.class_id === classId);
   const [templates, setTemplates] = useState([]);
@@ -198,6 +211,10 @@ const ReportCards = () => {
 
 
   const hasGroupedSubjects = groupsToUse.length > 0;
+
+  if (profile && !isAdminOrHead) {
+    return null;
+  }
 
   return (
     <div>

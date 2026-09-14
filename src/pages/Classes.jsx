@@ -10,6 +10,8 @@ const Classes = () => {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
   const isPrincipal = profile?.role === 'principal';
+  const isCoordinator = profile?.role === 'coordinator' || (profile?.designation && profile.designation.toLowerCase().includes('coordinator'));
+  const isAdminOrHead = isAdmin || isPrincipal || isCoordinator;
   const isPrivileged = isAdmin || isPrincipal;
   const [showAllClasses, setShowAllClasses] = useState(false);
   
@@ -152,9 +154,11 @@ const Classes = () => {
                       <Link to={`/classes/${cls.id}/flowsheet`} className="btn btn-secondary btn-sm">
                         <FileText size={16} /> View Flowsheet
                       </Link>
-                      <Link to={`/classes/${cls.id}/reports`} className="btn btn-outline btn-sm">
-                        <FileText size={16} /> Report Cards
-                      </Link>
+                      {isAdminOrHead && (
+                        <Link to={`/classes/${cls.id}/reports`} className="btn btn-outline btn-sm">
+                          <FileText size={16} /> Report Cards
+                        </Link>
+                      )}
                     </div>
                   </div>
 
