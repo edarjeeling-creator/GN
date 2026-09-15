@@ -495,11 +495,16 @@ const StudentPortal = () => {
             <Link to="/result">
               <Card hoverable className="h-full border-t-4 border-t-emerald-500 group premium-card">
                 <CardContent className="p-6 flex flex-col h-full">
-                  <div className="w-12 h-12 bg-emerald-950/30 text-emerald-400 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <Award size={24} />
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-emerald-950/30 text-emerald-400 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Award size={24} />
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-950/60 text-amber-300 border border-amber-700/50">
+                      Tuesday Assembly
+                    </span>
                   </div>
                   <h3 className="font-bold text-xl mb-2 text-slate-200 group-hover:text-emerald-400 transition-colors">My Marks</h3>
-                  <p className="text-slate-400 text-sm flex-1">View your report cards and exam results.</p>
+                  <p className="text-slate-400 text-sm flex-1">View report cards and exam results. Final term marks reflect on Tuesday Morning Assembly.</p>
                   <ArrowRight size={20} className="text-emerald-400/50 group-hover:text-emerald-400 transition-colors mt-4 self-end" />
                 </CardContent>
               </Card>

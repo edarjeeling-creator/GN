@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Search, Loader2, BookOpen, Home, RefreshCw } from 'lucide-react';
+import { Search, Loader2, BookOpen, Home, RefreshCw, Bell, Calendar, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { getGroupsForClass, getDynamicSubjectName, calculateAttendancePercentage } from '../utils/reportUtils';
 import { formatStudentDisplayName } from '../utils/studentUtils';
+import TuesdayAssemblyNotice from '../components/TuesdayAssemblyNotice';
+import { checkFinalTermStudentRelease, formatAssemblyDate } from '../utils/tuesdayAssemblySchedule';
 
 const ResultPortal = () => {
   const queryParams = new URLSearchParams(window.location.search);
@@ -14,6 +16,7 @@ const ResultPortal = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [resultData, setResultData] = useState(null);
+  const [assemblyNotice, setAssemblyNotice] = useState(null);
   const [selectedTerm, setSelectedTerm] = useState('Midterm'); // 'Midterm', 'Finalterm', 'Combined'
 
   const currentYear = new Date().getFullYear();
@@ -26,6 +29,7 @@ const ResultPortal = () => {
     setLoading(true);
     setError('');
     setResultData(null);
+    setAssemblyNotice(null);
 
     try {
       // Call the secure RPC function
@@ -38,6 +42,26 @@ const ResultPortal = () => {
       if (!data) {
         setError('No student found with this UID for the selected academic year.');
         return;
+      }
+
+      // Tuesday Assembly Release Rule:
+      // Final term marks only reflect for students on Tuesday during Morning Assembly.
+      // Marks posted after Tuesday reflect on the following Tuesday Assembly.
+      const isFinal = selectedTerm.toLowerCase().includes('final');
+      if (isFinal) {
+        const releaseCheck = checkFinalTermStudentRelease(data.marks, selectedTerm);
+        if (!releaseCheck.isReleased) {
+          setAssemblyNotice({
+            student: data.student,
+            cls: data.class,
+            releaseDate: releaseCheck.releaseDate,
+            academicYear,
+            term: selectedTerm
+          });
+          setResultData(null);
+          setLoading(false);
+          return;
+        }
       }
 
       // Check if results are published
@@ -131,6 +155,9 @@ const ResultPortal = () => {
 
     // 1. Calculate Grand Total for THIS student
     let grandTotal = 0;
+    const finalReleaseCheck = checkFinalTermStudentRelease(marks, 'Finalterm');
+    const isFinalReleased = finalReleaseCheck.isReleased;
+
     const subjectScores = studentSubjects.map(sub => {
       const getVal = (term) => {
         const fullTerm = `${academicYear}_${term}`;
@@ -153,16 +180,16 @@ const ResultPortal = () => {
       let subjectTotal = 0;
       if (isClass5To8) {
         if (selectedTerm === 'Midterm') subjectTotal = mtExam;
-        else if (selectedTerm === 'Finalterm') subjectTotal = ftExam;
+        else if (selectedTerm === 'Finalterm') subjectTotal = isFinalReleased ? ftExam : 0;
         else if (selectedTerm === 'Midterm_Test') subjectTotal = mtTest;
-        else if (selectedTerm === 'Finalterm_Test') subjectTotal = ftTest;
-        else subjectTotal = mtExam + ftExam;
+        else if (selectedTerm === 'Finalterm_Test') subjectTotal = isFinalReleased ? ftTest : 0;
+        else subjectTotal = isFinalReleased ? (mtExam + ftExam) : mtExam;
       } else {
         if (selectedTerm === 'Midterm') subjectTotal = mtTotal;
-        else if (selectedTerm === 'Finalterm') subjectTotal = ftTotal;
+        else if (selectedTerm === 'Finalterm') subjectTotal = isFinalReleased ? ftTotal : 0;
         else if (selectedTerm === 'Midterm_Test') subjectTotal = mtTest;
-        else if (selectedTerm === 'Finalterm_Test') subjectTotal = ftTest;
-        else subjectTotal = mtTotal + ftTotal;
+        else if (selectedTerm === 'Finalterm_Test') subjectTotal = isFinalReleased ? ftTotal : 0;
+        else subjectTotal = isFinalReleased ? (mtTotal + ftTotal) : mtTotal;
       }
 
       return { 
@@ -170,7 +197,9 @@ const ResultPortal = () => {
         subjectName: getDynamicSubjectName(sub.name, student), 
         total: subjectTotal,
         mtTest, mtConv, mtTotal,
-        ftTest, ftConv, ftTotal
+        ftTest: isFinalReleased ? ftTest : null,
+        ftConv: isFinalReleased ? ftConv : null,
+        ftTotal: isFinalReleased ? ftTotal : null
       };
     });
 
@@ -221,7 +250,7 @@ const ResultPortal = () => {
 
       standalone.forEach(item => {
         grandTotal += item.total;
-        maxPossibleTotal += (selectedTerm === 'Combined' ? 200 : 100);
+        maxPossibleTotal += (selectedTerm === 'Combined' ? (isFinalReleased ? 200 : 100) : 100);
         finalSubjectRows.push({
           ...item,
           marksOut100: null,
@@ -241,7 +270,7 @@ const ResultPortal = () => {
         isStandalone: true
       }));
       grandTotal = subjectScores.reduce((acc, curr) => acc + curr.total, 0);
-      maxPossibleTotal = subjectScores.length * (selectedTerm === 'Combined' ? 200 : 100);
+      maxPossibleTotal = subjectScores.length * (selectedTerm === 'Combined' ? (isFinalReleased ? 200 : 100) : 100);
     }
 
     const getOrdinalSuffix = (i) => {
@@ -373,25 +402,39 @@ const ResultPortal = () => {
 
     const getOutOFAmount = () => {
       if (selectedTerm.includes('_Test')) return 100 - examConv;
-      return selectedTerm === 'Combined' ? 200 : 100;
+      return selectedTerm === 'Combined' ? (isFinalReleased ? 200 : 100) : 100;
     };
 
     // Calculate Attendance
     const attendancePercentage = calculateAttendancePercentage(attendance, student.id, academicYear);
     const colCount = selectedTerm === 'Combined' ? 6 : (selectedTerm.includes('_Test') ? 2 : 4);
 
+    const renderAssemblyCombinedNotice = () => {
+      if (selectedTerm !== 'Combined' || isFinalReleased) return null;
+      return (
+        <div className="no-print" style={{ maxWidth: '800px', margin: '0 auto 1.5rem auto', padding: '1rem', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '0.75rem', color: '#92400e', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <Bell size={20} className="text-amber-600 shrink-0" />
+          <div style={{ fontSize: '0.875rem' }}>
+            <strong>Tuesday Morning Assembly Schedule:</strong> Mid-Term results are shown below. In accordance with Gyanoday Niketan policy, Final Term marks will reflect on <strong>{formatAssemblyDate(finalReleaseCheck.releaseDate)}</strong> following Morning Assembly.
+          </div>
+        </div>
+      );
+    };
+
     // Main Report Layout (Midterm, Finalterm, Combined)
     const renderMainReport = () => {
       return (
-        <div className="report-card-slip" style={{
-          width: '100%',
-          maxWidth: '800px',
-          margin: '0 auto',
-          padding: '2rem 1rem', // Give some space at the top
-          fontFamily: 'Arial, sans-serif',
-          background: '#fff',
-          color: '#000',
-        }}>
+        <div>
+          {renderAssemblyCombinedNotice()}
+          <div className="report-card-slip" style={{
+            width: '100%',
+            maxWidth: '800px',
+            margin: '0 auto',
+            padding: '2rem 1rem', // Give some space at the top
+            fontFamily: 'Arial, sans-serif',
+            background: '#fff',
+            color: '#000',
+          }}>
           {/* Top text block matching the image */}
           <div style={{ display: 'flex', fontWeight: 'bold', fontSize: '18px', marginBottom: '10px' }}>
             <span style={{ width: '180px' }}>STUDENT NAME:</span> 
@@ -432,21 +475,24 @@ const ResultPortal = () => {
             <div>RANK IN CLASS: <span>{getOrdinalSuffix(rank)}</span></div>
           </div>
         </div>
+      </div>
       );
     };
 
     // Standard / Weekly Test Layout (Old Format)
     const renderStandardReport = () => {
       return (
-        <div className="report-card-slip" style={{
-          width: '100%',
-          maxWidth: '800px',
-          margin: '2rem auto',
-          padding: '1rem',
-          fontFamily: 'Arial, sans-serif',
-          background: '#fff',
-          color: '#000',
-        }}>
+        <div>
+          {renderAssemblyCombinedNotice()}
+          <div className="report-card-slip" style={{
+            width: '100%',
+            maxWidth: '800px',
+            margin: '2rem auto',
+            padding: '1rem',
+            fontFamily: 'Arial, sans-serif',
+            background: '#fff',
+            color: '#000',
+          }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', border: '2px solid black', fontSize: '14px' }}>
             <tbody>
               {/* Header Row */}
@@ -515,8 +561,12 @@ const ResultPortal = () => {
                       <>
                         <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{score.mtTest}</td>
                         <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{Math.round(score.mtConv)}</td>
-                        <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{score.ftTest}</td>
-                        <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>{Math.round(score.ftConv)}</td>
+                        <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>
+                          {isFinalReleased ? score.ftTest : <span style={{ fontSize: '11px', color: '#6b7280' }}>Tue Assembly</span>}
+                        </td>
+                        <td style={{ padding: '8px 12px', border: '1px solid black', textAlign: 'center' }}>
+                          {isFinalReleased ? Math.round(score.ftConv) : <span style={{ fontSize: '11px', color: '#6b7280' }}>Tue Assembly</span>}
+                        </td>
                       </>
                     )}
                     {selectedTerm === 'Midterm_Test' && null}
@@ -557,6 +607,7 @@ const ResultPortal = () => {
             </div>
           )}
         </div>
+      </div>
       );
     };
 
@@ -566,7 +617,7 @@ const ResultPortal = () => {
       <div>
         {(!selectedTerm.includes('_Test') && isClass5To8) ? renderMainReport() : renderStandardReport()}
         <div style={{ marginTop: '1rem', textAlign: 'center', display: 'flex', gap: '1rem', justifyContent: 'center' }} className="no-print">
-           <button className="btn" style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={() => { setUid(''); setResultData(null); window.history.replaceState({}, document.title, window.location.pathname); }}>
+           <button className="btn" style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={() => { setUid(''); setResultData(null); setAssemblyNotice(null); window.history.replaceState({}, document.title, window.location.pathname); }}>
              <RefreshCw size={18} /> Search Another
            </button>
            <button className="btn btn-primary" onClick={() => window.print()}>Print / Save as PDF</button>
@@ -574,6 +625,24 @@ const ResultPortal = () => {
       </div>
     );
   };
+
+  if (assemblyNotice) {
+    return (
+      <TuesdayAssemblyNotice
+        student={assemblyNotice.student}
+        cls={assemblyNotice.cls}
+        academicYear={assemblyNotice.academicYear}
+        releaseDate={assemblyNotice.releaseDate}
+        term={assemblyNotice.term}
+        onSearchAnother={() => {
+          setAssemblyNotice(null);
+          setResultData(null);
+          setUid('');
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }}
+      />
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-color)' }}>

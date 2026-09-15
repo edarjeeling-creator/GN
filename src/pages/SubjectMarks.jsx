@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { 
   ArrowLeft, Save, AlertCircle, CheckCircle2, Upload, Search, 
   Send, Lock, RefreshCw, AlertTriangle, ShieldCheck, Check, Info, FileText,
-  Trophy, Copy, Printer, Frown, Sparkles, MessageCircle, CheckCheck
+  Trophy, Copy, Printer, Frown, Sparkles, MessageCircle, CheckCheck, Calendar
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { motion } from 'framer-motion';
@@ -16,6 +16,7 @@ import { formatStudentDisplayName } from '../utils/studentUtils';
 import { MarksCalculationEngine } from '../services/MarksCalculationEngine';
 import { MarksWorkflowService } from '../services/MarksWorkflowService';
 import { getStudentHouse, getHouseBadgeColor } from '../utils/houseData';
+import { formatAssemblyDate, getTuesdayAssemblyReleaseDate } from '../utils/tuesdayAssemblySchedule';
 
 // Backward compatibility helper for legacy views, flowsheets, and reports
 export const getConversionConstants = (className) => {
@@ -485,6 +486,34 @@ _Sent via Gyanoday Niketan ERP_`;
           ))}
         </div>
       </div>
+
+      {/* Tuesday Assembly Schedule Notice for Final Term */}
+      {selectedTerm === 'Finalterm' && (
+        <div className="p-3.5 rounded-2xl border border-indigo-500/40 bg-gradient-to-r from-indigo-950/70 via-slate-900/80 to-blue-950/70 text-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-4 shadow-lg backdrop-blur-md">
+          <div className="flex items-start md:items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex-shrink-0">
+              <Calendar size={20} />
+            </div>
+            <div className="text-xs">
+              <div className="flex items-center gap-2 font-bold text-white tracking-wide">
+                <span>Tuesday Morning Assembly Schedule (Final Term)</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 font-medium">
+                  Student Release Policy
+                </span>
+              </div>
+              <p className="text-slate-300 mt-0.5 leading-relaxed">
+                Final term marks reflect <strong>immediately</strong> on Principal and Teacher portals. For students, marks will only reflect on <strong>Tuesday during Morning Assembly</strong>. Any marks posted after Tuesday will reflect for students on the <strong>next Tuesday Assembly</strong>.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col md:items-end text-left md:text-right flex-shrink-0 text-xs border-t md:border-t-0 pt-2 md:pt-0 border-indigo-500/20">
+            <span className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Scheduled Student Release:</span>
+            <span className="font-bold text-white font-mono text-[11px] bg-indigo-900/50 px-2.5 py-1 rounded-md border border-indigo-400/30 mt-0.5">
+              {formatAssemblyDate(getTuesdayAssemblyReleaseDate())}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Workflow Status Banner */}
       {submission && (
