@@ -1479,17 +1479,17 @@ const Admin = () => {
 
           {/* Manage Staff & User Accounts */}
           <div className="bento-card" style={{ padding: '2rem' }}>
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
               <div>
                 <div className="flex items-center gap-3">
                   <h3 style={{ fontSize: '1.35rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
                     Staff & User Directory
                   </h3>
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800/60">
                     {teachers.length} Accounts
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   Manage login credentials, roles, campus assignments, and active account status.
                 </p>
               </div>
@@ -1507,14 +1507,14 @@ const Admin = () => {
             </div>
 
             {/* Filter Bar */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6 p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 rounded-xl">
               {/* Search */}
               <div className="relative">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-400" />
                 <input
                   type="text"
                   placeholder="Search name or email..."
-                  className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   value={teacherSearchQuery}
                   onChange={e => setTeacherSearchQuery(e.target.value)}
                 />
@@ -1523,7 +1523,7 @@ const Admin = () => {
               {/* Role Filter */}
               <div>
                 <select
-                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   value={staffRoleFilter}
                   onChange={e => setStaffRoleFilter(e.target.value)}
                 >
@@ -1540,7 +1540,7 @@ const Admin = () => {
               {/* Campus Filter */}
               <div>
                 <select
-                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   value={staffCampusFilter}
                   onChange={e => setStaffCampusFilter(e.target.value)}
                 >
@@ -1553,7 +1553,7 @@ const Admin = () => {
               {/* Status Filter */}
               <div>
                 <select
-                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   value={staffStatusFilter}
                   onChange={e => setStaffStatusFilter(e.target.value)}
                 >
@@ -1565,16 +1565,16 @@ const Admin = () => {
             </div>
 
             {/* Staff Directory Table */}
-            <div style={{ maxHeight: '420px', overflowY: 'auto', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
+            <div style={{ maxHeight: '420px', overflowY: 'auto', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
               <table className="data-table" style={{ width: '100%' }}>
-                <thead style={{ background: '#f8fafc', position: 'sticky', top: 0, zIndex: 10 }}>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--surface-color)' }}>
                   <tr>
-                    <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontWeight: 600, fontSize: '0.8rem', color: '#475569', borderBottom: '2px solid #e2e8f0' }}>Staff Member</th>
-                    <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontWeight: 600, fontSize: '0.8rem', color: '#475569', borderBottom: '2px solid #e2e8f0' }}>Login Email</th>
-                    <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontWeight: 600, fontSize: '0.8rem', color: '#475569', borderBottom: '2px solid #e2e8f0' }}>Role</th>
-                    <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontWeight: 600, fontSize: '0.8rem', color: '#475569', borderBottom: '2px solid #e2e8f0' }}>Campus</th>
-                    <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontWeight: 600, fontSize: '0.8rem', color: '#475569', borderBottom: '2px solid #e2e8f0' }}>Status</th>
-                    <th style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: 600, fontSize: '0.8rem', color: '#475569', borderBottom: '2px solid #e2e8f0' }}>Actions</th>
+                    <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)' }}>Staff Member</th>
+                    <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)' }}>Login Email</th>
+                    <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)' }}>Role</th>
+                    <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)' }}>Campus</th>
+                    <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)' }}>Status</th>
+                    <th style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1603,48 +1603,48 @@ const Admin = () => {
                       const isInactive = t.status === 'Inactive' || t.status === 'Suspended';
                       
                       const roleStyles = {
-                        admin: 'bg-purple-100 text-purple-800 border-purple-200',
-                        principal: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-                        teacher: 'bg-blue-100 text-blue-800 border-blue-200',
-                        accountant: 'bg-cyan-100 text-cyan-800 border-cyan-200',
-                        librarian: 'bg-amber-100 text-amber-800 border-amber-200',
-                        coordinator: 'bg-violet-100 text-violet-800 border-violet-200'
+                        admin: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700/50',
+                        principal: 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-700/50',
+                        teacher: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700/50',
+                        accountant: 'bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-900/40 dark:text-cyan-300 dark:border-cyan-700/50',
+                        librarian: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-700/50',
+                        coordinator: 'bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-900/40 dark:text-violet-300 dark:border-violet-700/50'
                       };
 
                       return (
-                        <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }} className="hover:bg-slate-50/80 transition-colors">
+                        <tr key={t.id} style={{ borderBottom: '1px solid var(--border-color)' }} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors">
                           <td style={{ padding: '0.85rem 1rem' }}>
                             <div className="flex items-center gap-2.5">
-                              <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center shrink-0">
+                              <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300 font-bold text-xs flex items-center justify-center shrink-0">
                                 {(t.name || 'U').charAt(0).toUpperCase()}
                               </div>
                               <div>
-                                <p className="font-semibold text-slate-900 text-sm leading-tight flex items-center gap-1.5">
+                                <p className="font-semibold text-slate-900 dark:text-slate-100 text-sm leading-tight flex items-center gap-1.5">
                                   {t.name}
                                   {isSelf && (
-                                    <span className="px-1.5 py-0.2 rounded text-[10px] bg-indigo-100 text-indigo-800 font-bold">YOU</span>
+                                    <span className="px-1.5 py-0.2 rounded text-[10px] bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-300 font-bold">YOU</span>
                                   )}
                                 </p>
-                                <p className="text-[11px] text-slate-400 font-mono truncate max-w-[130px]">{t.id.slice(0, 8)}...</p>
+                                <p className="text-[11px] text-slate-400 dark:text-slate-400 font-mono truncate max-w-[130px]">{t.id.slice(0, 8)}...</p>
                               </div>
                             </div>
                           </td>
 
                           <td style={{ padding: '0.85rem 1rem' }}>
-                            <div className="flex items-center gap-1.5 text-slate-600 text-xs font-mono">
-                              <Mail size={12} className="text-slate-400 shrink-0" />
+                            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200 text-xs font-mono">
+                              <Mail size={12} className="text-slate-400 dark:text-slate-400 shrink-0" />
                               <span className="truncate max-w-[220px]" title={t.email}>{t.email || '—'}</span>
                             </div>
                           </td>
 
                           <td style={{ padding: '0.85rem 1rem' }}>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border capitalize ${roleStyles[t.role] || 'bg-slate-100 text-slate-800 border-slate-200'}`}>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border capitalize ${roleStyles[t.role] || 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700'}`}>
                               {t.role || 'Staff'}
                             </span>
                           </td>
 
                           <td style={{ padding: '0.85rem 1rem' }}>
-                            <span className="text-xs text-slate-600">
+                            <span className="text-xs text-slate-700 dark:text-slate-200 font-medium">
                               {t.campus || 'Senior School'}
                             </span>
                           </td>
@@ -1652,8 +1652,8 @@ const Admin = () => {
                           <td style={{ padding: '0.85rem 1rem' }}>
                             <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
                               isInactive 
-                                ? 'bg-amber-100 text-amber-800 border border-amber-200' 
-                                : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                ? 'bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/60' 
+                                : 'bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/60'
                             }`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${isInactive ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
                               {isInactive ? 'Inactive' : 'Active'}
@@ -1664,7 +1664,7 @@ const Admin = () => {
                             <div className="flex items-center justify-end gap-1.5 flex-wrap">
                               {/* Edit Profile */}
                               <button 
-                                className="px-2.5 py-1 text-xs font-medium bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg shadow-sm transition-colors flex items-center gap-1"
+                                className="px-2.5 py-1 text-xs font-medium bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded-lg shadow-sm transition-colors flex items-center gap-1"
                                 onClick={() => handleOpenEditUserModal(t)}
                                 title="Edit user details and role"
                               >
@@ -1674,7 +1674,7 @@ const Admin = () => {
 
                               {/* Set Password / Credentials */}
                               <button 
-                                className="px-2.5 py-1 text-xs font-medium bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg shadow-sm transition-colors flex items-center gap-1"
+                                className="px-2.5 py-1 text-xs font-medium bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 rounded-lg shadow-sm transition-colors flex items-center gap-1"
                                 onClick={() => handleOpenCredentialsModal(t)}
                                 title="Reset password or login email"
                               >
@@ -1687,7 +1687,7 @@ const Admin = () => {
                                 <>
                                   {isInactive ? (
                                     <button 
-                                      className="px-2.5 py-1 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg shadow-sm transition-colors flex items-center gap-1"
+                                      className="px-2.5 py-1 text-xs font-medium bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 rounded-lg shadow-sm transition-colors flex items-center gap-1"
                                       onClick={() => handleOpenDeactivateModal(t, 'reactivate')}
                                       title="Reactivate account"
                                     >
@@ -1696,7 +1696,7 @@ const Admin = () => {
                                     </button>
                                   ) : (
                                     <button 
-                                      className="px-2.5 py-1 text-xs font-medium bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg shadow-sm transition-colors flex items-center gap-1"
+                                      className="px-2.5 py-1 text-xs font-medium bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 rounded-lg shadow-sm transition-colors flex items-center gap-1"
                                       onClick={() => handleOpenDeactivateModal(t, 'deactivate')}
                                       title="Deactivate account safely (preserves marks & attendance)"
                                     >
@@ -1714,7 +1714,7 @@ const Admin = () => {
 
                   {teachers.length === 0 && (
                     <tr>
-                      <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                         No staff accounts found. Click "+ Create User" above to add the first staff member.
                       </td>
                     </tr>
