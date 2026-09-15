@@ -20,6 +20,9 @@ serve(async (req: Request) => {
     })
 
     const authHeader = req.headers.get('Authorization')!
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing authorization header' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
     const token = authHeader.replace('Bearer ', '')
 
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token)
@@ -28,27 +31,37 @@ serve(async (req: Request) => {
     }
 
     const { data: profile, error: profileError } = await supabaseAdmin.from('profiles').select('role').eq('id', user.id).single()
-    if (profileError || !['admin', 'superadmin'].includes(profile?.role)) {
-      return new Response(JSON.stringify({ error: 'Forbidden. Requires Administrator privileges.' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    if (profileError || !['admin', 'superadmin', 'principal'].includes(profile?.role)) {
+      return new Response(JSON.stringify({ error: 'Forbidden. Requires Administrator or Principal privileges.' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
     const { action, payload } = await req.json()
     let result = {}
 
     // Helper to log security events
-    const logSecurityEvent = async (eventType: string, targetId: string, details: any) => {
+    const logSecurityEvent = async (eventType: string, targetId: string | null, details: any) => {
       await supabaseAdmin.from('security_events').insert([{
         event_type: eventType,
         actor_id: user.id,
         target_id: targetId,
         details,
         ip_address: req.headers.get('x-forwarded-for') || 'unknown'
-      }])
+      }]).catch(() => {})
     }
 
+    const allowedRoles = ['teacher', 'admin', 'principal', 'accountant', 'librarian', 'coordinator']
+
     if (action === 'createUser') {
-      const { email, password, name, role, employee_id, school_id, uid } = payload
+      const { email, password, name, role = 'teacher', campus = '', status = 'Active', employee_id, school_id } = payload
       
+      if (!email || !password || !name) {
+        throw new Error('Name, email, and password are required.')
+      }
+
+      if (!allowedRoles.includes(role)) {
+        throw new Error(`Invalid role. Allowed roles are: ${allowedRoles.join(', ')}`)
+      }
+
       // Role Escalation Protection
       if (role === 'admin' && profile.role !== 'superadmin') {
         await logSecurityEvent('UnauthorizedEscalation', null, { attempted_role: 'admin' })
@@ -58,25 +71,42 @@ serve(async (req: Request) => {
         throw new Error('Cannot create Super Administrators via UI.')
       }
       
+      const cleanEmail = email.trim().toLowerCase()
+      const cleanName = name.trim()
+
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-        email, password, email_confirm: true, user_metadata: { name, role }
+        email: cleanEmail,
+        password: password.trim(),
+        email_confirm: true,
+        user_metadata: { name: cleanName, full_name: cleanName, role, campus }
       })
       if (createError) throw createError
 
-      const { error: profileInsertError } = await supabaseAdmin.from('profiles').insert([{
-        id: newUser.user.id, name, role, employee_id, uid, school_id
+      const { error: profileInsertError } = await supabaseAdmin.from('profiles').upsert([{
+        id: newUser.user.id,
+        name: cleanName,
+        email: cleanEmail,
+        role,
+        campus,
+        status,
+        employee_id: employee_id || null,
+        school_id: school_id || 'd3b07384-d113-4956-a5ec-9af2c61146e5'
       }])
       if (profileInsertError) throw profileInsertError
 
       await supabaseAdmin.from('user_management_audit_logs').insert([{
-        admin_id: user.id, target_user_id: newUser.user.id, action: 'CREATED', new_value: { email, role, name, employee_id, uid }
-      }])
+        admin_id: user.id,
+        target_user_id: newUser.user.id,
+        action: 'USER_CREATED',
+        new_value: { email: cleanEmail, role, name: cleanName, campus, status }
+      }]).catch(() => {})
       
-      result = { message: 'User created successfully', user: newUser.user }
+      result = { success: true, message: `User "${cleanName}" created successfully`, user: { id: newUser.user.id, email: cleanEmail, name: cleanName, role, campus, status } }
 
     } else if (action === 'updateUser') {
       const { targetUserId, updates } = payload
-      
+      if (!targetUserId) throw new Error('targetUserId is required.')
+
       // Role Escalation Protection
       if (updates.role === 'admin' && profile.role !== 'superadmin') {
         throw new Error('Only a Super Administrator can promote a user to Administrator.')
@@ -85,14 +115,17 @@ serve(async (req: Request) => {
       const { data: prevProfile } = await supabaseAdmin.from('profiles').select('*').eq('id', targetUserId).single()
       const { data: prevAuthUser } = await supabaseAdmin.auth.admin.getUserById(targetUserId)
 
-      if (updates.email) {
-        const { error: emailUpdateError } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, { email: updates.email })
+      if (updates.email && updates.email.trim().toLowerCase() !== prevAuthUser?.user?.email?.toLowerCase()) {
+        const cleanEmail = updates.email.trim().toLowerCase()
+        const { error: emailUpdateError } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, { email: cleanEmail })
         if (emailUpdateError) throw emailUpdateError
       }
 
       const profileUpdates: any = {}
-      if (updates.name !== undefined) profileUpdates.name = updates.name
+      if (updates.name !== undefined) profileUpdates.name = updates.name.trim()
+      if (updates.email !== undefined) profileUpdates.email = updates.email.trim().toLowerCase()
       if (updates.role !== undefined) profileUpdates.role = updates.role
+      if (updates.campus !== undefined) profileUpdates.campus = updates.campus
       if (updates.status !== undefined) profileUpdates.status = updates.status
       if (updates.employee_id !== undefined) profileUpdates.employee_id = updates.employee_id
 
@@ -106,50 +139,148 @@ serve(async (req: Request) => {
       }
 
       await supabaseAdmin.from('user_management_audit_logs').insert([{
-        admin_id: user.id, target_user_id: targetUserId, action: 'UPDATED',
-        previous_value: { email: prevAuthUser?.user?.email, ...prevProfile }, new_value: updates
-      }])
+        admin_id: user.id,
+        target_user_id: targetUserId,
+        action: 'USER_UPDATED',
+        previous_value: { email: prevAuthUser?.user?.email, ...prevProfile },
+        new_value: profileUpdates
+      }]).catch(() => {})
 
-      result = { message: 'User updated successfully' }
+      result = { success: true, message: 'User updated successfully' }
+
+    } else if (action === 'updateCredentials' || action === 'admin_update_user_credentials') {
+      const { targetUserId, name, email, password } = payload
+      if (!targetUserId) throw new Error('targetUserId is required.')
+
+      const updates: any = {}
+      if (email && email.trim()) {
+        updates.email = email.trim().toLowerCase()
+      }
+      if (password && password.trim()) {
+        updates.password = password.trim()
+      }
+      if (name && name.trim()) {
+        updates.user_metadata = { name: name.trim(), full_name: name.trim() }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, updates)
+        if (authError) throw authError
+      }
+
+      const profileUpdates: any = {}
+      if (name && name.trim()) profileUpdates.name = name.trim()
+      if (email && email.trim()) profileUpdates.email = email.trim().toLowerCase()
+
+      if (Object.keys(profileUpdates).length > 0) {
+        const { error: profError } = await supabaseAdmin.from('profiles').update(profileUpdates).eq('id', targetUserId)
+        if (profError) throw profError
+      }
+
+      await supabaseAdmin.from('user_management_audit_logs').insert([{
+        admin_id: user.id,
+        target_user_id: targetUserId,
+        action: 'CREDENTIALS_UPDATED',
+        new_value: {
+          name_updated: !!(name && name.trim()),
+          email_updated: !!(email && email.trim()),
+          password_reset: !!(password && password.trim())
+        }
+      }]).catch(() => {})
+
+      result = { success: true, message: 'User credentials updated successfully' }
 
     } else if (action === 'resetPassword') {
       const { targetUserId, tempPassword } = payload
+      if (!targetUserId || !tempPassword) throw new Error('Target user ID and password are required.')
       
       const { error: passError } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, { password: tempPassword })
       if (passError) throw passError
-      
-      await supabaseAdmin.from('profiles').update({ uid: tempPassword }).eq('id', targetUserId)
 
       await supabaseAdmin.from('user_management_audit_logs').insert([{
-        admin_id: user.id, target_user_id: targetUserId, action: 'PASSWORD_RESET', new_value: { method: 'temporary_password' }
-      }])
+        admin_id: user.id, target_user_id: targetUserId, action: 'PASSWORD_RESET', new_value: { method: 'admin_reset' }
+      }]).catch(() => {})
       
-      await logSecurityEvent('PasswordReset', targetUserId, { method: 'temporary_password' })
+      await logSecurityEvent('PasswordReset', targetUserId, { method: 'admin_reset' })
 
-      result = { message: 'Password reset successfully' }
+      result = { success: true, message: 'Password reset successfully' }
 
     } else if (action === 'deactivateUser') {
-      const { targetUserId, newStatus } = payload
-      
-      if (newStatus === 'Active' && profile.role !== 'superadmin') {
-         // Optionally restrict restoring archived accounts to superadmin
-         const { data: targetProfile } = await supabaseAdmin.from('profiles').select('status').eq('id', targetUserId).single()
-         if (targetProfile?.status === 'Archived') {
-             throw new Error('Only a Super Administrator can restore an archived account.')
-         }
+      const { targetUserId } = payload
+      if (!targetUserId) throw new Error('Target user ID is required.')
+
+      if (targetUserId === user.id) {
+        throw new Error('Safety protection: You cannot deactivate your own active account.')
       }
 
-      const { error: statusError } = await supabaseAdmin.from('profiles').update({ status: newStatus }).eq('id', targetUserId)
+      const { data: targetProfile } = await supabaseAdmin.from('profiles').select('role, name').eq('id', targetUserId).single()
+      if (targetProfile?.role === 'superadmin') {
+        throw new Error('Safety protection: Super Administrator accounts cannot be deactivated.')
+      }
+
+      const { error: statusError } = await supabaseAdmin.from('profiles').update({ status: 'Inactive' }).eq('id', targetUserId)
       if (statusError) throw statusError
 
       await supabaseAdmin.from('user_management_audit_logs').insert([{
-        admin_id: user.id, target_user_id: targetUserId, action: newStatus === 'Active' ? 'REACTIVATED' : (newStatus === 'Archived' ? 'ARCHIVED' : 'STATUS_CHANGED'),
-        new_value: { status: newStatus }
-      }])
+        admin_id: user.id, target_user_id: targetUserId, action: 'USER_DEACTIVATED',
+        new_value: { status: 'Inactive', target_name: targetProfile?.name }
+      }]).catch(() => {})
       
-      await logSecurityEvent(newStatus === 'Suspended' ? 'Suspension' : 'StatusChange', targetUserId, { status: newStatus })
+      await logSecurityEvent('UserDeactivated', targetUserId, { name: targetProfile?.name })
 
-      result = { message: `User status changed to ${newStatus}` }
+      result = { success: true, message: `User "${targetProfile?.name || ''}" has been deactivated successfully.` }
+
+    } else if (action === 'reactivateUser') {
+      const { targetUserId } = payload
+      if (!targetUserId) throw new Error('Target user ID is required.')
+
+      const { data: targetProfile } = await supabaseAdmin.from('profiles').select('name').eq('id', targetUserId).single()
+
+      const { error: statusError } = await supabaseAdmin.from('profiles').update({ status: 'Active' }).eq('id', targetUserId)
+      if (statusError) throw statusError
+
+      await supabaseAdmin.from('user_management_audit_logs').insert([{
+        admin_id: user.id, target_user_id: targetUserId, action: 'USER_REACTIVATED',
+        new_value: { status: 'Active', target_name: targetProfile?.name }
+      }]).catch(() => {})
+      
+      await logSecurityEvent('UserReactivated', targetUserId, { name: targetProfile?.name })
+
+      result = { success: true, message: `User "${targetProfile?.name || ''}" has been reactivated successfully.` }
+
+    } else if (action === 'deleteUser') {
+      const { targetUserId } = payload
+      if (!targetUserId) throw new Error('Target user ID is required.')
+
+      if (profile.role !== 'superadmin' && profile.role !== 'admin') {
+        throw new Error('Forbidden. Only administrators can delete user accounts.')
+      }
+
+      if (targetUserId === user.id) {
+        throw new Error('Safety protection: You cannot delete your own active account.')
+      }
+
+      // Check dependent records: marks, attendance, teaching assignments
+      const { count: marksCount } = await supabaseAdmin.from('marks').select('*', { count: 'exact', head: true }).eq('teacher_id', targetUserId)
+      const { count: classTeacherCount } = await supabaseAdmin.from('classes').select('*', { count: 'exact', head: true }).eq('class_teacher_id', targetUserId)
+      const { count: assignmentCount } = await supabaseAdmin.from('teacher_subjects').select('*', { count: 'exact', head: true }).eq('teacher_id', targetUserId)
+
+      if ((marksCount && marksCount > 0) || (classTeacherCount && classTeacherCount > 0) || (assignmentCount && assignmentCount > 0)) {
+        throw new Error(`Cannot permanently delete this user because they have active academic/teaching records (${marksCount || 0} marks, ${classTeacherCount || 0} classes assigned). Please Deactivate the user instead to preserve audit history.`)
+      }
+
+      const { error: profileDeleteError } = await supabaseAdmin.from('profiles').delete().eq('id', targetUserId)
+      if (profileDeleteError) throw profileDeleteError
+
+      const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(targetUserId)
+      if (authDeleteError) throw authDeleteError
+
+      await supabaseAdmin.from('user_management_audit_logs').insert([{
+        admin_id: user.id, target_user_id: targetUserId, action: 'USER_DELETED',
+        new_value: { deleted_user_id: targetUserId }
+      }]).catch(() => {})
+
+      result = { success: true, message: 'User permanently deleted successfully.' }
 
     } else {
       throw new Error(`Unknown action: ${action}`)

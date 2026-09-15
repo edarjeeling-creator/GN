@@ -63,29 +63,92 @@ export const AuthProvider = ({ children }) => {
 
   const unifiedLogin = async (name, uid) => {
     try {
-      const trimmedName = name.trim();
+      const trimmedName = (name || '').trim();
+      const trimmedUid = (uid || '').trim();
       
       // If name is an email, attempt direct Supabase Auth login (common for admins & teachers)
       if (trimmedName.includes('@')) {
         localStorage.removeItem('studentProfile');
-        
-        // --------------------------------------------
+        const loginRes = await supabase.auth.signInWithPassword({ email: trimmedName.toLowerCase(), password: trimmedUid });
+        if (loginRes.error) return loginRes;
 
-        return await supabase.auth.signInWithPassword({ email: trimmedName, password: uid });
+        // Block inactive staff accounts
+        const { data: staffProf } = await supabase
+          .from('profiles')
+          .select('status, role, name')
+          .eq('id', loginRes.data.user.id)
+          .single();
+
+        if (staffProf && (staffProf.status === 'Inactive' || staffProf.status === 'Suspended')) {
+          await supabase.auth.signOut();
+          return {
+            error: {
+              message: 'Your account has been deactivated. Please contact the school administrator.'
+            }
+          };
+        }
+        return loginRes;
       }
 
+      // Check if this is a staff member (teacher, admin, principal) logging in with their name
+      let staffLoginError = null;
+      try {
+        const { data: staffLookup, error: lookupErr } = await supabase.rpc('lookup_staff_email_by_name', {
+          p_name: trimmedName
+        });
 
+        const staffEmail = typeof staffLookup === 'object' && staffLookup !== null ? staffLookup.email : staffLookup;
+        const staffStatus = typeof staffLookup === 'object' && staffLookup !== null ? staffLookup.status : null;
 
-      // First, check if this is a student by calling the SECURITY DEFINER RPC
+        if (staffStatus === 'Inactive' || staffStatus === 'Suspended') {
+          return {
+            error: {
+              message: 'Your account has been deactivated. Please contact the school administrator.'
+            }
+          };
+        }
+
+        if (!lookupErr && staffEmail && typeof staffEmail === 'string' && staffEmail.includes('@')) {
+          localStorage.removeItem('studentProfile');
+          const staffLoginRes = await supabase.auth.signInWithPassword({
+            email: staffEmail.toLowerCase().trim(),
+            password: trimmedUid
+          });
+
+          if (!staffLoginRes.error) {
+            const { data: staffProf } = await supabase
+              .from('profiles')
+              .select('status, role, name')
+              .eq('id', staffLoginRes.data.user.id)
+              .single();
+
+            if (staffProf && (staffProf.status === 'Inactive' || staffProf.status === 'Suspended')) {
+              await supabase.auth.signOut();
+              return {
+                error: {
+                  message: 'Your account has been deactivated. Please contact the school administrator.'
+                }
+              };
+            }
+            return staffLoginRes;
+          } else {
+            staffLoginError = staffLoginRes.error;
+          }
+        }
+      } catch (staffErr) {
+        console.warn('Staff name lookup failed, checking student credentials:', staffErr);
+      }
+
+      // Check if this is a student by calling the SECURITY DEFINER RPC
       // This bypasses RLS which is required since students are not authenticated yet
       const { data: studentReport, error: studentError } = await supabase.rpc('get_student_report', {
-        p_uid: uid,
+        p_uid: trimmedUid,
         p_academic_year: '2026' // Default academic year
       });
 
       if (!studentError && studentReport && studentReport.student) {
         // Verify the name matches (case-insensitive)
-        const dbName = studentReport.student.name.toLowerCase().trim();
+        const dbName = (studentReport.student.name || '').toLowerCase().trim();
         const inputName = trimmedName.toLowerCase();
         
         if (dbName === inputName) {
@@ -113,10 +176,11 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
-      // If not a student, check if they are a teacher trying to login with Name + Password
-      // This requires a custom RPC if teachers log in by name, but usually they log in by email.
-      // Since they didn't provide an email (no '@'), and they aren't a student, we fail.
-      return { error: { message: 'Invalid Name or UID' } };
+      if (staffLoginError) {
+        return { error: staffLoginError };
+      }
+
+      return { error: { message: 'Invalid Name, Email, or Password' } };
     } catch (err) {
       console.error("Unified login error:", err);
       return { error: err };

@@ -274,6 +274,8 @@ CREATE TABLE IF NOT EXISTS public.teacher_attendance (
 
 ALTER TABLE public.teacher_attendance 
   ADD COLUMN IF NOT EXISTS working_hours TEXT,
+  ADD COLUMN IF NOT EXISTS working_duration_seconds DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW(),
   ADD COLUMN IF NOT EXISTS check_in_method TEXT DEFAULT 'DIRECT',
   ADD COLUMN IF NOT EXISTS check_out_method TEXT,
   ADD COLUMN IF NOT EXISTS check_in_verification_status TEXT DEFAULT 'UNVERIFIED',

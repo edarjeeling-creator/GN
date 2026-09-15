@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase, getClientSchoolId } from '../lib/supabase';
 import { motion } from 'framer-motion';
-import { Users, BookOpen, Shield, Layers, LogOut, QrCode, ShieldCheck, Loader2, Building2, MapPin } from 'lucide-react';
+import { Users, BookOpen, Shield, Layers, LogOut, QrCode, ShieldCheck, Loader2, Building2, MapPin, Key, UserPlus, UserX, UserCheck, Edit, Search, Filter, Trash2, Mail, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
@@ -26,6 +26,11 @@ import CalendarManager from './Admin/CalendarManager';
 import DiscussionPanel from '../components/chat/DiscussionPanel';
 import MessageCMS from './Admin/MessageCMS';
 import AcademicAssessmentConfig from './Admin/AcademicAssessmentConfig';
+import UserCredentialsModal from '../components/admin/UserCredentialsModal';
+import CreateUserModal from '../components/admin/CreateUserModal';
+import EditUserModal from '../components/admin/EditUserModal';
+import DeactivateConfirmationModal from '../components/admin/DeactivateConfirmationModal';
+import { UserCredentialService } from '../services/UserCredentialService';
 
 const Admin = () => {
   const { logout, profile } = useAuth();
@@ -54,6 +59,70 @@ const Admin = () => {
   const [teacherAssignments, setTeacherAssignments] = useState([]);
   const [modalAssignmentClass, setModalAssignmentClass] = useState('');
   const [modalAssignmentSubject, setModalAssignmentSubject] = useState('');
+
+  // User Lifecycle & Credentials Management
+  const [isCreateUserModalOpen, setIsCreateUserModalOpen] = useState(false);
+  const [editingUserForModal, setEditingUserForModal] = useState(null);
+  const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
+  
+  const [credentialModalUser, setCredentialModalUser] = useState(null);
+  const [isCredentialModalOpen, setIsCredentialModalOpen] = useState(false);
+
+  const [deactivateModalUser, setDeactivateModalUser] = useState(null);
+  const [deactivateActionType, setDeactivateActionType] = useState('deactivate'); // 'deactivate' | 'reactivate' | 'delete'
+  const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
+
+  // Staff Filters
+  const [staffRoleFilter, setStaffRoleFilter] = useState('all');
+  const [staffCampusFilter, setStaffCampusFilter] = useState('all');
+  const [staffStatusFilter, setStaffStatusFilter] = useState('all');
+
+  const handleOpenCredentialsModal = (user) => {
+    setCredentialModalUser(user);
+    setIsCredentialModalOpen(true);
+  };
+
+  const handleCredentialsSuccess = (updatedUser) => {
+    setTeachers(prev => prev.map(t => t.id === updatedUser.id ? { ...t, name: updatedUser.name, email: updatedUser.email } : t));
+    if (editingTeacher && editingTeacher.id === updatedUser.id) {
+      setEditingTeacher(prev => ({ ...prev, name: updatedUser.name, email: updatedUser.email }));
+      setEditTeacherName(updatedUser.name);
+    }
+  };
+
+  const handleOpenEditUserModal = (user) => {
+    setEditingUserForModal(user);
+    setIsEditUserModalOpen(true);
+  };
+
+  const handleUserCreatedSuccess = async () => {
+    const staffRes = await UserCredentialService.fetchStaffDirectory();
+    if (staffRes.success && staffRes.data) {
+      setTeachers(staffRes.data);
+    }
+  };
+
+  const handleUserUpdatedSuccess = (updatedUser) => {
+    setTeachers(prev => prev.map(t => t.id === updatedUser.id ? { ...t, ...updatedUser } : t));
+    if (editingTeacher && editingTeacher.id === updatedUser.id) {
+      setEditingTeacher(prev => ({ ...prev, ...updatedUser }));
+      setEditTeacherName(updatedUser.name);
+    }
+  };
+
+  const handleOpenDeactivateModal = (user, type = 'deactivate') => {
+    setDeactivateModalUser(user);
+    setDeactivateActionType(type);
+    setIsDeactivateModalOpen(true);
+  };
+
+  const handleStatusChangeSuccess = (targetUser, actionType) => {
+    if (actionType === 'delete') {
+      setTeachers(prev => prev.filter(t => t.id !== targetUser.id));
+    } else {
+      setTeachers(prev => prev.map(t => t.id === targetUser.id ? { ...t, status: targetUser.status } : t));
+    }
+  };
 
   const [uploadingStudentId, setUploadingStudentId] = useState(null);
   const studentPhotoInputRef = useRef(null);
@@ -106,8 +175,14 @@ const Admin = () => {
       teachers: teacherCount || 0
     });
 
-    const { data: tData } = await supabase.from('profiles').select('*').in('role', ['teacher', 'principal']).order('name');
-    if (tData) setTeachers(tData);
+    // Fetch staff directory with emails
+    const staffRes = await UserCredentialService.fetchStaffDirectory();
+    if (staffRes.success && staffRes.data && staffRes.data.length > 0) {
+      setTeachers(staffRes.data);
+    } else {
+      const { data: tData } = await supabase.from('profiles').select('*').in('role', ['teacher', 'principal']).order('name');
+      if (tData) setTeachers(tData);
+    }
   };
 
   const handleStudentPhotoClick = (studentId) => {
@@ -1402,119 +1477,248 @@ const Admin = () => {
             </form>
           </div>
 
+          {/* Manage Staff & User Accounts */}
           <div className="bento-card" style={{ padding: '2rem' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Add New Teacher</h3>
-            <form onSubmit={handleAddTeacher} className="flex flex-col gap-3">
-              <input 
-                type="text" 
-                placeholder="Full Name" 
-                className="input-field" 
-                value={newTeacher.name}
-                onChange={e => setNewTeacher({...newTeacher, name: e.target.value})}
-                disabled={isCreatingTeacher}
-                required
-              />
-              <input 
-                type="email" 
-                placeholder="Email Address (Login ID)" 
-                className="input-field" 
-                value={newTeacher.email}
-                onChange={e => setNewTeacher({...newTeacher, email: e.target.value})}
-                disabled={isCreatingTeacher}
-                required
-              />
-              <input 
-                type="password" 
-                placeholder="Secure Password" 
-                className="input-field" 
-                value={newTeacher.password}
-                onChange={e => setNewTeacher({...newTeacher, password: e.target.value})}
-                disabled={isCreatingTeacher}
-                required
-              />
-              {teacherMessage.text && (
-                <div style={{
-                  padding: '0.75rem 1rem',
-                  borderRadius: '0.5rem',
-                  background: teacherMessage.type === 'error' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                  border: `1px solid ${teacherMessage.type === 'error' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)'}`,
-                  color: teacherMessage.type === 'error' ? '#fca5a5' : '#86efac',
-                  fontSize: '0.875rem',
-                  fontWeight: 500
-                }}>
-                  {teacherMessage.text}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+              <div>
+                <div className="flex items-center gap-3">
+                  <h3 style={{ fontSize: '1.35rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                    Staff & User Directory
+                  </h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    {teachers.length} Accounts
+                  </span>
                 </div>
-              )}
-              <button 
-                type="submit" 
-                disabled={isCreatingTeacher}
-                className="btn-hero-primary flex items-center justify-center gap-2" 
-                style={{ 
-                  background: isCreatingTeacher ? '#047857' : '#059669', 
-                  color: 'white', 
-                  border: 'none', 
-                  padding: '0.75rem', 
-                  marginTop: '0.5rem',
-                  opacity: isCreatingTeacher ? 0.75 : 1,
-                  cursor: isCreatingTeacher ? 'not-allowed' : 'pointer'
-                }}
-              >
-                {isCreatingTeacher ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" />
-                    <span>Creating Teacher Account...</span>
-                  </>
-                ) : (
-                  'Create Teacher Account'
-                )}
-              </button>
-            </form>
+                <p className="text-xs text-slate-500 mt-1">
+                  Manage login credentials, roles, campus assignments, and active account status.
+                </p>
+              </div>
 
-            <div style={{ maxHeight: '200px', overflowY: 'auto', borderRadius: '0.5rem', border: '1px solid #e2e8f0', marginTop: '2rem' }}>
-              <div style={{ padding: '1rem', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                <input 
-                  type="text" 
-                  placeholder="Search teacher by name..." 
-                  className="input-field" 
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateUserModalOpen(true)}
+                  className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-xl shadow-md hover:shadow-lg font-semibold text-sm flex items-center gap-2 transition-all"
+                >
+                  <UserPlus size={16} />
+                  <span>+ Create User</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+              {/* Search */}
+              <div className="relative">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search name or email..."
+                  className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   value={teacherSearchQuery}
                   onChange={e => setTeacherSearchQuery(e.target.value)}
-                  style={{ width: '100%', maxWidth: '400px' }}
                 />
               </div>
+
+              {/* Role Filter */}
+              <div>
+                <select
+                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={staffRoleFilter}
+                  onChange={e => setStaffRoleFilter(e.target.value)}
+                >
+                  <option value="all">All Roles</option>
+                  <option value="teacher">Teachers</option>
+                  <option value="admin">Administrators</option>
+                  <option value="principal">Principals</option>
+                  <option value="accountant">Accountants</option>
+                  <option value="librarian">Librarians</option>
+                  <option value="coordinator">Coordinators</option>
+                </select>
+              </div>
+
+              {/* Campus Filter */}
+              <div>
+                <select
+                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={staffCampusFilter}
+                  onChange={e => setStaffCampusFilter(e.target.value)}
+                >
+                  <option value="all">All Campuses</option>
+                  <option value="Senior School">Senior School</option>
+                  <option value="Junior School">Junior School</option>
+                </select>
+              </div>
+
+              {/* Status Filter */}
+              <div>
+                <select
+                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={staffStatusFilter}
+                  onChange={e => setStaffStatusFilter(e.target.value)}
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="Active">Active Only</option>
+                  <option value="Inactive">Inactive Only</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Staff Directory Table */}
+            <div style={{ maxHeight: '420px', overflowY: 'auto', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
               <table className="data-table" style={{ width: '100%' }}>
-                <thead style={{ background: '#f8fafc' }}>
+                <thead style={{ background: '#f8fafc', position: 'sticky', top: 0, zIndex: 10 }}>
                   <tr>
-                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Name</th>
-                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Email</th>
-                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Action</th>
+                    <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontWeight: 600, fontSize: '0.8rem', color: '#475569', borderBottom: '2px solid #e2e8f0' }}>Staff Member</th>
+                    <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontWeight: 600, fontSize: '0.8rem', color: '#475569', borderBottom: '2px solid #e2e8f0' }}>Login Email</th>
+                    <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontWeight: 600, fontSize: '0.8rem', color: '#475569', borderBottom: '2px solid #e2e8f0' }}>Role</th>
+                    <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontWeight: 600, fontSize: '0.8rem', color: '#475569', borderBottom: '2px solid #e2e8f0' }}>Campus</th>
+                    <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontWeight: 600, fontSize: '0.8rem', color: '#475569', borderBottom: '2px solid #e2e8f0' }}>Status</th>
+                    <th style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: 600, fontSize: '0.8rem', color: '#475569', borderBottom: '2px solid #e2e8f0' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {teachers
-                    .filter(t => t.name.toLowerCase().includes(teacherSearchQuery.toLowerCase()))
-                    .map(t => (
-                    <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '1rem', fontWeight: 500 }}>{t.name}</td>
-                      <td style={{ padding: '1rem', color: '#64748b' }}>{t.email}</td>
-                      <td style={{ padding: '1rem' }}>
-                        <button 
-                          className="btn-hero-outline"
-                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', border: '1px solid #e2e8f0', color: '#475569' }}
-                          onClick={() => handleEditTeacherClick(t)}
-                        >
-                          Edit
-                        </button>
-                        <button 
-                          className="btn-hero-outline"
-                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', border: '1px solid #ef4444', color: '#ef4444' }}
-                          onClick={() => handleDeleteTeacher(t.id)}
-                        >
-                          Delete
-                        </button>
+                    .filter(t => {
+                      if (teacherSearchQuery.trim()) {
+                        const q = teacherSearchQuery.toLowerCase().trim();
+                        const matchName = (t.name || '').toLowerCase().includes(q);
+                        const matchEmail = (t.email || '').toLowerCase().includes(q);
+                        if (!matchName && !matchEmail) return false;
+                      }
+                      if (staffRoleFilter !== 'all') {
+                        if ((t.role || 'teacher').toLowerCase() !== staffRoleFilter.toLowerCase()) return false;
+                      }
+                      if (staffCampusFilter !== 'all') {
+                        if ((t.campus || 'Senior School').toLowerCase() !== staffCampusFilter.toLowerCase()) return false;
+                      }
+                      if (staffStatusFilter !== 'all') {
+                        const curStatus = t.status || 'Active';
+                        if (curStatus.toLowerCase() !== staffStatusFilter.toLowerCase()) return false;
+                      }
+                      return true;
+                    })
+                    .map(t => {
+                      const isSelf = profile?.id === t.id;
+                      const isInactive = t.status === 'Inactive' || t.status === 'Suspended';
+                      
+                      const roleStyles = {
+                        admin: 'bg-purple-100 text-purple-800 border-purple-200',
+                        principal: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                        teacher: 'bg-blue-100 text-blue-800 border-blue-200',
+                        accountant: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+                        librarian: 'bg-amber-100 text-amber-800 border-amber-200',
+                        coordinator: 'bg-violet-100 text-violet-800 border-violet-200'
+                      };
+
+                      return (
+                        <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }} className="hover:bg-slate-50/80 transition-colors">
+                          <td style={{ padding: '0.85rem 1rem' }}>
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center shrink-0">
+                                {(t.name || 'U').charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-slate-900 text-sm leading-tight flex items-center gap-1.5">
+                                  {t.name}
+                                  {isSelf && (
+                                    <span className="px-1.5 py-0.2 rounded text-[10px] bg-indigo-100 text-indigo-800 font-bold">YOU</span>
+                                  )}
+                                </p>
+                                <p className="text-[11px] text-slate-400 font-mono truncate max-w-[130px]">{t.id.slice(0, 8)}...</p>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td style={{ padding: '0.85rem 1rem' }}>
+                            <div className="flex items-center gap-1.5 text-slate-600 text-xs font-mono">
+                              <Mail size={12} className="text-slate-400 shrink-0" />
+                              <span className="truncate max-w-[220px]" title={t.email}>{t.email || '—'}</span>
+                            </div>
+                          </td>
+
+                          <td style={{ padding: '0.85rem 1rem' }}>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border capitalize ${roleStyles[t.role] || 'bg-slate-100 text-slate-800 border-slate-200'}`}>
+                              {t.role || 'Staff'}
+                            </span>
+                          </td>
+
+                          <td style={{ padding: '0.85rem 1rem' }}>
+                            <span className="text-xs text-slate-600">
+                              {t.campus || 'Senior School'}
+                            </span>
+                          </td>
+
+                          <td style={{ padding: '0.85rem 1rem' }}>
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                              isInactive 
+                                ? 'bg-amber-100 text-amber-800 border border-amber-200' 
+                                : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${isInactive ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
+                              {isInactive ? 'Inactive' : 'Active'}
+                            </span>
+                          </td>
+
+                          <td style={{ padding: '0.85rem 1rem' }}>
+                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                              {/* Edit Profile */}
+                              <button 
+                                className="px-2.5 py-1 text-xs font-medium bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg shadow-sm transition-colors flex items-center gap-1"
+                                onClick={() => handleOpenEditUserModal(t)}
+                                title="Edit user details and role"
+                              >
+                                <Edit size={12} />
+                                <span>Edit</span>
+                              </button>
+
+                              {/* Set Password / Credentials */}
+                              <button 
+                                className="px-2.5 py-1 text-xs font-medium bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg shadow-sm transition-colors flex items-center gap-1"
+                                onClick={() => handleOpenCredentialsModal(t)}
+                                title="Reset password or login email"
+                              >
+                                <Key size={12} />
+                                <span>Set Password</span>
+                              </button>
+
+                              {/* Deactivate / Reactivate (Safety Protected against self) */}
+                              {!isSelf && (
+                                <>
+                                  {isInactive ? (
+                                    <button 
+                                      className="px-2.5 py-1 text-xs font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg shadow-sm transition-colors flex items-center gap-1"
+                                      onClick={() => handleOpenDeactivateModal(t, 'reactivate')}
+                                      title="Reactivate account"
+                                    >
+                                      <UserCheck size={12} />
+                                      <span>Reactivate</span>
+                                    </button>
+                                  ) : (
+                                    <button 
+                                      className="px-2.5 py-1 text-xs font-medium bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg shadow-sm transition-colors flex items-center gap-1"
+                                      onClick={() => handleOpenDeactivateModal(t, 'deactivate')}
+                                      title="Deactivate account safely (preserves marks & attendance)"
+                                    >
+                                      <UserX size={12} />
+                                      <span>Deactivate</span>
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                  {teachers.length === 0 && (
+                    <tr>
+                      <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                        No staff accounts found. Click "+ Create User" above to add the first staff member.
                       </td>
                     </tr>
-                  ))}
-                  {teachers.length === 0 && <tr><td colSpan="3" style={{ padding: '1rem' }}>No teachers found.</td></tr>}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1628,7 +1832,18 @@ const Admin = () => {
               </div>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
+              <button 
+                type="button" 
+                className="btn btn-outline flex items-center gap-1.5 text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                onClick={() => {
+                  setEditingTeacher(null);
+                  handleOpenCredentialsModal(editingTeacher);
+                }}
+              >
+                <Key size={15} />
+                <span>Change Email & Password</span>
+              </button>
               <button className="btn btn-secondary" onClick={() => setEditingTeacher(null)}>Close</button>
             </div>
           </div>
@@ -1650,6 +1865,36 @@ const Admin = () => {
         ref={studentPhotoInputRef} 
         style={{ display: 'none' }} 
         onChange={handleStudentPhotoUpload} 
+      />
+
+      {/* Modals for User Lifecycle Management */}
+      <CreateUserModal 
+        isOpen={isCreateUserModalOpen} 
+        onClose={() => setIsCreateUserModalOpen(false)} 
+        onSuccess={handleUserCreatedSuccess} 
+      />
+
+      <EditUserModal 
+        user={editingUserForModal} 
+        isOpen={isEditUserModalOpen} 
+        onClose={() => setIsEditUserModalOpen(false)} 
+        onSuccess={handleUserUpdatedSuccess} 
+        onOpenCredentials={handleOpenCredentialsModal} 
+      />
+
+      <UserCredentialsModal 
+        user={credentialModalUser} 
+        isOpen={isCredentialModalOpen} 
+        onClose={() => setIsCredentialModalOpen(false)} 
+        onSuccess={handleCredentialsSuccess} 
+      />
+
+      <DeactivateConfirmationModal 
+        user={deactivateModalUser} 
+        actionType={deactivateActionType} 
+        isOpen={isDeactivateModalOpen} 
+        onClose={() => setIsDeactivateModalOpen(false)} 
+        onSuccess={handleStatusChangeSuccess} 
       />
 
     </motion.div>

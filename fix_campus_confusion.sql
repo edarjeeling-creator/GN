@@ -12,13 +12,36 @@
 -- ==============================================================================
 
 -- ==============================================================================
--- 0. Cleanly drop previous function signatures to prevent parameter default & ambiguity conflicts (ERROR 42P13)
+-- 0. Ensure all required columns exist on teacher_attendance table
+-- ==============================================================================
+ALTER TABLE public.teacher_attendance 
+  ADD COLUMN IF NOT EXISTS working_hours TEXT,
+  ADD COLUMN IF NOT EXISTS working_duration_seconds DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS check_in_method TEXT DEFAULT 'DIRECT',
+  ADD COLUMN IF NOT EXISTS check_out_method TEXT,
+  ADD COLUMN IF NOT EXISTS check_in_verification_status TEXT DEFAULT 'UNVERIFIED',
+  ADD COLUMN IF NOT EXISTS check_out_verification_status TEXT,
+  ADD COLUMN IF NOT EXISTS check_in_lat DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS check_in_lng DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS check_out_lat DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS check_out_lng DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS check_in_distance_meters DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS check_out_distance_meters DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS check_in_qr_session_id UUID,
+  ADD COLUMN IF NOT EXISTS check_out_qr_session_id UUID,
+  ADD COLUMN IF NOT EXISTS campus_id UUID REFERENCES public.campuses(id),
+  ADD COLUMN IF NOT EXISTS kiosk_id UUID REFERENCES public.attendance_kiosks(id),
+  ADD COLUMN IF NOT EXISTS gps_accuracy DOUBLE PRECISION;
+
+-- ==============================================================================
+-- 1. Cleanly drop previous function signatures to prevent parameter default & ambiguity conflicts (ERROR 42P13)
 DROP FUNCTION IF EXISTS public.generate_attendance_qr_session(TEXT, INT, TEXT);
 DROP FUNCTION IF EXISTS public.generate_attendance_qr_session(TEXT, INT);
 DROP FUNCTION IF EXISTS public.generate_attendance_qr_session(TEXT);
 DROP FUNCTION IF EXISTS public.verify_and_record_teacher_attendance(TEXT, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, TEXT);
 
--- 1. AUTHORITATIVE generate_attendance_qr_session WITH CAMPUS SUPPORT
+-- 2. AUTHORITATIVE generate_attendance_qr_session WITH CAMPUS SUPPORT
 -- Note: With parameter defaults (p_expiry_seconds = 45, p_campus_id = 'SENIOR_SCHOOL'),
 -- this single function gracefully handles 1-arg, 2-arg, and 3-arg calls from both SQL & PostgREST RPC.
 CREATE OR REPLACE FUNCTION public.generate_attendance_qr_session(
@@ -370,9 +393,12 @@ BEGIN
     UPDATE public.teacher_attendance
     SET
       check_out_time = v_now,
+      check_out_method = 'DYNAMIC_QR',
+      check_out_verification_status = 'VERIFIED',
       check_out_lat = p_lat,
       check_out_lng = p_lng,
       check_out_distance_meters = v_distance_meters,
+      gps_accuracy = p_accuracy,
       check_out_qr_session_id = v_session.id,
       working_hours = v_working_hours_str,
       working_duration_seconds = v_duration_seconds,
