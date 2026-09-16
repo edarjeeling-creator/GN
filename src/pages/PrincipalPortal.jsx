@@ -910,13 +910,20 @@ const PrincipalPortal = () => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <Card className="flex flex-col h-full max-h-[500px]">
-                    <CardHeader className="border-b border-slate-100"><CardTitle>Class-wise Breakdown</CardTitle></CardHeader>
+                    <CardHeader className="border-b border-slate-100 dark:border-slate-800">
+                      <CardTitle className="text-slate-900 dark:text-white">Class-wise Breakdown</CardTitle>
+                    </CardHeader>
                     <CardContent className="p-0 overflow-auto flex-1 custom-scrollbar">
                       <table className="w-full text-left">
-                        <thead className="bg-slate-50 sticky top-0 border-b border-slate-200 shadow-sm z-10">
-                          <tr><th className="p-3 font-semibold text-slate-600">Class</th><th className="p-3 font-semibold text-slate-600">Present</th><th className="p-3 font-semibold text-slate-600">Absent</th><th className="p-3 font-semibold text-slate-600">%</th></tr>
+                        <thead className="bg-slate-100/90 dark:bg-slate-800/90 sticky top-0 border-b border-slate-200 dark:border-slate-700 shadow-sm z-10 backdrop-blur-sm">
+                          <tr>
+                            <th className="p-3 font-semibold text-slate-700 dark:text-slate-200 text-xs uppercase tracking-wider">Class</th>
+                            <th className="p-3 font-semibold text-slate-700 dark:text-slate-200 text-xs uppercase tracking-wider">Present</th>
+                            <th className="p-3 font-semibold text-slate-700 dark:text-slate-200 text-xs uppercase tracking-wider">Absent</th>
+                            <th className="p-3 font-semibold text-slate-700 dark:text-slate-200 text-xs uppercase tracking-wider">%</th>
+                          </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
                           {classesData.map(cls => {
                             const classAtt = attendanceData.filter(a => a.class_id === cls.id);
                             if (!classAtt.length) return null;
@@ -924,11 +931,11 @@ const PrincipalPortal = () => {
                             const abs = classAtt.filter(a => ['Absent', 'Leave'].includes(a.status)).length;
                             const perc = ((pres / classAtt.length) * 100).toFixed(1);
                             return (
-                              <tr key={cls.id} className="hover:bg-slate-50">
-                                <td className="p-3 font-medium text-slate-800">{cls.name} {cls.section}</td>
-                                <td className="p-3 font-bold text-emerald-600">{pres}</td>
-                                <td className="p-3 font-bold text-red-600">{abs}</td>
-                                <td className="p-3 font-bold text-slate-700">{perc}%</td>
+                              <tr key={cls.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                                <td className="p-3 font-semibold text-slate-800 dark:text-slate-100">{cls.name} {cls.section}</td>
+                                <td className="p-3 font-bold text-emerald-600 dark:text-emerald-400">{pres}</td>
+                                <td className="p-3 font-bold text-red-600 dark:text-red-400">{abs}</td>
+                                <td className="p-3 font-bold text-slate-800 dark:text-slate-100">{perc}%</td>
                               </tr>
                             );
                           })}
@@ -938,25 +945,32 @@ const PrincipalPortal = () => {
                   </Card>
                   
                   <Card className="flex flex-col h-full max-h-[500px]">
-                    <CardHeader className="border-b border-slate-100 flex items-center gap-2 text-amber-600"><AlertTriangle size={18} /><CardTitle className="text-amber-700">Frequently Absent</CardTitle></CardHeader>
+                    <CardHeader className="border-b border-slate-100 dark:border-slate-800 flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                      <AlertTriangle size={18} />
+                      <CardTitle className="text-amber-600 dark:text-amber-400">Frequently Absent</CardTitle>
+                    </CardHeader>
                     <CardContent className="p-0 overflow-auto flex-1 custom-scrollbar">
                       <table className="w-full text-left">
-                        <thead className="bg-slate-50 sticky top-0 border-b border-slate-200 shadow-sm z-10">
-                          <tr><th className="p-3 font-semibold text-slate-600">Student</th><th className="p-3 font-semibold text-slate-600">Class</th><th className="p-3 font-semibold text-slate-600">Absences</th></tr>
+                        <thead className="bg-slate-100/90 dark:bg-slate-800/90 sticky top-0 border-b border-slate-200 dark:border-slate-700 shadow-sm z-10 backdrop-blur-sm">
+                          <tr>
+                            <th className="p-3 font-semibold text-slate-700 dark:text-slate-200 text-xs uppercase tracking-wider">Student</th>
+                            <th className="p-3 font-semibold text-slate-700 dark:text-slate-200 text-xs uppercase tracking-wider">Class</th>
+                            <th className="p-3 font-semibold text-slate-700 dark:text-slate-200 text-xs uppercase tracking-wider">Absences</th>
+                          </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
                           {(() => {
                             const absentsMap = {};
                             attendanceData.forEach(a => { if (['Absent', 'Leave'].includes(a.status)) absentsMap[a.student_id] = (absentsMap[a.student_id] || 0) + 1; });
                             const sorted = Object.entries(absentsMap).sort((a,b) => b[1]-a[1]).slice(0,10);
-                            if (!sorted.length) return <tr><td colSpan="3" className="p-6 text-center text-slate-500">No absentees found.</td></tr>;
+                            if (!sorted.length) return <tr><td colSpan="3" className="p-6 text-center text-slate-500 dark:text-slate-400 font-medium">No absentees found.</td></tr>;
                             return sorted.map(([id, count]) => {
                               const s = studentsData.find(x => x.id === id); const c = classesData.find(x => x.id === s?.class_id);
                               return (
-                                <tr key={id} className="hover:bg-slate-50">
-                                  <td className="p-3 font-medium text-slate-800">{s?.name}</td>
-                                  <td className="p-3 text-slate-600 text-sm">{c ? `${c.name} ${c.section}` : '-'}</td>
-                                  <td className="p-3 font-bold text-red-600">{count} days</td>
+                                <tr key={id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                                  <td className="p-3 font-semibold text-slate-800 dark:text-slate-100">{s?.name}</td>
+                                  <td className="p-3 text-slate-600 dark:text-slate-300 text-sm font-medium">{c ? `${c.name} ${c.section}` : '-'}</td>
+                                  <td className="p-3 font-bold text-red-600 dark:text-red-400">{count} days</td>
                                 </tr>
                               );
                             });
@@ -968,8 +982,10 @@ const PrincipalPortal = () => {
                 </div>
 
                 <Card>
-                  <CardHeader><CardTitle>Attendance Trend</CardTitle></CardHeader>
-                  <CardContent className="h-[300px]">
+                  <CardHeader className="border-b border-slate-100 dark:border-slate-800">
+                    <CardTitle className="text-slate-900 dark:text-white">Attendance Trend</CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-[300px] pt-4">
                     {(() => {
                       const tMap = {};
                       attendanceData.forEach(a => {
@@ -981,10 +997,10 @@ const PrincipalPortal = () => {
                       return (
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart data={tData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                            <XAxis dataKey="date" tick={{fontSize: 12, fill: '#64748B'}} tickFormatter={str => new Date(str).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})} />
-                            <YAxis tick={{fontSize: 12, fill: '#64748B'}} />
-                            <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.4} />
+                            <XAxis dataKey="date" tick={{fontSize: 12, fill: '#94A3B8'}} tickFormatter={str => new Date(str).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})} stroke="#475569" />
+                            <YAxis tick={{fontSize: 12, fill: '#94A3B8'}} stroke="#475569" />
+                            <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#f8fafc', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.5)' }} />
                             <Legend wrapperStyle={{ paddingTop: '10px' }} />
                             <Line type="monotone" dataKey="Present" stroke="#10B981" strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
                             <Line type="monotone" dataKey="Absent" stroke="#EF4444" strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
@@ -1173,13 +1189,13 @@ const PrincipalPortal = () => {
             <Card className="max-w-2xl">
               <CardHeader><CardTitle className="flex items-center gap-2"><Settings size={20} className="text-brand-500" /> School Settings & Branding</CardTitle></CardHeader>
               <CardContent>
-                <div className="p-6 bg-slate-50 rounded-xl border border-slate-200">
-                  <h3 className="text-lg font-bold text-slate-800 mb-2">Principal Digital Signature</h3>
-                  <p className="text-slate-600 text-sm mb-6 leading-relaxed">
+                <div className="p-6 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-800">
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Principal Digital Signature</h3>
+                  <p className="text-slate-600 dark:text-slate-300 text-sm mb-6 leading-relaxed">
                     Upload the official digital signature. This signature will automatically be printed on all student Report Cards. For best results, use a PNG image with a transparent background.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                    <Input type="file" accept="image/png, image/jpeg, image/jpg" onChange={handleFileSelect} disabled={uploadingSig} className="bg-white flex-1 cursor-pointer" />
+                    <Input type="file" accept="image/png, image/jpeg, image/jpg" onChange={handleFileSelect} disabled={uploadingSig} className="bg-white dark:bg-slate-950 flex-1 cursor-pointer" />
                     {selectedFile && (
                       <Button onClick={handleSignatureUpload} disabled={uploadingSig} className="shrink-0">
                         <Upload size={18} className="mr-2" /> {uploadingSig ? 'Uploading...' : 'Save Signature'}
