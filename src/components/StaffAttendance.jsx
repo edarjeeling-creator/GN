@@ -18,7 +18,9 @@ import {
   XCircle, 
   ExternalLink,
   MapPin,
-  HelpCircle
+  HelpCircle,
+  Search,
+  Filter
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
@@ -43,6 +45,8 @@ const StaffAttendance = () => {
   const [processingReview, setProcessingReview] = useState(false);
   const [campusesList, setCampusesList] = useState([]);
   const [campusFilter, setCampusFilter] = useState('ALL');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -181,8 +185,64 @@ const StaffAttendance = () => {
     }
   };
 
-  // KPIs
-  const totalStaff = teachers.length;
+  // Look up selected campus name
+  const selectedCampusObj = campusesList.find(c => c.id === campusFilter);
+  const selectedCampusName = selectedCampusObj?.campus_name || '';
+
+  const teacherMatchesCampus = (teacher, record) => {
+    if (campusFilter === 'ALL') return true;
+
+    // 1. If teacher checked in today at this campus
+    if (record?.campus_id === campusFilter) return true;
+    if (record?.campus?.campus_name && selectedCampusName &&
+        record.campus.campus_name.toLowerCase() === selectedCampusName.toLowerCase()) {
+      return true;
+    }
+
+    // 2. If no attendance record, check profile campus assignment
+    if (!record || !record.campus_id) {
+      if (teacher?.campus_id === campusFilter) return true;
+      if (teacher?.campus) {
+        if (teacher.campus === 'All Campuses') return true;
+        if (selectedCampusName && teacher.campus.toLowerCase() === selectedCampusName.toLowerCase()) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  };
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const isPastDate = dateFilter < todayStr;
+
+  // Single authoritative feed scoped to current campus
+  const scopedStaff = teachers
+    .map(t => {
+      const record = staffAttData.find(a => a.teacher_id === t.id);
+      let status = 'Absent';
+      let isMissingCheckout = false;
+
+      if (record) {
+        status = record.status;
+        if (record.check_in_time && !record.check_out_time && (isPastDate || new Date().getHours() >= 17)) {
+          isMissingCheckout = true;
+        }
+      }
+
+      // Dynamic QR check: verification method must be DYNAMIC_QR and verification status VERIFIED
+      const isVerifiedQR = Boolean(
+        record &&
+        (record.check_in_method === 'DYNAMIC_QR' || record.check_out_method === 'DYNAMIC_QR') &&
+        (record.check_in_verification_status === 'VERIFIED' || record.check_out_verification_status === 'VERIFIED')
+      );
+
+      return { teacher: t, record, status, isMissingCheckout, isVerifiedQR };
+    })
+    .filter(item => teacherMatchesCampus(item.teacher, item.record));
+
+  // Authoritative KPI counts derived directly from scoped dataset
+  const totalStaff = scopedStaff.length;
   let presentCount = 0;
   let lateCount = 0;
   let absentCount = 0;
@@ -190,30 +250,100 @@ const StaffAttendance = () => {
   let missingCheckoutCount = 0;
   let verifiedCount = 0;
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const isPastDate = dateFilter < todayStr;
-
-  const feed = teachers.map(t => {
-    const record = staffAttData.find(a => a.teacher_id === t.id);
-    let status = 'Absent';
-    let isMissingCheckout = false;
-
-    if (record) {
-      status = record.status;
-      if (record.check_in_verification_status === 'VERIFIED') verifiedCount++;
-      if (record.check_in_time && !record.check_out_time && (isPastDate || new Date().getHours() >= 17)) {
-        isMissingCheckout = true;
-        missingCheckoutCount++;
-      }
-    }
-    
-    if (status.includes('Present')) presentCount++;
-    else if (status === 'Late') lateCount++;
-    else if (status === 'Leave' || status === 'Medical Leave') leaveCount++;
+  scopedStaff.forEach(item => {
+    if (item.status.includes('Present')) presentCount++;
+    else if (item.status === 'Late') lateCount++;
+    else if (item.status === 'Leave' || item.status === 'Medical Leave' || item.status.toLowerCase().includes('leave')) leaveCount++;
     else absentCount++;
 
-    return { teacher: t, record, status, isMissingCheckout };
+    if (item.isMissingCheckout) missingCheckoutCount++;
+    if (item.isVerifiedQR) verifiedCount++;
   });
+
+  // Filter roster by selectedStatusFilter
+  const statusFilteredStaff = scopedStaff.filter(item => {
+    switch (selectedStatusFilter) {
+      case 'PRESENT':
+        return item.status.includes('Present');
+      case 'LATE':
+        return item.status === 'Late';
+      case 'ABSENT':
+        return item.status === 'Absent';
+      case 'ON_LEAVE':
+        return item.status === 'Leave' || item.status === 'Medical Leave' || item.status.toLowerCase().includes('leave');
+      case 'VERIFIED_QR':
+        return item.isVerifiedQR;
+      case 'ALL':
+      default:
+        return true;
+    }
+  });
+
+  // Filter roster by search query
+  const displayedStaff = statusFilteredStaff.filter(item => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    const nameMatch = item.teacher.name?.toLowerCase().includes(q);
+    const campusNameMatch = (item.record?.campus?.campus_name || item.teacher?.campus || '').toLowerCase().includes(q);
+    return nameMatch || campusNameMatch;
+  });
+
+  const filterCards = [
+    {
+      id: 'ALL',
+      label: 'Total Staff',
+      count: totalStaff,
+      color: 'text-[var(--text-primary)]',
+      activeBorder: 'border-brand-500 bg-brand-500/10 ring-2 ring-brand-500/30',
+      activeBadge: 'bg-brand-500 text-white',
+      ariaLabel: `Filter staff attendance by Total Staff. ${totalStaff} staff.`
+    },
+    {
+      id: 'PRESENT',
+      label: 'Present',
+      count: presentCount,
+      color: 'text-emerald-500',
+      activeBorder: 'border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500/30',
+      activeBadge: 'bg-emerald-500 text-white',
+      ariaLabel: `Filter staff attendance by Present. ${presentCount} staff.`
+    },
+    {
+      id: 'LATE',
+      label: 'Late',
+      count: lateCount,
+      color: 'text-amber-500',
+      activeBorder: 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/30',
+      activeBadge: 'bg-amber-500 text-white',
+      ariaLabel: `Filter staff attendance by Late. ${lateCount} staff.`
+    },
+    {
+      id: 'ABSENT',
+      label: 'Absent',
+      count: absentCount,
+      color: 'text-rose-500',
+      activeBorder: 'border-rose-500 bg-rose-500/10 ring-2 ring-rose-500/30',
+      activeBadge: 'bg-rose-500 text-white',
+      ariaLabel: `Filter staff attendance by Absent. ${absentCount} staff.`
+    },
+    {
+      id: 'ON_LEAVE',
+      label: 'On Leave',
+      count: leaveCount,
+      color: 'text-purple-500',
+      activeBorder: 'border-purple-500 bg-purple-500/10 ring-2 ring-purple-500/30',
+      activeBadge: 'bg-purple-500 text-white',
+      ariaLabel: `Filter staff attendance by On Leave. ${leaveCount} staff.`
+    },
+    {
+      id: 'VERIFIED_QR',
+      label: 'Verified QR',
+      count: verifiedCount,
+      color: 'text-blue-500',
+      activeBorder: 'border-blue-500 bg-blue-500/10 ring-2 ring-blue-500/30',
+      activeBadge: 'bg-blue-500 text-white',
+      ariaLabel: `Filter staff attendance by Verified QR. ${verifiedCount} staff.`
+    }
+  ];
 
   const pendingCorrections = correctionRequests.filter(r => r.status === 'PENDING');
 
@@ -276,32 +406,50 @@ const StaffAttendance = () => {
         </div>
       </div>
 
-      {/* Primary KPI Cards */}
+      {/* Primary Interactive KPI Filter Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-        <div className="card text-center p-3.5">
-          <div className="text-[var(--text-secondary)] text-xs font-semibold uppercase tracking-wider mb-1">Total Staff</div>
-          <div className="text-2xl font-black text-[var(--text-primary)]">{totalStaff}</div>
-        </div>
-        <div className="card text-center p-3.5">
-          <div className="text-emerald-500 text-xs font-semibold uppercase tracking-wider mb-1">Present</div>
-          <div className="text-2xl font-black text-emerald-500">{presentCount}</div>
-        </div>
-        <div className="card text-center p-3.5">
-          <div className="text-amber-500 text-xs font-semibold uppercase tracking-wider mb-1">Late</div>
-          <div className="text-2xl font-black text-amber-500">{lateCount}</div>
-        </div>
-        <div className="card text-center p-3.5">
-          <div className="text-rose-500 text-xs font-semibold uppercase tracking-wider mb-1">Absent</div>
-          <div className="text-2xl font-black text-rose-500">{absentCount}</div>
-        </div>
-        <div className="card text-center p-3.5">
-          <div className="text-purple-500 text-xs font-semibold uppercase tracking-wider mb-1">On Leave</div>
-          <div className="text-2xl font-black text-purple-500">{leaveCount}</div>
-        </div>
-        <div className="card text-center p-3.5">
-          <div className="text-blue-500 text-xs font-semibold uppercase tracking-wider mb-1">Verified QR</div>
-          <div className="text-2xl font-black text-blue-500">{verifiedCount}</div>
-        </div>
+        {filterCards.map(card => {
+          const isActive = selectedStatusFilter === card.id;
+          return (
+            <button
+              key={card.id}
+              type="button"
+              role="button"
+              tabIndex={0}
+              aria-pressed={isActive}
+              aria-label={card.ariaLabel}
+              onClick={() => setSelectedStatusFilter(card.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelectedStatusFilter(card.id);
+                }
+              }}
+              className={`card text-center p-3.5 cursor-pointer transition-all duration-150 relative select-none text-left sm:text-center focus:outline-none focus:ring-2 focus:ring-brand-500 ${
+                isActive
+                  ? `${card.activeBorder} shadow-md -translate-y-0.5`
+                  : 'hover:border-slate-400 dark:hover:border-slate-600 hover:-translate-y-0.5 hover:shadow-sm'
+              }`}
+            >
+              <div className="flex items-center justify-between sm:justify-center mb-1">
+                <span className={`${card.color} text-xs font-semibold uppercase tracking-wider`}>
+                  {card.label}
+                </span>
+                {isActive && (
+                  <span className={`sm:hidden text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider ${card.activeBadge}`}>
+                    Active
+                  </span>
+                )}
+              </div>
+              <div className={`text-2xl font-black ${card.color}`}>{card.count}</div>
+              {isActive && (
+                <div className="hidden sm:flex items-center justify-center gap-1 mt-1 text-[10px] font-bold uppercase tracking-wider opacity-90">
+                  <span className="w-1.5 h-1.5 rounded-full bg-current inline-block animate-pulse" /> Active Filter
+                </div>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Missing Checkout Alert Banner */}
@@ -370,122 +518,219 @@ const StaffAttendance = () => {
 
       {/* Main Content Area */}
       {activeTab === 'ATTENDANCE' ? (
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Teacher</th>
-                <th>Campus</th>
-                <th>Status</th>
-                <th>Check In</th>
-                <th>Check Out</th>
-                <th>Hours</th>
-                <th>Verification</th>
-                <th>Method</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {feed
-                .filter(f => {
-                  if (campusFilter === 'ALL') return true;
-                  return f.record?.campus_id === campusFilter;
-                })
-                .map(f => (
-                <tr key={f.teacher.id}>
-                  <td className="font-medium text-[var(--text-primary)]">{f.teacher.name}</td>
-                  <td>
-                    {f.record?.campus?.campus_name ? (
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                        {f.record.campus.campus_name}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400 text-xs">-</span>
-                    )}
-                  </td>
-                  <td>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold uppercase
-                      ${f.status.includes('Present') ? 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400' : 
-                        f.status === 'Late' ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400' : 
-                        f.status === 'Absent' ? 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400' : 
-                        'bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-400'}`}>
-                      {f.status}
-                    </span>
-                  </td>
-                  <td className="text-[var(--text-secondary)] font-mono text-xs">
-                    {f.record?.check_in_time 
-                      ? new Date(f.record.check_in_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) 
-                      : '-'}
-                  </td>
-                  <td className="text-[var(--text-secondary)] font-mono text-xs">
-                    {f.record?.check_out_time ? (
-                      new Date(f.record.check_out_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
-                    ) : f.isMissingCheckout ? (
-                      <span className="text-amber-500 font-bold text-[10px] bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                        MISSING CHECKOUT
-                      </span>
-                    ) : f.record?.check_in_time ? (
-                      <span className="text-slate-400 italic text-[11px]">In Progress</span>
-                    ) : (
-                      '-'
-                    )}
-                  </td>
-                  <td className="text-[var(--text-secondary)] font-mono text-xs font-bold">
-                    {f.record?.working_hours || (
-                      f.record?.check_in_time && f.record?.check_out_time
-                        ? (() => {
-                            const diff = new Date(f.record.check_out_time) - new Date(f.record.check_in_time);
-                            const h = Math.floor(diff / 3600000);
-                            const m = Math.floor((diff % 3600000) / 60000);
-                            return `${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m`;
-                          })()
-                        : '-'
-                    )}
-                  </td>
-                  <td>
-                    {f.record ? (
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${
-                        f.record.check_in_verification_status === 'VERIFIED'
-                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                          : f.record.check_in_method === 'MANUAL_CORRECTION'
-                            ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30'
-                            : 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border border-slate-500/30'
-                      }`}>
-                        <ShieldCheck size={12} />
-                        {f.record.check_in_verification_status === 'VERIFIED'
-                          ? 'Verified'
-                          : f.record.check_in_method === 'MANUAL_CORRECTION'
-                            ? 'Approved Correction'
-                            : 'Unverified / Legacy'}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400 text-xs">-</span>
-                    )}
-                  </td>
-                  <td className="text-xs text-[var(--text-secondary)]">
-                    {f.record?.check_in_method === 'DYNAMIC_QR' ? (
-                      <span className="font-medium text-emerald-600 dark:text-emerald-400">Dynamic QR</span>
-                    ) : f.record?.check_in_method === 'MANUAL_CORRECTION' ? (
-                      <span className="font-medium text-blue-600 dark:text-blue-400">Manual / Admin</span>
-                    ) : f.record ? (
-                      <span className="text-slate-400">Direct / Legacy</span>
-                    ) : (
-                      '-'
-                    )}
-                  </td>
-                  <td>
-                    <button 
-                      onClick={() => { setEditingRecord(f); setNewStatus(f.status); setCorrectionReason(''); }} 
-                      className="text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-500/10 p-2 rounded-full transition-colors"
-                      title="Direct Administrative Correction"
-                    >
-                      <Edit size={16} />
-                    </button>
-                  </td>
+        <div className="space-y-3">
+          {/* Active Filter Indicator & Search Toolbar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 p-3 rounded-xl">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Filter size={15} className="text-brand-500" />
+              <span className="text-xs text-[var(--text-secondary)] font-medium">Filter:</span>
+              <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                selectedStatusFilter === 'PRESENT' ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' :
+                selectedStatusFilter === 'LATE' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30' :
+                selectedStatusFilter === 'ABSENT' ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30' :
+                selectedStatusFilter === 'ON_LEAVE' ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30' :
+                selectedStatusFilter === 'VERIFIED_QR' ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30' :
+                'bg-slate-200 dark:bg-slate-800 text-[var(--text-primary)]'
+              }`}>
+                Showing: {
+                  selectedStatusFilter === 'PRESENT' ? 'PRESENT' :
+                  selectedStatusFilter === 'LATE' ? 'LATE' :
+                  selectedStatusFilter === 'ABSENT' ? 'ABSENT' :
+                  selectedStatusFilter === 'ON_LEAVE' ? 'ON LEAVE' :
+                  selectedStatusFilter === 'VERIFIED_QR' ? 'VERIFIED QR' :
+                  'ALL STAFF'
+                }
+              </span>
+              <span className="text-xs text-[var(--text-secondary)]">
+                ({displayedStaff.length} {displayedStaff.length === 1 ? 'record' : 'records'})
+              </span>
+              {(selectedStatusFilter !== 'ALL' || searchQuery) && (
+                <button
+                  type="button"
+                  onClick={() => { setSelectedStatusFilter('ALL'); setSearchQuery(''); }}
+                  className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-[var(--text-primary)] transition-colors ml-1"
+                  title="Clear filter and return to all staff"
+                >
+                  <X size={12} /> Clear Filter
+                </button>
+              )}
+            </div>
+
+            <div className="relative min-w-[240px]">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search staff by name or campus..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="input-field text-xs pl-8 pr-8 py-1.5 w-full"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  title="Clear search"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Teacher</th>
+                  <th>Campus</th>
+                  <th>Status</th>
+                  <th>Check In</th>
+                  <th>Check Out</th>
+                  <th>Hours</th>
+                  <th>Verification</th>
+                  <th>Method</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {displayedStaff.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="text-center py-12">
+                      <div className="max-w-md mx-auto space-y-2">
+                        <div className="text-slate-400 dark:text-slate-500 flex justify-center">
+                          <Users size={36} className="opacity-40" />
+                        </div>
+                        <p className="text-sm font-semibold text-[var(--text-primary)]">
+                          {searchQuery ? (
+                            `No staff members matching "${searchQuery}" found for this filter.`
+                          ) : selectedStatusFilter === 'PRESENT' ? (
+                            'No staff members are currently marked Present for this date.'
+                          ) : selectedStatusFilter === 'LATE' ? (
+                            'No staff members are marked Late for this date.'
+                          ) : selectedStatusFilter === 'ABSENT' ? (
+                            'No staff members are marked Absent for this date.'
+                          ) : selectedStatusFilter === 'ON_LEAVE' ? (
+                            'No staff members are currently on Leave for this date.'
+                          ) : selectedStatusFilter === 'VERIFIED_QR' ? (
+                            'No Dynamic QR verified attendance records found for this date.'
+                          ) : (
+                            'No staff attendance records found for this date.'
+                          )}
+                        </p>
+                        <p className="text-xs text-[var(--text-secondary)]">
+                          Date: {dateFilter} • Campus: {selectedCampusObj?.campus_name || 'All Campuses'}
+                        </p>
+                        {(selectedStatusFilter !== 'ALL' || searchQuery) && (
+                          <button
+                            type="button"
+                            onClick={() => { setSelectedStatusFilter('ALL'); setSearchQuery(''); }}
+                            className="btn-secondary text-xs px-3 py-1.5 mt-2 inline-flex items-center gap-1.5"
+                          >
+                            <X size={13} /> Clear Filter & Show All Staff
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  displayedStaff.map(f => (
+                    <tr key={f.teacher.id}>
+                      <td className="font-medium text-[var(--text-primary)]">{f.teacher.name}</td>
+                      <td>
+                        {f.record?.campus?.campus_name ? (
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                            {f.record.campus.campus_name}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-xs">-</span>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold uppercase
+                          ${f.status.includes('Present') ? 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400' : 
+                            f.status === 'Late' ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400' : 
+                            f.status === 'Absent' ? 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400' : 
+                            'bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-400'}`}>
+                          {f.status}
+                        </span>
+                      </td>
+                      <td className="text-[var(--text-secondary)] font-mono text-xs">
+                        {f.record?.check_in_time 
+                          ? new Date(f.record.check_in_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) 
+                          : '-'}
+                      </td>
+                      <td className="text-[var(--text-secondary)] font-mono text-xs">
+                        {f.record?.check_out_time ? (
+                          new Date(f.record.check_out_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
+                        ) : f.isMissingCheckout ? (
+                          <span className="text-amber-500 font-bold text-[10px] bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                            MISSING CHECKOUT
+                          </span>
+                        ) : f.record?.check_in_time ? (
+                          <span className="text-slate-400 italic text-[11px]">In Progress</span>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                      <td className="text-[var(--text-secondary)] font-mono text-xs font-bold">
+                        {f.record?.working_hours || (
+                          f.record?.check_in_time && f.record?.check_out_time
+                            ? (() => {
+                                const diff = new Date(f.record.check_out_time) - new Date(f.record.check_in_time);
+                                const h = Math.floor(diff / 3600000);
+                                const m = Math.floor((diff % 3600000) / 60000);
+                                return `${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m`;
+                              })()
+                            : '-'
+                        )}
+                      </td>
+                      <td>
+                        {f.record ? (
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${
+                            f.record.check_in_verification_status === 'VERIFIED'
+                              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                              : f.record.check_in_method === 'MANUAL_CORRECTION'
+                                ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30'
+                                : 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border border-slate-500/30'
+                          }`}>
+                            <ShieldCheck size={12} />
+                            {f.record.check_in_verification_status === 'VERIFIED'
+                              ? 'Verified'
+                              : f.record.check_in_method === 'MANUAL_CORRECTION'
+                                ? 'Approved Correction'
+                                : 'Unverified / Legacy'}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-xs">-</span>
+                        )}
+                      </td>
+                      <td className="text-xs text-[var(--text-secondary)]">
+                        {f.record?.check_in_method === 'DYNAMIC_QR' ? (
+                          <span className="font-medium text-emerald-600 dark:text-emerald-400">Dynamic QR</span>
+                        ) : f.record?.check_in_method === 'MANUAL_CORRECTION' ? (
+                          <span className="font-medium text-blue-600 dark:text-blue-400">Manual / Admin</span>
+                        ) : f.record ? (
+                          <span className="text-slate-400">Direct / Legacy</span>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                      <td>
+                        <button 
+                          onClick={() => { setEditingRecord(f); setNewStatus(f.status); setCorrectionReason(''); }} 
+                          className="text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-500/10 p-2 rounded-full transition-colors"
+                          title="Direct Administrative Correction"
+                        >
+                          <Edit size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : (
         /* Correction Requests Review Tab */
