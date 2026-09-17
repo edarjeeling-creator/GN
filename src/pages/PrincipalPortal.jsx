@@ -11,6 +11,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import StaffAttendance from '../components/StaffAttendance';
 import AcademicReports from '../components/AcademicReports';
 import WeeklyTestReportViewer from '../components/WeeklyTestReportViewer';
+import TestExamCommunicationCentre from '../components/TestExamCommunication/TestExamCommunicationCentre';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -552,6 +553,7 @@ const PrincipalPortal = () => {
             return [
               { id: 'overview', label: 'Overview' },
               { id: 'weekly_test_report', label: 'Weekly Test Report' },
+              { id: 'test_exam_notices', label: 'Test & Exam Notices' },
               { id: 'staff_attendance', label: 'Staff Attendance' },
               { id: 'attendance', label: 'Attendance Reports' },
               { id: 'academic_reports', label: 'Academic Reports' },
@@ -1083,6 +1085,12 @@ const PrincipalPortal = () => {
         {activeTab === 'weekly_test_report' && (
           <motion.div key="weekly_test_report" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <WeeklyTestReportViewer onSelectTab={setActiveTab} />
+          </motion.div>
+        )}
+
+        {activeTab === 'test_exam_notices' && (
+          <motion.div key="test_exam_notices" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <TestExamCommunicationCentre currentUser={profile} />
           </motion.div>
         )}
 

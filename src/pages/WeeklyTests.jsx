@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Edit, FileText, CheckCircle, Clock, Calendar } from 'lucide-react';
+import { Plus, Edit, FileText, CheckCircle, Clock, Calendar, Send } from 'lucide-react';
 import { formatStudentDisplayName } from '../utils/studentUtils';
 import { WeeklyTestReportService } from '../services/WeeklyTestReportService';
+import TestExamNoticeModal from '../components/TestExamCommunication/TestExamNoticeModal';
 
 export default function WeeklyTests() {
   const { profile: user } = useAuth();
@@ -25,6 +26,7 @@ export default function WeeklyTests() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [teacherAssignments, setTeacherAssignments] = useState([]);
+  const [noticeModalTest, setNoticeModalTest] = useState(null);
   const userId = user?.id;
 
   const fetchTests = useCallback(async () => {
@@ -449,6 +451,17 @@ export default function WeeklyTests() {
             <div className="flex items-center text-sm font-semibold text-brand-600 dark:text-brand-400 gap-1.5">
               {test.status === 'Draft' ? <><Edit size={16}/> Continue Editing</> : <><FileText size={16}/> View Marks</>}
             </div>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setNoticeModalTest(test);
+              }}
+              className="mt-3 w-full py-2 bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 border border-brand-500/30 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Send size={13} /> Send Test Notice to Students
+            </button>
           </div>
         ))}
         {tests.length === 0 && !isCreating && (
@@ -458,6 +471,31 @@ export default function WeeklyTests() {
           </div>
         )}
       </div>
+
+      {noticeModalTest && (
+        <TestExamNoticeModal
+          isOpen={Boolean(noticeModalTest)}
+          onClose={() => setNoticeModalTest(null)}
+          onSuccess={() => {
+            alert('Notice successfully published to students!');
+            setNoticeModalTest(null);
+          }}
+          currentUser={user}
+          teacherAssignments={teacherAssignments}
+          classTeacherClasses={[]}
+          prefilledData={{
+            weekly_test_id: noticeModalTest.id,
+            class_id: noticeModalTest.class_id,
+            subject_id: noticeModalTest.subject_id,
+            test_date: noticeModalTest.test_date,
+            max_marks: noticeModalTest.max_marks,
+            portion: noticeModalTest.portion,
+            title: `${noticeModalTest.classes?.name || 'Class'} ${noticeModalTest.subjects?.name || ''} Weekly Test`,
+            communication_type: 'TEST_ANNOUNCEMENT',
+            scopeType: 'CLASS_SUBJECT'
+          }}
+        />
+      )}
     </div>
   );
 }

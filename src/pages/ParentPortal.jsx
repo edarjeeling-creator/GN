@@ -9,6 +9,7 @@ import {
   formatFeeCurrency, 
   formatDueDateDisplay 
 } from '../services/fee/LateFeeService';
+import StudentTestExamNotices from '../components/TestExamCommunication/StudentTestExamNotices';
 
 const ParentPortal = () => {
   const [session, setSession] = useState(null);
@@ -366,6 +367,17 @@ const ParentPortal = () => {
             <div><span style={{ color: '#9ca3af' }}>Session:</span> <strong style={{ color: '#f3f4f6' }}>2026-2027</strong></div>
           </div>
         </div>
+
+        {/* Academic Test & Exam Notices for Ward */}
+        {studentDetails && (
+          <div style={{ marginBottom: '2rem' }}>
+            <StudentTestExamNotices
+              studentId={studentDetails.id}
+              classId={studentDetails.class_id || studentDetails.classes?.id}
+              currentUser={{ role: 'parent', name: 'Parent', id: studentDetails.id }}
+            />
+          </div>
+        )}
 
         {/* --- REDESIGNED FEES SUMMARY (Inspired by Loreto Convent Darjeeling reference) --- */}
         <div style={{ 

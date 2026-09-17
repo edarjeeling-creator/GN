@@ -27,6 +27,7 @@ import DiscussionPanel from '../components/chat/DiscussionPanel';
 import MessageCMS from './Admin/MessageCMS';
 import AcademicAssessmentConfig from './Admin/AcademicAssessmentConfig';
 import WeeklyTestAdminConfig from '../components/WeeklyTestAdminConfig';
+import TestExamAdminConfig from '../components/TestExamCommunication/TestExamAdminConfig';
 import UserCredentialsModal from '../components/admin/UserCredentialsModal';
 import CreateUserModal from '../components/admin/CreateUserModal';
 import EditUserModal from '../components/admin/EditUserModal';
@@ -864,6 +865,12 @@ const Admin = () => {
           style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'weekly_test_config' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'weekly_test_config' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: activeTab === 'weekly_test_config' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '1rem' }}
         >
           Weekly Test & Honours
+        </button>
+        <button 
+          onClick={() => setActiveTab('test_exam_config')}
+          style={{ padding: '0.75rem 1.5rem', background: 'none', border: 'none', borderBottom: activeTab === 'test_exam_config' ? '2px solid var(--primary-color)' : 'none', color: activeTab === 'test_exam_config' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: activeTab === 'test_exam_config' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '1rem' }}
+        >
+          Test & Exam Notices
         </button>
       </div>
 
@@ -1868,6 +1875,9 @@ const Admin = () => {
 
       {/* Weekly Test & Honours Configuration */}
       {activeTab === 'weekly_test_config' && <WeeklyTestAdminConfig />}
+
+      {/* Test & Examination Communication Configuration */}
+      {activeTab === 'test_exam_config' && <TestExamAdminConfig />}
 
       <input 
         type="file" 

@@ -12,6 +12,7 @@ import { getGrade } from '../utils/reportUtils';
 import { formatStudentDisplayName } from '../utils/studentUtils';
 import WhatsAppComposerModal from '../components/WhatsAppComposerModal';
 import TeacherMessageCMS from '../components/TeacherMessageCMS';
+import TestExamCommunicationCentre from '../components/TestExamCommunication/TestExamCommunicationCentre';
 
 const ClassTeacherPortal = () => {
   const { classId } = useParams();
@@ -333,6 +334,17 @@ const ClassTeacherPortal = () => {
           }`}
         >
           <MessageSquare size={16} /> Message CMS
+        </button>
+
+        <button
+          onClick={() => setActiveTab('test_exam_notices')}
+          className={`pb-3.5 px-2 font-bold text-sm flex items-center gap-2 border-b-2 transition-all ${
+            activeTab === 'test_exam_notices'
+              ? 'border-brand-600 dark:border-brand-400 text-brand-600 dark:text-brand-400'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <FileText size={16} /> Test & Exam Notices
         </button>
       </div>
 
@@ -661,6 +673,15 @@ const ClassTeacherPortal = () => {
           teacherName={profile?.name || 'Class Teacher'}
           cls={cls}
           sampleStudent={classStudents[0]}
+        />
+      )}
+
+      {activeTab === 'test_exam_notices' && (
+        <TestExamCommunicationCentre
+          currentUser={profile}
+          defaultClassId={classId}
+          isClassTeacherView={true}
+          classTeacherClasses={cls ? [cls] : []}
         />
       )}
 

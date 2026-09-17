@@ -13,6 +13,7 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 import { formatStudentDisplayName } from '../utils/studentUtils';
+import StudentTestExamNotices from '../components/TestExamCommunication/StudentTestExamNotices';
 
 const StudentPortal = () => {
   const { profile } = useAuth();
@@ -441,6 +442,7 @@ const StudentPortal = () => {
         <div className="flex gap-2 sm:gap-6 min-w-max">
           {[
             { id: 'overview', label: 'Overview' },
+            { id: 'test_exam_notices', label: 'Test & Exam Notices' },
             { id: 'fees', label: 'My Fees' },
             { id: 'attendance', label: 'Attendance' },
             { id: 'notifications', label: 'Alerts', badge: unreadCount > 0 ? unreadCount : null }
@@ -631,6 +633,16 @@ const StudentPortal = () => {
         )}
 
         {/* Notifications Tab */}
+        {activeTab === 'test_exam_notices' && (
+          <motion.div key="test_exam_notices" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <StudentTestExamNotices
+              studentId={currentStudentId}
+              classId={classId}
+              currentUser={profile}
+            />
+          </motion.div>
+        )}
+
         {activeTab === 'notifications' && (
           <motion.div key="notifications" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
             <Card className="premium-card">
