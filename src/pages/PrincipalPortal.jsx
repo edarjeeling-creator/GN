@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Search, Users, BookOpen, Bell, Send, Shield, User, Calendar, CheckCircle, XCircle, AlertTriangle, Printer, Clock, AlertCircle, FileText, ChevronDown, Settings, Upload, Phone, X, Check, CheckCheck, CheckCircle2 } from 'lucide-react';
+import { Search, Users, BookOpen, Bell, Send, Shield, User, Calendar, CheckCircle, XCircle, AlertTriangle, Printer, Clock, AlertCircle, FileText, ChevronDown, Settings, Upload, Phone, X, Check, CheckCheck, CheckCircle2, Trophy } from 'lucide-react';
 import Editor, { 
   Toolbar, BtnUndo, BtnRedo, BtnBold, BtnItalic, BtnUnderline, BtnStrikeThrough,
   BtnNumberedList, BtnBulletList, BtnLink, BtnClearFormatting, HtmlButton, Separator, BtnStyles
@@ -10,6 +10,7 @@ import Editor, {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import StaffAttendance from '../components/StaffAttendance';
 import AcademicReports from '../components/AcademicReports';
+import WeeklyTestReportViewer from '../components/WeeklyTestReportViewer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -43,6 +44,37 @@ const PrincipalPortal = () => {
   const [studentsData, setStudentsData] = useState([]);
   const [loadingAttendance, setLoadingAttendance] = useState(false);
   const [showAbsentees, setShowAbsentees] = useState(false);
+
+  const sortedClasses = useMemo(() => {
+    const order = ['nursery', 'lkg', 'ukg'];
+    return [...classesData].sort((a, b) => {
+      const aName = (a.name || '').toLowerCase();
+      const bName = (b.name || '').toLowerCase();
+      const aIdx = order.indexOf(aName);
+      const bIdx = order.indexOf(bName);
+      if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+      if (aIdx !== -1) return -1;
+      if (bIdx !== -1) return 1;
+      const comp = (a.name || '').localeCompare(b.name || '', undefined, { numeric: true });
+      if (comp !== 0) return comp;
+      return (a.section || '').localeCompare(b.section || '');
+    });
+  }, [classesData]);
+
+  const formatAudienceLabel = (aud) => {
+    if (!aud || aud === 'all') return 'Entire School';
+    if (aud === 'students') return 'Only Students';
+    if (aud === 'teachers') return 'Only Teachers';
+    if (aud.startsWith('class:')) {
+      const cid = aud.replace('class:', '');
+      const cls = classesData.find(c => c.id === cid);
+      if (cls) {
+        return `Class ${cls.name} ${cls.section || ''}`.trim();
+      }
+      return 'Single Class';
+    }
+    return aud;
+  };
   
   // Leadership Message Editor State
   const [leadershipMessage, setLeadershipMessage] = useState({ badge: 'LEADERSHIP', title: 'Message from the Principal', message: '', name: 'Dr. John Doe', imageUrl: '', btnText: 'Read Full Message', btnUrl: '/principal-desk' });
@@ -369,7 +401,7 @@ const PrincipalPortal = () => {
   };
 
   const fetchNotices = async () => {
-    const { data } = await supabase.from('notices').select('*').order('created_at', { ascending: false }).limit(5);
+    const { data } = await supabase.from('notices').select('*').order('created_at', { ascending: false }).limit(15);
     if (data) setRecentNotices(data);
   };
 
@@ -519,6 +551,7 @@ const PrincipalPortal = () => {
             const isPrincipal = !profile?.designation || profile?.designation === 'Principal';
             return [
               { id: 'overview', label: 'Overview' },
+              { id: 'weekly_test_report', label: 'Weekly Test Report' },
               { id: 'staff_attendance', label: 'Staff Attendance' },
               { id: 'attendance', label: 'Attendance Reports' },
               { id: 'academic_reports', label: 'Academic Reports' },
@@ -550,6 +583,38 @@ const PrincipalPortal = () => {
 
         {activeTab === 'overview' && (
           <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+            {/* Tuesday Assembly Honours & Weekly Test Report Quick Action */}
+            <Card className="bg-gradient-to-r from-amber-500/10 via-amber-600/10 to-amber-700/10 dark:from-amber-950/40 dark:to-slate-900 border border-amber-500/30 shadow-md">
+              <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3.5">
+                  <div className="p-3 bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 rounded-2xl shadow-md shrink-0">
+                    <Trophy size={24} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider bg-amber-400/20 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded border border-amber-400/30">
+                        Tuesday Assembly
+                      </span>
+                      <span className="text-xs text-slate-500 font-medium">Senior School Classes 5–12</span>
+                    </div>
+                    <h3 className="text-base font-extrabold text-slate-900 dark:text-white mt-1">
+                      Consolidated Weekly Test Report & Honours
+                    </h3>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                      Review class-wise podium rankers (1st, 2nd, 3rd) and download the official consolidated PDF for morning assembly.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('weekly_test_report')}
+                  className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow transition-transform active:scale-95 whitespace-nowrap text-center shrink-0 cursor-pointer"
+                >
+                  Open Weekly Test Report →
+                </button>
+              </CardContent>
+            </Card>
+
             {/* Teaching Assignments Quick Action */}
             <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-900 dark:to-blue-950/30 border border-blue-200 dark:border-blue-900/40 shadow-sm">
               <CardContent className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1015,6 +1080,12 @@ const PrincipalPortal = () => {
           </motion.div>
         )}
 
+        {activeTab === 'weekly_test_report' && (
+          <motion.div key="weekly_test_report" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <WeeklyTestReportViewer onSelectTab={setActiveTab} />
+          </motion.div>
+        )}
+
         {activeTab === 'academic_reports' && (
           <motion.div key="academic_reports" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <AcademicReports />
@@ -1079,9 +1150,18 @@ const PrincipalPortal = () => {
                       value={noticeAudience} 
                       onChange={e => setNoticeAudience(e.target.value)}
                     >
-                      <option value="all" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Entire School</option>
-                      <option value="students" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Only Students</option>
-                      <option value="teachers" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Only Teachers</option>
+                      <optgroup label="General Audience" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold">
+                        <option value="all" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-normal">Entire School</option>
+                        <option value="students" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-normal">All Students</option>
+                        <option value="teachers" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-normal">All Teachers</option>
+                      </optgroup>
+                      <optgroup label="Single Class" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold">
+                        {sortedClasses.map(cls => (
+                          <option key={cls.id} value={`class:${cls.id}`} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-normal">
+                            Class {cls.name} {cls.section ? `(${cls.section})` : ''}
+                          </option>
+                        ))}
+                      </optgroup>
                     </select>
                   </div>
                   <Button type="submit" className="w-full h-12 mt-2 shadow-lg shadow-brand-500/20">Publish Notice</Button>
@@ -1100,7 +1180,16 @@ const PrincipalPortal = () => {
                       <div key={n.id} className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors">
                         <div className="flex justify-between items-start mb-2 gap-2">
                           <h3 className="font-bold text-slate-800 dark:text-white text-lg leading-tight">{n.title}</h3>
-                          <Badge variant="secondary" className="uppercase text-[10px] whitespace-nowrap tracking-wider">{n.target_audience}</Badge>
+                          <Badge 
+                            variant={n.target_audience?.startsWith('class:') ? 'default' : 'secondary'} 
+                            className={`uppercase text-[10px] whitespace-nowrap tracking-wider font-semibold ${
+                              n.target_audience?.startsWith('class:')
+                                ? 'bg-brand-100 text-brand-800 border-brand-200 dark:bg-brand-950/80 dark:text-brand-300 dark:border-brand-800'
+                                : ''
+                            }`}
+                          >
+                            {formatAudienceLabel(n.target_audience)}
+                          </Badge>
                         </div>
                         <div className="text-slate-600 dark:text-slate-300 text-sm mb-3 prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: n.content }} />
                         <p className="text-xs font-semibold text-slate-400">{new Date(n.publish_date).toLocaleString()}</p>

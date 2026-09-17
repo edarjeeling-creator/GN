@@ -252,36 +252,13 @@ const SubjectMarks = () => {
       };
     }).filter(Boolean);
 
-    // Sort: non-absent by total descending, absentees at the end
-    scoredStudents.sort((a, b) => {
-      if (a.isAbsent && !b.isAbsent) return 1;
-      if (!a.isAbsent && b.isAbsent) return -1;
-      return b.total - a.total;
+    // Call single authoritative ranking and attention engine
+    return MarksCalculationEngine.calculateHonoursAndAttention(scoredStudents, {
+      rankingPolicy: 'DENSE',
+      requiresAttentionThreshold: 10,
+      thresholdType: 'SCORE',
+      excludeAbsentFromRanking: true
     });
-
-    // Requires attention: score < 10 (pass threshold), excluding absent students
-    const requiresAttention = scoredStudents.filter(s => !s.isAbsent && s.total < 10);
-
-    // Calculate unique scores to determine rank (ties receive the exact same rank)
-    const nonAbsent = scoredStudents.filter(s => !s.isAbsent);
-    const uniqueScores = [...new Set(nonAbsent.map(s => s.total))].sort((a, b) => b - a);
-
-    const topScorers = [];
-    for (const scoreObj of nonAbsent) {
-      const rank = uniqueScores.indexOf(scoreObj.total) + 1;
-      if (rank <= 3) {
-        topScorers.push({
-          ...scoreObj,
-          rank
-        });
-      }
-    }
-
-    return {
-      topScorers,
-      requiresAttention,
-      totalEvaluated: scoredStudents.length
-    };
   }, [filteredStudents, components, rawScores, statuses, activePattern, cls]);
 
   const [copiedAssembly, setCopiedAssembly] = useState(false);

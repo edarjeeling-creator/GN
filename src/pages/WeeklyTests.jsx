@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Edit, FileText, CheckCircle, Clock } from 'lucide-react';
+import { Plus, Edit, FileText, CheckCircle, Clock, Calendar } from 'lucide-react';
 import { formatStudentDisplayName } from '../utils/studentUtils';
+import { WeeklyTestReportService } from '../services/WeeklyTestReportService';
 
 export default function WeeklyTests() {
   const { profile: user } = useAuth();
   const [tests, setTests] = useState([]);
   const [classes, setClasses] = useState([]);
-  const [subjects, setSubjects] = useState([]);
   const [isCreating, setIsCreating] = useState(false);
   const [selectedTest, setSelectedTest] = useState(null);
   
@@ -25,13 +25,10 @@ export default function WeeklyTests() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [teacherAssignments, setTeacherAssignments] = useState([]);
+  const userId = user?.id;
 
-  useEffect(() => {
-    fetchTests();
-    fetchTeacherAssignments();
-  }, []);
-
-  const fetchTests = async () => {
+  const fetchTests = useCallback(async () => {
+    if (!userId) return;
     const { data } = await supabase
       .from('weekly_tests')
       .select(`
@@ -39,43 +36,58 @@ export default function WeeklyTests() {
         classes (name, section),
         subjects (name)
       `)
-      .eq('teacher_id', user.id)
+      .eq('teacher_id', userId)
       .order('test_date', { ascending: false });
     
     if (data) setTests(data);
-  };
+  }, [userId]);
 
-  const fetchTeacherAssignments = async () => {
-    const { data } = await supabase
-      .from('teacher_subjects')
-      .select('class_id, subject_id, classes(id, name, section), subjects(id, name)')
-      .eq('teacher_id', user.id);
-    
-    if (data) {
-      setTeacherAssignments(data);
-      // Extract unique classes formatted with section
-      const uniqueClasses = [];
-      const classMap = new Set();
-      
-      data.forEach(item => {
-        if (item.classes && !classMap.has(item.class_id)) {
-          classMap.add(item.class_id);
-          const displayName = item.classes.section 
-            ? `${item.classes.name} ${item.classes.section}`.trim() 
-            : item.classes.name;
-          uniqueClasses.push({ 
-            id: item.class_id, 
-            name: displayName,
-            rawName: item.classes.name,
-            section: item.classes.section
-          });
-        }
-      });
-      
-      uniqueClasses.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-      setClasses(uniqueClasses);
+
+
+  useEffect(() => {
+    let ignore = false;
+    async function init() {
+      if (!userId) return;
+      const { data: tData } = await supabase
+        .from('weekly_tests')
+        .select(`
+          *,
+          classes (name, section),
+          subjects (name)
+        `)
+        .eq('teacher_id', userId)
+        .order('test_date', { ascending: false });
+      if (!ignore && tData) setTests(tData);
+
+      const { data: aData } = await supabase
+        .from('teacher_subjects')
+        .select('class_id, subject_id, classes(id, name, section), subjects(id, name)')
+        .eq('teacher_id', userId);
+      if (!ignore && aData) {
+        setTeacherAssignments(aData);
+        const uniqueClasses = [];
+        const classMap = new Set();
+        aData.forEach(item => {
+          if (item.classes && !classMap.has(item.class_id)) {
+            classMap.add(item.class_id);
+            const displayName = item.classes.section 
+              ? `${item.classes.name} ${item.classes.section}`.trim() 
+              : item.classes.name;
+            uniqueClasses.push({ 
+              id: item.class_id, 
+              name: displayName,
+              rawName: item.classes.name,
+              section: item.classes.section
+            });
+          }
+        });
+        uniqueClasses.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+        setClasses(uniqueClasses);
+      }
     }
-  };
+    init();
+    return () => { ignore = true; };
+  }, [userId]);
 
   const availableSubjects = React.useMemo(() => {
     if (!newTest.class_id) {
@@ -103,27 +115,38 @@ export default function WeeklyTests() {
 
   const handleCreateTest = async (e) => {
     e.preventDefault();
-    const { data, error } = await supabase
-      .from('weekly_tests')
-      .insert([{
-        class_id: newTest.class_id,
-        subject_id: newTest.subject_id,
-        teacher_id: user.id,
-        test_date: newTest.test_date,
-        max_marks: newTest.max_marks,
-        status: 'Draft'
-      }])
-      .select()
-      .single();
+    try {
+      // Connect to authoritative weekly test cycle
+      const cycle = await WeeklyTestReportService.getOrCreateCycle({
+        testDate: newTest.test_date,
+        createdBy: user?.id
+      });
 
-    if (error) {
-      alert(error.message);
-      return;
+      const { data, error } = await supabase
+        .from('weekly_tests')
+        .insert([{
+          class_id: newTest.class_id,
+          subject_id: newTest.subject_id,
+          teacher_id: user.id,
+          test_date: newTest.test_date,
+          max_marks: newTest.max_marks,
+          cycle_id: cycle?.id || null,
+          status: 'Draft'
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      setIsCreating(false);
+      fetchTests();
+      openTest(data);
+    } catch (err) {
+      alert('Error creating weekly test: ' + err.message);
     }
-
-    setIsCreating(false);
-    fetchTests();
-    openTest(data);
   };
 
   const openTest = async (test) => {
@@ -191,7 +214,9 @@ export default function WeeklyTests() {
       test_id: selectedTest.id,
       student_id: s.id,
       score: marks[s.id].is_absent ? null : marks[s.id].score,
-      is_absent: marks[s.id].is_absent
+      is_absent: marks[s.id].is_absent,
+      entered_by: user?.id,
+      updated_by: user?.id
     }));
 
     // Upsert marks
@@ -205,17 +230,26 @@ export default function WeeklyTests() {
       return;
     }
 
-    // Update test status if changing
-    if (status !== selectedTest.status) {
-      await supabase
-        .from('weekly_tests')
-        .update({ status })
-        .eq('id', selectedTest.id);
-    }
+    // Update test status and authoritative completion metrics
+    const entered = students.filter(s => marks[s.id]?.is_absent || (marks[s.id]?.score !== '' && marks[s.id]?.score !== null)).length;
+    const absents = students.filter(s => marks[s.id]?.is_absent).length;
+    const pending = Math.max(0, students.length - entered);
+
+    await supabase
+      .from('weekly_tests')
+      .update({ 
+        status,
+        marks_entered_count: entered,
+        marks_pending_count: pending,
+        absent_count: absents,
+        total_students_count: students.length,
+        submitted_at: status === 'Submitted' ? new Date().toISOString() : selectedTest.submitted_at
+      })
+      .eq('id', selectedTest.id);
 
     setIsSubmitting(false);
     if (status === 'Submitted') {
-      alert('Test submitted successfully to the Principal.');
+      alert('Weekly test submitted successfully. Results will be included in the Monday Consolidated Report for Tuesday Assembly.');
       setSelectedTest(null);
       fetchTests();
     } else {
@@ -306,15 +340,45 @@ export default function WeeklyTests() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Surprise Tests</h2>
-          <p className="text-slate-600 dark:text-slate-400">Manage and submit surprise test marks</p>
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
+      {/* Teacher Completion Dashboard Card */}
+      <div className="bg-gradient-to-r from-blue-900/30 to-slate-900 border border-blue-800/40 rounded-2xl p-5 shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="p-3 bg-blue-600 text-white rounded-xl shadow-md shrink-0">
+              <Calendar size={24} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded border border-blue-500/30">
+                  Tuesday Weekly Test Module
+                </span>
+                <span className="text-xs text-slate-400 font-medium">Senior School (Classes 5–12)</span>
+              </div>
+              <h2 className="text-xl font-bold text-white mt-1">Weekly Tuesday Tests & Marks Entry</h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Marks submitted here are automatically audited and compiled into the <strong>Monday Consolidated Report</strong> for Tuesday Assembly Honours.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button onClick={() => setIsCreating(true)} className="btn-hero-primary flex items-center gap-2 text-xs py-2.5 px-4 cursor-pointer">
+              <Plus size={18} /> New Weekly Test
+            </button>
+          </div>
         </div>
-        <button onClick={() => setIsCreating(true)} className="btn-hero-primary flex items-center gap-2">
-          <Plus size={20} /> New Test
-        </button>
+
+        {/* Quick Deadline Notice */}
+        <div className="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between text-xs text-slate-400 gap-2">
+          <span className="flex items-center gap-1.5 text-amber-300">
+            <Clock size={14} />
+            <strong>Report Deadline:</strong> Monday 8:00 AM before Tuesday Morning Assembly
+          </span>
+          <span className="text-slate-500">
+            Authoritative Server Calculation Enabled
+          </span>
+        </div>
       </div>
 
       {isCreating && (

@@ -9,6 +9,7 @@ import {
 import { getConversionConstants } from '../pages/SubjectMarks';
 import { getStudentHouse, getHouseBadgeColor } from '../utils/houseData';
 import { formatStudentDisplayName } from '../utils/studentUtils';
+import { MarksCalculationEngine } from '../services/MarksCalculationEngine';
 
 const isLegacyAbsent = (val) => {
   if (val === null || val === undefined) return false;
@@ -309,29 +310,12 @@ const AcademicReports = ({ preselectedClassId, preselectedSubjectId, preselected
 
         if (scoredStudents.length === 0) return;
 
-        // Sort: non-absents descending, absentees at bottom
-        scoredStudents.sort((a, b) => {
-          if (a.isAbsent && !b.isAbsent) return 1;
-          if (!a.isAbsent && b.isAbsent) return -1;
-          return b.total - a.total;
+        const { topScorers, requiresAttention } = MarksCalculationEngine.calculateHonoursAndAttention(scoredStudents, {
+          rankingPolicy: 'DENSE',
+          requiresAttentionThreshold: 10,
+          thresholdType: 'SCORE',
+          excludeAbsentFromRanking: true
         });
-
-        const requiresAttention = scoredStudents.filter(s => !s.isAbsent && s.total < 10);
-
-        // Ties receive the same rank
-        const nonAbsent = scoredStudents.filter(s => !s.isAbsent);
-        const uniqueScores = [...new Set(nonAbsent.map(s => s.total))].sort((a, b) => b - a);
-
-        const topScorers = [];
-        for (const scoreObj of nonAbsent) {
-          const rank = uniqueScores.indexOf(scoreObj.total) + 1;
-          if (rank <= 3) {
-            topScorers.push({
-              ...scoreObj,
-              rank
-            });
-          }
-        }
 
         subjectsWithMarks.push({
           subject: subObj,

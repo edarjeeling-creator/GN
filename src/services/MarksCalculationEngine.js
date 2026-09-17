@@ -275,7 +275,6 @@ export class MarksCalculationEngine {
   static getCalculationExplanation({
     patternName,
     patternVersion = 1,
-    components = [],
     studentResult
   }) {
     const steps = [];
@@ -311,6 +310,119 @@ export class MarksCalculationEngine {
     }
 
     return steps;
+  }
+
+  /**
+   * Authoritative Ranking & Requires Attention Engine
+   * Deterministic, server-authoritative shared logic for Tuesday Assembly Honours
+   * 
+   * @param {Array} studentsList - Array of student records
+   * @param {Object} config - Ranking & threshold configuration
+   */
+  static calculateHonoursAndAttention(studentsList = [], config = {}) {
+    const rankingPolicy = config.rankingPolicy || 'DENSE';
+    const threshold = config.requiresAttentionThreshold !== undefined ? Number(config.requiresAttentionThreshold) : 10;
+    const thresholdType = config.thresholdType || 'SCORE';
+    const excludeAbsent = config.excludeAbsentFromRanking !== false;
+    const excludeNA = config.excludeNAFromRanking !== false;
+    const maxPositions = config.maxPositions || 3;
+
+    // Filter valid non-empty students
+    const validStudents = (studentsList || []).filter(Boolean);
+
+    // 1. Determine eligible students for ranking
+    const eligibleStudents = validStudents.filter(s => {
+      if (excludeAbsent && s.isAbsent) return false;
+      if (excludeNA && s.isNA) return false;
+      return true;
+    });
+
+    // Sort eligible by total score descending
+    eligibleStudents.sort((a, b) => (Number(b.total) || 0) - (Number(a.total) || 0));
+
+    // 2. Compute rankings according to configured policy
+    const topScorers = [];
+    if (rankingPolicy === 'DENSE') {
+      // Dense Ranking: unique scores get 1, 2, 3... Ties share exact rank
+      const uniqueScores = [...new Set(eligibleStudents.map(s => Number(s.total) || 0))].sort((a, b) => b - a);
+      for (const s of eligibleStudents) {
+        const score = Number(s.total) || 0;
+        const rank = uniqueScores.indexOf(score) + 1;
+        if (rank <= maxPositions) {
+          const tiedCount = eligibleStudents.filter(o => (Number(o.total) || 0) === score).length;
+          topScorers.push({
+            ...s,
+            rank,
+            isTie: tiedCount > 1,
+            rankDisplay: rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd'
+          });
+        }
+      }
+    } else if (rankingPolicy === 'COMPETITION') {
+      // Standard Competition Ranking: 1, 1, 3 (rank = index + 1)
+      let prevScore = null;
+      let currentRank = 1;
+      for (let i = 0; i < eligibleStudents.length; i++) {
+        const s = eligibleStudents[i];
+        const score = Number(s.total) || 0;
+        if (prevScore !== null && score < prevScore) {
+          currentRank = i + 1;
+        }
+        prevScore = score;
+        if (currentRank <= maxPositions) {
+          const tiedCount = eligibleStudents.filter(o => (Number(o.total) || 0) === score).length;
+          topScorers.push({
+            ...s,
+            rank: currentRank,
+            isTie: tiedCount > 1,
+            rankDisplay: currentRank === 1 ? '1st' : currentRank === 2 ? '2nd' : '3rd'
+          });
+        }
+      }
+    } else { // 'SHARED'
+      const uniqueScores = [...new Set(eligibleStudents.map(s => Number(s.total) || 0))].sort((a, b) => b - a);
+      for (const s of eligibleStudents) {
+        const score = Number(s.total) || 0;
+        const rank = uniqueScores.indexOf(score) + 1;
+        const tiedCount = eligibleStudents.filter(o => (Number(o.total) || 0) === score).length;
+        if (rank <= maxPositions) {
+          topScorers.push({
+            ...s,
+            rank,
+            isTie: tiedCount > 1,
+            rankDisplay: (rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd') + (tiedCount > 1 ? ' (Tie)' : '')
+          });
+        }
+      }
+    }
+
+    // 3. Evaluate Requires Attention (excluding absentees unless configured)
+    const requiresAttention = validStudents.filter(s => {
+      if (s.isAbsent || s.isNA) return false;
+      const score = Number(s.total) || 0;
+      if (thresholdType === 'PERCENTAGE') {
+        const max = Number(s.maxMarks) || 100;
+        const pct = max > 0 ? (score / max) * 100 : 0;
+        return pct < threshold;
+      }
+      return score < threshold;
+    }).map(s => ({
+      ...s,
+      reason: thresholdType === 'PERCENTAGE' 
+        ? `Score below ${threshold}% threshold` 
+        : `Score ${s.total} is below threshold (${threshold})`
+    }));
+
+    // Absentees list for explicit transparency
+    const absentees = validStudents.filter(s => s.isAbsent);
+
+    return {
+      topScorers,
+      requiresAttention,
+      absentees,
+      totalEvaluated: validStudents.length,
+      totalEligible: eligibleStudents.length
+    };
   }
 }
 

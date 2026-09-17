@@ -103,13 +103,18 @@ const StudentPortal = () => {
       }
     } catch (e) {}
 
-    // 3. General school notices
+    // 3. General school notices & class-specific notices
     let formattedGeneral = [];
     try {
+      const allowedAudiences = ['all', 'students'];
+      const effectiveClassId = classId || studentClass?.id;
+      if (effectiveClassId) {
+        allowedAudiences.push(`class:${effectiveClassId}`);
+      }
       const { data: generalData } = await supabase
         .from('notices')
         .select('*')
-        .in('target_audience', ['all', 'students']);
+        .in('target_audience', allowedAudiences);
       if (generalData) {
         formattedGeneral = generalData.map(n => ({
           id: n.id,

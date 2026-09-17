@@ -99,7 +99,16 @@ const Dashboard = () => {
         setAlerts([]);
       }
 
-      const { data: noticesData } = await supabase.from('notices').select('*').in('target_audience', ['all', 'teachers']).order('publish_date', { ascending: false }).limit(3);
+      const audienceFilter = ['all', 'teachers'];
+      if (assignedActiveClasses && assignedActiveClasses.length > 0) {
+        assignedActiveClasses.forEach(cid => audienceFilter.push(`class:${cid}`));
+      }
+      const { data: noticesData } = await supabase
+        .from('notices')
+        .select('*')
+        .in('target_audience', audienceFilter)
+        .order('publish_date', { ascending: false })
+        .limit(6);
       setRecentNotices(noticesData || []);
 
     } catch (err) {
@@ -727,7 +736,27 @@ const Dashboard = () => {
                 <CardContent className="p-6 flex-1 flex flex-col">
                   <div className="flex justify-between items-start mb-3 gap-2">
                     <h4 className="font-bold text-lg leading-tight text-slate-800">{notice.title}</h4>
-                    <Badge variant="secondary" className="uppercase text-[10px] tracking-wider">{notice.target_audience}</Badge>
+                    <Badge 
+                      variant={notice.target_audience?.startsWith('class:') ? 'default' : 'secondary'} 
+                      className={`uppercase text-[10px] tracking-wider font-semibold ${
+                        notice.target_audience?.startsWith('class:')
+                          ? 'bg-brand-100 text-brand-800 border-brand-200 dark:bg-brand-950/80 dark:text-brand-300 dark:border-brand-800'
+                          : ''
+                      }`}
+                    >
+                      {(() => {
+                        const aud = notice.target_audience;
+                        if (!aud || aud === 'all') return 'Entire School';
+                        if (aud === 'teachers') return 'Teachers';
+                        if (aud === 'students') return 'Students';
+                        if (aud.startsWith('class:')) {
+                          const cid = aud.replace('class:', '');
+                          const cls = classes.find(c => c.id === cid);
+                          return cls ? `Class ${cls.name} ${cls.section || ''}`.trim() : 'Class';
+                        }
+                        return aud;
+                      })()}
+                    </Badge>
                   </div>
                   <div className="text-slate-600 text-sm mb-4 flex-1 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: notice.content }} />
                   <p className="text-xs text-slate-400 font-medium">{new Date(notice.publish_date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}</p>
