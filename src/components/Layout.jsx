@@ -553,7 +553,7 @@ const Layout = ({ children }) => {
                       <CalendarCheck size={18} /> Attendance
                     </NavLink>
                     <NavLink to="/weekly-tests" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
-                      <FileText size={18} /> Surprise Test
+                      <FileText size={18} /> Weekly Tests
                     </NavLink>
                     <NavLink to="/hpc/workspace" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
                       <ClipboardCheck size={18} /> HPC Workspace
