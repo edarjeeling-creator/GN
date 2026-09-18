@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import { supabase } from '../../lib/supabase';
-import { AttendanceVerificationService } from '../../services/AttendanceVerificationService';
+import { AttendanceVerificationService, DEFAULT_QR_EXPIRY_SECONDS } from '../../services/AttendanceVerificationService';
 import { KioskSecurityService } from '../../services/KioskSecurityService';
 import { 
   School, 
@@ -41,7 +41,7 @@ const AttendanceQRDisplay = () => {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [secondsRemaining, setSecondsRemaining] = useState(45);
+  const [secondsRemaining, setSecondsRemaining] = useState(DEFAULT_QR_EXPIRY_SECONDS);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sessionCount, setSessionCount] = useState(0);
@@ -127,7 +127,19 @@ const AttendanceQRDisplay = () => {
 
   const containerRef = useRef(null);
   const timerRef = useRef(null);
-  const expiryDuration = 45;
+  const expiryDuration = DEFAULT_QR_EXPIRY_SECONDS;
+
+  // Helper to compute seconds remaining strictly synchronized with server-issued expiresAt
+  const computeRemainingSeconds = (currSession) => {
+    if (!currSession?.expiresAt) return expiryDuration;
+    const expiresAtMs = new Date(currSession.expiresAt).getTime();
+    const serverTimeMs = currSession.serverTime ? new Date(currSession.serverTime).getTime() : Date.now();
+    // Calculate clock skew (server time vs device clock)
+    const clockSkewMs = serverTimeMs - Date.now();
+    const approxServerNow = Date.now() + clockSkewMs;
+    const remainingMs = expiresAtMs - approxServerNow;
+    return Math.max(0, Math.ceil(remainingMs / 1000));
+  };
 
   // Real-time Clock
   useEffect(() => {
@@ -275,7 +287,8 @@ const AttendanceQRDisplay = () => {
         }
 
         setSession(result.session);
-        setSecondsRemaining(expiryDuration);
+        const rem = computeRemainingSeconds(result.session);
+        setSecondsRemaining(rem > 0 ? rem : expiryDuration);
         setSessionCount(prev => prev + 1);
 
         if (result.session.checkedInCount !== undefined) {
@@ -293,7 +306,8 @@ const AttendanceQRDisplay = () => {
         }
 
         setSession(result.session);
-        setSecondsRemaining(expiryDuration);
+        const rem = computeRemainingSeconds(result.session);
+        setSecondsRemaining(rem > 0 ? rem : expiryDuration);
         setSessionCount(prev => prev + 1);
       }
     } catch (err) {
@@ -386,26 +400,34 @@ const AttendanceQRDisplay = () => {
     }
   }, [actionType, selectedCampusId, kioskCreds?.deviceId, checkingKioskAuth]);
 
-  // Countdown timer for rotating QR
+  // Countdown timer for rotating QR - synchronized with server-issued expiresAt
   useEffect(() => {
     if (!session || isRevoked || isOffline || activeTab !== 'display') return;
 
     if (timerRef.current) clearInterval(timerRef.current);
 
+    // Initial check from server-issued expiresAt
+    const initialRem = computeRemainingSeconds(session);
+    setSecondsRemaining(initialRem);
+
+    if (initialRem <= 0) {
+      generateNewSession(actionType, selectedCampusId);
+      return;
+    }
+
     timerRef.current = setInterval(() => {
-      setSecondsRemaining(prev => {
-        if (prev <= 1) {
-          generateNewSession(actionType, selectedCampusId);
-          return expiryDuration;
-        }
-        return prev - 1;
-      });
+      const remaining = computeRemainingSeconds(session);
+      setSecondsRemaining(remaining);
+      if (remaining <= 0) {
+        clearInterval(timerRef.current);
+        generateNewSession(actionType, selectedCampusId);
+      }
     }, 1000);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [session?.token, actionType, selectedCampusId, isRevoked, isOffline, activeTab]);
+  }, [session?.token, session?.expiresAt, actionType, selectedCampusId, isRevoked, isOffline, activeTab]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -686,7 +708,7 @@ const AttendanceQRDisplay = () => {
                 <div className="flex-1 max-w-[140px] h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
                   <div 
                     className={`h-full transition-all duration-1000 ${
-                      secondsRemaining <= 10 ? 'bg-rose-500' : isCheckIn ? 'bg-emerald-500' : 'bg-blue-500'
+                      secondsRemaining <= 5 ? 'bg-rose-500' : isCheckIn ? 'bg-emerald-500' : 'bg-blue-500'
                     }`}
                     style={{ width: `${progressPercent}%` }}
                   />

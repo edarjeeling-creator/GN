@@ -37,6 +37,18 @@ const StaffAttendance = () => {
   const [newStatus, setNewStatus] = useState('');
   const [correctionReason, setCorrectionReason] = useState('');
 
+  // Campus-Specific Attendance Rules State
+  const [campusRules, setCampusRules] = useState([]);
+  const [editingCampusRule, setEditingCampusRule] = useState(null);
+  const [ruleForm, setRuleForm] = useState({
+    campusId: '',
+    schoolStartTime: '08:15',
+    gracePeriodMinutes: 10,
+    effectiveFrom: new Date().toISOString().split('T')[0],
+    reason: ''
+  });
+  const [savingRule, setSavingRule] = useState(false);
+
   // Active view: 'ATTENDANCE' | 'CORRECTIONS'
   const [activeTab, setActiveTab] = useState('ATTENDANCE');
   const [correctionRequests, setCorrectionRequests] = useState([]);
@@ -47,6 +59,49 @@ const StaffAttendance = () => {
   const [campusFilter, setCampusFilter] = useState('ALL');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const computeLateThreshold = (startTime, graceMins) => {
+    if (!startTime) return '--:--';
+    const [h, m] = startTime.split(':').map(Number);
+    if (isNaN(h) || isNaN(m)) return '--:--';
+    const totalMins = h * 60 + m + (Number(graceMins) || 0);
+    const endH = Math.floor(totalMins / 60) % 24;
+    const endM = totalMins % 60;
+    return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}:00`;
+  };
+
+  const formatTime12 = (timeStr) => {
+    if (!timeStr) return '';
+    const parts = timeStr.split(':');
+    const h = parseInt(parts[0], 10);
+    const m = parts[1] || '00';
+    if (isNaN(h)) return timeStr;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${String(h12).padStart(2, '0')}:${m} ${ampm}`;
+  };
+
+  const getRuleForCampus = (campusIdOrSlug) => {
+    const found = campusRules.find(r => 
+      (r.campus_id === campusIdOrSlug || r.campus_slug === campusIdOrSlug) && r.active
+    );
+    if (found) return found;
+
+    if (campusIdOrSlug === 'JUNIOR_SCHOOL' || campusIdOrSlug?.toLowerCase()?.includes('junior')) {
+      return {
+        campus_name: 'Junior School',
+        school_start_time: '08:40:00',
+        grace_period_minutes: 10,
+        late_threshold: '08:50:00'
+      };
+    }
+    return {
+      campus_name: 'Senior School',
+      school_start_time: '08:15:00',
+      grace_period_minutes: 10,
+      late_threshold: '08:25:00'
+    };
+  };
 
   useEffect(() => {
     fetchData();
@@ -75,6 +130,16 @@ const StaffAttendance = () => {
     const { data: cData } = await supabase.from('campuses').select('*').order('campus_name');
     if (cData) setCampusesList(cData);
 
+    // Fetch campus attendance rules
+    try {
+      const rules = await AttendanceVerificationService.getCampusAttendanceRules();
+      if (rules && rules.length > 0) {
+        setCampusRules(rules);
+      }
+    } catch (err) {
+      console.warn('Could not fetch campus attendance rules:', err);
+    }
+
     // Fetch attendance for date with campus metadata
     const { data: aData } = await supabase
       .from('teacher_attendance')
@@ -82,6 +147,30 @@ const StaffAttendance = () => {
       .eq('attendance_date', dateFilter);
     if (aData) setStaffAttData(aData);
     setLoading(false);
+  };
+
+  const handleSaveCampusRule = async (campusId) => {
+    if (!ruleForm.reason || !ruleForm.reason.trim()) {
+      alert('Please provide an audit reason for modifying the attendance timing rule.');
+      return;
+    }
+    setSavingRule(true);
+    try {
+      await AttendanceVerificationService.updateCampusAttendanceRule({
+        campusId: campusId || ruleForm.campusId,
+        schoolStartTime: ruleForm.schoolStartTime,
+        gracePeriodMinutes: ruleForm.gracePeriodMinutes,
+        effectiveFrom: ruleForm.effectiveFrom,
+        reason: ruleForm.reason.trim()
+      });
+      alert('Campus attendance rule saved and audited successfully!');
+      setEditingCampusRule(null);
+      fetchData();
+    } catch (err) {
+      alert('Error saving rule: ' + err.message);
+    } finally {
+      setSavingRule(false);
+    }
   };
 
   const fetchCorrectionRequests = async () => {
@@ -406,6 +495,30 @@ const StaffAttendance = () => {
         </div>
       </div>
 
+      {/* Authoritative Campus Timing Rule Display (Section 24) */}
+      <div className="flex flex-wrap items-center gap-2 p-2.5 px-3.5 bg-slate-900/60 border border-slate-700/60 rounded-xl text-xs text-slate-300">
+        <div className="flex items-center gap-1.5 font-bold text-slate-400">
+          <Clock size={14} className="text-brand-400" />
+          <span>Timing Rules:</span>
+        </div>
+
+        {(campusFilter === 'ALL' || campusFilter === 'SENIOR_SCHOOL' || campusesList.find(c => c.id === campusFilter)?.campus_id === 'SENIOR_SCHOOL') && (
+          <div className="inline-flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-lg">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className="font-bold text-emerald-400">Senior School:</span>
+            <span className="text-slate-300">Start <strong>8:15 AM</strong> • Grace <strong>10 min</strong> • Late after <strong className="text-amber-400">8:25 AM</strong></span>
+          </div>
+        )}
+
+        {(campusFilter === 'ALL' || campusFilter === 'JUNIOR_SCHOOL' || campusesList.find(c => c.id === campusFilter)?.campus_id === 'JUNIOR_SCHOOL') && (
+          <div className="inline-flex items-center gap-1.5 bg-blue-500/10 border border-blue-500/30 px-2.5 py-1 rounded-lg">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+            <span className="font-bold text-blue-400">Junior School:</span>
+            <span className="text-slate-300">Start <strong>8:40 AM</strong> • Grace <strong>10 min</strong> • Late after <strong className="text-amber-400">8:50 AM</strong></span>
+          </div>
+        )}
+      </div>
+
       {/* Primary Interactive KPI Filter Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
         {filterCards.map(card => {
@@ -497,21 +610,265 @@ const StaffAttendance = () => {
       </div>
 
       {showSettings && (
-        <div className="card border border-primary bg-primary/5 p-6 relative">
-          <h3 className="text-lg font-bold text-[var(--text-primary)] mb-4">Attendance Rules Configuration</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+        <div className="card border border-brand-500/30 bg-slate-900/90 backdrop-blur-md p-6 relative rounded-2xl shadow-2xl text-[var(--text-primary)] space-y-6">
+          <div className="flex justify-between items-start border-b border-slate-700/60 pb-4">
             <div>
-              <label className="block text-sm font-bold text-[var(--text-secondary)] mb-1">Reporting Time (HH:MM)</label>
-              <input type="time" className="input-field" value={settings.reporting_time} onChange={e => setSettings({...settings, reporting_time: e.target.value})} />
+              <h3 className="text-lg font-bold flex items-center gap-2 text-white">
+                <Settings className="text-brand-400" size={20} /> Campus Attendance Timing Rules
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                Authoritative campus-specific start times and grace periods • Exact boundary enforcement
+              </p>
             </div>
-            <div>
-              <label className="block text-sm font-bold text-[var(--text-secondary)] mb-1">Grace Period (Minutes)</label>
-              <input type="number" min="0" className="input-field" value={settings.grace_mins} onChange={e => setSettings({...settings, grace_mins: parseInt(e.target.value) || 0})} />
-            </div>
+            <button 
+              onClick={() => { setShowSettings(false); setEditingCampusRule(null); }}
+              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              <X size={20} />
+            </button>
           </div>
-          <div className="mt-4 flex gap-2">
-            <button className="btn-primary" onClick={saveSettings}><Save size={16} className="inline mr-2" /> Save Rules</button>
-            <button className="btn-secondary" onClick={() => setShowSettings(false)}>Cancel</button>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Senior School Card */}
+            {(() => {
+              const seniorCampus = campusesList.find(c => c.campus_id === 'SENIOR_SCHOOL') || { id: 'SENIOR_SCHOOL', campus_name: 'Senior School' };
+              const seniorRule = getRuleForCampus('SENIOR_SCHOOL');
+              const isEditing = editingCampusRule === seniorCampus.id || editingCampusRule === 'SENIOR_SCHOOL';
+
+              return (
+                <div className="bg-slate-800/60 border border-slate-700/80 rounded-xl p-4 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                      <h4 className="font-bold text-sm text-white">Senior School</h4>
+                    </div>
+                    {profile?.role && ['admin', 'principal'].includes(profile.role) && !isEditing && (
+                      <button
+                        onClick={() => {
+                          setEditingCampusRule(seniorCampus.id);
+                          setRuleForm({
+                            campusId: seniorCampus.id,
+                            schoolStartTime: seniorRule.school_start_time?.slice(0, 5) || '08:15',
+                            gracePeriodMinutes: seniorRule.grace_period_minutes ?? 10,
+                            effectiveFrom: new Date().toISOString().split('T')[0],
+                            reason: ''
+                          });
+                        }}
+                        className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1 font-semibold"
+                      >
+                        <Edit size={13} /> Edit Rule
+                      </button>
+                    )}
+                  </div>
+
+                  {!isEditing ? (
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between py-1 border-b border-slate-700/40">
+                        <span className="text-slate-400">School Start Time:</span>
+                        <strong className="text-slate-200 font-mono text-sm">{formatTime12(seniorRule.school_start_time)}</strong>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-slate-700/40">
+                        <span className="text-slate-400">Grace Period:</span>
+                        <strong className="text-slate-200">{seniorRule.grace_period_minutes} minutes</strong>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-slate-700/40">
+                        <span className="text-slate-400">Late Threshold:</span>
+                        <strong className="text-amber-400 font-mono text-sm">{formatTime12(seniorRule.late_threshold)}</strong>
+                      </div>
+                      <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[11px] text-emerald-300">
+                        ✓ Check-in at or before <strong>{seniorRule.late_threshold?.slice(0, 5) || '08:25'}</strong> → <strong>PRESENT</strong><br />
+                        ⚠ Check-in after <strong>{seniorRule.late_threshold?.slice(0, 5) || '08:25'}:00</strong> → <strong>LATE</strong>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 pt-2 text-xs">
+                      <div>
+                        <label className="block text-slate-400 font-medium mb-1">School Start Time (HH:MM)</label>
+                        <input
+                          type="time"
+                          className="input-field w-full text-xs"
+                          value={ruleForm.schoolStartTime}
+                          onChange={e => setRuleForm({ ...ruleForm, schoolStartTime: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 font-medium mb-1">Grace Period (Minutes)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          className="input-field w-full text-xs"
+                          value={ruleForm.gracePeriodMinutes}
+                          onChange={e => setRuleForm({ ...ruleForm, gracePeriodMinutes: parseInt(e.target.value) || 0 })}
+                        />
+                      </div>
+                      <div className="p-2 bg-slate-900/60 rounded-lg text-slate-300">
+                        Computed Late Threshold: <strong className="text-amber-400 font-mono">{formatTime12(computeLateThreshold(ruleForm.schoolStartTime, ruleForm.gracePeriodMinutes))}</strong>
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 font-medium mb-1">Effective From Date</label>
+                        <input
+                          type="date"
+                          className="input-field w-full text-xs"
+                          value={ruleForm.effectiveFrom}
+                          onChange={e => setRuleForm({ ...ruleForm, effectiveFrom: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 font-medium mb-1">Audit Reason for Change *</label>
+                        <textarea
+                          rows="2"
+                          className="input-field w-full text-xs"
+                          placeholder="e.g. Approved start time adjustment for academic term..."
+                          value={ruleForm.reason}
+                          onChange={e => setRuleForm({ ...ruleForm, reason: e.target.value })}
+                        />
+                      </div>
+                      <div className="flex gap-2 justify-end pt-1">
+                        <button
+                          type="button"
+                          className="btn-secondary text-xs py-1.5 px-3"
+                          onClick={() => setEditingCampusRule(null)}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={savingRule}
+                          className="btn-primary text-xs py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700"
+                          onClick={() => handleSaveCampusRule(seniorCampus.id)}
+                        >
+                          <Save size={13} className="inline mr-1" /> Save Senior Rule
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Junior School Card */}
+            {(() => {
+              const juniorCampus = campusesList.find(c => c.campus_id === 'JUNIOR_SCHOOL') || { id: 'JUNIOR_SCHOOL', campus_name: 'Junior School' };
+              const juniorRule = getRuleForCampus('JUNIOR_SCHOOL');
+              const isEditing = editingCampusRule === juniorCampus.id || editingCampusRule === 'JUNIOR_SCHOOL';
+
+              return (
+                <div className="bg-slate-800/60 border border-slate-700/80 rounded-xl p-4 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-400" />
+                      <h4 className="font-bold text-sm text-white">Junior School</h4>
+                    </div>
+                    {profile?.role && ['admin', 'principal'].includes(profile.role) && !isEditing && (
+                      <button
+                        onClick={() => {
+                          setEditingCampusRule(juniorCampus.id);
+                          setRuleForm({
+                            campusId: juniorCampus.id,
+                            schoolStartTime: juniorRule.school_start_time?.slice(0, 5) || '08:40',
+                            gracePeriodMinutes: juniorRule.grace_period_minutes ?? 10,
+                            effectiveFrom: new Date().toISOString().split('T')[0],
+                            reason: ''
+                          });
+                        }}
+                        className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1 font-semibold"
+                      >
+                        <Edit size={13} /> Edit Rule
+                      </button>
+                    )}
+                  </div>
+
+                  {!isEditing ? (
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between py-1 border-b border-slate-700/40">
+                        <span className="text-slate-400">School Start Time:</span>
+                        <strong className="text-slate-200 font-mono text-sm">{formatTime12(juniorRule.school_start_time)}</strong>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-slate-700/40">
+                        <span className="text-slate-400">Grace Period:</span>
+                        <strong className="text-slate-200">{juniorRule.grace_period_minutes} minutes</strong>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-slate-700/40">
+                        <span className="text-slate-400">Late Threshold:</span>
+                        <strong className="text-amber-400 font-mono text-sm">{formatTime12(juniorRule.late_threshold)}</strong>
+                      </div>
+                      <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-lg text-[11px] text-blue-300">
+                        ✓ Check-in at or before <strong>{juniorRule.late_threshold?.slice(0, 5) || '08:50'}</strong> → <strong>PRESENT</strong><br />
+                        ⚠ Check-in after <strong>{juniorRule.late_threshold?.slice(0, 5) || '08:50'}:00</strong> → <strong>LATE</strong>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 pt-2 text-xs">
+                      <div>
+                        <label className="block text-slate-400 font-medium mb-1">School Start Time (HH:MM)</label>
+                        <input
+                          type="time"
+                          className="input-field w-full text-xs"
+                          value={ruleForm.schoolStartTime}
+                          onChange={e => setRuleForm({ ...ruleForm, schoolStartTime: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 font-medium mb-1">Grace Period (Minutes)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          className="input-field w-full text-xs"
+                          value={ruleForm.gracePeriodMinutes}
+                          onChange={e => setRuleForm({ ...ruleForm, gracePeriodMinutes: parseInt(e.target.value) || 0 })}
+                        />
+                      </div>
+                      <div className="p-2 bg-slate-900/60 rounded-lg text-slate-300">
+                        Computed Late Threshold: <strong className="text-amber-400 font-mono">{formatTime12(computeLateThreshold(ruleForm.schoolStartTime, ruleForm.gracePeriodMinutes))}</strong>
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 font-medium mb-1">Effective From Date</label>
+                        <input
+                          type="date"
+                          className="input-field w-full text-xs"
+                          value={ruleForm.effectiveFrom}
+                          onChange={e => setRuleForm({ ...ruleForm, effectiveFrom: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 font-medium mb-1">Audit Reason for Change *</label>
+                        <textarea
+                          rows="2"
+                          className="input-field w-full text-xs"
+                          placeholder="e.g. Approved start time adjustment for junior school assembly..."
+                          value={ruleForm.reason}
+                          onChange={e => setRuleForm({ ...ruleForm, reason: e.target.value })}
+                        />
+                      </div>
+                      <div className="flex gap-2 justify-end pt-1">
+                        <button
+                          type="button"
+                          className="btn-secondary text-xs py-1.5 px-3"
+                          onClick={() => setEditingCampusRule(null)}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={savingRule}
+                          className="btn-primary text-xs py-1.5 px-3 bg-blue-600 hover:bg-blue-700"
+                          onClick={() => handleSaveCampusRule(juniorCampus.id)}
+                        >
+                          <Save size={13} className="inline mr-1" /> Save Junior Rule
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+
+          <div className="flex justify-between items-center pt-2 text-[11px] text-slate-400 border-t border-slate-800">
+            <span>Server authoritative • Timezone: Asia/Kolkata (+05:30) • Rule modifications are immutably audited</span>
+            <button className="btn-secondary text-xs py-1 px-3" onClick={() => { setShowSettings(false); setEditingCampusRule(null); }}>
+              Close
+            </button>
           </div>
         </div>
       )}

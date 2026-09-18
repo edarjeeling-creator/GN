@@ -42,11 +42,11 @@ DROP FUNCTION IF EXISTS public.generate_attendance_qr_session(TEXT);
 DROP FUNCTION IF EXISTS public.verify_and_record_teacher_attendance(TEXT, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, TEXT);
 
 -- 2. AUTHORITATIVE generate_attendance_qr_session WITH CAMPUS SUPPORT
--- Note: With parameter defaults (p_expiry_seconds = 45, p_campus_id = 'SENIOR_SCHOOL'),
+-- Note: With parameter defaults (p_expiry_seconds = 20, p_campus_id = 'SENIOR_SCHOOL'),
 -- this single function gracefully handles 1-arg, 2-arg, and 3-arg calls from both SQL & PostgREST RPC.
 CREATE OR REPLACE FUNCTION public.generate_attendance_qr_session(
   p_action_type TEXT,
-  p_expiry_seconds INT DEFAULT 45,
+  p_expiry_seconds INT DEFAULT 20,
   p_campus_id TEXT DEFAULT 'SENIOR_SCHOOL'
 )
 RETURNS JSONB
@@ -75,9 +75,9 @@ BEGIN
     RAISE EXCEPTION 'INVALID_ACTION_TYPE';
   END IF;
 
-  v_expiry_sec := COALESCE(p_expiry_seconds, 45);
+  v_expiry_sec := COALESCE(p_expiry_seconds, 20);
   IF v_expiry_sec < 15 OR v_expiry_sec > 300 THEN
-    v_expiry_sec := 45;
+    v_expiry_sec := 20;
   END IF;
 
   -- Resolve Target Campus (supports campus_id slug or UUID)

@@ -15,7 +15,7 @@ export const DEFAULT_ATTENDANCE_WINDOWS = {
   check_out_end: '19:00'
 };
 
-export const DEFAULT_QR_EXPIRY_SECONDS = 45;
+export const DEFAULT_QR_EXPIRY_SECONDS = 20;
 
 /**
  * Haversine formula for distance in meters
@@ -296,6 +296,9 @@ class AttendanceVerificationServiceImpl {
       if (msg.includes('UNAUTHORIZED_CAMPUS')) {
         throw new Error(msg.replace(/^.*?UNAUTHORIZED_CAMPUS:\s*/, ''));
       }
+      if (msg.includes('ATTENDANCE_RULE_NOT_CONFIGURED')) {
+        throw new Error(msg.replace(/^.*?ATTENDANCE_RULE_NOT_CONFIGURED:\s*/, ''));
+      }
       if (msg.includes('NO_ACTIVE_CAMPUS_ASSIGNMENT')) {
         throw new Error('No Active Campus Assignment: You have not been assigned to a school campus in the ERP. Please contact the administrator.');
       }
@@ -542,6 +545,80 @@ class AttendanceVerificationServiceImpl {
     }
 
     return { success: true, status: normalizedAction === 'APPROVE' ? 'APPROVED' : 'REJECTED' };
+  }
+
+  /**
+   * Fetch all active and historical campus attendance timing rules.
+   * Authoritatively provided by PostgreSQL RPC admin_get_campus_attendance_rules
+   * with seamless fallback to querying the campus_attendance_rules table.
+   */
+  async getCampusAttendanceRules() {
+    try {
+      const { data, error } = await supabase.rpc('admin_get_campus_attendance_rules');
+      if (!error && Array.isArray(data)) {
+        return data;
+      }
+    } catch (e) {
+      console.warn('RPC admin_get_campus_attendance_rules not available, falling back to table query:', e);
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('campus_attendance_rules')
+        .select(`
+          id, campus_id, academic_year_id, school_start_time,
+          grace_period_minutes, late_threshold, effective_from,
+          effective_to, active, version, created_at,
+          campus:campus_id (id, campus_id, campus_name)
+        `)
+        .order('version', { ascending: false });
+
+      if (!error && data) {
+        return data.map(r => ({
+          id: r.id,
+          campus_id: r.campus_id,
+          campus_slug: r.campus?.campus_id,
+          campus_name: r.campus?.campus_name,
+          academic_year_id: r.academic_year_id,
+          school_start_time: r.school_start_time,
+          grace_period_minutes: r.grace_period_minutes,
+          late_threshold: r.late_threshold,
+          effective_from: r.effective_from,
+          effective_to: r.effective_to,
+          active: r.active,
+          version: r.version,
+          created_at: r.created_at
+        }));
+      }
+    } catch (err) {
+      console.warn('Failed to query campus_attendance_rules table directly:', err);
+    }
+
+    return [];
+  }
+
+  /**
+   * Create or update a campus attendance timing rule (creates a new immutable version).
+   * Restricted to Admin and Principal with mandatory audit reason.
+   */
+  async updateCampusAttendanceRule({ campusId, schoolStartTime, gracePeriodMinutes, effectiveFrom, reason }) {
+    if (!campusId) throw new Error('Campus ID is required.');
+    if (!schoolStartTime) throw new Error('School start time is required.');
+    if (gracePeriodMinutes == null || gracePeriodMinutes < 0) throw new Error('Valid grace period is required.');
+    if (!reason || !reason.trim()) throw new Error('Audit reason is required to update attendance rules.');
+
+    const { data, error } = await supabase.rpc('admin_create_or_update_campus_attendance_rule', {
+      p_campus_id: campusId,
+      p_school_start_time: schoolStartTime,
+      p_grace_period_minutes: parseInt(gracePeriodMinutes, 10),
+      p_effective_from: effectiveFrom || new Date().toISOString().split('T')[0],
+      p_reason: reason.trim()
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Failed to update campus attendance rule.');
+    }
+    return data;
   }
 }
 

@@ -111,7 +111,7 @@ const DB = {
 };
 
 // 3. Simulated Server RPC Functions matching PL/pgSQL
-function server_kiosk_generate_qr_session(deviceId, secret, actionType, expirySec = 45) {
+function server_kiosk_generate_qr_session(deviceId, secret, actionType, expirySec = 20) {
   const kiosk = DB.kiosks.find(k => k.device_id === deviceId);
   if (!kiosk) throw new Error(`UNAUTHORIZED_KIOSK: Device ${deviceId} not registered`);
   if (kiosk.status !== 'ACTIVE') throw new Error(`UNAUTHORIZED_KIOSK: Device ${deviceId} is ${kiosk.status}`);
@@ -413,7 +413,7 @@ runTest(10, 'Revoked kiosk -> REJECT: UNAUTHORIZED_KIOSK', () => {
 });
 
 // Test 11: Expired QR -> REJECT: QR_EXPIRED
-runTest(11, 'Expired QR (>45s) -> REJECT: QR_EXPIRED', () => {
+runTest(11, 'Expired QR (>20s) -> REJECT: QR_EXPIRED', () => {
   const qr = server_kiosk_generate_qr_session('GN-SENIOR-001', 'GyanodayKiosk@2026', 'CHECK_IN');
   // Fast-forward session expiry
   const s = DB.qr_sessions.find(x => x.session_token === qr.sessionToken);
