@@ -1,10 +1,13 @@
 providers = ["node"]
 
+[phases.setup]
+nixPkgs = ["nodejs_22"]
+
 [variables]
-NODE_OPTIONS = "--max-old-space-size=1536"
+NODE_OPTIONS = "--max-old-space-size=2048"
 
 [phases.install]
-cmds = ['npm ci --no-audit']
+cmds = ['npm ci --no-audit --prefer-offline']
 
 [phases.build]
 cmds = ['npm run build']
