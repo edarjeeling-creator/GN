@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { 
   X, MapPin, QrCode, CheckCircle2, AlertCircle, 
-  RotateCcw, ShieldCheck, Loader2, Navigation, AlertTriangle
+  RotateCcw, ShieldCheck, Loader2, Navigation, AlertTriangle, Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -17,6 +17,7 @@ const AttendanceScannerModal = ({ isOpen, onClose, actionType = 'CHECK_IN', onSu
   const [locationStatus, setLocationStatus] = useState('Acquiring high-precision GPS...');
   const [errorMessage, setErrorMessage] = useState('');
   const [errorHint, setErrorHint] = useState('');
+  const [errorAction, setErrorAction] = useState(null); // 'SETTINGS' | 'GPS_SETTINGS' | null
   const [successData, setSuccessData] = useState(null);
   const [schoolConfig, setSchoolConfig] = useState(null);
   const [distanceMeters, setDistanceMeters] = useState(null);
@@ -29,6 +30,7 @@ const AttendanceScannerModal = ({ isOpen, onClose, actionType = 'CHECK_IN', onSu
       setStep('LOCATING');
       setUserLocation(null);
       setErrorMessage('');
+      setErrorAction(null);
       setSuccessData(null);
       setIsProcessingScan(false);
       return;
@@ -38,7 +40,19 @@ const AttendanceScannerModal = ({ isOpen, onClose, actionType = 'CHECK_IN', onSu
 
     async function initLocation() {
       setStep('LOCATING');
+      setErrorAction(null);
       setLocationStatus('Connecting to GPS satellites & campus geofence...');
+
+      // Proactively prompt native permission if running in Android Native APK wrapper
+      if (typeof window !== 'undefined' && window.GyanodayNative?.hasLocationPermission) {
+        try {
+          if (!window.GyanodayNative.hasLocationPermission()) {
+            window.GyanodayNative.requestLocationPermission();
+          }
+        } catch (e) {
+          console.warn('Native permission check/request failed:', e);
+        }
+      }
 
       try {
         const config = await attendanceVerificationService.getSettings();
@@ -65,6 +79,7 @@ const AttendanceScannerModal = ({ isOpen, onClose, actionType = 'CHECK_IN', onSu
             setStep('ERROR');
             setErrorMessage(`Outside School Geofence`);
             setErrorHint(`You are approximately ${Math.round(dist)}m away. Attendance must be marked within ${maxRadius}m of ${config.location.name || 'the school campus'}.`);
+            setErrorAction(null);
             return;
           }
         }
@@ -76,12 +91,20 @@ const AttendanceScannerModal = ({ isOpen, onClose, actionType = 'CHECK_IN', onSu
 
         if (err.message === 'LOCATION_PERMISSION_DENIED') {
           setStep('ERROR');
-          setErrorMessage('Location Permission Denied');
-          setErrorHint('Physical presence verification requires GPS permission. Please enable Location Services in your browser/device settings and reload.');
+          setErrorMessage('Location Permission Required');
+          setErrorHint('Physical presence verification requires precise GPS location. Android must be granted Location permission to verify campus presence.');
+          setErrorAction(typeof window !== 'undefined' && window.GyanodayNative?.openAppSettings ? 'SETTINGS' : null);
         } else if (err.message === 'LOCATION_TIMEOUT') {
           setStep('ERROR');
-          setErrorMessage('GPS Acquisition Timeout');
-          setErrorHint('Could not acquire your GPS location in time. Please move near a window or check your phone location settings, then retry.');
+          if (typeof window !== 'undefined' && window.GyanodayNative?.isGpsEnabled && !window.GyanodayNative.isGpsEnabled()) {
+            setErrorMessage('Device GPS Location is Disabled');
+            setErrorHint('Your phone location / GPS hardware is switched off. Please turn on Location in your notification quick settings to proceed.');
+            setErrorAction('GPS_SETTINGS');
+          } else {
+            setErrorMessage('GPS Acquisition Timeout');
+            setErrorHint('Could not acquire your GPS location in time. Please move near a window or outdoors, verify Location is turned on, and retry.');
+            setErrorAction(null);
+          }
         } else {
           // Allow proceeding to scan if device has no GPS hardware, but inform user that server verification will check
           setLocationStatus('GPS unavailable. Proceeding with network verification...');
@@ -92,8 +115,17 @@ const AttendanceScannerModal = ({ isOpen, onClose, actionType = 'CHECK_IN', onSu
 
     initLocation();
 
+    // Listen for Android native permission dialog callbacks
+    const handleNativePermissionResult = (e) => {
+      if (e?.detail?.granted && isMounted) {
+        initLocation();
+      }
+    };
+    window.addEventListener('nativeLocationPermissionResult', handleNativePermissionResult);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('nativeLocationPermissionResult', handleNativePermissionResult);
     };
   }, [isOpen, actionType]);
 
@@ -409,19 +441,45 @@ const AttendanceScannerModal = ({ isOpen, onClose, actionType = 'CHECK_IN', onSu
                 <p className="text-xs text-slate-400 leading-relaxed">{errorHint}</p>
               </div>
 
-              <div className="w-full flex gap-3 pt-4">
-                <button
-                  onClick={onClose}
-                  className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleRetry}
-                  className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20 transition-all"
-                >
-                  <RotateCcw size={14} /> Try Again
-                </button>
+              <div className="w-full flex flex-col gap-2.5 pt-4">
+                {errorAction === 'SETTINGS' && (
+                  <button
+                    onClick={() => {
+                      if (typeof window !== 'undefined' && window.GyanodayNative?.openAppSettings) {
+                        window.GyanodayNative.openAppSettings();
+                      }
+                    }}
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/25 transition-all"
+                  >
+                    <Settings size={15} /> Open App Settings (Grant Permission)
+                  </button>
+                )}
+                {errorAction === 'GPS_SETTINGS' && (
+                  <button
+                    onClick={() => {
+                      if (typeof window !== 'undefined' && window.GyanodayNative?.openLocationSettings) {
+                        window.GyanodayNative.openLocationSettings();
+                      }
+                    }}
+                    className="w-full py-3 bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-600/25 transition-all"
+                  >
+                    <MapPin size={15} /> Turn On Device GPS / Location
+                  </button>
+                )}
+                <div className="w-full flex gap-3">
+                  <button
+                    onClick={onClose}
+                    className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleRetry}
+                    className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20 transition-all"
+                  >
+                    <RotateCcw size={14} /> Try Again
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}

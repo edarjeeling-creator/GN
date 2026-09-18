@@ -69,7 +69,7 @@ export async function getCurrentDevicePosition() {
       },
       {
         enableHighAccuracy: true,
-        timeout: 12000,
+        timeout: 20000,
         maximumAge: 0
       }
     );
