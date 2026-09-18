@@ -131,14 +131,21 @@ const AttendanceQRDisplay = () => {
 
   // Helper to compute seconds remaining strictly synchronized with server-issued expiresAt
   const computeRemainingSeconds = (currSession) => {
-    if (!currSession?.expiresAt) return expiryDuration;
-    const expiresAtMs = new Date(currSession.expiresAt).getTime();
-    const serverTimeMs = currSession.serverTime ? new Date(currSession.serverTime).getTime() : Date.now();
-    // Calculate clock skew (server time vs device clock)
-    const clockSkewMs = serverTimeMs - Date.now();
-    const approxServerNow = Date.now() + clockSkewMs;
-    const remainingMs = expiresAtMs - approxServerNow;
-    return Math.max(0, Math.ceil(remainingMs / 1000));
+    if (!currSession) return expiryDuration;
+    if (currSession.receivedAt) {
+      const durationMs = (currSession.expiresAt && currSession.serverTime)
+        ? (new Date(currSession.expiresAt).getTime() - new Date(currSession.serverTime).getTime())
+        : (expiryDuration * 1000);
+      const elapsedMs = Date.now() - currSession.receivedAt;
+      const remainingMs = durationMs - elapsedMs;
+      return Math.max(0, Math.ceil(remainingMs / 1000));
+    }
+    if (currSession.expiresAt) {
+      const expiresAtMs = new Date(currSession.expiresAt).getTime();
+      const remainingMs = expiresAtMs - Date.now();
+      return Math.max(0, Math.ceil(remainingMs / 1000));
+    }
+    return expiryDuration;
   };
 
   // Real-time Clock
@@ -286,8 +293,12 @@ const AttendanceQRDisplay = () => {
           throw new Error(result.error || 'Failed to generate attendance QR');
         }
 
-        setSession(result.session);
-        const rem = computeRemainingSeconds(result.session);
+        const sessionWithReceived = {
+          ...result.session,
+          receivedAt: Date.now()
+        };
+        setSession(sessionWithReceived);
+        const rem = computeRemainingSeconds(sessionWithReceived);
         setSecondsRemaining(rem > 0 ? rem : expiryDuration);
         setSessionCount(prev => prev + 1);
 
@@ -305,8 +316,12 @@ const AttendanceQRDisplay = () => {
           throw new Error(result.error || 'Failed to generate attendance QR');
         }
 
-        setSession(result.session);
-        const rem = computeRemainingSeconds(result.session);
+        const sessionWithReceived = {
+          ...result.session,
+          receivedAt: Date.now()
+        };
+        setSession(sessionWithReceived);
+        const rem = computeRemainingSeconds(sessionWithReceived);
         setSecondsRemaining(rem > 0 ? rem : expiryDuration);
         setSessionCount(prev => prev + 1);
       }
