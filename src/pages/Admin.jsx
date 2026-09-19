@@ -98,10 +98,7 @@ const Admin = () => {
   };
 
   const handleUserCreatedSuccess = async () => {
-    const staffRes = await UserCredentialService.fetchStaffDirectory();
-    if (staffRes.success && staffRes.data) {
-      setTeachers(staffRes.data);
-    }
+    await fetchStats();
   };
 
   const handleUserUpdatedSuccess = (updatedUser) => {
@@ -182,7 +179,11 @@ const Admin = () => {
     if (staffRes.success && staffRes.data && staffRes.data.length > 0) {
       setTeachers(staffRes.data);
     } else {
-      const { data: tData } = await supabase.from('profiles').select('*').in('role', ['teacher', 'principal']).order('name');
+      const { data: tData } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('role', ['teacher', 'principal', 'accountant', 'librarian', 'coordinator', 'admin'])
+        .order('name');
       if (tData) setTeachers(tData);
     }
   };
