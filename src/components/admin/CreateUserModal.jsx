@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserPlus, User, Mail, Lock, Eye, EyeOff, RefreshCw, Shield, Building, CheckCircle2, AlertCircle, Loader2, X } from 'lucide-react';
+import { UserPlus, User, Mail, Lock, Eye, EyeOff, RefreshCw, Shield, Building, CheckCircle2, AlertCircle, Loader2, X, Briefcase } from 'lucide-react';
 import { UserCredentialService } from '../../services/UserCredentialService';
 
 export default function CreateUserModal({ isOpen, onClose, onSuccess }) {
@@ -8,6 +8,7 @@ export default function CreateUserModal({ isOpen, onClose, onSuccess }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState('teacher');
+  const [designation, setDesignation] = useState('');
   const [campus, setCampus] = useState('Senior School');
   const [status, setStatus] = useState('Active');
 
@@ -43,6 +44,7 @@ export default function CreateUserModal({ isOpen, onClose, onSuccess }) {
         email: email.trim().toLowerCase(),
         password: password.trim(),
         role,
+        designation: designation.trim(),
         campus,
         status
       });
@@ -54,6 +56,7 @@ export default function CreateUserModal({ isOpen, onClose, onSuccess }) {
             name: name.trim(),
             email: email.trim().toLowerCase(),
             role,
+            designation: designation.trim(),
             campus,
             status
           });
@@ -64,6 +67,7 @@ export default function CreateUserModal({ isOpen, onClose, onSuccess }) {
           setEmail('');
           setPassword('');
           setRole('teacher');
+          setDesignation('');
           setCampus('Senior School');
           setStatus('Active');
           setStatusMessage({ type: '', text: '' });
@@ -185,6 +189,8 @@ export default function CreateUserModal({ isOpen, onClose, onSuccess }) {
                 onChange={(e) => setRole(e.target.value)}
               >
                 <option value="teacher">Teacher</option>
+                <option value="non_teaching">Non-Teaching Staff</option>
+                <option value="group_d">Group D Staff</option>
                 <option value="admin">Administrator</option>
                 <option value="principal">Principal</option>
                 <option value="accountant">Accountant</option>
@@ -208,6 +214,24 @@ export default function CreateUserModal({ isOpen, onClose, onSuccess }) {
                 <option value="All Campuses">All Campuses (Multi-Campus)</option>
               </select>
             </div>
+          </div>
+
+          {/* Designation / Job Title */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+              <Briefcase size={15} className="text-slate-400" />
+              Designation / Job Title
+            </label>
+            <input
+              type="text"
+              className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm shadow-sm"
+              placeholder="e.g. Security Guard, Peon, Office Assistant, Driver, Cleaner"
+              value={designation}
+              onChange={(e) => setDesignation(e.target.value)}
+            />
+            <p className="text-[11px] text-slate-400 mt-1">
+              Specific position title (displayed on their profile and digital ID badge).
+            </p>
           </div>
 
           {/* Status */}

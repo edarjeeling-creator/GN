@@ -64,8 +64,11 @@ const PrincipalPortal = () => {
 
   const formatAudienceLabel = (aud) => {
     if (!aud || aud === 'all') return 'Entire School';
+    if (aud === 'staff') return 'All Staff (Teaching & Non-Teaching)';
+    if (aud === 'teachers') return 'Teaching Faculty';
+    if (aud === 'non_teaching') return 'Non-Teaching Staff';
+    if (aud === 'group_d') return 'Group D Support Staff';
     if (aud === 'students') return 'Only Students';
-    if (aud === 'teachers') return 'Only Teachers';
     if (aud.startsWith('class:')) {
       const cid = aud.replace('class:', '');
       const cls = classesData.find(c => c.id === cid);
@@ -1160,8 +1163,11 @@ const PrincipalPortal = () => {
                     >
                       <optgroup label="General Audience" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold">
                         <option value="all" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-normal">Entire School</option>
+                        <option value="staff" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-normal">All Staff (Teaching & Non-Teaching)</option>
+                        <option value="teachers" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-normal">Teachers Only</option>
+                        <option value="non_teaching" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-normal">Non-Teaching Staff Only</option>
+                        <option value="group_d" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-normal">Group D Support Staff Only</option>
                         <option value="students" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-normal">All Students</option>
-                        <option value="teachers" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-normal">All Teachers</option>
                       </optgroup>
                       <optgroup label="Single Class" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold">
                         {sortedClasses.map(cls => (

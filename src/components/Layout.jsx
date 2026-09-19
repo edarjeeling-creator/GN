@@ -454,13 +454,17 @@ const Layout = ({ children }) => {
                     ) : profile?.role === 'student' ? (
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Student</span>
                     ) : profile?.role === 'accountant' ? (
-                      <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 600 }}>School Accountant</span>
+                      <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 600 }}>{profile?.designation || 'School Accountant'}</span>
                     ) : profile?.role === 'librarian' ? (
-                      <span style={{ fontSize: '0.7rem', color: '#06b6d4', fontWeight: 600 }}>Librarian</span>
+                      <span style={{ fontSize: '0.7rem', color: '#06b6d4', fontWeight: 600 }}>{profile?.designation || 'Librarian'}</span>
+                    ) : profile?.role === 'group_d' ? (
+                      <span style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 600 }}>{profile?.designation || 'Group D Staff'}</span>
+                    ) : (profile?.role === 'non_teaching' || profile?.role === 'staff') ? (
+                      <span style={{ fontSize: '0.7rem', color: '#38bdf8', fontWeight: 600 }}>{profile?.designation || 'Non-Teaching Staff'}</span>
                     ) : classTeacherOf ? (
                       <span style={{ fontSize: '0.7rem', color: 'var(--primary-color)', fontWeight: 600 }}>Class Teacher ({classTeacherOf.name} {classTeacherOf.section})</span>
                     ) : (
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Faculty Member</span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{profile?.designation || 'Faculty Member'}</span>
                     )}
                   </>
                 )}
@@ -488,7 +492,8 @@ const Layout = ({ children }) => {
           {(() => {
             const isTeachingPrincipal = profile?.role === 'principal';
             const isStaff = profile?.role && profile?.role !== 'student';
-            const isTeacherOrAdminOrTeachingPrincipal = profile?.role === 'teacher' || profile?.role === 'admin' || isTeachingPrincipal;
+            const isPureSupportStaff = ['non_teaching', 'group_d', 'staff', 'accountant', 'librarian'].includes(profile?.role);
+            const isTeacherOrAdminOrTeachingPrincipal = (profile?.role === 'teacher' || profile?.role === 'admin' || isTeachingPrincipal) && !isPureSupportStaff;
             return (
               <>
                 {profile?.role === 'student' && (

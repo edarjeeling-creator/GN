@@ -40,7 +40,7 @@ export const UserCredentialService = {
       const { data: profiles, error: profError } = await supabase
         .from('profiles')
         .select('*')
-        .in('role', ['teacher', 'principal', 'accountant', 'librarian', 'coordinator', 'admin'])
+        .in('role', ['teacher', 'principal', 'accountant', 'librarian', 'coordinator', 'admin', 'non_teaching', 'group_d', 'staff'])
         .order('name');
 
       if (profError) throw profError;
@@ -54,10 +54,11 @@ export const UserCredentialService = {
   /**
    * Create a new staff account
    */
-  async createUser({ name, email, password, role = 'teacher', campus = 'Senior School', status = 'Active' }) {
+  async createUser({ name, email, password, role = 'teacher', designation = '', campus = 'Senior School', status = 'Active' }) {
     const cleanName = name?.trim();
     const cleanEmail = email?.trim().toLowerCase();
     const cleanPassword = password?.trim();
+    const cleanDesignation = designation?.trim() || null;
 
     if (!cleanName || !cleanEmail || !cleanPassword) {
       return { success: false, error: 'Full Name, Login Email, and Password are required.' };
@@ -69,6 +70,8 @@ export const UserCredentialService = {
       return { success: false, error: 'Password must be at least 6 characters long.' };
     }
 
+    let createdUserId = null;
+
     // 1. Attempt via Edge Function
     try {
       const { data: edgeData, error: edgeError } = await supabase.functions.invoke('admin-users', {
@@ -79,6 +82,7 @@ export const UserCredentialService = {
             email: cleanEmail,
             password: cleanPassword,
             role,
+            designation: cleanDesignation,
             campus,
             status
           }
@@ -86,53 +90,63 @@ export const UserCredentialService = {
       });
 
       if (!edgeError && edgeData && (edgeData.success || edgeData.message)) {
-        return {
-          success: true,
-          message: edgeData.message || `User "${cleanName}" created successfully.`,
-          user: edgeData.user
-        };
+        createdUserId = edgeData.user?.id || edgeData.userId;
       }
     } catch (edgeErr) {
       console.warn('Edge function createUser failed, attempting database RPC fallback:', edgeErr.message);
     }
 
-    // 2. Fallback to Database RPC
-    try {
-      const { data: rpcData, error: rpcError } = await supabase.rpc('admin_create_user', {
-        p_email: cleanEmail,
-        p_password: cleanPassword,
-        p_name: cleanName,
-        p_role: role,
-        p_campus: campus,
-        p_status: status
-      });
+    // 2. Fallback to Database RPC if not created by edge function
+    if (!createdUserId) {
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('admin_create_user', {
+          p_email: cleanEmail,
+          p_password: cleanPassword,
+          p_name: cleanName,
+          p_role: role,
+          p_campus: campus,
+          p_status: status
+        });
 
-      if (rpcError) throw new Error(rpcError.message || 'Database error creating user');
-      if (rpcData && rpcData.success === false) throw new Error(rpcData.error || 'Failed to create user');
+        if (rpcError) throw new Error(rpcError.message || 'Database error creating user');
+        if (rpcData && rpcData.success === false) throw new Error(rpcData.error || 'Failed to create user');
 
-      return {
-        success: true,
-        message: rpcData?.message || `User "${cleanName}" created successfully in database.`,
-        user_id: rpcData?.user_id
-      };
-    } catch (rpcErr) {
-      console.error('Create user error:', rpcErr);
-      let msg = rpcErr.message || 'Failed to create user.';
-      if (msg.includes('duplicate key') || msg.includes('already exists')) {
-        msg = `An account with email "${cleanEmail}" already exists.`;
+        createdUserId = rpcData?.user_id || rpcData?.id;
+      } catch (rpcErr) {
+        console.error('Create user error:', rpcErr);
+        let msg = rpcErr.message || 'Failed to create user.';
+        if (msg.includes('duplicate key') || msg.includes('already exists')) {
+          msg = `An account with email "${cleanEmail}" already exists.`;
+        }
+        return { success: false, error: msg };
       }
-      return { success: false, error: msg };
     }
+
+    // Update designation in profiles
+    if (createdUserId && cleanDesignation) {
+      try {
+        await supabase.from('profiles').update({ designation: cleanDesignation }).eq('id', createdUserId);
+      } catch (desigErr) {
+        console.warn('Could not set designation on profile:', desigErr);
+      }
+    }
+
+    return {
+      success: true,
+      message: `User "${cleanName}" created successfully.`,
+      user_id: createdUserId
+    };
   },
 
   /**
-   * Edit existing staff profile (Name, Email, Role, Campus, Status)
+   * Edit existing staff profile (Name, Email, Role, Designation, Campus, Status)
    */
-  async updateUser({ targetUserId, name, email, role, campus, status }) {
+  async updateUser({ targetUserId, name, email, role, designation, campus, status }) {
     if (!targetUserId) return { success: false, error: 'Target user ID is required.' };
 
     const cleanName = name?.trim();
     const cleanEmail = email?.trim().toLowerCase();
+    const cleanDesignation = designation !== undefined ? (designation?.trim() || null) : undefined;
 
     // 1. Attempt via Edge Function
     try {
@@ -145,6 +159,7 @@ export const UserCredentialService = {
               name: cleanName,
               email: cleanEmail,
               role,
+              designation: cleanDesignation,
               campus,
               status
             }
@@ -153,6 +168,9 @@ export const UserCredentialService = {
       });
 
       if (!edgeError && edgeData && (edgeData.success || edgeData.message)) {
+        if (cleanDesignation !== undefined) {
+          await supabase.from('profiles').update({ designation: cleanDesignation }).eq('id', targetUserId);
+        }
         return { success: true, message: edgeData.message || 'User updated successfully.' };
       }
     } catch (edgeErr) {
@@ -172,6 +190,10 @@ export const UserCredentialService = {
 
       if (rpcError) throw new Error(rpcError.message || 'Database error updating user');
       if (rpcData && rpcData.success === false) throw new Error(rpcData.error || 'Failed to update user');
+
+      if (cleanDesignation !== undefined) {
+        await supabase.from('profiles').update({ designation: cleanDesignation }).eq('id', targetUserId);
+      }
 
       return { success: true, message: rpcData?.message || 'User updated successfully.' };
     } catch (rpcErr) {

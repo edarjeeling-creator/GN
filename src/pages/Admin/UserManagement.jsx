@@ -136,6 +136,10 @@ export default function UserManagement() {
               <option value="all">All Roles</option>
               <option value="admin">Administrators</option>
               <option value="teacher">Teachers</option>
+              <option value="non_teaching">Non-Teaching Staff</option>
+              <option value="group_d">Group D Staff</option>
+              <option value="accountant">Accountants</option>
+              <option value="librarian">Librarians</option>
               <option value="student">Students</option>
             </select>
           </div>

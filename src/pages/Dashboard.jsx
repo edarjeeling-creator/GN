@@ -7,7 +7,7 @@ import {
   ChevronDown, User, Send, AlertTriangle, Fingerprint, LogOut,
   Phone, MessageSquare, Edit2, Check, X, ExternalLink,
   QrCode, ShieldCheck, MapPin, Sparkles, AlertOctagon, HelpCircle,
-  Printer
+  Printer, IdCard, Building2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -15,6 +15,9 @@ import TeacherAttendanceHistory from '../components/TeacherAttendanceHistory';
 import AttendanceScannerModal from '../components/AttendanceScannerModal';
 import AttendanceCorrectionModal from '../components/AttendanceCorrectionModal';
 import CalendarWidget from '../components/CalendarWidget';
+import DigitalStaffIDModal from '../components/DigitalStaffIDModal';
+import NoticeDetailModal from '../components/NoticeDetailModal';
+import CampusEmergencyContacts from '../components/CampusEmergencyContacts';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -70,6 +73,8 @@ const Dashboard = () => {
   const [reportingTimeConfig, setReportingTimeConfig] = useState({ time: '08:45', grace: 10 });
   const [attendanceActionLoading, setAttendanceActionLoading] = useState(false);
   const [recentNotices, setRecentNotices] = useState([]);
+  const [isIdModalOpen, setIsIdModalOpen] = useState(false);
+  const [selectedNoticeForModal, setSelectedNoticeForModal] = useState(null);
 
   const fetchDashboardData = async () => {
     try {
@@ -99,10 +104,19 @@ const Dashboard = () => {
         setAlerts([]);
       }
 
-      const audienceFilter = ['all', 'teachers'];
-      if (assignedActiveClasses && assignedActiveClasses.length > 0) {
-        assignedActiveClasses.forEach(cid => audienceFilter.push(`class:${cid}`));
+      let audienceFilter = ['all', 'staff'];
+      if (profile?.role === 'group_d') {
+        audienceFilter.push('group_d');
+      } else if (['non_teaching', 'accountant', 'librarian'].includes(profile?.role)) {
+        audienceFilter.push('non_teaching');
+      } else {
+        // Teacher, Admin, Principal, Coordinator
+        audienceFilter.push('teachers');
+        if (assignedActiveClasses && assignedActiveClasses.length > 0) {
+          assignedActiveClasses.forEach(cid => audienceFilter.push(`class:${cid}`));
+        }
       }
+
       const { data: noticesData } = await supabase
         .from('notices')
         .select('*')
@@ -129,6 +143,9 @@ const Dashboard = () => {
   }
 
   const isLibrarian = profile?.role === 'librarian';
+  const isAccountant = profile?.role === 'accountant';
+  const isPureSupportStaff = ['non_teaching', 'group_d', 'staff', 'accountant', 'librarian'].includes(profile?.role);
+  const isAcademicFaculty = !isPureSupportStaff && (profile?.role === 'teacher' || profile?.role === 'admin' || profile?.role === 'coordinator');
   const isAdminOrHead = profile && (
     profile.role === 'admin' ||
     profile.role === 'principal' ||
@@ -269,17 +286,41 @@ const Dashboard = () => {
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6">
       
       {/* Page Header */}
-      <div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">Dashboard</h1>
-        <div className="text-slate-600 dark:text-slate-300 mt-1.5 flex flex-wrap items-center gap-2 text-sm sm:text-base">
-          <span>Welcome back, <strong className="text-brand-600 dark:text-brand-400 font-bold">{profile?.name || 'Teacher'}</strong>.</span>
-          {classes.filter(c => c.class_teacher_id === profile?.id).map(c => (
-            <Badge key={c.id} variant="secondary" className="bg-brand-100 text-brand-800 hover:bg-brand-200 border-brand-200 dark:bg-brand-950/70 dark:text-brand-300 dark:border-brand-700/60 flex items-center gap-1.5">
-              <BookOpen size={12} />
-              Class Teacher ({c.name} {c.section})
-            </Badge>
-          ))}
-          <span className="block w-full sm:w-auto text-slate-500 dark:text-slate-400">Here's your overview for {academicYear}.</span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            {isPureSupportStaff ? 'Staff Portal' : 'Dashboard'}
+          </h1>
+          <div className="text-slate-600 dark:text-slate-300 mt-1.5 flex flex-wrap items-center gap-2 text-sm sm:text-base">
+            <span>Welcome back, <strong className="text-brand-600 dark:text-brand-400 font-bold">{profile?.name || 'Staff Member'}</strong>.</span>
+            {isPureSupportStaff ? (
+              <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-700/60 font-bold">
+                {profile?.designation || (profile?.role === 'group_d' ? 'Group D Staff' : profile?.role === 'accountant' ? 'School Accountant' : profile?.role === 'librarian' ? 'Librarian' : 'Non-Teaching Staff')}
+              </Badge>
+            ) : (
+              classes.filter(c => c.class_teacher_id === profile?.id).map(c => (
+                <Badge key={c.id} variant="secondary" className="bg-brand-100 text-brand-800 hover:bg-brand-200 border-brand-200 dark:bg-brand-950/70 dark:text-brand-300 dark:border-brand-700/60 flex items-center gap-1.5">
+                  <BookOpen size={12} />
+                  Class Teacher ({c.name} {c.section})
+                </Badge>
+              ))
+            )}
+            <span className="block w-full sm:w-auto text-slate-500 dark:text-slate-400">
+              {profile?.campus ? `• ${profile.campus}` : ''} • Overview for {academicYear}.
+            </span>
+          </div>
+        </div>
+
+        {/* Digital Staff ID Card Button */}
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Button
+            onClick={() => setIsIdModalOpen(true)}
+            variant="outline"
+            className="bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold flex items-center gap-2 shadow-sm hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+          >
+            <IdCard size={18} className="text-emerald-500" />
+            <span>Digital Staff ID</span>
+          </Button>
         </div>
       </div>
       
@@ -504,12 +545,14 @@ const Dashboard = () => {
       {/* Teacher Attendance History */}
       <TeacherAttendanceHistory teacherId={profile?.id} />
 
-      {/* Calendar Widget */}
-      {!isLibrarian && (
-        <CalendarWidget />
-      )}
+      {/* Calendar Widget - Visible to all faculty and staff */}
+      <CalendarWidget />
 
-      {!isLibrarian && (
+      {/* Campus Emergency & Key Contacts */}
+      <CampusEmergencyContacts />
+
+      {/* Core KPIs (Faculty & Academic Leadership Only) */}
+      {isAcademicFaculty && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           
           {/* Core KPIs */}
@@ -576,8 +619,8 @@ const Dashboard = () => {
       </div>
       )}
 
-      {/* Absentees Collapsible Section */}
-      {!isLibrarian && (() => {
+      {/* Absentees Collapsible Section (Teachers & Academic Staff Only) */}
+      {isAcademicFaculty && (() => {
         const absentees = attendanceData.filter(a => a.status === 'Absent' || a.status === 'Leave');
         if (absentees.length === 0) return null;
 
@@ -727,18 +770,25 @@ const Dashboard = () => {
       {recentNotices.length > 0 && (
         <div className="pt-4">
           <h3 className="text-xl font-bold mb-4 text-slate-800 dark:text-white flex items-center gap-2">
-            <AlertCircle size={24} className="text-brand-500" /> Recent Notices
+            <AlertCircle size={24} className="text-brand-500" /> Recent Notices & Circulars
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {recentNotices.map(notice => (
-              <Card key={notice.id} hoverable className="h-full flex flex-col relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1 h-full bg-brand-500"></div>
+              <Card 
+                key={notice.id} 
+                hoverable 
+                className="h-full flex flex-col relative overflow-hidden cursor-pointer group hover:border-brand-300 dark:hover:border-brand-700 transition-all"
+                onClick={() => setSelectedNoticeForModal(notice)}
+              >
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-500"></div>
                 <CardContent className="p-6 flex-1 flex flex-col">
                   <div className="flex justify-between items-start mb-3 gap-2">
-                    <h4 className="font-bold text-lg leading-tight text-slate-800 dark:text-white">{notice.title}</h4>
+                    <h4 className="font-bold text-lg leading-tight text-slate-800 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
+                      {notice.title}
+                    </h4>
                     <Badge 
                       variant={notice.target_audience?.startsWith('class:') ? 'default' : 'secondary'} 
-                      className={`uppercase text-[10px] tracking-wider font-semibold ${
+                      className={`uppercase text-[10px] tracking-wider font-semibold whitespace-nowrap ${
                         notice.target_audience?.startsWith('class:')
                           ? 'bg-brand-100 text-brand-800 border-brand-200 dark:bg-brand-950/80 dark:text-brand-300 dark:border-brand-800'
                           : ''
@@ -747,7 +797,10 @@ const Dashboard = () => {
                       {(() => {
                         const aud = notice.target_audience;
                         if (!aud || aud === 'all') return 'Entire School';
+                        if (aud === 'staff') return 'All Staff';
                         if (aud === 'teachers') return 'Teachers';
+                        if (aud === 'non_teaching') return 'Non-Teaching';
+                        if (aud === 'group_d') return 'Group D';
                         if (aud === 'students') return 'Students';
                         if (aud.startsWith('class:')) {
                           const cid = aud.replace('class:', '');
@@ -758,8 +811,16 @@ const Dashboard = () => {
                       })()}
                     </Badge>
                   </div>
-                  <div className="text-slate-600 dark:text-slate-300 text-sm mb-4 flex-1 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: notice.content }} />
-                  <p className="text-xs text-slate-400 font-medium">{new Date(notice.publish_date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                  <div 
+                    className="text-slate-600 dark:text-slate-300 text-sm mb-4 flex-1 line-clamp-3 prose prose-sm max-w-none pointer-events-none" 
+                    dangerouslySetInnerHTML={{ __html: notice.content }} 
+                  />
+                  <div className="flex items-center justify-between text-xs text-slate-400 font-medium pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                    <span>{new Date(notice.publish_date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                    <span className="text-brand-600 dark:text-brand-400 font-semibold group-hover:underline flex items-center gap-1">
+                      Read circular &rarr;
+                    </span>
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -772,6 +833,21 @@ const Dashboard = () => {
          <h3 className="text-xl font-bold mb-4 text-slate-800 dark:text-white">Quick Actions</h3>
          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             
+            {/* Digital Staff ID Card for pure support staff */}
+            {isPureSupportStaff && (
+              <Card hoverable className="cursor-pointer group border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/40 dark:bg-emerald-950/20" onClick={() => setIsIdModalOpen(true)}>
+                 <CardContent className="p-5 flex items-center gap-4">
+                   <div className="w-14 h-14 rounded-2xl bg-emerald-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-md">
+                     <IdCard size={28} />
+                   </div>
+                   <div>
+                     <strong className="block text-lg font-bold text-slate-800 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Digital Staff ID</strong>
+                     <span className="text-sm text-slate-500 dark:text-slate-400">View & display your ID badge</span>
+                   </div>
+                 </CardContent>
+              </Card>
+            )}
+
             {isLibrarian && (
               <Card hoverable className="cursor-pointer group" onClick={() => window.location.href='/library'}>
                  <CardContent className="p-5 flex items-center gap-4">
@@ -786,7 +862,22 @@ const Dashboard = () => {
               </Card>
             )}
 
-            {!isLibrarian && (
+            {isAccountant && (
+              <Card hoverable className="cursor-pointer group" onClick={() => window.location.href='/accountant'}>
+                 <CardContent className="p-5 flex items-center gap-4">
+                   <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                     <Building2 size={28} />
+                   </div>
+                   <div>
+                     <strong className="block text-lg font-semibold text-slate-800 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Fee Management</strong>
+                     <span className="text-sm text-slate-500 dark:text-slate-400">Manage student fee records</span>
+                   </div>
+                 </CardContent>
+              </Card>
+            )}
+
+            {/* Academic Faculty Only Quick Actions */}
+            {isAcademicFaculty && (
               <>
                 {classes.filter(c => c.class_teacher_id === profile?.id).map(c => (
                   <Card key={`ct-card-${c.id}`} hoverable className="cursor-pointer group border-brand-200 dark:border-brand-800/60 bg-brand-50 dark:bg-brand-950/40" onClick={() => window.location.href=`/class-teacher-portal/${c.id}`}>
@@ -830,6 +921,7 @@ const Dashboard = () => {
               </>
             )}
 
+            {/* Profile Photo Upload (Universal for all staff and teachers) */}
             <Card hoverable className="cursor-pointer group relative overflow-hidden">
                <CardContent className="p-5 flex items-center gap-4">
                  <div className="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -848,7 +940,8 @@ const Dashboard = () => {
                </CardContent>
             </Card>
             
-            {isPythonEnabled && (
+            {/* Python Portal (Faculty with rule access) */}
+            {isAcademicFaculty && isPythonEnabled && (
               <Card hoverable className="cursor-pointer group border-brand-200 dark:border-slate-700 bg-gradient-to-br from-brand-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800" onClick={() => window.location.href='/python-teacher'}>
                  <CardContent className="p-5 flex items-center gap-4">
                    <div className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm text-2xl">
@@ -864,6 +957,7 @@ const Dashboard = () => {
          </div>
       </div>
       
+      {/* Student Absentee WhatsApp Alert Modal */}
       {composerStudentData && (
         <WhatsAppComposerModal
           isOpen={!!composerStudentData}
@@ -876,6 +970,20 @@ const Dashboard = () => {
           defaultDate={composerStudentData.date}
         />
       )}
+
+      {/* Digital Staff ID Card Modal */}
+      <DigitalStaffIDModal
+        isOpen={isIdModalOpen}
+        onClose={() => setIsIdModalOpen(false)}
+        profile={profile}
+      />
+
+      {/* Notice Detail Reader Modal */}
+      <NoticeDetailModal
+        isOpen={!!selectedNoticeForModal}
+        onClose={() => setSelectedNoticeForModal(null)}
+        notice={selectedNoticeForModal}
+      />
     </motion.div>
   );
 };
