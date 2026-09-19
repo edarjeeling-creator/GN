@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { 
   Trophy, AlertCircle, Printer, Users, Phone, MessageSquare, 
-  Edit2, Check, X, Search, CheckCircle2 
+  Edit2, Check, X, Search, CheckCircle2, FileText 
 } from 'lucide-react';
 import { getConversionConstants } from './SubjectMarks';
 import { getGrade } from '../utils/reportUtils';
