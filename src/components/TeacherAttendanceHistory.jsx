@@ -87,28 +87,28 @@ const TeacherAttendanceHistory = ({ teacherId }) => {
         <div className="bg-slate-900/70 p-6 text-center hover:bg-slate-800/50 transition-colors">
           <div className="flex items-center justify-center gap-2 mb-2">
             <CheckCircle className="text-emerald-400" size={20}/>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Present</span>
+            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Present</span>
           </div>
           <span className="text-3xl font-black text-white">{presentCount}</span>
         </div>
         <div className="bg-slate-900/70 p-6 text-center hover:bg-slate-800/50 transition-colors">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Clock className="text-amber-400" size={20}/>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Late</span>
+            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Late</span>
           </div>
           <span className="text-3xl font-black text-white">{lateCount}</span>
         </div>
         <div className="bg-slate-900/70 p-6 text-center hover:bg-slate-800/50 transition-colors">
           <div className="flex items-center justify-center gap-2 mb-2">
             <AlertTriangle className="text-rose-400" size={20}/>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Leave</span>
+            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Leave</span>
           </div>
           <span className="text-3xl font-black text-white">{leaveCount}</span>
         </div>
         <div className="bg-slate-900/70 p-6 text-center hover:bg-slate-800/50 transition-colors">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Calendar className="text-brand-400" size={20}/>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Monthly %</span>
+            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Monthly %</span>
           </div>
           <span className="text-3xl font-black text-white">{attendancePercentage}%</span>
         </div>
@@ -118,13 +118,13 @@ const TeacherAttendanceHistory = ({ teacherId }) => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-800/50 border-b border-slate-700/80 text-xs uppercase tracking-wider text-slate-400">
-                <th className="p-4 font-semibold">Date</th>
-                <th className="p-4 font-semibold">Status</th>
-                <th className="p-4 font-semibold">Check In</th>
-                <th className="p-4 font-semibold">Check Out</th>
-                <th className="p-4 font-semibold">Hours</th>
-                <th className="p-4 font-semibold">Verification</th>
+              <tr className="bg-slate-800/80 border-b border-slate-700/80 text-xs uppercase tracking-wider text-slate-300 font-bold">
+                <th className="p-4 font-bold">Date</th>
+                <th className="p-4 font-bold">Status</th>
+                <th className="p-4 font-bold">Check In</th>
+                <th className="p-4 font-bold">Check Out</th>
+                <th className="p-4 font-bold">Hours</th>
+                <th className="p-4 font-bold">Verification</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/80">

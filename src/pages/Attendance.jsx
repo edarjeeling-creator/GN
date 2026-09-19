@@ -448,10 +448,10 @@ const Attendance = () => {
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6">
       
       <div>
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
-          <Calendar className="text-brand-600" size={32} /> Daily Attendance
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+          <Calendar className="text-brand-600 dark:text-brand-400" size={32} /> Daily Attendance
         </h1>
-        <p className="text-slate-500 mt-1">Mark and manage daily attendance for your classes.</p>
+        <p className="text-slate-500 dark:text-slate-400 mt-1">Mark and manage daily attendance for your classes.</p>
       </div>
 
       <Card>

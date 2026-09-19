@@ -19,8 +19,8 @@ const CommunicationHub = () => {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Communication Hub</h1>
-          <p className="text-gray-500 mt-1">Your central workspace for school communications</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Communication Hub</h1>
+          <p className="text-gray-500 dark:text-gray-300 mt-1">Your central workspace for school communications</p>
         </div>
         <button 
           onClick={() => setActiveTab('chat')}

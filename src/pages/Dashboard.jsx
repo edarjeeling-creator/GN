@@ -270,16 +270,16 @@ const Dashboard = () => {
       
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
-        <div className="text-slate-500 mt-1 flex flex-wrap items-center gap-2">
-          <span>Welcome back, <strong className="text-brand-600">{profile?.name || 'Teacher'}</strong>.</span>
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">Dashboard</h1>
+        <div className="text-slate-600 dark:text-slate-300 mt-1.5 flex flex-wrap items-center gap-2 text-sm sm:text-base">
+          <span>Welcome back, <strong className="text-brand-600 dark:text-brand-400 font-bold">{profile?.name || 'Teacher'}</strong>.</span>
           {classes.filter(c => c.class_teacher_id === profile?.id).map(c => (
-            <Badge key={c.id} variant="secondary" className="bg-brand-100 text-brand-800 hover:bg-brand-200 border-brand-200 flex items-center gap-1.5">
+            <Badge key={c.id} variant="secondary" className="bg-brand-100 text-brand-800 hover:bg-brand-200 border-brand-200 dark:bg-brand-950/70 dark:text-brand-300 dark:border-brand-700/60 flex items-center gap-1.5">
               <BookOpen size={12} />
               Class Teacher ({c.name} {c.section})
             </Badge>
           ))}
-          <span className="block w-full sm:w-auto">Here's your overview for {academicYear}.</span>
+          <span className="block w-full sm:w-auto text-slate-500 dark:text-slate-400">Here's your overview for {academicYear}.</span>
         </div>
       </div>
       
@@ -340,7 +340,7 @@ const Dashboard = () => {
                         : 'Unverified / Legacy'}
                   </span>
                 ) : (
-                  <span className="text-[11px] text-slate-500 font-medium">Pending morning scan</span>
+                  <span className="text-[11px] text-slate-400 font-medium">Pending morning scan</span>
                 )}
               </div>
             </div>
@@ -364,7 +364,7 @@ const Dashboard = () => {
                       : 'Recorded'}
                   </span>
                 ) : (
-                  <span className="text-[11px] text-slate-500 font-medium">
+                  <span className="text-[11px] text-slate-400 font-medium">
                     {myAttendanceToday?.check_in_time ? 'Not yet checked out' : 'Pending check-in'}
                   </span>
                 )}
@@ -388,7 +388,7 @@ const Dashboard = () => {
                   )}
                 </span>
               </div>
-              <span className="text-[11px] text-slate-500">
+              <span className="text-[11px] text-slate-400 font-medium">
                 {myAttendanceToday?.check_out_time ? 'Official shift duration' : 'Calculated at checkout'}
               </span>
             </div>
@@ -409,7 +409,7 @@ const Dashboard = () => {
                   {myAttendanceToday?.status || 'NOT MARKED'}
                 </span>
               </div>
-              <span className="text-[11px] text-slate-500">
+              <span className="text-[11px] text-slate-400 font-medium">
                 {myAttendanceToday?.status === 'Late' ? 'Grace window exceeded' : 'Official status'}
               </span>
             </div>
@@ -516,14 +516,14 @@ const Dashboard = () => {
         <Card hoverable className="border-t-4 border-t-brand-500 flex flex-col justify-between">
           <CardContent className="p-6 flex flex-col gap-4 h-full">
             <div className="flex justify-between items-start">
-              <h3 className="text-lg font-bold text-slate-600">My Classes</h3>
-              <div className="w-10 h-10 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center">
+              <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">My Classes</h3>
+              <div className="w-10 h-10 rounded-full bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 flex items-center justify-center">
                 <BookOpen size={20} />
               </div>
             </div>
             <div>
-              <p className="text-4xl font-black text-brand-600 mb-1">{totalAssignedClasses}</p>
-              <p className="text-sm text-slate-500">Active classes assigned to you</p>
+              <p className="text-4xl font-black text-brand-600 dark:text-brand-400 mb-1">{totalAssignedClasses}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Active classes assigned to you</p>
             </div>
           </CardContent>
         </Card>
@@ -531,14 +531,14 @@ const Dashboard = () => {
         <Card hoverable className="border-t-4 border-t-amber-500 flex flex-col justify-between">
           <CardContent className="p-6 flex flex-col gap-4 h-full">
             <div className="flex justify-between items-start">
-              <h3 className="text-lg font-bold text-slate-600">Pending Entries</h3>
-              <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center">
+              <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">Pending Entries</h3>
+              <div className="w-10 h-10 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-500 dark:text-amber-400 flex items-center justify-center">
                 <Clock size={20} />
               </div>
             </div>
             <div>
-              <p className="text-4xl font-black text-amber-500 mb-1">{pendingEntries}</p>
-              <p className="text-sm text-slate-500">Marks requiring input this term</p>
+              <p className="text-4xl font-black text-amber-500 dark:text-amber-400 mb-1">{pendingEntries}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Marks requiring input this term</p>
             </div>
           </CardContent>
         </Card>
@@ -547,27 +547,27 @@ const Dashboard = () => {
         <Card hoverable className="border-t-4 border-t-emerald-500 flex flex-col">
           <CardContent className="p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-slate-600">Today's Attendance</h3>
-              <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center">
+              <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">Today's Attendance</h3>
+              <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-500 dark:text-emerald-400 flex items-center justify-center">
                 <Users size={20} />
               </div>
             </div>
             <div className="space-y-3">
-              <div className="flex justify-between items-center bg-emerald-50/50 p-3 rounded-lg border border-emerald-100">
-                <span className="font-semibold text-slate-700">Present</span>
-                <span className="font-black text-emerald-600 text-lg">{presentToday}</span>
+              <div className="flex justify-between items-center bg-emerald-50/50 dark:bg-emerald-950/30 p-3 rounded-lg border border-emerald-100 dark:border-emerald-900/40">
+                <span className="font-semibold text-slate-700 dark:text-slate-200">Present</span>
+                <span className="font-black text-emerald-600 dark:text-emerald-400 text-lg">{presentToday}</span>
               </div>
-              <div className="flex justify-between items-center bg-red-50/50 p-3 rounded-lg border border-red-100">
-                <span className="font-semibold text-slate-700">Absent</span>
-                <span className="font-black text-red-600 text-lg">{absentToday}</span>
+              <div className="flex justify-between items-center bg-red-50/50 dark:bg-red-950/30 p-3 rounded-lg border border-red-100 dark:border-red-900/40">
+                <span className="font-semibold text-slate-700 dark:text-slate-200">Absent</span>
+                <span className="font-black text-red-600 dark:text-red-400 text-lg">{absentToday}</span>
               </div>
-              <div className="flex justify-between items-center bg-purple-50/50 p-3 rounded-lg border border-purple-100">
-                <span className="font-semibold text-slate-700">On Leave</span>
-                <span className="font-black text-purple-600 text-lg">{leaveToday}</span>
+              <div className="flex justify-between items-center bg-purple-50/50 dark:bg-purple-950/30 p-3 rounded-lg border border-purple-100 dark:border-purple-900/40">
+                <span className="font-semibold text-slate-700 dark:text-slate-200">On Leave</span>
+                <span className="font-black text-purple-600 dark:text-purple-400 text-lg">{leaveToday}</span>
               </div>
-              <div className="flex justify-between items-center bg-amber-50/50 p-3 rounded-lg border border-amber-100 mt-2">
-                <span className="font-semibold text-amber-800 flex items-center gap-1.5"><AlertCircle size={16}/> At Risk</span>
-                <span className="font-black text-amber-600 text-lg">{studentsAtRisk}</span>
+              <div className="flex justify-between items-center bg-amber-50/50 dark:bg-amber-950/30 p-3 rounded-lg border border-amber-100 dark:border-amber-900/40 mt-2">
+                <span className="font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5"><AlertCircle size={16}/> At Risk</span>
+                <span className="font-black text-amber-600 dark:text-amber-400 text-lg">{studentsAtRisk}</span>
               </div>
             </div>
           </CardContent>
@@ -726,7 +726,7 @@ const Dashboard = () => {
       {/* Recent Notices */}
       {recentNotices.length > 0 && (
         <div className="pt-4">
-          <h3 className="text-xl font-bold mb-4 text-slate-800 flex items-center gap-2">
+          <h3 className="text-xl font-bold mb-4 text-slate-800 dark:text-white flex items-center gap-2">
             <AlertCircle size={24} className="text-brand-500" /> Recent Notices
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -735,7 +735,7 @@ const Dashboard = () => {
                 <div className="absolute top-0 left-0 w-1 h-full bg-brand-500"></div>
                 <CardContent className="p-6 flex-1 flex flex-col">
                   <div className="flex justify-between items-start mb-3 gap-2">
-                    <h4 className="font-bold text-lg leading-tight text-slate-800">{notice.title}</h4>
+                    <h4 className="font-bold text-lg leading-tight text-slate-800 dark:text-white">{notice.title}</h4>
                     <Badge 
                       variant={notice.target_audience?.startsWith('class:') ? 'default' : 'secondary'} 
                       className={`uppercase text-[10px] tracking-wider font-semibold ${
@@ -758,7 +758,7 @@ const Dashboard = () => {
                       })()}
                     </Badge>
                   </div>
-                  <div className="text-slate-600 text-sm mb-4 flex-1 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: notice.content }} />
+                  <div className="text-slate-600 dark:text-slate-300 text-sm mb-4 flex-1 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: notice.content }} />
                   <p className="text-xs text-slate-400 font-medium">{new Date(notice.publish_date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}</p>
                 </CardContent>
               </Card>
@@ -769,18 +769,18 @@ const Dashboard = () => {
 
       {/* Quick Actions Bento Box */}
       <div className="pt-4">
-         <h3 className="text-xl font-bold mb-4 text-slate-800">Quick Actions</h3>
+         <h3 className="text-xl font-bold mb-4 text-slate-800 dark:text-white">Quick Actions</h3>
          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             
             {isLibrarian && (
               <Card hoverable className="cursor-pointer group" onClick={() => window.location.href='/library'}>
                  <CardContent className="p-5 flex items-center gap-4">
-                   <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                   <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                      <BookOpen size={28} />
                    </div>
                    <div>
-                     <strong className="block text-lg font-semibold text-slate-800 group-hover:text-indigo-600 transition-colors">Library Dashboard</strong>
-                     <span className="text-sm text-slate-500">Manage catalog and circulation</span>
+                     <strong className="block text-lg font-semibold text-slate-800 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">Library Dashboard</strong>
+                     <span className="text-sm text-slate-500 dark:text-slate-400">Manage catalog and circulation</span>
                    </div>
                  </CardContent>
               </Card>
@@ -789,14 +789,14 @@ const Dashboard = () => {
             {!isLibrarian && (
               <>
                 {classes.filter(c => c.class_teacher_id === profile?.id).map(c => (
-                  <Card key={`ct-card-${c.id}`} hoverable className="cursor-pointer group border-brand-200 bg-brand-50" onClick={() => window.location.href=`/class-teacher-portal/${c.id}`}>
+                  <Card key={`ct-card-${c.id}`} hoverable className="cursor-pointer group border-brand-200 dark:border-brand-800/60 bg-brand-50 dark:bg-brand-950/40" onClick={() => window.location.href=`/class-teacher-portal/${c.id}`}>
                      <CardContent className="p-5 flex items-center gap-4">
-                       <div className="w-14 h-14 rounded-2xl bg-white text-brand-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+                       <div className="w-14 h-14 rounded-2xl bg-white dark:bg-brand-900 text-brand-600 dark:text-brand-300 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
                          <BookOpen size={28} />
                        </div>
                        <div>
-                         <strong className="block text-lg font-bold text-brand-800 group-hover:text-brand-600 transition-colors">Class Teacher ({c.name} {c.section})</strong>
-                         <span className="text-sm text-brand-600 font-medium">Manage your class</span>
+                         <strong className="block text-lg font-bold text-brand-800 dark:text-brand-300 group-hover:text-brand-600 transition-colors">Class Teacher ({c.name} {c.section})</strong>
+                         <span className="text-sm text-brand-600 dark:text-brand-400 font-medium">Manage your class</span>
                        </div>
                      </CardContent>
                   </Card>
@@ -804,12 +804,12 @@ const Dashboard = () => {
 
                 <Card hoverable className="cursor-pointer group" onClick={() => window.location.href='/classes'}>
                    <CardContent className="p-5 flex items-center gap-4">
-                     <div className="w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                     <div className="w-14 h-14 rounded-2xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                        <Users size={28} />
                      </div>
                      <div>
-                       <strong className="block text-lg font-semibold text-slate-800 group-hover:text-brand-600 transition-colors">Enter Marks</strong>
-                       <span className="text-sm text-slate-500">Input marks for classes</span>
+                       <strong className="block text-lg font-semibold text-slate-800 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">Enter Marks</strong>
+                       <span className="text-sm text-slate-500 dark:text-slate-400">Input marks for classes</span>
                      </div>
                    </CardContent>
                 </Card>
@@ -817,12 +817,12 @@ const Dashboard = () => {
                 {isAdminOrHead && (
                   <Card hoverable className="cursor-pointer group" onClick={() => window.location.href='/coordinator/reports'}>
                      <CardContent className="p-5 flex items-center gap-4">
-                       <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                       <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                          <Printer size={28} />
                        </div>
                        <div>
-                         <strong className="block text-lg font-semibold text-slate-800 group-hover:text-emerald-600 transition-colors">Reports</strong>
-                         <span className="text-sm text-slate-500">Generate report cards</span>
+                         <strong className="block text-lg font-semibold text-slate-800 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Reports</strong>
+                         <span className="text-sm text-slate-500 dark:text-slate-400">Generate report cards</span>
                        </div>
                      </CardContent>
                   </Card>
@@ -832,12 +832,12 @@ const Dashboard = () => {
 
             <Card hoverable className="cursor-pointer group relative overflow-hidden">
                <CardContent className="p-5 flex items-center gap-4">
-                 <div className="w-14 h-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                 <div className="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                    <Camera size={28} />
                  </div>
                  <div>
-                   <strong className="block text-lg font-semibold text-slate-800 group-hover:text-purple-600 transition-colors">Profile Photo</strong>
-                   <span className="text-sm text-slate-500">Upload your picture</span>
+                   <strong className="block text-lg font-semibold text-slate-800 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Profile Photo</strong>
+                   <span className="text-sm text-slate-500 dark:text-slate-400">Upload your picture</span>
                  </div>
                  <input 
                    type="file" 
@@ -849,14 +849,14 @@ const Dashboard = () => {
             </Card>
             
             {isPythonEnabled && (
-              <Card hoverable className="cursor-pointer group border-brand-200 bg-gradient-to-br from-brand-50 to-indigo-50" onClick={() => window.location.href='/python-teacher'}>
+              <Card hoverable className="cursor-pointer group border-brand-200 dark:border-slate-700 bg-gradient-to-br from-brand-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800" onClick={() => window.location.href='/python-teacher'}>
                  <CardContent className="p-5 flex items-center gap-4">
-                   <div className="w-14 h-14 rounded-2xl bg-white text-brand-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm text-2xl">
+                   <div className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm text-2xl">
                      🐍
                    </div>
                    <div>
-                     <strong className="block text-lg font-bold text-brand-800 group-hover:text-brand-600 transition-colors">Python Portal</strong>
-                     <span className="text-sm text-brand-600 font-medium">Manage coding lessons</span>
+                     <strong className="block text-lg font-bold text-brand-800 dark:text-brand-300 group-hover:text-brand-600 transition-colors">Python Portal</strong>
+                     <span className="text-sm text-brand-600 dark:text-brand-400 font-medium">Manage coding lessons</span>
                    </div>
                  </CardContent>
               </Card>
