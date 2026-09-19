@@ -453,6 +453,10 @@ const Layout = ({ children }) => {
                       <span style={{ fontSize: '0.7rem', color: '#8b5cf6', fontWeight: 600 }}>Administrator</span>
                     ) : profile?.role === 'student' ? (
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Student</span>
+                    ) : profile?.role === 'accountant' ? (
+                      <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 600 }}>School Accountant</span>
+                    ) : profile?.role === 'librarian' ? (
+                      <span style={{ fontSize: '0.7rem', color: '#06b6d4', fontWeight: 600 }}>Librarian</span>
                     ) : classTeacherOf ? (
                       <span style={{ fontSize: '0.7rem', color: 'var(--primary-color)', fontWeight: 600 }}>Class Teacher ({classTeacherOf.name} {classTeacherOf.section})</span>
                     ) : (
@@ -483,6 +487,7 @@ const Layout = ({ children }) => {
           
           {(() => {
             const isTeachingPrincipal = profile?.role === 'principal';
+            const isStaff = profile?.role && profile?.role !== 'student';
             const isTeacherOrAdminOrTeachingPrincipal = profile?.role === 'teacher' || profile?.role === 'admin' || isTeachingPrincipal;
             return (
               <>
@@ -504,7 +509,7 @@ const Layout = ({ children }) => {
                   </>
                 )}
 
-                {isTeacherOrAdminOrTeachingPrincipal && (
+                {isStaff && (
                   <NavLink to="/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
                     <LayoutDashboard size={18} /> Dashboard
                   </NavLink>
