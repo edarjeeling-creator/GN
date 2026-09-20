@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeProvider';
 import ProtectedRoute from './components/ProtectedRoute';
-import { AdminRoute, TeacherRoute, StudentRoute, PrincipalRoute, FeatureRoute, ParentRoute, AccountantRoute, LibrarianRoute, CoordinatorRoute } from './components/RouteGuards';
+import { AdminRoute, TeacherRoute, StudentRoute, PrincipalRoute, FeatureRoute, ParentRoute, AccountantRoute, LibrarianRoute, CoordinatorRoute, AcademicRoute } from './components/RouteGuards';
 import PublicLayout from './components/PublicLayout';
 import Home from './pages/Home';
 import { About, Academics, Admissions, Faculty, Contact, Gallery } from './pages/PublicPages';
@@ -129,8 +129,8 @@ function App() {
             <Route element={<ProtectedRoute />}>
               {/* Common Authenticated Routes */}
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/study-materials" element={<StudyMaterials />} />
-              <Route path="/assignments" element={<Assignments />} />
+              <Route path="/study-materials" element={<AcademicRoute><StudyMaterials /></AcademicRoute>} />
+              <Route path="/assignments" element={<AcademicRoute><Assignments /></AcademicRoute>} />
               <Route path="/hub" element={<TeacherRoute><CommunicationHub /></TeacherRoute>} />
               
               {/* Student Only Routes */}

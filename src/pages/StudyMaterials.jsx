@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { uploadFile, deleteFile } from '../lib/storage';
 import { useAuth } from '../context/AuthContext';
 import { BookOpen, Upload, Trash2, Link as LinkIcon, Loader2 } from 'lucide-react';
-import { useData } from '../context/DataContext';
 
 const StudyMaterials = () => {
   const { profile } = useAuth();
-  const { classes } = useData();
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -24,13 +22,8 @@ const StudyMaterials = () => {
     file: null
   });
 
-  useEffect(() => {
-    fetchMaterials();
-  }, [profile]);
-
-  const fetchMaterials = async () => {
+  const fetchMaterials = useCallback(async () => {
     if (!profile) return;
-    setLoading(true);
     let query = supabase.from('study_materials').select('*').order('created_at', { ascending: false });
     
     if (isTeacher) {
@@ -41,12 +34,29 @@ const StudyMaterials = () => {
       
       // Make matching case-insensitive and trim spaces to avoid mismatch if teacher typed "6 " or "a"
       query = query.ilike('class', `%${studentClass.trim()}%`).ilike('section', `%${studentSection.trim()}%`);
+    } else if (profile.role === 'admin' || profile.role === 'principal') {
+      // Leadership view
+    } else {
+      // Non-teaching, Group D, and other non-academic roles
+      setMaterials([]);
+      setLoading(false);
+      return;
     }
 
     const { data } = await query;
     if (data) setMaterials(data);
     setLoading(false);
-  };
+  }, [profile, isTeacher]);
+
+  useEffect(() => {
+    let active = true;
+    const run = async () => {
+      await Promise.resolve();
+      if (active) fetchMaterials();
+    };
+    run();
+    return () => { active = false; };
+  }, [fetchMaterials]);
 
   const handleUpload = async (e) => {
     e.preventDefault();

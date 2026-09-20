@@ -65,7 +65,16 @@ export const ParentRoute = ({ children }) => {
   return children;
 };
 
-export const FeatureRoute = ({ featureName, userType, children }) => {
+export const AcademicRoute = ({ children }) => {
+  const { profile, loading } = useAuth();
+  if (loading) return <div>Loading...</div>;
+  if (!profile) return <Navigate to="/login" />;
+  const isPureSupportStaff = ['non_teaching', 'group_d', 'staff', 'accountant', 'librarian'].includes(profile?.role);
+  if (isPureSupportStaff) return <Navigate to="/dashboard" replace />;
+  return children;
+};
+
+export const FeatureRoute = ({ featureName, children }) => {
   const { profile, loading } = useAuth();
   const { featureAccess, students, loadingData } = useData();
 

@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { uploadFile, deleteFile } from '../lib/storage';
+import { uploadFile } from '../lib/storage';
 import { useAuth } from '../context/AuthContext';
 import { FileText, Upload, CheckCircle, Clock, Loader2, Link as LinkIcon } from 'lucide-react';
-import { useData } from '../context/DataContext';
 import { formatStudentDisplayName } from '../utils/studentUtils';
 
 const Assignments = () => {
@@ -32,27 +31,36 @@ const Assignments = () => {
   });
   const [reviewUploading, setReviewUploading] = useState(false);
 
-  useEffect(() => {
-    fetchAssignments();
-  }, [profile]);
-
-  const fetchAssignments = async () => {
+  const fetchAssignments = useCallback(async () => {
     if (!profile) return;
-    setLoading(true);
     let query = supabase.from('assignments').select('*').order('submitted_at', { ascending: false });
     
-    if (isTeacher) {
-      // Teachers see all assignments
+    if (isTeacher || profile.role === 'admin' || profile.role === 'principal') {
+      // Teachers & Leadership see relevant assignments
     } else if (profile.role === 'student') {
       // Because students are not in auth.users, they insert with student_uid=null
       // and encode their ID inside the message.
       query = query.ilike('message', `%${profile.id}%`);
+    } else {
+      // Non-teaching, Group D, and other non-academic roles
+      setLoading(false);
+      return;
     }
 
     const { data } = await query;
     if (data) setAssignments(data);
     setLoading(false);
-  };
+  }, [profile, isTeacher]);
+
+  useEffect(() => {
+    let active = true;
+    const run = async () => {
+      await Promise.resolve();
+      if (active) fetchAssignments();
+    };
+    run();
+    return () => { active = false; };
+  }, [fetchAssignments]);
 
   const handleStudentUpload = async (e) => {
     e.preventDefault();
@@ -183,7 +191,9 @@ const Assignments = () => {
                     parsedStudent = parsed.student;
                   }
                 }
-              } catch(e) {}
+              } catch {
+                // Not JSON encoded
+              }
 
               return (
               <div key={assign.id} className="border border-slate-200 dark:border-slate-700 p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50">

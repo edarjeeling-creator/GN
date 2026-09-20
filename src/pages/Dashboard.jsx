@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BookOpen, AlertCircle, CheckCircle, Clock, Users, Camera, 
-  ChevronDown, User, Send, AlertTriangle, Fingerprint, LogOut,
-  Phone, MessageSquare, Edit2, Check, X, ExternalLink,
-  QrCode, ShieldCheck, MapPin, Sparkles, AlertOctagon, HelpCircle,
+  ChevronDown, User, Send, AlertTriangle,
+  Phone, MessageSquare, Edit2, Check, X,
+  QrCode, ShieldCheck, MapPin, HelpCircle,
   Printer, IdCard, Building2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -18,11 +18,10 @@ import CalendarWidget from '../components/CalendarWidget';
 import DigitalStaffIDModal from '../components/DigitalStaffIDModal';
 import NoticeDetailModal from '../components/NoticeDetailModal';
 import CampusEmergencyContacts from '../components/CampusEmergencyContacts';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
+import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { formatStudentDisplayName, buildAbsenteeParentMessage } from '../utils/studentUtils';
-import { messageTemplateService } from '../services/MessageTemplateService';
+import { formatStudentDisplayName } from '../utils/studentUtils';
 import WhatsAppComposerModal from '../components/WhatsAppComposerModal';
 
 const Dashboard = () => {
@@ -43,7 +42,10 @@ const Dashboard = () => {
     }
   }
   
-  const assignedActiveClasses = Object.keys(teacherSubjects).filter(classId => classes.some(c => c.id === classId));
+  const assignedActiveClasses = useMemo(() => {
+    return Object.keys(teacherSubjects).filter(classId => classes.some(c => c.id === classId));
+  }, [teacherSubjects, classes]);
+
   const totalAssignedClasses = assignedActiveClasses.length;
   
   let pendingEntries = 0;
@@ -70,17 +72,24 @@ const Dashboard = () => {
   const [alerts, setAlerts] = useState([]);
   const [showAbsentees, setShowAbsentees] = useState(false);
   const [myAttendanceToday, setMyAttendanceToday] = useState(null);
-  const [reportingTimeConfig, setReportingTimeConfig] = useState({ time: '08:45', grace: 10 });
-  const [attendanceActionLoading, setAttendanceActionLoading] = useState(false);
+  const [reportingTimeConfig] = useState({ time: 'Open', grace: 0 });
   const [recentNotices, setRecentNotices] = useState([]);
   const [isIdModalOpen, setIsIdModalOpen] = useState(false);
   const [selectedNoticeForModal, setSelectedNoticeForModal] = useState(null);
 
-  const fetchDashboardData = async () => {
+  // Verified Hybrid Teacher Attendance Modals
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scannerActionType, setScannerActionType] = useState('CHECK_IN');
+  const [isCorrectionOpen, setIsCorrectionOpen] = useState(false);
+
+  // Quick edit phone number modal/inline state
+  const [editingPhoneStudentId, setEditingPhoneStudentId] = useState(null);
+  const [phoneInputValue, setPhoneInputValue] = useState('');
+  const [savingPhone, setSavingPhone] = useState(false);
+
+  const fetchDashboardData = useCallback(async () => {
     try {
       const today = new Date().toISOString().split('T')[0];
-      
-      setReportingTimeConfig({ time: 'Open', grace: 0 });
 
       const { data: myAtt } = await supabase.from('teacher_attendance').select('*').eq('teacher_id', profile?.id).eq('attendance_date', today).maybeSingle();
       if (myAtt) setMyAttendanceToday(myAtt);
@@ -128,11 +137,17 @@ const Dashboard = () => {
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
     }
-  };
+  }, [profile, assignedActiveClasses]);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [teacherSubjects]);
+    let active = true;
+    const run = async () => {
+      await Promise.resolve();
+      if (active) fetchDashboardData();
+    };
+    run();
+    return () => { active = false; };
+  }, [fetchDashboardData]);
 
   if (profile?.role === 'student') {
     return <Navigate to="/student-portal" replace />;
@@ -153,11 +168,6 @@ const Dashboard = () => {
     (profile.designation && profile.designation.toLowerCase().includes('coordinator'))
   );
 
-  // Verified Hybrid Teacher Attendance Modals
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [scannerActionType, setScannerActionType] = useState('CHECK_IN');
-  const [isCorrectionOpen, setIsCorrectionOpen] = useState(false);
-
   const handleOpenCheckInScanner = () => {
     setScannerActionType('CHECK_IN');
     setIsScannerOpen(true);
@@ -174,10 +184,6 @@ const Dashboard = () => {
     }
     fetchDashboardData();
   };
-
-  const [editingPhoneStudentId, setEditingPhoneStudentId] = useState(null);
-  const [phoneInputValue, setPhoneInputValue] = useState('');
-  const [savingPhone, setSavingPhone] = useState(false);
 
   const handleStartEditPhone = (student) => {
     setEditingPhoneStudentId(student.id);
@@ -203,19 +209,6 @@ const Dashboard = () => {
     } finally {
       setSavingPhone(false);
     }
-  };
-
-  const getWhatsAppUrl = (student, dateStr, cls) => {
-    if (!student?.contact_number) return null;
-    const className = cls ? `${cls.name} ${cls.section}` : '';
-    const text = messageTemplateService.renderMessage('absentee_alert', {
-      student_name: student.name,
-      class_name: className,
-      roll_no: student.roll_no,
-      date: dateStr,
-      school_name: 'Gyanoday Niketan'
-    });
-    return messageTemplateService.generateWhatsAppUrl(student.contact_number, text);
   };
 
   const handleNotifyAbsentee = async (studentId, date) => {
@@ -246,7 +239,7 @@ const Dashboard = () => {
           is_read: false,
           is_acknowledged: false
         }]);
-      } catch (e) {
+      } catch {
         // Safe ignore
       }
 
@@ -863,7 +856,7 @@ const Dashboard = () => {
             )}
 
             {isAccountant && (
-              <Card hoverable className="cursor-pointer group" onClick={() => window.location.href='/accountant'}>
+              <Card hoverable className="cursor-pointer group" onClick={() => window.location.href='/fees'}>
                  <CardContent className="p-5 flex items-center gap-4">
                    <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                      <Building2 size={28} />
