@@ -117,7 +117,7 @@ export default function CreateUserModal({ isOpen, onClose, onSuccess }) {
             <input
               type="text"
               className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm shadow-sm"
-              placeholder="e.g. Pallavi Bakshi Gupta"
+              placeholder="Type staff full name..."
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -133,7 +133,7 @@ export default function CreateUserModal({ isOpen, onClose, onSuccess }) {
             <input
               type="email"
               className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm shadow-sm"
-              placeholder="e.g. pallavi@gyanodayniketan.cloud"
+              placeholder="Type email address (e.g. user@domain.com)..."
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -160,7 +160,7 @@ export default function CreateUserModal({ isOpen, onClose, onSuccess }) {
               <input
                 type={showPassword ? 'text' : 'password'}
                 className="w-full px-3.5 py-2 pr-10 bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-mono shadow-sm"
-                placeholder="Initial password for login"
+                placeholder="Type password or click Generate Password..."
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
