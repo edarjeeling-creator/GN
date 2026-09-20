@@ -17,7 +17,6 @@ import AttendanceCorrectionModal from '../components/AttendanceCorrectionModal';
 import CalendarWidget from '../components/CalendarWidget';
 import DigitalStaffIDModal from '../components/DigitalStaffIDModal';
 import NoticeDetailModal from '../components/NoticeDetailModal';
-import CampusEmergencyContacts from '../components/CampusEmergencyContacts';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -540,9 +539,6 @@ const Dashboard = () => {
 
       {/* Calendar Widget - Visible to all faculty and staff */}
       <CalendarWidget />
-
-      {/* Campus Emergency & Key Contacts */}
-      <CampusEmergencyContacts />
 
       {/* Core KPIs (Faculty & Academic Leadership Only) */}
       {isAcademicFaculty && (
