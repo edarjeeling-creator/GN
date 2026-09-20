@@ -131,7 +131,7 @@ BEGIN
   -- 2. Wire up auth.identities
   IF EXISTS (SELECT 1 FROM auth.identities WHERE user_id = v_user_id AND provider = 'email') THEN
     UPDATE auth.identities
-    SET identity_data = jsonb_build_object('sub', v_user_id::text, 'email', v_clean_email, 'email_verified', true),
+    SET identity_data = jsonb_build_object('sub', v_user_id::text, 'email', v_clean_email, 'email_verified', true, 'phone_verified', false),
         provider_id = v_user_id::text,
         updated_at = now()
     WHERE user_id = v_user_id AND provider = 'email';
@@ -149,7 +149,7 @@ BEGIN
       gen_random_uuid(),
       v_user_id,
       v_user_id::text,
-      jsonb_build_object('sub', v_user_id::text, 'email', v_clean_email, 'email_verified', true),
+      jsonb_build_object('sub', v_user_id::text, 'email', v_clean_email, 'email_verified', true, 'phone_verified', false),
       'email',
       now(),
       now(),
