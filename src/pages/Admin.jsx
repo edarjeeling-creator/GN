@@ -182,7 +182,7 @@ const Admin = () => {
       const { data: tData } = await supabase
         .from('profiles')
         .select('*')
-        .in('role', ['teacher', 'principal', 'accountant', 'librarian', 'coordinator', 'admin'])
+        .in('role', ['teacher', 'principal', 'accountant', 'librarian', 'coordinator', 'admin', 'non_teaching', 'group_d', 'staff'])
         .order('name');
       if (tData) setTeachers(tData);
     }
@@ -1544,6 +1544,8 @@ const Admin = () => {
                 >
                   <option value="all">All Roles</option>
                   <option value="teacher">Teachers</option>
+                  <option value="non_teaching">Non-Teaching Staff</option>
+                  <option value="group_d">Group D Staff</option>
                   <option value="admin">Administrators</option>
                   <option value="principal">Principals</option>
                   <option value="accountant">Accountants</option>

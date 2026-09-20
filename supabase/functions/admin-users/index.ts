@@ -49,7 +49,7 @@ serve(async (req: Request) => {
       }]).catch(() => {})
     }
 
-    const allowedRoles = ['teacher', 'admin', 'principal', 'accountant', 'librarian', 'coordinator']
+    const allowedRoles = ['teacher', 'admin', 'principal', 'accountant', 'librarian', 'coordinator', 'non_teaching', 'group_d', 'staff']
 
     if (action === 'createUser') {
       const { email, password, name, role = 'teacher', campus = '', status = 'Active', employee_id, school_id } = payload
