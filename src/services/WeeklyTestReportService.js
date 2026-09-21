@@ -361,12 +361,26 @@ export class WeeklyTestReportService {
         class_id,
         subject_id,
         teacher_id,
-        subjects:subjects(id, name, code),
-        teacher:profiles!teacher_id(id, name, role)
+        subjects:subjects(id, name, code)
       `)
       .in('class_id', safeClassIds);
 
     if (aErr) throw aErr;
+
+    // Fetch teacher profiles separately to prevent foreign key schema cache errors
+    const teacherIds = [...new Set((assignments || []).map(a => a.teacher_id).filter(Boolean))];
+    const teachersMap = new Map();
+    if (teacherIds.length > 0) {
+      try {
+        const { data: tProfiles } = await supabase
+          .from('profiles')
+          .select('id, name, role')
+          .in('id', teacherIds);
+        (tProfiles || []).forEach(p => teachersMap.set(p.id, p));
+      } catch (err) {
+        console.warn('Notice: Could not load teacher profiles for report:', err.message);
+      }
+    }
 
     // 4. Fetch students using ONLY verified existing schema columns (id, class_id, roll_no, name)
     const { data: students, error: stuErr } = await supabase
@@ -518,7 +532,8 @@ export class WeeklyTestReportService {
       clsAssignments.forEach(assign => {
         totalAssignedSubjects++;
         const subjectObj = assign.subjects || { id: assign.subject_id, name: 'Subject' };
-        const teacherObj = assign.teacher || { id: assign.teacher_id, name: 'Unassigned Teacher' };
+        const teacherProfile = teachersMap.get(assign.teacher_id);
+        const teacherObj = teacherProfile || assign.teacher || { id: assign.teacher_id, name: 'Subject Teacher' };
         const classSubKey = `${cls.id}_${assign.subject_id}`;
 
         const submission = subMap.get(classSubKey);
