@@ -5,9 +5,11 @@
  * 
  * Implements:
  * - Deterministic, server-authoritative ranking & tie handling via MarksCalculationEngine
+ * - Multi-source deduplicated marks aggregation from SubjectMarks & MarksWorkflowService
+ * - Safe against missing persistence tables (42P01 relation does not exist)
+ * - Strict Class/Section ranking isolation (NO cross-class ranking)
  * - Marks completion tracking across Classes 5–12
- * - Monday scheduled generation check (distinguishing DATA COMPLETE from FINAL REPORT GENERATED)
- * - Immutable report snapshot storage
+ * - Immutable report snapshot storage when tables are present
  * - Non-destructive report versioning (V1, V2 - Revised)
  * - Audit logging
  * - Configurable thresholds and Coordinator integration
@@ -17,6 +19,32 @@ import { supabase } from '../lib/supabase';
 import { MarksCalculationEngine } from './MarksCalculationEngine';
 import { formatStudentDisplayName } from '../utils/studentUtils';
 import { getStudentHouse } from '../utils/houseData';
+import { getTuesdayAssemblyReleaseDate, getISTDateParts } from '../utils/tuesdayAssemblySchedule';
+
+/**
+ * Returns ISO YYYY-MM-DD date string of the upcoming Tuesday Assembly
+ */
+export function getUpcomingTuesdayDate(date = new Date()) {
+  try {
+    const rel = getTuesdayAssemblyReleaseDate(date);
+    const ist = getISTDateParts(rel);
+    return `${ist.year}-${String(ist.month + 1).padStart(2, '0')}-${String(ist.dayOfMonth).padStart(2, '0')}`;
+  } catch (e) {
+    return new Date().toISOString().split('T')[0];
+  }
+}
+
+/**
+ * Check if a PostgreSQL error indicates that an optional table is not yet deployed
+ */
+function isTableMissingError(error) {
+  if (!error) return false;
+  return (
+    error.code === '42P01' ||
+    (typeof error.message === 'string' && error.message.toLowerCase().includes('does not exist')) ||
+    (typeof error.details === 'string' && error.details.toLowerCase().includes('does not exist'))
+  );
+}
 
 export const DEFAULT_WEEKLY_TEST_CONFIG = {
   reporting_enabled: true,
@@ -59,7 +87,14 @@ export class WeeklyTestReportService {
         .eq('key', 'weekly_test_config')
         .maybeSingle();
 
-      if (error || !data || !data.value) {
+      if (error) {
+        if (!isTableMissingError(error)) {
+          console.warn('Could not fetch weekly_test_config from app_settings:', error.message);
+        }
+        return { ...DEFAULT_WEEKLY_TEST_CONFIG };
+      }
+
+      if (!data || !data.value) {
         return { ...DEFAULT_WEEKLY_TEST_CONFIG };
       }
 
@@ -72,7 +107,9 @@ export class WeeklyTestReportService {
         }
       };
     } catch (err) {
-      console.warn('Could not fetch weekly_test_config, using defaults:', err.message);
+      if (!isTableMissingError(err)) {
+        console.warn('Could not fetch weekly_test_config, using defaults:', err.message);
+      }
       return { ...DEFAULT_WEEKLY_TEST_CONFIG };
     }
   }
@@ -110,6 +147,7 @@ export class WeeklyTestReportService {
 
   /**
    * Calculate or locate the weekly test cycle for a given test date
+   * Gracefully falls back to virtual cycle if weekly_test_cycles table is not yet deployed
    */
   static async getOrCreateCycle({
     testDate = new Date().toISOString().split('T')[0],
@@ -119,18 +157,6 @@ export class WeeklyTestReportService {
     createdBy = null
   }) {
     const cycleCode = `WT-${testDate}`;
-
-    // 1. Try to find existing cycle
-    const { data: existing, error: fetchErr } = await supabase
-      .from('weekly_test_cycles')
-      .select('*')
-      .eq('cycle_code', cycleCode)
-      .maybeSingle();
-
-    if (fetchErr) {
-      console.warn('Weekly test cycle lookup notice:', fetchErr.message);
-    }
-    if (existing) return existing;
 
     // Determine week identifier if not passed (e.g. ISO Week)
     let weekId = weekIdentifier;
@@ -143,56 +169,95 @@ export class WeeklyTestReportService {
     }
 
     const tName = testName || `Senior School Weekly Tuesday Test — ${weekId}`;
-
     const config = await this.getConfig();
 
-    // Calculate deadline (Monday morning 8:00 AM before Tuesday assembly)
-    const testDateObj = new Date(testDate);
-    // Previous day Monday if test is Tuesday (or 6 days later if test conducted Tuesday)
-    const mondayDeadline = new Date(testDateObj);
-    mondayDeadline.setDate(testDateObj.getDate() + 6); // next Monday before next Tuesday
-    mondayDeadline.setHours(8, 0, 0, 0);
+    const virtualCycle = {
+      id: `virtual-${cycleCode}`,
+      cycle_code: cycleCode,
+      academic_year: academicYear,
+      test_date: testDate,
+      week_identifier: weekId,
+      test_name: tName,
+      applicable_classes: config.applicable_classes,
+      applicable_sections: config.applicable_sections,
+      applicable_subjects: config.applicable_subjects,
+      status: 'SCHEDULED',
+      report_generation_status: 'PENDING',
+      current_report_version: 1,
+      is_virtual: true
+    };
 
-    const { data: created, error: insertErr } = await supabase
-      .from('weekly_test_cycles')
-      .insert([{
-        cycle_code: cycleCode,
-        academic_year: academicYear,
-        test_date: testDate,
-        week_identifier: weekId,
-        test_name: tName,
-        applicable_classes: config.applicable_classes,
-        applicable_sections: config.applicable_sections,
-        applicable_subjects: config.applicable_subjects,
-        status: 'SCHEDULED',
-        marks_entry_deadline: mondayDeadline.toISOString(),
-        report_generation_status: 'PENDING',
-        current_report_version: 1,
-        created_by: createdBy
-      }])
-      .select()
-      .single();
-
-    if (insertErr) {
-      // Race condition retry
-      const { data: retry } = await supabase
+    try {
+      // 1. Try to find existing cycle
+      const { data: existing, error: fetchErr } = await supabase
         .from('weekly_test_cycles')
         .select('*')
         .eq('cycle_code', cycleCode)
         .maybeSingle();
-      if (retry) return retry;
-      throw insertErr;
+
+      if (fetchErr) {
+        if (isTableMissingError(fetchErr)) {
+          return virtualCycle;
+        }
+        throw fetchErr;
+      }
+      if (existing) return existing;
+
+      // Calculate deadline (Monday morning 8:00 AM before Tuesday assembly)
+      const testDateObj = new Date(testDate);
+      const mondayDeadline = new Date(testDateObj);
+      mondayDeadline.setDate(testDateObj.getDate() + 6);
+      mondayDeadline.setHours(8, 0, 0, 0);
+
+      const { data: created, error: insertErr } = await supabase
+        .from('weekly_test_cycles')
+        .insert([{
+          cycle_code: cycleCode,
+          academic_year: academicYear,
+          test_date: testDate,
+          week_identifier: weekId,
+          test_name: tName,
+          applicable_classes: config.applicable_classes,
+          applicable_sections: config.applicable_sections,
+          applicable_subjects: config.applicable_subjects,
+          status: 'SCHEDULED',
+          marks_entry_deadline: mondayDeadline.toISOString(),
+          report_generation_status: 'PENDING',
+          current_report_version: 1,
+          created_by: createdBy
+        }])
+        .select()
+        .single();
+
+      if (insertErr) {
+        if (isTableMissingError(insertErr)) {
+          return virtualCycle;
+        }
+        // Race condition retry
+        const { data: retry } = await supabase
+          .from('weekly_test_cycles')
+          .select('*')
+          .eq('cycle_code', cycleCode)
+          .maybeSingle();
+        if (retry) return retry;
+        throw insertErr;
+      }
+
+      await this.logAudit({
+        cycle_id: created.id,
+        action: 'TEST_CREATED',
+        user: { id: createdBy },
+        new_state: created,
+        reason: `Created Weekly Test cycle for ${testDate} (${weekId})`
+      });
+
+      return created;
+    } catch (err) {
+      if (isTableMissingError(err)) {
+        return virtualCycle;
+      }
+      throw err;
     }
-
-    await this.logAudit({
-      cycle_id: created.id,
-      action: 'TEST_CREATED',
-      user: { id: createdBy },
-      new_state: created,
-      reason: `Created Weekly Test cycle for ${testDate} (${weekId})`
-    });
-
-    return created;
   }
 
   /**
@@ -232,39 +297,65 @@ export class WeeklyTestReportService {
   }
 
   /**
-   * Track completion status of a weekly test cycle across all classes and subjects
+   * Authoritative compatibility alias for WeeklyTestReportViewer
    */
-  static async checkMarksCompletion({ cycleId, academicYear = '2026', testDate = null }) {
+  static async getCycleCompletionStatus(params = {}) {
+    return this.checkMarksCompletion(params);
+  }
+
+  /**
+   * Track completion status of a weekly test cycle across all classes and subjects
+   * Aggregates with strict precedence from:
+   * 1. class_subject_mark_submissions + student_marks_detailed (SubjectMarks)
+   * 2. weekly_tests + weekly_test_marks
+   * 3. public.marks (legacy)
+   * Prevents double-counting and uses verified columns only.
+   */
+  static async checkMarksCompletion({
+    cycleId = null,
+    academicYear = '2026',
+    testDate = null,
+    term = 'Finalterm'
+  } = {}) {
     const config = await this.getConfig();
 
     // 1. Fetch Cycle
     let cycle = null;
-    if (cycleId) {
-      const { data } = await supabase
-        .from('weekly_test_cycles')
-        .select('*')
-        .eq('id', cycleId)
-        .maybeSingle();
-      cycle = data;
-    } else if (testDate) {
-      cycle = await this.getOrCreateCycle({ testDate, academicYear });
+    if (cycleId && !String(cycleId).startsWith('virtual-')) {
+      try {
+        const { data, error } = await supabase
+          .from('weekly_test_cycles')
+          .select('*')
+          .eq('id', cycleId)
+          .maybeSingle();
+        if (error && !isTableMissingError(error)) throw error;
+        cycle = data;
+      } catch (err) {
+        if (!isTableMissingError(err)) throw err;
+      }
     }
 
     if (!cycle) {
-      throw new Error('Weekly test cycle not found.');
+      cycle = await this.getOrCreateCycle({
+        testDate: testDate || getUpcomingTuesdayDate(),
+        academicYear
+      });
     }
 
     // 2. Fetch all Senior School Classes
-    const { data: allClasses } = await supabase
+    const { data: allClasses, error: clsErr } = await supabase
       .from('classes')
       .select('id, name, section, academic_year')
       .eq('academic_year', academicYear);
 
+    if (clsErr) throw clsErr;
+
     const seniorClasses = this.filterSeniorSchoolClasses(allClasses || [], config);
+    const classIds = seniorClasses.map(c => c.id);
+    const safeClassIds = classIds.length > 0 ? classIds : ['00000000-0000-0000-0000-000000000000'];
 
     // 3. Fetch active teacher assignments & subjects
-    const classIds = seniorClasses.map(c => c.id);
-    const { data: assignments } = await supabase
+    const { data: assignments, error: aErr } = await supabase
       .from('teacher_subjects')
       .select(`
         class_id,
@@ -273,37 +364,146 @@ export class WeeklyTestReportService {
         subjects:subjects(id, name, code),
         teacher:profiles!teacher_id(id, name, role)
       `)
-      .in('class_id', classIds.length > 0 ? classIds : ['00000000-0000-0000-0000-000000000000']);
+      .in('class_id', safeClassIds);
 
-    // 4. Fetch all students for Senior School classes
-    const { data: students } = await supabase
+    if (aErr) throw aErr;
+
+    // 4. Fetch students using ONLY verified existing schema columns (id, class_id, roll_no, name)
+    const { data: students, error: stuErr } = await supabase
       .from('students')
-      .select('id, class_id, roll_no, name, house, status')
-      .in('class_id', classIds.length > 0 ? classIds : ['00000000-0000-0000-0000-000000000000'])
-      .eq('status', 'Active');
+      .select('id, class_id, roll_no, name')
+      .in('class_id', safeClassIds);
 
-    // 5. Fetch Weekly Tests created for this cycle or date
-    const { data: tests } = await supabase
-      .from('weekly_tests')
-      .select('*')
-      .or(`cycle_id.eq.${cycle.id},test_date.eq.${cycle.test_date}`);
+    if (stuErr) throw stuErr;
 
-    // 6. Fetch marks for all these tests
-    const testIds = (tests || []).map(t => t.id);
-    let allMarks = [];
-    if (testIds.length > 0) {
-      const { data: marksData } = await supabase
-        .from('weekly_test_marks')
-        .select('*')
-        .in('test_id', testIds);
-      allMarks = marksData || [];
+    // 5. FETCH MARKS WITH PRECEDENCE & DEDUPLICATION
+    const termVariants = [term];
+    if (term === 'Finalterm') termVariants.push('Final-Term', 'Final Term', 'Final_Term');
+    if (term === 'Midterm') termVariants.push('Mid-Term', 'Mid Term', 'Mid_Term');
+
+    // Source 1: class_subject_mark_submissions & student_marks_detailed
+    let submissions = [];
+    try {
+      const { data: subData, error: subErr } = await supabase
+        .from('class_subject_mark_submissions')
+        .select('id, class_id, subject_id, teacher_id, term, status, pattern_id')
+        .eq('academic_year', academicYear)
+        .in('term', termVariants)
+        .in('class_id', safeClassIds);
+      if (subErr && !isTableMissingError(subErr)) throw subErr;
+      submissions = subData || [];
+    } catch (err) {
+      if (!isTableMissingError(err)) throw err;
     }
+
+    const subIds = submissions.map(s => s.id);
+    let detailedMarks = [];
+    if (subIds.length > 0) {
+      try {
+        const { data: dData, error: dErr } = await supabase
+          .from('student_marks_detailed')
+          .select('id, submission_id, student_id, component_id, raw_score, converted_score, status')
+          .in('submission_id', subIds);
+        if (dErr && !isTableMissingError(dErr)) throw dErr;
+        detailedMarks = dData || [];
+      } catch (err) {
+        if (!isTableMissingError(err)) throw err;
+      }
+    }
+
+    // Identify Weekly Test component IDs
+    const testCompIds = new Set();
+    try {
+      const { data: compData, error: cErr } = await supabase
+        .from('assessment_components')
+        .select('id, component_name, component_code, raw_max_marks, converted_max_marks');
+      if (cErr && !isTableMissingError(cErr)) throw cErr;
+      if (compData) {
+        compData.forEach(c => {
+          if (c.component_code === 'TEST' || /weekly.*test|periodic.*test|formative.*test|^test$/i.test(c.component_name || c.name || '')) {
+            testCompIds.add(c.id);
+          }
+        });
+      }
+    } catch (err) {
+      if (!isTableMissingError(err)) throw err;
+    }
+
+    // Source 2: weekly_tests and weekly_test_marks
+    let weeklyTests = [];
+    let weeklyTestMarks = [];
+    try {
+      const { data: wtData, error: wtErr } = await supabase
+        .from('weekly_tests')
+        .select('*')
+        .in('class_id', safeClassIds);
+      if (wtErr && !isTableMissingError(wtErr)) throw wtErr;
+      weeklyTests = wtData || [];
+
+      const wtIds = weeklyTests.map(t => t.id);
+      if (wtIds.length > 0) {
+        const { data: wtmData, error: wtmErr } = await supabase
+          .from('weekly_test_marks')
+          .select('*')
+          .in('test_id', wtIds);
+        if (wtmErr && !isTableMissingError(wtmErr)) throw wtmErr;
+        weeklyTestMarks = wtmData || [];
+      }
+    } catch (err) {
+      if (!isTableMissingError(err)) throw err;
+    }
+
+    // Source 3: public.marks legacy
+    let legacyMarks = [];
+    try {
+      const legacyTerms = termVariants.map(t => `${academicYear}_${t}_Test`);
+      const { data: lmData, error: lmErr } = await supabase
+        .from('marks')
+        .select('student_id, subject_id, term, score')
+        .in('term', legacyTerms);
+      if (lmErr && !isTableMissingError(lmErr)) throw lmErr;
+      legacyMarks = lmData || [];
+    } catch (err) {
+      if (!isTableMissingError(err)) throw err;
+    }
+
+    // Fast lookup index for Source 1
+    const subMap = new Map();
+    submissions.forEach(s => {
+      subMap.set(`${s.class_id}_${s.subject_id}`, s);
+    });
+
+    const detailedBySubAndStudent = new Map();
+    detailedMarks.forEach(dm => {
+      if (testCompIds.size === 0 || testCompIds.has(dm.component_id)) {
+        detailedBySubAndStudent.set(`${dm.submission_id}_${dm.student_id}`, dm);
+      }
+    });
+
+    // Fast lookup index for Source 2
+    const wtByClassSub = new Map();
+    weeklyTests.forEach(wt => {
+      wtByClassSub.set(`${wt.class_id}_${wt.subject_id}`, wt);
+    });
+
+    const wtMarksByTestAndStudent = new Map();
+    weeklyTestMarks.forEach(m => {
+      wtMarksByTestAndStudent.set(`${m.test_id}_${m.student_id}`, m);
+    });
+
+    // Fast lookup index for Source 3
+    const legacyMarksByStudentSub = new Map();
+    legacyMarks.forEach(m => {
+      legacyMarksByStudentSub.set(`${m.student_id}_${m.subject_id}`, m.score);
+    });
 
     // Completion Tracker Aggregation
     const classProgress = [];
     const missingSubmissions = [];
     let totalAssignedSubjects = 0;
     let completedAssignedSubjects = 0;
+    let subjectsWithMarks = 0;
+    let classesWithMarks = 0;
     let totalStudentsEvaluated = 0;
     let totalStudentsAbsent = 0;
 
@@ -311,51 +511,101 @@ export class WeeklyTestReportService {
       const clsStudents = (students || []).filter(s => s.class_id === cls.id);
       const studentCount = clsStudents.length;
 
-      // Find subjects assigned to this class
       const clsAssignments = (assignments || []).filter(a => a.class_id === cls.id);
       const subjectEntries = [];
+      let classHasAnyMarks = false;
 
       clsAssignments.forEach(assign => {
         totalAssignedSubjects++;
         const subjectObj = assign.subjects || { id: assign.subject_id, name: 'Subject' };
         const teacherObj = assign.teacher || { id: assign.teacher_id, name: 'Unassigned Teacher' };
+        const classSubKey = `${cls.id}_${assign.subject_id}`;
 
-        // Match weekly test row
-        const test = (tests || []).find(t => 
-          t.class_id === cls.id && 
-          t.subject_id === assign.subject_id && 
-          (t.cycle_id === cycle.id || t.test_date === cycle.test_date)
-        );
+        const submission = subMap.get(classSubKey);
+        const weeklyTest = wtByClassSub.get(classSubKey);
 
         let enteredCount = 0;
         let absentCount = 0;
-        let pendingCount = studentCount;
-        let status = 'NOT_STARTED'; // 'NOT_STARTED' | 'PENDING' | 'COMPLETE' | 'APPROVED'
 
-        if (test) {
-          const testMarks = allMarks.filter(m => m.test_id === test.id);
-          absentCount = testMarks.filter(m => m.is_absent).length;
-          const scoredCount = testMarks.filter(m => !m.is_absent && m.score !== null && m.score !== undefined && m.score !== '').length;
-          enteredCount = scoredCount + absentCount;
-          pendingCount = Math.max(0, studentCount - enteredCount);
+        // Iterate through each student in class applying STRICT PRECEDENCE (NO DOUBLE COUNTING)
+        clsStudents.forEach(st => {
+          let resolved = false;
 
-          if (pendingCount === 0 && studentCount > 0) {
-            if (config.coordinator_review_mode === 'REQUIRED') {
-              status = test.status === 'Approved' ? 'COMPLETE' : 'SUBMITTED_AWAITING_COORDINATOR';
-            } else {
-              status = test.status === 'Draft' ? 'PENDING' : 'COMPLETE';
+          // Precedence 1: student_marks_detailed
+          if (submission) {
+            const dm = detailedBySubAndStudent.get(`${submission.id}_${st.id}`);
+            if (dm) {
+              if (dm.status === 'ABSENT' || String(dm.raw_score).toUpperCase() === 'A' || String(dm.raw_score).toUpperCase() === 'ABS') {
+                absentCount++;
+                enteredCount++;
+                resolved = true;
+              } else if (dm.raw_score !== null && dm.raw_score !== undefined && dm.raw_score !== '') {
+                enteredCount++;
+                resolved = true;
+              }
             }
-          } else if (enteredCount > 0) {
+          }
+
+          // Precedence 2: weekly_test_marks
+          if (!resolved && weeklyTest) {
+            const wtm = wtMarksByTestAndStudent.get(`${weeklyTest.id}_${st.id}`);
+            if (wtm) {
+              if (wtm.is_absent) {
+                absentCount++;
+                enteredCount++;
+                resolved = true;
+              } else if (wtm.score !== null && wtm.score !== undefined && wtm.score !== '') {
+                enteredCount++;
+                resolved = true;
+              }
+            }
+          }
+
+          // Precedence 3: legacy public.marks
+          if (!resolved) {
+            const legScore = legacyMarksByStudentSub.get(`${st.id}_${assign.subject_id}`);
+            if (legScore !== undefined && legScore !== null && legScore !== '') {
+              const legStr = String(legScore).trim().toUpperCase();
+              if (legStr === 'A' || legStr === 'ABS' || legStr === 'ABSENT') {
+                absentCount++;
+                enteredCount++;
+                resolved = true;
+              } else {
+                enteredCount++;
+                resolved = true;
+              }
+            }
+          }
+        });
+
+        const pendingCount = Math.max(0, studentCount - enteredCount);
+
+        let status = 'NOT_STARTED'; // 'NOT_STARTED' | 'PENDING' | 'COMPLETE' | 'APPROVED'
+        if (enteredCount > 0) {
+          classHasAnyMarks = true;
+          subjectsWithMarks++;
+          if (pendingCount === 0 && studentCount > 0) {
+            if (submission?.status === 'APPROVED' || submission?.status === 'LOCKED' || weeklyTest?.status === 'Approved') {
+              status = 'COMPLETE';
+            } else if (submission?.status === 'SUBMITTED' || weeklyTest?.status === 'Submitted') {
+              status = config.coordinator_review_mode === 'REQUIRED' ? 'SUBMITTED_AWAITING_COORDINATOR' : 'COMPLETE';
+            } else {
+              status = 'PENDING';
+            }
+          } else {
             status = 'PENDING';
           }
         }
 
-        const isComplete = status === 'COMPLETE';
+        const isComplete = status === 'COMPLETE' || (pendingCount === 0 && studentCount > 0 && config.coordinator_review_mode === 'EXEMPT');
         if (isComplete) {
           completedAssignedSubjects++;
-          totalStudentsEvaluated += (enteredCount - absentCount);
-          totalStudentsAbsent += absentCount;
-        } else {
+        }
+
+        totalStudentsEvaluated += (enteredCount - absentCount);
+        totalStudentsAbsent += absentCount;
+
+        if (!isComplete) {
           missingSubmissions.push({
             classId: cls.id,
             className: cls.name,
@@ -382,9 +632,14 @@ export class WeeklyTestReportService {
           absentCount,
           status,
           isComplete,
-          testId: test ? test.id : null
+          submissionId: submission ? submission.id : null,
+          testId: weeklyTest ? weeklyTest.id : null
         });
       });
+
+      if (classHasAnyMarks) {
+        classesWithMarks++;
+      }
 
       const isClassComplete = subjectEntries.length > 0 && subjectEntries.every(s => s.isComplete);
 
@@ -405,10 +660,14 @@ export class WeeklyTestReportService {
     return {
       cycle,
       config,
+      academicYear,
+      term,
       totalClasses,
       completedClasses,
+      classesWithMarks,
       totalAssignedSubjects,
       completedAssignedSubjects,
+      subjectsWithMarks,
       totalStudentsEvaluated,
       totalStudentsAbsent,
       isDataComplete,
@@ -421,45 +680,55 @@ export class WeeklyTestReportService {
    * Authoritative Report Generator (Server/Service Authoritative)
    * 
    * Strict adherence to Architectural Corrections:
-   * 1. Immutable Server Snapshot generated & stored
+   * 1. Multi-source deduplicated marks aggregation from SubjectMarks
    * 2. Distinguishes DATA COMPLETE from FINAL REPORT GENERATED
-   * 3. Prevents premature FINAL reports on Monday or any day
+   * 3. Prevents premature FINAL reports while allowing LIVE progress
    * 4. Enforces strict Class/Section ranking isolation (NO cross-class ranking)
-   * 5. Preserves V1 and creates V2 on authorized revision
+   * 5. Resilient fallback to in-memory virtual report snapshot if weekly_test_reports is missing
    */
   static async generateConsolidatedReport({
-    cycleId,
+    cycleId = null,
     academicYear = '2026',
     testDate = null,
+    term = 'Finalterm',
     forceRevision = false,
     revisionReason = '',
     generatedBy = null,
     isMondaySchedule = false
-  }) {
+  } = {}) {
+    const resolvedTestDate = testDate || getUpcomingTuesdayDate();
     // 1. Audit completion state
-    const completion = await this.checkMarksCompletion({ cycleId, academicYear, testDate });
+    const completion = await this.checkMarksCompletion({ cycleId, academicYear, testDate: resolvedTestDate, term });
     const { cycle, config, isDataComplete, missingSubmissions, classProgress } = completion;
 
-    // 2. Check for existing reports for this cycle
-    const { data: existingReports } = await supabase
-      .from('weekly_test_reports')
-      .select('*')
-      .eq('cycle_id', cycle.id)
-      .order('version', { ascending: false });
+    // 2. Check for existing reports for this cycle (safe against missing table)
+    let existingReports = [];
+    try {
+      const { data, error } = await supabase
+        .from('weekly_test_reports')
+        .select('*')
+        .eq('academic_year', academicYear)
+        .eq('test_date', cycle.test_date)
+        .order('version', { ascending: false });
+
+      if (error) {
+        if (!isTableMissingError(error)) throw error;
+      } else {
+        existingReports = data || [];
+      }
+    } catch (err) {
+      if (!isTableMissingError(err)) throw err;
+    }
 
     const latestReport = existingReports && existingReports.length > 0 ? existingReports[0] : null;
 
     // 3. Determine Report Status
-    // CORRECTION #2: A report can ONLY become FINAL when all required marks are complete.
-    // If incomplete, it MUST be PENDING.
     const targetStatus = isDataComplete ? 'FINAL' : 'PENDING';
 
-    // If already FINAL, not forcing revision, and data hasn't changed, return existing (Idempotent!)
     if (latestReport && latestReport.status === 'FINAL' && targetStatus === 'FINAL' && !forceRevision) {
       return latestReport;
     }
 
-    // Determine new version
     let newVersion = 1;
     if (latestReport) {
       if (latestReport.status === 'FINAL' && (forceRevision || isDataComplete)) {
@@ -469,101 +738,259 @@ export class WeeklyTestReportService {
       }
     }
 
-    // 4. Calculate Server-Authoritative Class-by-Class Honours & Details
-    // CORRECTION #1 & #5: Calculate in server service, strict per-class/section ranking
+    // 4. Fetch raw data across classes with strict deduplication
+    const termVariants = [term];
+    if (term === 'Finalterm') termVariants.push('Final-Term', 'Final Term', 'Final_Term');
+    if (term === 'Midterm') termVariants.push('Mid-Term', 'Mid Term', 'Mid_Term');
+
+    const seniorClasses = this.filterSeniorSchoolClasses(
+      (await supabase.from('classes').select('id, name, section, academic_year').eq('academic_year', academicYear)).data || [],
+      config
+    );
+    const classIds = seniorClasses.map(c => c.id);
+    const safeClassIds = classIds.length > 0 ? classIds : ['00000000-0000-0000-0000-000000000000'];
+
+    // Verified schema columns only
+    const { data: students } = await supabase
+      .from('students')
+      .select('id, class_id, roll_no, name')
+      .in('class_id', safeClassIds);
+
+    // Submissions
+    let submissions = [];
+    try {
+      const { data: subData, error: subErr } = await supabase
+        .from('class_subject_mark_submissions')
+        .select('id, class_id, subject_id, teacher_id, term, status, pattern_id')
+        .eq('academic_year', academicYear)
+        .in('term', termVariants)
+        .in('class_id', safeClassIds);
+      if (subErr && !isTableMissingError(subErr)) throw subErr;
+      submissions = subData || [];
+    } catch (err) {
+      if (!isTableMissingError(err)) throw err;
+    }
+
+    const subIds = submissions.map(s => s.id);
+    let detailedMarks = [];
+    if (subIds.length > 0) {
+      try {
+        const { data: dData, error: dErr } = await supabase
+          .from('student_marks_detailed')
+          .select('id, submission_id, student_id, component_id, raw_score, converted_score, status')
+          .in('submission_id', subIds);
+        if (dErr && !isTableMissingError(dErr)) throw dErr;
+        detailedMarks = dData || [];
+      } catch (err) {
+        if (!isTableMissingError(err)) throw err;
+      }
+    }
+
+    // Components
+    let testCompIds = new Set();
+    try {
+      const { data: compData, error: cErr } = await supabase
+        .from('assessment_components')
+        .select('id, component_name, component_code, raw_max_marks, converted_max_marks');
+      if (cErr && !isTableMissingError(cErr)) throw cErr;
+      if (compData) {
+        compData.forEach(c => {
+          if (c.component_code === 'TEST' || /weekly.*test|periodic.*test|formative.*test|^test$/i.test(c.component_name || c.name || '')) {
+            testCompIds.add(c.id);
+          }
+        });
+      }
+    } catch (err) {
+      if (!isTableMissingError(err)) throw err;
+    }
+
+    // Weekly Tests
+    let weeklyTests = [];
+    let weeklyTestMarks = [];
+    try {
+      const { data: wtData, error: wtErr } = await supabase
+        .from('weekly_tests')
+        .select('*')
+        .in('class_id', safeClassIds);
+      if (wtErr && !isTableMissingError(wtErr)) throw wtErr;
+      weeklyTests = wtData || [];
+
+      const wtIds = weeklyTests.map(t => t.id);
+      if (wtIds.length > 0) {
+        const { data: wtmData, error: wtmErr } = await supabase
+          .from('weekly_test_marks')
+          .select('*')
+          .in('test_id', wtIds);
+        if (wtmErr && !isTableMissingError(wtmErr)) throw wtmErr;
+        weeklyTestMarks = wtmData || [];
+      }
+    } catch (err) {
+      if (!isTableMissingError(err)) throw err;
+    }
+
+    // Legacy Marks
+    let legacyMarks = [];
+    try {
+      const legacyTerms = termVariants.map(t => `${academicYear}_${t}_Test`);
+      const { data: lmData, error: lmErr } = await supabase
+        .from('marks')
+        .select('student_id, subject_id, term, score')
+        .in('term', legacyTerms);
+      if (lmErr && !isTableMissingError(lmErr)) throw lmErr;
+      legacyMarks = lmData || [];
+    } catch (err) {
+      if (!isTableMissingError(err)) throw err;
+    }
+
+    // Lookup indexes
+    const subMap = new Map();
+    submissions.forEach(s => subMap.set(`${s.class_id}_${s.subject_id}`, s));
+
+    const detailedBySubAndStudent = new Map();
+    detailedMarks.forEach(dm => {
+      if (testCompIds.size === 0 || testCompIds.has(dm.component_id)) {
+        detailedBySubAndStudent.set(`${dm.submission_id}_${dm.student_id}`, dm);
+      }
+    });
+
+    const wtByClassSub = new Map();
+    weeklyTests.forEach(wt => wtByClassSub.set(`${wt.class_id}_${wt.subject_id}`, wt));
+
+    const wtMarksByTestAndStudent = new Map();
+    weeklyTestMarks.forEach(m => wtMarksByTestAndStudent.set(`${m.test_id}_${m.student_id}`, m));
+
+    const legacyMarksByStudentSub = new Map();
+    legacyMarks.forEach(m => legacyMarksByStudentSub.set(`${m.student_id}_${m.subject_id}`, m.score));
+
+    // Calculate Class-by-Class Honours & Details with Section Isolation
     const honoursData = [];
     const requiresAttentionData = [];
     const classDetailsData = [];
     let grandEvaluated = 0;
     let grandAbsent = 0;
 
-    // Fetch full test marks for snapshot compilation
-    const { data: cycleTests } = await supabase
-      .from('weekly_tests')
-      .select(`
-        id, class_id, subject_id, max_marks, test_date,
-        subjects:subjects(id, name),
-        classes:classes(id, name, section)
-      `)
-      .eq('cycle_id', cycle.id);
-
-    const testIds = (cycleTests || []).map(t => t.id);
-    let allTestMarks = [];
-    if (testIds.length > 0) {
-      const { data: mData } = await supabase
-        .from('weekly_test_marks')
-        .select(`
-          id, test_id, student_id, score, is_absent, is_na,
-          student:students(id, roll_no, name, house)
-        `)
-        .in('test_id', testIds);
-      allTestMarks = mData || [];
-    }
-
-    // Process each class individually
     for (const clsProg of classProgress) {
       const fullClassName = `${clsProg.className} ${clsProg.section}`.trim();
+      const clsStudents = (students || []).filter(s => s.class_id === clsProg.classId);
+
       const classStudentMap = new Map();
+      clsStudents.forEach(st => {
+        classStudentMap.set(st.id, {
+          student: st,
+          rollNo: st.roll_no,
+          name: st.name,
+          house: getStudentHouse(st.name, fullClassName),
+          subjectScores: {},
+          total: 0,
+          maxMarks: 0,
+          isAbsent: false,
+          hasAnyScore: false,
+          attemptedSubjects: 0,
+          absentSubjects: 0
+        });
+      });
 
-      // Collect marks for each subject in this class
+      // Process each assigned subject
       for (const sub of clsProg.subjects) {
-        if (!sub.testId) continue;
-        const testInfo = (cycleTests || []).find(t => t.id === sub.testId);
-        const subMarks = allTestMarks.filter(m => m.test_id === sub.testId);
+        const classSubKey = `${clsProg.classId}_${sub.subjectId}`;
+        const submission = subMap.get(classSubKey);
+        const weeklyTest = wtByClassSub.get(classSubKey);
 
-        subMarks.forEach(m => {
-          if (!m.student) return;
-          const stId = m.student.id;
-          if (!classStudentMap.has(stId)) {
-            classStudentMap.set(stId, {
-              student: m.student,
-              rollNo: m.student.roll_no,
-              name: m.student.name,
-              house: m.student.house || getStudentHouse(m.student.name, fullClassName),
-              subjectScores: {},
-              total: 0,
-              maxMarks: 0,
-              isAbsent: true,
-              hasAnyScore: false
-            });
+        clsStudents.forEach(st => {
+          const stRec = classStudentMap.get(st.id);
+          let resolved = false;
+
+          // Precedence 1: student_marks_detailed
+          if (submission) {
+            const dm = detailedBySubAndStudent.get(`${submission.id}_${st.id}`);
+            if (dm) {
+              const maxRaw = 25;
+              if (dm.status === 'ABSENT' || String(dm.raw_score).toUpperCase() === 'A' || String(dm.raw_score).toUpperCase() === 'ABS') {
+                stRec.subjectScores[sub.subjectName] = { score: 0, max: maxRaw, isAbsent: true };
+                stRec.attemptedSubjects++;
+                stRec.absentSubjects++;
+                resolved = true;
+              } else if (dm.raw_score !== null && dm.raw_score !== undefined && dm.raw_score !== '') {
+                const num = Number(dm.raw_score);
+                stRec.total += num;
+                stRec.maxMarks += maxRaw;
+                stRec.hasAnyScore = true;
+                stRec.attemptedSubjects++;
+                stRec.subjectScores[sub.subjectName] = { score: num, max: maxRaw, isAbsent: false };
+                resolved = true;
+              }
+            }
           }
 
-          const stRec = classStudentMap.get(stId);
-          const maxRaw = Number(testInfo?.max_marks || 25);
-          stRec.maxMarks += maxRaw;
+          // Precedence 2: weekly_test_marks
+          if (!resolved && weeklyTest) {
+            const wtm = wtMarksByTestAndStudent.get(`${weeklyTest.id}_${st.id}`);
+            if (wtm) {
+              const maxRaw = Number(weeklyTest.max_marks || 20);
+              if (wtm.is_absent) {
+                stRec.subjectScores[sub.subjectName] = { score: 0, max: maxRaw, isAbsent: true };
+                stRec.attemptedSubjects++;
+                stRec.absentSubjects++;
+                resolved = true;
+              } else if (wtm.score !== null && wtm.score !== undefined && wtm.score !== '') {
+                const num = Number(wtm.score);
+                stRec.total += num;
+                stRec.maxMarks += maxRaw;
+                stRec.hasAnyScore = true;
+                stRec.attemptedSubjects++;
+                stRec.subjectScores[sub.subjectName] = { score: num, max: maxRaw, isAbsent: false };
+                resolved = true;
+              }
+            }
+          }
 
-          if (m.is_absent) {
-            stRec.subjectScores[sub.subjectName] = { score: 0, max: maxRaw, isAbsent: true };
-          } else if (m.score !== null && m.score !== undefined && m.score !== '') {
-            const numScore = Number(m.score);
-            stRec.total += numScore;
-            stRec.isAbsent = false;
-            stRec.hasAnyScore = true;
-            stRec.subjectScores[sub.subjectName] = { score: numScore, max: maxRaw, isAbsent: false };
+          // Precedence 3: legacy public.marks
+          if (!resolved) {
+            const legScore = legacyMarksByStudentSub.get(`${st.id}_${sub.subjectId}`);
+            if (legScore !== undefined && legScore !== null && legScore !== '') {
+              const maxRaw = 25;
+              const legStr = String(legScore).trim().toUpperCase();
+              if (legStr === 'A' || legStr === 'ABS' || legStr === 'ABSENT') {
+                stRec.subjectScores[sub.subjectName] = { score: 0, max: maxRaw, isAbsent: true };
+                stRec.attemptedSubjects++;
+                stRec.absentSubjects++;
+                resolved = true;
+              } else {
+                const num = Number(legScore);
+                stRec.total += num;
+                stRec.maxMarks += maxRaw;
+                stRec.hasAnyScore = true;
+                stRec.attemptedSubjects++;
+                stRec.subjectScores[sub.subjectName] = { score: num, max: maxRaw, isAbsent: false };
+                resolved = true;
+              }
+            }
           }
         });
       }
 
-      const studentRoster = Array.from(classStudentMap.values());
+      // Filter students who have participated in tests
+      const evaluatedRoster = Array.from(classStudentMap.values()).filter(s => s.attemptedSubjects > 0);
 
-      // If class had marks evaluated, calculate honours & attention via single authoritative engine
-      if (studentRoster.length > 0) {
-        // Calculate percentage
-        studentRoster.forEach(s => {
+      evaluatedRoster.forEach(s => {
+        if (!s.hasAnyScore && s.absentSubjects > 0) {
+          s.isAbsent = true;
+          s.percentage = 0;
+          grandAbsent++;
+        } else {
+          s.isAbsent = false;
           s.percentage = s.maxMarks > 0 ? MarksCalculationEngine.applyRounding((s.total / s.maxMarks) * 100, 'ROUND_1_DECIMAL') : 0;
-          if (!s.isAbsent) {
-            grandEvaluated++;
-          } else {
-            grandAbsent++;
-          }
-        });
+          grandEvaluated++;
+        }
+      });
 
-        // SHARED RANKING ENGINE CALL
-        const { topScorers, requiresAttention } = MarksCalculationEngine.calculateHonoursAndAttention(studentRoster, {
-          rankingPolicy: config.ranking_policy,
-          requiresAttentionThreshold: config.requires_attention_threshold,
-          thresholdType: config.threshold_type,
-          excludeAbsentFromRanking: config.exclude_absent_from_ranking
+      if (evaluatedRoster.length > 0) {
+        // Authoritative per-class ranking with dense ties
+        const { topScorers, requiresAttention } = MarksCalculationEngine.calculateHonoursAndAttention(evaluatedRoster, {
+          rankingPolicy: config.ranking_policy || 'DENSE',
+          requiresAttentionThreshold: config.requires_attention_threshold || 10,
+          thresholdType: config.threshold_type || 'SCORE',
+          excludeAbsentFromRanking: config.exclude_absent_from_ranking ?? true
         });
 
         honoursData.push({
@@ -605,7 +1032,7 @@ export class WeeklyTestReportService {
         classDetailsData.push({
           classId: clsProg.classId,
           fullClassName,
-          roster: studentRoster.sort((a, b) => a.rollNo - b.rollNo).map(s => ({
+          roster: evaluatedRoster.sort((a, b) => (Number(a.rollNo) || 0) - (Number(b.rollNo) || 0)).map(s => ({
             studentId: s.student.id,
             rollNo: s.rollNo,
             name: formatStudentDisplayName(s.name),
@@ -622,33 +1049,29 @@ export class WeeklyTestReportService {
 
     const summaryData = {
       academicYear,
+      term,
       weekIdentifier: cycle.week_identifier,
       testDate: cycle.test_date,
       totalClasses: completion.totalClasses,
       completedClasses: completion.completedClasses,
+      classesWithMarks: completion.classesWithMarks,
       totalSubjects: completion.totalAssignedSubjects,
       completedSubjects: completion.completedAssignedSubjects,
+      subjectsWithMarks: completion.subjectsWithMarks,
       studentsEvaluated: grandEvaluated,
       studentsAbsent: grandAbsent,
       studentsRequiringAttention: requiresAttentionData.reduce((acc, c) => acc + c.students.length, 0),
       isDataComplete,
-      generationType: isMondaySchedule ? 'MONDAY_OFFICIAL_SCHEDULE' : 'EXPLICIT_RUN'
+      generationType: isMondaySchedule ? 'MONDAY_OFFICIAL_SCHEDULE' : 'EXPLICIT_RUN',
+      is_live_compilation: true
     };
 
     const pdfFilename = `Gyanoday_Weekly_Test_Report_${cycle.week_identifier.replace(/\s+/g, '_')}_${academicYear}_V${newVersion}.pdf`;
 
-    // 5. Store Immutable Snapshot in weekly_test_reports
-    // If previous FINAL existed and we're bumping version, unset its is_current_final
-    if (newVersion > 1) {
-      await supabase
-        .from('weekly_test_reports')
-        .update({ is_current_final: false })
-        .eq('cycle_id', cycle.id);
-    }
-
     const reportPayload = {
       cycle_id: cycle.id,
       academic_year: academicYear,
+      term,
       test_date: cycle.test_date,
       week_identifier: cycle.week_identifier,
       version: newVersion,
@@ -666,39 +1089,59 @@ export class WeeklyTestReportService {
       revision_reason: revisionReason || (newVersion > 1 ? 'Authorized mark correction' : null)
     };
 
-    const { data: savedReport, error: saveErr } = await supabase
-      .from('weekly_test_reports')
-      .upsert(reportPayload, { onConflict: 'academic_year,cycle_id,version' })
-      .select()
-      .single();
+    // Attempt persistence in weekly_test_reports if table exists
+    try {
+      if (newVersion > 1) {
+        await supabase
+          .from('weekly_test_reports')
+          .update({ is_current_final: false })
+          .eq('cycle_id', cycle.id);
+      }
 
-    if (saveErr) {
-      console.error('Error saving weekly_test_reports snapshot:', saveErr);
-      throw saveErr;
+      const { data: savedReport, error: saveErr } = await supabase
+        .from('weekly_test_reports')
+        .upsert(reportPayload, { onConflict: 'academic_year,cycle_id,version' })
+        .select()
+        .single();
+
+      if (saveErr) {
+        if (!isTableMissingError(saveErr)) throw saveErr;
+      } else if (savedReport) {
+        // Also update cycle if table exists
+        try {
+          await supabase
+            .from('weekly_test_cycles')
+            .update({
+              report_generation_status: targetStatus === 'FINAL' ? 'GENERATED' : 'PENDING',
+              current_report_version: newVersion,
+              report_generated_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', cycle.id);
+        } catch (cErr) {
+          // ignore if table missing
+        }
+
+        await this.logAudit({
+          cycle_id: cycle.id,
+          report_id: savedReport.id,
+          action: newVersion > 1 ? 'REPORT_REVISED' : (targetStatus === 'FINAL' ? 'REPORT_GENERATED' : 'REPORT_CHECK_PENDING'),
+          user: { id: generatedBy },
+          new_state: { version: newVersion, status: targetStatus, summary: summaryData },
+          reason: revisionReason || (targetStatus === 'FINAL' ? 'Generated official consolidated report' : 'Completion check executed; live progress updated')
+        });
+
+        return savedReport;
+      }
+    } catch (err) {
+      if (!isTableMissingError(err)) throw err;
     }
 
-    // 6. Update Cycle Status
-    await supabase
-      .from('weekly_test_cycles')
-      .update({
-        report_generation_status: targetStatus === 'FINAL' ? 'GENERATED' : 'PENDING',
-        current_report_version: newVersion,
-        report_generated_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', cycle.id);
-
-    // 7. Record Audit Log
-    await this.logAudit({
-      cycle_id: cycle.id,
-      report_id: savedReport.id,
-      action: newVersion > 1 ? 'REPORT_REVISED' : (targetStatus === 'FINAL' ? 'REPORT_GENERATED' : 'REPORT_CHECK_PENDING'),
-      user: { id: generatedBy },
-      new_state: { version: newVersion, status: targetStatus, summary: summaryData },
-      reason: revisionReason || (targetStatus === 'FINAL' ? 'Generated official consolidated report' : 'Completion check executed; marks pending')
-    });
-
-    return savedReport;
+    // In-memory virtual report snapshot
+    return {
+      ...reportPayload,
+      id: `virtual-report-${term}-${Date.now()}`
+    };
   }
 
   /**
@@ -717,11 +1160,13 @@ export class WeeklyTestReportService {
         .maybeSingle();
 
       if (error) {
+        if (isTableMissingError(error)) return null;
         console.warn('getLatestFinalReport notice:', error.message);
         return null;
       }
       return data;
     } catch (err) {
+      if (isTableMissingError(err)) return null;
       console.error('getLatestFinalReport error:', err);
       return null;
     }
@@ -744,11 +1189,13 @@ export class WeeklyTestReportService {
         .order('version', { ascending: false });
 
       if (error) {
+        if (isTableMissingError(error)) return [];
         console.warn('getReportArchive notice:', error.message);
         return [];
       }
       return data || [];
     } catch (err) {
+      if (isTableMissingError(err)) return [];
       console.error('getReportArchive error:', err);
       return [];
     }
@@ -775,7 +1222,7 @@ export class WeeklyTestReportService {
    */
   static async logAudit({ cycle_id = null, report_id = null, action, user = null, old_state = null, new_state = null, reason = '' }) {
     try {
-      await supabase
+      const { error } = await supabase
         .from('weekly_test_audit_logs')
         .insert([{
           cycle_id,
@@ -788,8 +1235,14 @@ export class WeeklyTestReportService {
           new_state,
           reason
         }]);
+
+      if (error && !isTableMissingError(error)) {
+        console.warn('weekly_test_audit_logs notice:', error.message);
+      }
     } catch (err) {
-      console.warn('Could not record weekly_test_audit_logs:', err.message);
+      if (!isTableMissingError(err)) {
+        console.warn('Could not record weekly_test_audit_logs:', err.message);
+      }
     }
   }
 }

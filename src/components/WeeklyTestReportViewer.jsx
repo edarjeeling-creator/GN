@@ -9,13 +9,16 @@ import html2pdf from 'html2pdf.js';
 import { WeeklyTestReportService } from '../services/WeeklyTestReportService';
 import WeeklyTestConsolidatedPDF from './WeeklyTestConsolidatedPDF';
 
-export default function WeeklyTestReportViewer({ academicYear = '2026' }) {
+export default function WeeklyTestReportViewer({ academicYear = '2026', initialTerm = 'Finalterm', onSelectTab = null }) {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState(null);
   const [archive, setArchive] = useState([]);
   const [selectedReportId, setSelectedReportId] = useState(null);
   const [completionData, setCompletionData] = useState(null);
+  const [selectedTerm, setSelectedTerm] = useState(initialTerm);
+  const [isCompiling, setIsCompiling] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState('');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showMissingModal, setShowMissingModal] = useState(false);
@@ -24,8 +27,9 @@ export default function WeeklyTestReportViewer({ academicYear = '2026' }) {
 
   const isPrincipalOrAdmin = ['admin', 'superadmin', 'principal', 'coordinator'].includes(profile?.role);
 
-  // Load latest report and archive
-  const loadReports = useCallback(async (targetId = null) => {
+  // Load report and archive for selected term
+  const loadReports = useCallback(async (targetId = null, forcedTerm = null) => {
+    const termToUse = forcedTerm || selectedTerm;
     try {
       const arch = await WeeklyTestReportService.getReportArchive(academicYear);
       setArchive(arch);
@@ -39,97 +43,91 @@ export default function WeeklyTestReportViewer({ academicYear = '2026' }) {
           .maybeSingle();
         target = data;
       } else if (arch.length > 0) {
+        // Find matching term in archive
+        const match = arch.find(a => a.summary_data?.term === termToUse || a.term === termToUse) || arch[0];
         const { data } = await supabase
           .from('weekly_test_reports')
           .select('*')
-          .eq('id', arch[0].id)
+          .eq('id', match.id)
           .maybeSingle();
         target = data;
       }
 
+      // If no persisted report exists in archive, auto-compile live in-memory report from teacher entries
+      if (!target) {
+        setIsCompiling(true);
+        target = await WeeklyTestReportService.generateConsolidatedReport({
+          academicYear,
+          term: termToUse
+        });
+      }
+
       setReport(target);
-      if (target) {
+      if (target?.id) {
         setSelectedReportId(target.id);
       }
 
-      // Also fetch cycle completion status
+      // Also fetch live cycle completion status with deduplicated precedence
       const completion = await WeeklyTestReportService.getCycleCompletionStatus({
         academicYear,
+        term: termToUse,
         testDate: target?.test_date || new Date().toISOString().split('T')[0]
       });
       setCompletionData(completion);
+      setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (err) {
       console.error('Error loading report viewer:', err);
     } finally {
       setLoading(false);
       setIsRefreshing(false);
+      setIsCompiling(false);
     }
-  }, [academicYear]);
+  }, [academicYear, selectedTerm]);
 
   useEffect(() => {
-    let ignore = false;
-    async function init() {
-      try {
-        const arch = await WeeklyTestReportService.getReportArchive(academicYear);
-        if (ignore) return;
-        setArchive(arch);
+    loadReports(null, selectedTerm);
+  }, [academicYear, selectedTerm, loadReports]);
 
-        let target = null;
-        if (arch.length > 0) {
-          const { data } = await supabase
-            .from('weekly_test_reports')
-            .select('*')
-            .eq('id', arch[0].id)
-            .maybeSingle();
-          if (!ignore) target = data;
-        }
-
-        if (!ignore) {
-          setReport(target);
-          if (target) {
-            setSelectedReportId(target.id);
-          }
-        }
-
-        const completion = await WeeklyTestReportService.getCycleCompletionStatus({
-          academicYear,
-          testDate: target?.test_date || new Date().toISOString().split('T')[0]
-        });
-        if (!ignore) setCompletionData(completion);
-      } catch (err) {
-        console.error('Error loading report viewer:', err);
-      } finally {
-        if (!ignore) {
-          setLoading(false);
-          setIsRefreshing(false);
-        }
-      }
-    }
-    init();
-    return () => { ignore = true; };
-  }, [academicYear]);
+  // Handle term change (Finalterm vs Midterm)
+  const handleTermChange = (newTerm) => {
+    if (newTerm === selectedTerm) return;
+    setSelectedTerm(newTerm);
+    setLoading(true);
+    loadReports(null, newTerm);
+  };
 
   // Handle report selection from archive
   const handleSelectReport = async (reportId) => {
     if (!reportId || reportId === selectedReportId) return;
     setSelectedReportId(reportId);
-    await loadReports(reportId);
+    await loadReports(reportId, selectedTerm);
   };
 
-  // Run Monday check or trigger update
-  const handleRunReportCheck = async (forceRevision = false) => {
+  // Run refresh or trigger live recompile
+  const handleRunReportCheck = async (forceRevision = true) => {
     setIsRefreshing(true);
     try {
       const updated = await WeeklyTestReportService.generateConsolidatedReport({
         cycleId: report?.cycle_id,
         academicYear,
+        term: selectedTerm,
         forceRevision,
-        revisionReason: forceRevision ? `Triggered by ${profile?.name || 'Principal'}` : '',
+        revisionReason: `Live update triggered by ${profile?.name || 'Principal'}`,
         generatedBy: profile?.id
       });
-      await loadReports(updated.id);
+      setReport(updated);
+      setSelectedReportId(updated.id);
+
+      const completion = await WeeklyTestReportService.getCycleCompletionStatus({
+        academicYear,
+        term: selectedTerm,
+        testDate: updated.test_date
+      });
+      setCompletionData(completion);
+      setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (err) {
       alert('Error updating report: ' + err.message);
+    } finally {
       setIsRefreshing(false);
     }
   };
@@ -190,7 +188,7 @@ export default function WeeklyTestReportViewer({ academicYear = '2026' }) {
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto">
-      {/* 1. TOP MOBILE COMMAND HEADER */}
+      {/* 1. TOP COMMAND HEADER */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
           <div>
@@ -203,7 +201,7 @@ export default function WeeklyTestReportViewer({ academicYear = '2026' }) {
                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' 
                   : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
               }`}>
-                {isFinal ? '🟢 FINAL REPORT' : '🟡 PENDING / INCOMPLETE'}
+                {isFinal ? '🟢 FINAL REPORT' : '🟡 LIVE REPORT (IN PROGRESS)'}
               </span>
               {report?.version > 1 && (
                 <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/40 text-[10px] font-bold">
@@ -215,44 +213,82 @@ export default function WeeklyTestReportViewer({ academicYear = '2026' }) {
             <h1 className="text-xl sm:text-2xl font-black text-white mt-1">
               Senior School Weekly Test Report
             </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {report?.week_identifier} • Test Date: <strong className="text-slate-200">{report?.test_date}</strong> • Classes 5–12
+            <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
+              <span>{report?.week_identifier || 'Weekly Test'}</span>
+              <span>•</span>
+              <span>Test Date: <strong className="text-slate-200">{report?.test_date}</strong></span>
+              <span>•</span>
+              <span>Classes 5–12</span>
+              {lastUpdated && (
+                <>
+                  <span>•</span>
+                  <span className="text-slate-400">Updated: <strong className="text-slate-300">{lastUpdated}</strong></span>
+                </>
+              )}
             </p>
           </div>
 
-          {/* Quick 1-Tap Primary Action Buttons */}
+          {/* Quick Primary Actions & Term Toggle */}
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            {/* Term Toggle */}
+            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+              <button
+                type="button"
+                onClick={() => handleTermChange('Finalterm')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
+                  selectedTerm === 'Finalterm'
+                    ? 'bg-amber-500 text-slate-950 font-black shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Final-Term
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTermChange('Midterm')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
+                  selectedTerm === 'Midterm'
+                    ? 'bg-amber-500 text-slate-950 font-black shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Mid-Term
+              </button>
+            </div>
+
+            {/* Recompile / Refresh */}
+            {isPrincipalOrAdmin && (
+              <button
+                type="button"
+                onClick={() => handleRunReportCheck(true)}
+                disabled={isRefreshing || isCompiling}
+                title="Recompile live marks entered by teachers"
+                className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={(isRefreshing || isCompiling) ? 'animate-spin' : ''} size={14} />
+                <span className="hidden sm:inline">{(isRefreshing || isCompiling) ? 'Compiling...' : 'Recompile'}</span>
+              </button>
+            )}
+
+            {/* Download PDF */}
             {report && (
               <button
                 type="button"
                 onClick={handleDownloadPdf}
                 disabled={isGeneratingPdf}
-                className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
+                className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-lg flex items-center justify-center gap-1.5 transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
               >
                 {isGeneratingPdf ? (
                   <>
-                    <RefreshCw className="animate-spin" size={16} />
-                    <span>Preparing Official PDF...</span>
+                    <RefreshCw className="animate-spin" size={14} />
+                    <span>PDF...</span>
                   </>
                 ) : (
                   <>
-                    <Download size={16} />
-                    <span>Open Report PDF</span>
+                    <Download size={14} />
+                    <span>Open PDF</span>
                   </>
                 )}
-              </button>
-            )}
-
-            {/* Refresh / Monday Scheduled Check */}
-            {isPrincipalOrAdmin && (
-              <button
-                type="button"
-                onClick={() => handleRunReportCheck(false)}
-                disabled={isRefreshing}
-                title="Refresh completion status"
-                className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition cursor-pointer disabled:opacity-50"
-              >
-                <RefreshCw className={isRefreshing ? 'animate-spin' : ''} size={16} />
               </button>
             )}
           </div>
@@ -263,17 +299,21 @@ export default function WeeklyTestReportViewer({ academicYear = '2026' }) {
           <div className="flex items-center gap-2">
             <Calendar size={14} className="text-slate-400" />
             <span className="font-semibold">Archive:</span>
-            <select
-              value={selectedReportId || ''}
-              onChange={e => handleSelectReport(e.target.value)}
-              className="bg-slate-950 text-white font-medium px-3 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
-            >
-              {archive.map(a => (
-                <option key={a.id} value={a.id}>
-                  {a.week_identifier} ({a.test_date}) — V{a.version} [{a.status}]
-                </option>
-              ))}
-            </select>
+            {archive.length > 0 ? (
+              <select
+                value={selectedReportId || ''}
+                onChange={e => handleSelectReport(e.target.value)}
+                className="bg-slate-950 text-white font-medium px-3 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 text-xs"
+              >
+                {archive.map(a => (
+                  <option key={a.id} value={a.id}>
+                    {a.week_identifier} ({a.test_date}) — V{a.version} [{a.status}]
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-slate-500 italic">Live In-Memory Compilation (Active)</span>
+            )}
           </div>
 
           {/* Secondary WhatsApp action */}
@@ -281,7 +321,7 @@ export default function WeeklyTestReportViewer({ academicYear = '2026' }) {
             <button
               type="button"
               onClick={handleSendWhatsAppNotification}
-              className="px-2.5 py-1 bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-400 border border-emerald-800/60 rounded-lg text-[11px] font-bold flex items-center gap-1 transition"
+              className="px-2.5 py-1 bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-400 border border-emerald-800/60 rounded-lg text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
               title="Share short notification with Principal on WhatsApp"
             >
               <Send size={12} />
@@ -290,7 +330,7 @@ export default function WeeklyTestReportViewer({ academicYear = '2026' }) {
             <button
               type="button"
               onClick={handleCopyWhatsAppText}
-              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-[11px] font-medium transition"
+              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-[11px] font-medium transition cursor-pointer"
             >
               {copiedWhatsapp ? 'Copied!' : 'Copy Msg'}
             </button>
@@ -306,21 +346,23 @@ export default function WeeklyTestReportViewer({ academicYear = '2026' }) {
             <div className="flex-1">
               <div className="flex items-center justify-between">
                 <h4 className="font-bold text-sm text-amber-300">
-                  Weekly Test Report Pending — Incomplete Marks
+                  Weekly Test Report — Live Progress ({selectedTerm === 'Finalterm' ? 'Final Term' : 'Mid Term'})
                 </h4>
-                <button
-                  type="button"
-                  onClick={() => setShowMissingModal(!showMissingModal)}
-                  className="text-xs text-amber-400 underline font-semibold cursor-pointer"
-                >
-                  {showMissingModal ? 'Hide Incomplete Details' : `View ${missing.length} Incomplete Entries`}
-                </button>
+                {missing.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowMissingModal(!showMissingModal)}
+                    className="text-xs text-amber-400 underline font-semibold cursor-pointer"
+                  >
+                    {showMissingModal ? 'Hide Incomplete Details' : `View ${missing.length} Incomplete Entries`}
+                  </button>
+                )}
               </div>
               <p className="text-xs text-amber-300/80 mt-1">
-                The official consolidated report cannot be marked FINAL until all required Senior School subject marks are submitted.
+                Reflecting live teacher-entered marks for Tuesday Assembly. Official FINAL report will be locked upon full completion & coordinator verification.
               </p>
 
-              {showMissingModal && (
+              {showMissingModal && missing.length > 0 && (
                 <div className="mt-3 bg-slate-950/80 rounded-xl p-3 border border-amber-900/50 max-h-60 overflow-y-auto">
                   <table className="w-full text-left text-xs text-slate-300">
                     <thead className="text-[10px] uppercase text-slate-400 border-b border-slate-800">
@@ -356,32 +398,45 @@ export default function WeeklyTestReportViewer({ academicYear = '2026' }) {
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center">
           <span className="text-[10px] font-bold text-slate-400 uppercase block">Classes</span>
           <span className="text-lg font-black text-white">
-            {summary.completedClasses || 0} / {summary.totalClasses || 8}
+            {summary.completedClasses ?? completionData?.completedClasses ?? 0} / {summary.totalClasses ?? completionData?.totalClasses ?? 8}
           </span>
+          {completionData?.classesWithMarks !== undefined && (
+            <span className="text-[10px] text-amber-400 block font-medium">
+              {completionData.classesWithMarks} with entries
+            </span>
+          )}
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center">
           <span className="text-[10px] font-bold text-slate-400 uppercase block">Subjects</span>
           <span className="text-lg font-black text-white">
-            {summary.completedSubjects || 0} / {summary.totalSubjects || 0}
+            {summary.completedSubjects ?? completionData?.completedAssignedSubjects ?? 0} / {summary.totalSubjects ?? completionData?.totalAssignedSubjects ?? 0}
           </span>
+          {completionData?.subjectsWithMarks !== undefined && (
+            <span className="text-[10px] text-amber-400 block font-medium">
+              {completionData.subjectsWithMarks} with marks
+            </span>
+          )}
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center">
           <span className="text-[10px] font-bold text-slate-400 uppercase block">Evaluated</span>
           <span className="text-lg font-black text-emerald-400">
-            {summary.studentsEvaluated || 0}
+            {summary.studentsEvaluated ?? completionData?.totalStudentsEvaluated ?? 0}
           </span>
+          <span className="text-[10px] text-slate-500 block">Marks entered</span>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center">
           <span className="text-[10px] font-bold text-slate-400 uppercase block">Absentees</span>
           <span className="text-lg font-black text-amber-400">
-            {summary.studentsAbsent || 0}
+            {summary.studentsAbsent ?? completionData?.totalStudentsAbsent ?? 0}
           </span>
+          <span className="text-[10px] text-slate-500 block">Marked absent</span>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center col-span-2 sm:col-span-1">
           <span className="text-[10px] font-bold text-slate-400 uppercase block">Attention</span>
           <span className="text-lg font-black text-rose-400">
-            {summary.studentsRequiringAttention || 0}
+            {summary.studentsRequiringAttention ?? 0}
           </span>
+          <span className="text-[10px] text-slate-500 block">Below 10</span>
         </div>
       </div>
 
@@ -398,9 +453,18 @@ export default function WeeklyTestReportViewer({ academicYear = '2026' }) {
         </div>
 
         {honours.length === 0 ? (
-          <p className="text-slate-400 text-center py-6 italic text-xs">
-            No honours available yet. Awaiting test mark entries.
-          </p>
+          <div className="text-slate-400 text-center py-6 text-xs space-y-2">
+            <p className="italic">No honours evaluated yet for {selectedTerm === 'Finalterm' ? 'Final Term' : 'Mid Term'}.</p>
+            <button
+              type="button"
+              onClick={() => handleRunReportCheck(true)}
+              disabled={isRefreshing || isCompiling}
+              className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+            >
+              <RefreshCw className={(isRefreshing || isCompiling) ? 'animate-spin' : ''} size={13} />
+              <span>Compile Live Marks Now</span>
+            </button>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {honours.map(clsH => (
