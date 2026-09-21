@@ -361,7 +361,7 @@ export class WeeklyTestReportService {
         class_id,
         subject_id,
         teacher_id,
-        subjects:subjects(id, name, code)
+        subjects:subjects(id, name)
       `)
       .in('class_id', safeClassIds);
 
