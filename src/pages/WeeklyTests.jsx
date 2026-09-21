@@ -18,7 +18,7 @@ export default function WeeklyTests() {
     class_id: '',
     subject_id: '',
     test_date: new Date().toISOString().split('T')[0],
-    max_marks: 20
+    max_marks: 25
   });
 
   const [students, setStudents] = useState([]);
@@ -393,7 +393,16 @@ export default function WeeklyTests() {
                 required 
                 className="input-field bg-white dark:bg-slate-800 text-slate-900 dark:text-white border-slate-300 dark:border-slate-700" 
                 value={newTest.class_id} 
-                onChange={e => setNewTest({...newTest, class_id: e.target.value, subject_id: ''})}
+                onChange={e => {
+                  const selCls = classes.find(c => c.id === e.target.value);
+                  const defMax = selCls ? WeeklyTestReportService.getClassWeeklyTestMaxMarks(selCls.rawName || selCls.name) : 25;
+                  setNewTest({
+                    ...newTest, 
+                    class_id: e.target.value, 
+                    subject_id: '',
+                    max_marks: defMax
+                  });
+                }}
               >
                 <option value="">Select Class</option>
                 {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}

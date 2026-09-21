@@ -46,6 +46,55 @@ function isTableMissingError(error) {
   );
 }
 
+/**
+ * Authoritative scale for Weekly Tests by Class:
+ * Classes 5 to 8 -> Max 25 marks
+ * Classes 9 to 12 -> Max 20 marks
+ * 
+ * Supports:
+ * - Arabic digits (5-12)
+ * - Roman numerals (V-XII)
+ * - Strings with or without section suffixes (e.g. "8A", "Class 8 A", "Class VIII-A", "Class 10B", "Class XII")
+ */
+export function getClassWeeklyTestMaxMarks(className = '') {
+  if (!className) return 25;
+  const str = String(className).trim();
+
+  // 1. Exact or word-bounded numbers: 9, 10, 11, 12 vs 5, 6, 7, 8
+  const numMatch = str.match(/\b(1[0-2]|9|[5-8])\b/);
+  if (numMatch) {
+    const num = parseInt(numMatch[1], 10);
+    if (num >= 9 && num <= 12) return 20;
+    if (num >= 5 && num <= 8) return 25;
+  }
+
+  // 2. Embedded numbers with section suffixes (e.g. "Class8A", "Class 8A", "10B", "8-A", "Class10")
+  const anyNumMatch = str.match(/(?:class\s*|grade\s*|^)?(1[0-2]|9|[5-8])(?:[a-z\s\-]|$)/i);
+  if (anyNumMatch) {
+    const num = parseInt(anyNumMatch[1], 10);
+    if (num >= 9 && num <= 12) return 20;
+    if (num >= 5 && num <= 8) return 25;
+  }
+
+  // 3. Roman numerals: IX, X, XI, XII vs V, VI, VII, VIII (with or without section suffix like VIII-A or VIIIA)
+  if (/(?:^|\b|class\s*)(ix|x|xi|xii)(?:[\s\-_]?[a-z]|\b|$)/i.test(str)) {
+    return 20;
+  }
+  if (/(?:^|\b|class\s*)(v|vi|vii|viii)(?:[\s\-_]?[a-z]|\b|$)/i.test(str)) {
+    return 25;
+  }
+
+  // Fallback for general numbers if string has any digit
+  const fallbackNum = str.match(/\d+/);
+  if (fallbackNum) {
+    const num = parseInt(fallbackNum[0], 10);
+    if (num >= 9 && num <= 12) return 20;
+    if (num >= 5 && num <= 8) return 25;
+  }
+
+  return 25;
+}
+
 export const DEFAULT_WEEKLY_TEST_CONFIG = {
   reporting_enabled: true,
   applicable_classes: [
@@ -76,6 +125,8 @@ export const DEFAULT_WEEKLY_TEST_CONFIG = {
 };
 
 export class WeeklyTestReportService {
+  static getClassWeeklyTestMaxMarks = getClassWeeklyTestMaxMarks;
+
   /**
    * Fetch current system configuration from app_settings
    */
@@ -966,6 +1017,7 @@ export class WeeklyTestReportService {
 
     // Calculate Class-by-Class Honours & Details with Section Isolation
     const honoursData = [];
+    const subjectHonoursData = [];
     const requiresAttentionData = [];
     const classDetailsData = [];
     let grandEvaluated = 0;
@@ -973,6 +1025,7 @@ export class WeeklyTestReportService {
 
     for (const clsProg of classProgress) {
       const fullClassName = `${clsProg.className} ${clsProg.section}`.trim();
+      const classMaxMarks = getClassWeeklyTestMaxMarks(clsProg.className);
       const clsStudents = (students || []).filter(s => s.class_id === clsProg.classId);
 
       const classStudentMap = new Map();
@@ -983,6 +1036,8 @@ export class WeeklyTestReportService {
           name: st.name,
           house: getStudentHouse(st.name, fullClassName),
           subjectScores: {},
+          rawTotal: 0,
+          rawMaxMarks: 0,
           total: 0,
           maxMarks: 0,
           isAbsent: false,
@@ -1006,7 +1061,7 @@ export class WeeklyTestReportService {
           if (submission) {
             const dm = detailedBySubAndStudent.get(`${submission.id}_${st.id}`);
             if (dm) {
-              const maxRaw = 25;
+              const maxRaw = classMaxMarks;
               if (dm.status === 'ABSENT' || String(dm.raw_score).toUpperCase() === 'A' || String(dm.raw_score).toUpperCase() === 'ABS') {
                 stRec.subjectScores[sub.subjectName] = { score: 0, max: maxRaw, isAbsent: true };
                 stRec.attemptedSubjects++;
@@ -1014,8 +1069,8 @@ export class WeeklyTestReportService {
                 resolved = true;
               } else if (dm.raw_score !== null && dm.raw_score !== undefined && dm.raw_score !== '') {
                 const num = Number(dm.raw_score);
-                stRec.total += num;
-                stRec.maxMarks += maxRaw;
+                stRec.rawTotal += num;
+                stRec.rawMaxMarks += maxRaw;
                 stRec.hasAnyScore = true;
                 stRec.attemptedSubjects++;
                 stRec.subjectScores[sub.subjectName] = { score: num, max: maxRaw, isAbsent: false };
@@ -1028,7 +1083,7 @@ export class WeeklyTestReportService {
           if (!resolved && weeklyTest) {
             const wtm = wtMarksByTestAndStudent.get(`${weeklyTest.id}_${st.id}`);
             if (wtm) {
-              const maxRaw = Number(weeklyTest.max_marks || 20);
+              const maxRaw = Number(weeklyTest.max_marks) || classMaxMarks;
               if (wtm.is_absent) {
                 stRec.subjectScores[sub.subjectName] = { score: 0, max: maxRaw, isAbsent: true };
                 stRec.attemptedSubjects++;
@@ -1036,8 +1091,8 @@ export class WeeklyTestReportService {
                 resolved = true;
               } else if (wtm.score !== null && wtm.score !== undefined && wtm.score !== '') {
                 const num = Number(wtm.score);
-                stRec.total += num;
-                stRec.maxMarks += maxRaw;
+                stRec.rawTotal += num;
+                stRec.rawMaxMarks += maxRaw;
                 stRec.hasAnyScore = true;
                 stRec.attemptedSubjects++;
                 stRec.subjectScores[sub.subjectName] = { score: num, max: maxRaw, isAbsent: false };
@@ -1050,7 +1105,7 @@ export class WeeklyTestReportService {
           if (!resolved) {
             const legScore = legacyMarksByStudentSub.get(`${st.id}_${sub.subjectId}`);
             if (legScore !== undefined && legScore !== null && legScore !== '') {
-              const maxRaw = 25;
+              const maxRaw = classMaxMarks;
               const legStr = String(legScore).trim().toUpperCase();
               if (legStr === 'A' || legStr === 'ABS' || legStr === 'ABSENT') {
                 stRec.subjectScores[sub.subjectName] = { score: 0, max: maxRaw, isAbsent: true };
@@ -1059,8 +1114,8 @@ export class WeeklyTestReportService {
                 resolved = true;
               } else {
                 const num = Number(legScore);
-                stRec.total += num;
-                stRec.maxMarks += maxRaw;
+                stRec.rawTotal += num;
+                stRec.rawMaxMarks += maxRaw;
                 stRec.hasAnyScore = true;
                 stRec.attemptedSubjects++;
                 stRec.subjectScores[sub.subjectName] = { score: num, max: maxRaw, isAbsent: false };
@@ -1071,6 +1126,86 @@ export class WeeklyTestReportService {
         });
       }
 
+      // Generate subject-wise honours (Tuesday Assembly subject slips)
+      for (const sub of clsProg.subjects) {
+        const subjectStudents = [];
+        clsStudents.forEach(st => {
+          const stRec = classStudentMap.get(st.id);
+          const subScore = stRec?.subjectScores?.[sub.subjectName];
+          if (subScore) {
+            const isAbsent = subScore.isAbsent === true;
+            const scoreVal = isAbsent ? 0 : subScore.score;
+            const maxVal = subScore.max || classMaxMarks;
+            subjectStudents.push({
+              student: st,
+              rollNo: st.roll_no,
+              name: st.name,
+              house: getStudentHouse(st.name, fullClassName),
+              total: scoreVal,
+              maxMarks: maxVal,
+              percentage: (!isAbsent && maxVal > 0)
+                ? MarksCalculationEngine.applyRounding((scoreVal / maxVal) * 100, 'ROUND_1_DECIMAL')
+                : 0,
+              isAbsent
+            });
+          }
+        });
+
+        const hasSubjectEntries = subjectStudents.some(s => !s.isAbsent && s.total !== null && s.total !== undefined);
+        if (hasSubjectEntries) {
+          const passingThreshold = config.requires_attention_threshold !== undefined ? Number(config.requires_attention_threshold) : 10;
+          const subHonours = MarksCalculationEngine.calculateHonoursAndAttention(subjectStudents, {
+            rankingPolicy: config.ranking_policy || 'DENSE',
+            requiresAttentionThreshold: passingThreshold,
+            thresholdType: config.threshold_type || 'SCORE',
+            excludeAbsentFromRanking: config.exclude_absent_from_ranking ?? true
+          });
+
+          subjectHonoursData.push({
+            classId: clsProg.classId,
+            className: clsProg.className,
+            section: clsProg.section,
+            fullClassName,
+            subjectId: sub.subjectId,
+            subjectName: sub.subjectName,
+            teacherName: sub.teacherName || 'Subject Teacher',
+            maxMarks: classMaxMarks,
+            passingMarks: passingThreshold,
+            totalStudents: clsStudents.length,
+            evaluatedCount: subjectStudents.filter(s => !s.isAbsent).length,
+            absentCount: subjectStudents.filter(s => s.isAbsent).length,
+            topScorers: subHonours.topScorers.map(t => ({
+              studentId: t.student.id,
+              rollNo: t.rollNo,
+              name: formatStudentDisplayName(t.name),
+              house: t.house,
+              total: t.total,
+              maxMarks: t.maxMarks,
+              percentage: t.percentage,
+              rank: t.rank,
+              rankDisplay: t.rankDisplay,
+              isTie: t.isTie
+            })),
+            requiresAttention: subHonours.requiresAttention.map(r => ({
+              studentId: r.student.id,
+              rollNo: r.rollNo,
+              name: formatStudentDisplayName(r.name),
+              house: r.house,
+              total: r.total,
+              maxMarks: r.maxMarks,
+              percentage: r.percentage,
+              reason: r.reason
+            })),
+            absentees: subHonours.absentees.map(a => ({
+              studentId: a.student.id,
+              rollNo: a.rollNo,
+              name: formatStudentDisplayName(a.name),
+              house: a.house
+            }))
+          });
+        }
+      }
+
       // Filter students who have participated in tests
       const evaluatedRoster = Array.from(classStudentMap.values()).filter(s => s.attemptedSubjects > 0);
 
@@ -1078,10 +1213,45 @@ export class WeeklyTestReportService {
         if (!s.hasAnyScore && s.absentSubjects > 0) {
           s.isAbsent = true;
           s.percentage = 0;
+          s.scaledScore = 0;
+          s.total = 0;
+          s.maxMarks = classMaxMarks;
           grandAbsent++;
         } else {
           s.isAbsent = false;
-          s.percentage = s.maxMarks > 0 ? MarksCalculationEngine.applyRounding((s.total / s.maxMarks) * 100, 'ROUND_1_DECIMAL') : 0;
+          // Percentage-equivalent aggregation:
+          // If subject maximums differ, normalize each subject first:
+          // subject percentage -> normalized contribution -> consolidated class score.
+          const validEntries = Object.values(s.subjectScores).filter(sub => !sub.isAbsent && sub.max > 0 && sub.score !== null && sub.score !== undefined);
+
+          if (validEntries.length > 0) {
+            const allSameMax = validEntries.every(sub => sub.max === validEntries[0].max);
+            let finalPercentage = 0;
+            let finalScaledScore = 0;
+
+            if (allSameMax) {
+              const rawSum = validEntries.reduce((sum, sub) => sum + sub.score, 0);
+              const maxPossible = validEntries.reduce((sum, sub) => sum + sub.max, 0);
+              finalPercentage = maxPossible > 0 ? (rawSum / maxPossible) * 100 : 0;
+              finalScaledScore = maxPossible > 0 ? (rawSum / maxPossible) * classMaxMarks : 0;
+            } else {
+              // Normalize each subject first so subjects with larger raw max do not disproportionately affect score
+              const meanFraction = validEntries.reduce((sum, sub) => sum + (sub.score / sub.max), 0) / validEntries.length;
+              finalPercentage = meanFraction * 100;
+              finalScaledScore = meanFraction * classMaxMarks;
+            }
+
+            s.percentage = MarksCalculationEngine.applyRounding(finalPercentage, 'ROUND_1_DECIMAL');
+            s.scaledScore = MarksCalculationEngine.applyRounding(finalScaledScore, 'ROUND_1_DECIMAL');
+            s.total = s.scaledScore;
+            s.maxMarks = classMaxMarks;
+          } else {
+            s.percentage = 0;
+            s.scaledScore = 0;
+            s.total = 0;
+            s.maxMarks = classMaxMarks;
+          }
+
           grandEvaluated++;
         }
       });
@@ -1100,6 +1270,7 @@ export class WeeklyTestReportService {
           className: clsProg.className,
           section: clsProg.section,
           fullClassName,
+          maxMarks: classMaxMarks,
           topScorers: topScorers.map(t => ({
             studentId: t.student.id,
             rollNo: t.rollNo,
@@ -1107,6 +1278,8 @@ export class WeeklyTestReportService {
             house: t.house,
             total: t.total,
             maxMarks: t.maxMarks,
+            rawTotal: t.rawTotal,
+            rawMaxMarks: t.rawMaxMarks,
             percentage: t.percentage,
             rank: t.rank,
             rankDisplay: t.rankDisplay,
@@ -1118,6 +1291,7 @@ export class WeeklyTestReportService {
           requiresAttentionData.push({
             classId: clsProg.classId,
             fullClassName,
+            maxMarks: classMaxMarks,
             students: requiresAttention.map(r => ({
               studentId: r.student.id,
               rollNo: r.rollNo,
@@ -1125,6 +1299,8 @@ export class WeeklyTestReportService {
               house: r.house,
               total: r.total,
               maxMarks: r.maxMarks,
+              rawTotal: r.rawTotal,
+              rawMaxMarks: r.rawMaxMarks,
               percentage: r.percentage,
               reason: r.reason
             }))
@@ -1134,6 +1310,7 @@ export class WeeklyTestReportService {
         classDetailsData.push({
           classId: clsProg.classId,
           fullClassName,
+          maxMarks: classMaxMarks,
           roster: evaluatedRoster.sort((a, b) => (Number(a.rollNo) || 0) - (Number(b.rollNo) || 0)).map(s => ({
             studentId: s.student.id,
             rollNo: s.rollNo,
@@ -1141,6 +1318,8 @@ export class WeeklyTestReportService {
             house: s.house,
             total: s.total,
             maxMarks: s.maxMarks,
+            rawTotal: s.rawTotal,
+            rawMaxMarks: s.rawMaxMarks,
             percentage: s.percentage,
             isAbsent: s.isAbsent,
             subjectScores: s.subjectScores
@@ -1165,7 +1344,8 @@ export class WeeklyTestReportService {
       studentsRequiringAttention: requiresAttentionData.reduce((acc, c) => acc + c.students.length, 0),
       isDataComplete,
       generationType: isMondaySchedule ? 'MONDAY_OFFICIAL_SCHEDULE' : 'EXPLICIT_RUN',
-      is_live_compilation: true
+      is_live_compilation: true,
+      subject_honours_data: subjectHonoursData
     };
 
     const pdfFilename = `Gyanoday_Weekly_Test_Report_${cycle.week_identifier.replace(/\s+/g, '_')}_${academicYear}_V${newVersion}.pdf`;
@@ -1181,6 +1361,7 @@ export class WeeklyTestReportService {
       is_current_final: targetStatus === 'FINAL',
       summary_data: summaryData,
       honours_data: honoursData,
+      subject_honours_data: subjectHonoursData,
       requires_attention_data: requiresAttentionData,
       class_details_data: classDetailsData,
       missing_submissions_data: missingSubmissions,
@@ -1212,9 +1393,13 @@ export class WeeklyTestReportService {
         }
       }
 
+      // Safe against missing subject_honours_data column in PostgreSQL weekly_test_reports
+      const dbPayload = { ...reportPayload };
+      delete dbPayload.subject_honours_data;
+
       const { data: savedReport, error: saveErr } = await supabase
         .from('weekly_test_reports')
-        .upsert(reportPayload, { onConflict: 'academic_year,cycle_id,version' })
+        .upsert(dbPayload, { onConflict: 'academic_year,cycle_id,version' })
         .select()
         .single();
 
@@ -1245,6 +1430,9 @@ export class WeeklyTestReportService {
           reason: revisionReason || (targetStatus === 'FINAL' ? 'Generated official consolidated report' : 'Completion check executed; live progress updated')
         });
 
+        if (savedReport) {
+          savedReport.subject_honours_data = subjectHonoursData;
+        }
         return savedReport;
       }
     } catch (err) {
@@ -1277,6 +1465,9 @@ export class WeeklyTestReportService {
         if (isTableMissingError(error)) return null;
         console.warn('getLatestFinalReport notice:', error.message);
         return null;
+      }
+      if (data && !data.subject_honours_data && data.summary_data?.subject_honours_data) {
+        data.subject_honours_data = data.summary_data.subject_honours_data;
       }
       return data;
     } catch (err) {

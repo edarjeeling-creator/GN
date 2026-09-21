@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { 
   Trophy, Download, RefreshCw, AlertTriangle, 
-  Send, Calendar, ShieldAlert
+  Send, Calendar, ShieldAlert, BookOpen
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { WeeklyTestReportService } from '../services/WeeklyTestReportService';
@@ -23,6 +23,7 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showMissingModal, setShowMissingModal] = useState(false);
   const [copiedWhatsapp, setCopiedWhatsapp] = useState(false);
+  const [honoursViewMode, setHonoursViewMode] = useState('class'); // 'class' | 'subject'
   const pdfContainerRef = useRef(null);
 
   const isPrincipalOrAdmin = ['admin', 'superadmin', 'principal', 'coordinator'].includes(profile?.role);
@@ -60,6 +61,10 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
           academicYear,
           term: termToUse
         });
+      }
+
+      if (target && !target.subject_honours_data && target.summary_data?.subject_honours_data) {
+        target.subject_honours_data = target.summary_data.subject_honours_data;
       }
 
       setReport(target);
@@ -115,6 +120,9 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
         revisionReason: `Live update triggered by ${profile?.name || 'Principal'}`,
         generatedBy: profile?.id
       });
+      if (updated && !updated.subject_honours_data && updated.summary_data?.subject_honours_data) {
+        updated.subject_honours_data = updated.summary_data.subject_honours_data;
+      }
       setReport(updated);
       setSelectedReportId(updated.id);
 
@@ -185,6 +193,7 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
 
   const summary = report?.summary_data || {};
   const honours = report?.honours_data || [];
+  const subjectHonours = report?.subject_honours_data || report?.summary_data?.subject_honours_data || [];
   const requiresAttention = report?.requires_attention_data || [];
   const missing = report?.missing_submissions_data || completionData?.missingSubmissions || [];
   const isFinal = report?.status === 'FINAL';
@@ -445,69 +454,217 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
 
       {/* 4. TUESDAY ASSEMBLY HONOURS PODIUM (High-Contrast, Instant Scan) */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-800 mb-4 gap-3">
           <div className="flex items-center gap-2">
-            <Trophy className="text-amber-400" size={20} />
-            <h3 className="text-base font-black text-white uppercase tracking-wider">
-              Tuesday Assembly Honours Summary
-            </h3>
+            <Trophy className="text-amber-400 shrink-0" size={20} />
+            <div>
+              <h3 className="text-base font-black text-white uppercase tracking-wider">
+                Tuesday Assembly Honours Summary
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                Senior School (Classes 5–8 Max 25 • Classes 9–12 Max 20)
+              </p>
+            </div>
           </div>
-          <span className="text-[11px] text-slate-400">Classes 5–12 Top Scorers</span>
-        </div>
 
-        {honours.length === 0 ? (
-          <div className="text-slate-400 text-center py-6 text-xs space-y-2">
-            <p className="italic">No honours evaluated yet for {selectedTerm === 'Finalterm' ? 'Final Term' : 'Mid Term'}.</p>
+          {/* View Mode Switcher: Class Consolidated vs By Subject */}
+          <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs self-start sm:self-auto">
             <button
               type="button"
-              onClick={() => handleRunReportCheck(true)}
-              disabled={isRefreshing || isCompiling}
-              className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+              onClick={() => setHonoursViewMode('class')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                honoursViewMode === 'class'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
             >
-              <RefreshCw className={(isRefreshing || isCompiling) ? 'animate-spin' : ''} size={13} />
-              <span>Compile Live Marks Now</span>
+              <span>🏅 Class Consolidated</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setHonoursViewMode('subject')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                honoursViewMode === 'subject'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <BookOpen size={13} />
+              <span>By Subject (Assembly Slips)</span>
+              {subjectHonours.length > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                  honoursViewMode === 'subject' ? 'bg-slate-950 text-amber-400 font-black' : 'bg-slate-800 text-slate-300'
+                }`}>
+                  {subjectHonours.length}
+                </span>
+              )}
             </button>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {honours.map(clsH => (
-              <div 
-                key={clsH.classId}
-                className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3.5 hover:border-slate-700 transition"
-              >
-                <div className="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
-                  <h4 className="font-black text-sm text-white">{clsH.fullClassName}</h4>
-                  <span className="text-[10px] text-slate-400 uppercase font-bold">Top 3 Rankers</span>
-                </div>
+        </div>
 
-                {clsH.topScorers.length === 0 ? (
-                  <span className="text-slate-500 italic text-xs block py-1">No marks entered</span>
-                ) : (
-                  <ul className="space-y-1.5">
-                    {clsH.topScorers.map(s => {
-                      const medal = s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : '🥉';
-                      const medalColor = s.rank === 1 ? 'text-amber-400' : s.rank === 2 ? 'text-slate-300' : 'text-amber-600';
-                      return (
-                        <li key={s.studentId} className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className={`text-base ${medalColor}`}>{medal}</span>
-                            <div>
-                              <strong className="text-white font-bold">{s.name}</strong>
-                              {s.house && <span className="text-slate-400 text-[10px] ml-1.5">({s.house})</span>}
+        {/* View 1: Class Consolidated */}
+        {honoursViewMode === 'class' && (
+          honours.length === 0 ? (
+            <div className="text-slate-400 text-center py-6 text-xs space-y-2">
+              <p className="italic">No honours evaluated yet for {selectedTerm === 'Finalterm' ? 'Final Term' : 'Mid Term'}.</p>
+              <button
+                type="button"
+                onClick={() => handleRunReportCheck(true)}
+                disabled={isRefreshing || isCompiling}
+                className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+              >
+                <RefreshCw className={(isRefreshing || isCompiling) ? 'animate-spin' : ''} size={13} />
+                <span>Compile Live Marks Now</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {honours.map(clsH => (
+                <div 
+                  key={clsH.classId}
+                  className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3.5 hover:border-slate-700 transition"
+                >
+                  <div className="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
+                    <div>
+                      <h4 className="font-black text-sm text-white">{clsH.fullClassName}</h4>
+                      <span className="text-[10px] text-amber-400/90 font-semibold block">
+                        Scale: Max {clsH.maxMarks || 25} Marks
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold">Top 3 Rankers</span>
+                  </div>
+
+                  {clsH.topScorers.length === 0 ? (
+                    <span className="text-slate-500 italic text-xs block py-1">No marks entered</span>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {clsH.topScorers.map(s => {
+                        const medal = s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : '🥉';
+                        const medalColor = s.rank === 1 ? 'text-amber-400' : s.rank === 2 ? 'text-slate-300' : 'text-amber-600';
+                        return (
+                          <li key={s.studentId} className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-base ${medalColor}`}>{medal}</span>
+                              <div>
+                                <strong className="text-white font-bold">{s.name}</strong>
+                                {s.house && <span className="text-slate-400 text-[10px] ml-1.5">({s.house})</span>}
+                              </div>
                             </div>
-                          </div>
-                          <div className="font-mono text-right">
-                            <span className="font-bold text-slate-200">{s.total}</span>
-                            <span className="text-slate-400 text-[10px] ml-1">({s.percentage}%)</span>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            ))}
-          </div>
+                            <div className="font-mono text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <span className="font-bold text-slate-100">{s.total} / {clsH.maxMarks || s.maxMarks}</span>
+                                <span className="text-amber-400 text-[10px] font-semibold">({s.percentage}%)</span>
+                              </div>
+                              {s.rawTotal !== undefined && s.rawTotal !== s.total && (
+                                <div className="text-[9px] text-slate-500 font-normal">
+                                  Raw: {s.rawTotal} / {s.rawMaxMarks}
+                                </div>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          )
+        )}
+
+        {/* View 2: By Subject (Assembly Slips) */}
+        {honoursViewMode === 'subject' && (
+          subjectHonours.length === 0 ? (
+            <div className="text-slate-400 text-center py-6 text-xs space-y-2">
+              <p className="italic">No subject test slips entered yet for {selectedTerm === 'Finalterm' ? 'Final Term' : 'Mid Term'}.</p>
+              <button
+                type="button"
+                onClick={() => handleRunReportCheck(true)}
+                disabled={isRefreshing || isCompiling}
+                className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+              >
+                <RefreshCw className={(isRefreshing || isCompiling) ? 'animate-spin' : ''} size={13} />
+                <span>Compile Live Marks Now</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {subjectHonours.map(subH => (
+                <div 
+                  key={`${subH.classId}_${subH.subjectId}`}
+                  className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3.5 hover:border-slate-700 transition"
+                >
+                  <div className="flex justify-between items-start border-b border-slate-800 pb-2 mb-2">
+                    <div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="px-2 py-0.5 rounded bg-brand-500/20 text-brand-300 font-bold text-[10px]">
+                          {subH.fullClassName}
+                        </span>
+                        <h4 className="font-black text-sm text-white">{subH.subjectName}</h4>
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">
+                        Teacher: <span className="text-slate-200 font-medium">{subH.teacherName}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold text-amber-400 uppercase bg-amber-950/50 px-2 py-0.5 rounded border border-amber-800/40">
+                        Max: {subH.maxMarks} • Pass: {subH.passingMarks || 10}
+                      </span>
+                      <div className="text-[9px] text-slate-500 mt-0.5">
+                        {subH.evaluatedCount} evaluated {subH.absentCount > 0 ? `(${subH.absentCount} absent)` : ''}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Top 3 Rankers */}
+                  {subH.topScorers.length === 0 ? (
+                    <span className="text-slate-500 italic text-xs block py-1">No marks entered</span>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {subH.topScorers.map(s => {
+                        const medal = s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : '🥉';
+                        const medalColor = s.rank === 1 ? 'text-amber-400' : s.rank === 2 ? 'text-slate-300' : 'text-amber-600';
+                        return (
+                          <li key={s.studentId} className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-base ${medalColor}`}>{medal}</span>
+                              <div>
+                                <strong className="text-white font-bold">{s.name}</strong>
+                                {s.house && <span className="text-slate-400 text-[10px] ml-1.5">({s.house})</span>}
+                              </div>
+                            </div>
+                            <div className="font-mono text-right">
+                              <span className="font-bold text-slate-200">{s.total} / {subH.maxMarks}</span>
+                              <span className="text-slate-400 text-[10px] ml-1">({s.percentage}%)</span>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+
+                  {/* Requires Attention (< 10) in this subject */}
+                  {subH.requiresAttention && subH.requiresAttention.length > 0 && (
+                    <div className="mt-2.5 pt-2 border-t border-slate-800/80">
+                      <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider block mb-1">
+                        Requires Attention (&lt; {subH.passingMarks || 10}):
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {subH.requiresAttention.map(att => (
+                          <span 
+                            key={att.studentId}
+                            className="px-2 py-0.5 rounded bg-rose-950/40 text-rose-300 border border-rose-900/50 text-[10px] font-medium"
+                          >
+                            {att.name}: <strong className="font-mono text-rose-200">{att.total}/{subH.maxMarks}</strong>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )
         )}
       </div>
 
@@ -537,9 +694,16 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
                   <span className="text-slate-200 ml-1.5 font-medium">{st.name}</span>
                   {st.house && <span className="text-slate-400 text-[10px] ml-1">({st.house})</span>}
                 </div>
-                <span className="font-mono font-bold text-rose-400">
-                  {st.total} / {st.maxMarks} ({st.percentage}%)
-                </span>
+                <div className="font-mono text-right">
+                  <span className="font-bold text-rose-400">
+                    {st.total} / {st.maxMarks || c.maxMarks || 25} ({st.percentage}%)
+                  </span>
+                  {st.rawTotal !== undefined && st.rawTotal !== st.total && (
+                    <span className="text-[9px] text-slate-500 font-normal ml-1">
+                      (Raw: {st.rawTotal}/{st.rawMaxMarks})
+                    </span>
+                  )}
+                </div>
               </div>
             )))}
           </div>

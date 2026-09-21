@@ -11,6 +11,7 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
 
   const summary = report.summary_data || {};
   const honours = report.honours_data || [];
+  const subjectHonours = report.subject_honours_data || report.summary_data?.subject_honours_data || [];
   const requiresAttention = report.requires_attention_data || [];
   const classDetails = report.class_details_data || [];
   const config = report.config_snapshot || {};
@@ -144,7 +145,12 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
                                 {s.house && <span className="text-slate-500 text-[10px]">({s.house})</span>}
                               </span>
                               <span className="font-mono font-bold text-slate-900">
-                                {s.total} / {s.maxMarks} ({s.percentage}%)
+                                {s.total} / {s.maxMarks || clsHonour.maxMarks} ({s.percentage}%)
+                                {s.rawTotal !== undefined && s.rawTotal !== s.total && (
+                                  <span className="text-[9px] text-slate-500 font-normal ml-1">
+                                    (Raw: {s.rawTotal}/{s.rawMaxMarks})
+                                  </span>
+                                )}
                               </span>
                             </li>
                           );
@@ -176,7 +182,12 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
                         <strong>{c.fullClassName}:</strong> {s.name} {s.house && `(${s.house})`}
                       </span>
                       <span className="font-mono font-bold text-rose-700">
-                        {s.total} / {s.maxMarks} ({s.percentage}%)
+                        {s.total} / {s.maxMarks || c.maxMarks || 25} ({s.percentage}%)
+                        {s.rawTotal !== undefined && s.rawTotal !== s.total && (
+                          <span className="text-[9px] text-slate-500 font-normal ml-1">
+                            (Raw: {s.rawTotal}/{s.rawMaxMarks})
+                          </span>
+                        )}
                       </span>
                     </div>
                   )))}
@@ -204,6 +215,78 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
           </div>
         </div>
       </div>
+
+      {/* PAGE 2: SUBJECT-WISE ASSEMBLY HONOURS DOSSIER */}
+      {subjectHonours.length > 0 && (
+        <div className="pt-8 border-t-2 border-slate-400 print:break-before-page min-h-[270mm] flex flex-col justify-between mb-8">
+          <div>
+            <div className="flex justify-between items-center border-b-2 border-slate-900 pb-2 mb-4">
+              <div>
+                <h3 className="text-base font-black uppercase text-slate-950">
+                  Tuesday Morning Assembly — Subject Slips Dossier
+                </h3>
+                <span className="text-xs text-slate-600 font-medium">
+                  {schoolName} • {report.week_identifier} ({report.test_date})
+                </span>
+              </div>
+              <span className="text-[10px] font-bold uppercase bg-amber-100 text-amber-900 px-2 py-1 rounded border border-amber-300">
+                {subjectHonours.length} Subject Slips
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {subjectHonours.map(subH => (
+                <div 
+                  key={`${subH.classId}_${subH.subjectId}`}
+                  className="border border-slate-300 rounded-md p-2.5 bg-slate-50/70 break-inside-avoid"
+                >
+                  <div className="flex justify-between items-start border-b border-slate-200 pb-1 mb-1.5">
+                    <div>
+                      <strong className="text-slate-900 text-xs">{subH.fullClassName} — {subH.subjectName}</strong>
+                      <div className="text-[10px] text-slate-500">Teacher: {subH.teacherName}</div>
+                    </div>
+                    <span className="text-[9px] font-bold bg-slate-200 text-slate-800 px-1.5 py-0.5 rounded">
+                      Max: {subH.maxMarks} • Pass: {subH.passingMarks || 10}
+                    </span>
+                  </div>
+
+                  {subH.topScorers.length === 0 ? (
+                    <span className="text-slate-400 italic text-[10px]">No marks entered</span>
+                  ) : (
+                    <ul className="space-y-0.5 text-[10px]">
+                      {subH.topScorers.map(s => {
+                        const medal = s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : '🥉';
+                        return (
+                          <li key={s.studentId} className="flex justify-between items-center">
+                            <span>
+                              {medal} <strong>{s.rankDisplay}:</strong> {s.name} {s.house && `(${s.house})`}
+                            </span>
+                            <span className="font-mono font-bold text-slate-900">
+                              {s.total} / {subH.maxMarks} ({s.percentage}%)
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+
+                  {subH.requiresAttention && subH.requiresAttention.length > 0 && (
+                    <div className="mt-1.5 pt-1 border-t border-rose-200 text-[9px] text-rose-700">
+                      <strong>Requires Attention (&lt; {subH.passingMarks || 10}):</strong>{' '}
+                      {subH.requiresAttention.map(a => `${a.name} (${a.total}/${subH.maxMarks})`).join(', ')}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-200 flex justify-between text-[9px] text-slate-400">
+            <span>Tuesday Assembly Subject Honours Dossier</span>
+            <span>Gyanoday Niketan ERP Official Document</span>
+          </div>
+        </div>
+      )}
 
       {/* SUBSEQUENT PAGES: DETAILED CLASS-WISE ROSTERS */}
       {classDetails.map((cls, idx) => (
