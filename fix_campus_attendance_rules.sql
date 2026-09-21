@@ -1,13 +1,12 @@
 -- ==============================================================================
--- GYANODAY NIKETAN ERP: CAMPUS-SPECIFIC STAFF ATTENDANCE TIMING RULES MIGRATION
--- Senior School (08:15 + 10m = 08:25:00) & Junior School (08:40 + 10m = 08:50:00)
--- Strict Historical Integrity, Immutable Versioning, Zero Silent Fallbacks
+-- GYANODAY NIKETAN ERP: IMMEDIATE FIX FOR "relation public.campus_attendance_rules does not exist"
+-- Instructions: Run this script in Supabase Studio -> SQL Editor -> Click "Run"
 -- ==============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ------------------------------------------------------------------------------
--- 1. CAMPUS ATTENDANCE RULES TABLE (CONFIGURATION-DRIVEN ENGINE)
+-- 1. CREATE CAMPUS ATTENDANCE RULES TABLE
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.campus_attendance_rules (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -138,7 +137,7 @@ ALTER TABLE public.teacher_attendance
   ADD COLUMN IF NOT EXISTS applied_late_threshold TIME;
 
 -- ------------------------------------------------------------------------------
--- 5. SEED INITIAL CANONICAL RULES FOR SENIOR & JUNIOR SCHOOLS
+-- 5. SEED CANONICAL RULES FOR SENIOR & JUNIOR SCHOOLS
 -- ------------------------------------------------------------------------------
 DO $$
 DECLARE

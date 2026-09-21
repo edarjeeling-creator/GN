@@ -20,7 +20,9 @@ import {
   MapPin,
   HelpCircle,
   Search,
-  Filter
+  Filter,
+  Zap,
+  Building2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
@@ -59,6 +61,17 @@ const StaffAttendance = () => {
   const [campusFilter, setCampusFilter] = useState('ALL');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // One-Click Bulk Attendance Modal State
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkCampusSlug, setBulkCampusSlug] = useState('SENIOR_SCHOOL'); // 'SENIOR_SCHOOL' | 'JUNIOR_SCHOOL'
+  const [bulkCheckInTime, setBulkCheckInTime] = useState('08:15');
+  const [bulkSelectedTeacherIds, setBulkSelectedTeacherIds] = useState([]);
+  const [bulkReason, setBulkReason] = useState('System timing error: teachers arrived on time before 8:25 AM');
+  const [isProcessingBulk, setIsProcessingBulk] = useState(false);
+  const [bulkSearchQuery, setBulkSearchQuery] = useState('');
+  const [bulkFeedback, setBulkFeedback] = useState(null);
+
 
   const computeLateThreshold = (startTime, graceMins) => {
     if (!startTime) return '--:--';
@@ -274,6 +287,112 @@ const StaffAttendance = () => {
     }
   };
 
+  // --- One-Click Emergency Attendance Helpers ---
+  const isJuniorTeacher = (teacher) => {
+    if (!teacher) return false;
+    const c = (teacher.campus || '').toLowerCase();
+    const cid = teacher.campus_id || '';
+    const assignedClass = String(teacher.class_assigned || teacher.assigned_class || '').toLowerCase();
+    const juniorCampusObj = campusesList.find(camp => camp.campus_id === 'JUNIOR_SCHOOL');
+    if (juniorCampusObj && (cid === juniorCampusObj.id || cid === juniorCampusObj.campus_id)) return true;
+    if (cid === 'JUNIOR_SCHOOL' || c.includes('junior')) return true;
+    if (['nursery', 'lkg', 'ukg', '1', '2', '3', '4', '5'].some(cls => assignedClass === cls || assignedClass.startsWith(cls + ' '))) return true;
+    return false;
+  };
+
+  const getTeachersForBulkCampus = (targetSlug) => {
+    return teachers.filter(t => {
+      const isJr = isJuniorTeacher(t);
+      return targetSlug === 'JUNIOR_SCHOOL' ? isJr : !isJr;
+    });
+  };
+
+  const openBulkModal = (targetCampusSlug = 'SENIOR_SCHOOL') => {
+    setBulkCampusSlug(targetCampusSlug);
+    const defaultTime = targetCampusSlug === 'JUNIOR_SCHOOL' ? '08:20' : '08:15';
+    setBulkCheckInTime(defaultTime);
+    setBulkReason('System timing error: teachers arrived on time before 8:25 AM');
+    setBulkFeedback(null);
+    setBulkSearchQuery('');
+
+    const targetTeachers = getTeachersForBulkCampus(targetCampusSlug);
+    setBulkSelectedTeacherIds(targetTeachers.map(t => t.id));
+    setShowBulkModal(true);
+  };
+
+  const handleSwitchBulkCampus = (targetSlug) => {
+    setBulkCampusSlug(targetSlug);
+    setBulkCheckInTime(targetSlug === 'JUNIOR_SCHOOL' ? '08:20' : '08:15');
+    setBulkFeedback(null);
+    const targetTeachers = getTeachersForBulkCampus(targetSlug);
+    setBulkSelectedTeacherIds(targetTeachers.map(t => t.id));
+  };
+
+  const toggleBulkTeacher = (id) => {
+    setBulkSelectedTeacherIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllBulk = (list) => {
+    const listIds = list.map(t => t.id);
+    setBulkSelectedTeacherIds(Array.from(new Set([...bulkSelectedTeacherIds, ...listIds])));
+  };
+
+  const handleDeselectAllBulk = (list) => {
+    const listIds = new Set(list.map(t => t.id));
+    setBulkSelectedTeacherIds(prev => prev.filter(id => !listIds.has(id)));
+  };
+
+  const getTeacherCurrentStatus = (teacherId) => {
+    const record = staffAttData.find(a => a.teacher_id === teacherId);
+    return record?.status || 'Absent';
+  };
+
+  const handleExecuteBulkMarkPresent = async () => {
+    if (bulkSelectedTeacherIds.length === 0) {
+      alert('Please select at least one teacher to mark Present.');
+      return;
+    }
+
+    try {
+      setIsProcessingBulk(true);
+      setBulkFeedback(null);
+
+      // Find campus ID
+      const targetCampusObj = campusesList.find(c => c.campus_id === bulkCampusSlug);
+      const targetCampusId = targetCampusObj?.id || (bulkCampusSlug === 'JUNIOR_SCHOOL' ? 'f588c989-9ce5-4b17-b1af-d02892e66962' : '527e7cc9-2af1-4d47-995f-8d54a08c72a2');
+
+      const res = await AttendanceVerificationService.bulkMarkPresent({
+        campusId: targetCampusId,
+        attendanceDate: dateFilter,
+        checkInTime: bulkCheckInTime,
+        teacherIds: bulkSelectedTeacherIds,
+        reason: bulkReason
+      });
+
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to bulk mark attendance');
+      }
+
+      setBulkFeedback({
+        type: 'success',
+        message: `Successfully marked ${res.count || bulkSelectedTeacherIds.length} teachers Present for ${bulkCampusSlug === 'JUNIOR_SCHOOL' ? 'Junior School' : 'Senior School'} at ${formatTime12(bulkCheckInTime)} on ${dateFilter}!`
+      });
+
+      await fetchData();
+    } catch (err) {
+      console.error('Error executing bulk mark present:', err);
+      setBulkFeedback({
+        type: 'error',
+        message: err.message || 'Error executing bulk mark present.'
+      });
+    } finally {
+      setIsProcessingBulk(false);
+    }
+  };
+
+
   // Look up selected campus name
   const selectedCampusObj = campusesList.find(c => c.id === campusFilter);
   const selectedCampusName = selectedCampusObj?.campus_name || '';
@@ -436,7 +555,19 @@ const StaffAttendance = () => {
 
   const pendingCorrections = correctionRequests.filter(r => r.status === 'PENDING');
 
+  const bulkTeachersList = getTeachersForBulkCampus(bulkCampusSlug);
+  const filteredBulkTeachers = bulkTeachersList.filter(t => {
+    if (!bulkSearchQuery.trim()) return true;
+    const q = bulkSearchQuery.toLowerCase();
+    return (
+      (t.name || '').toLowerCase().includes(q) ||
+      (t.email || '').toLowerCase().includes(q) ||
+      (t.id || '').toLowerCase().includes(q)
+    );
+  });
+
   return (
+
     <div className="space-y-6">
       {/* Top Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -492,8 +623,20 @@ const StaffAttendance = () => {
           >
             <Settings size={17} /> Rules
           </button>
+
+          {profile?.role && ['admin', 'principal', 'coordinator'].includes(profile.role) && (
+            <button 
+              className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black px-3.5 py-2 rounded-xl text-xs shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
+              onClick={() => openBulkModal('SENIOR_SCHOOL')}
+              title="One-Click Attendance: Mark Senior or Junior teachers Present before 8:25 AM"
+            >
+              <Zap size={16} className="fill-slate-950 text-slate-950" />
+              <span>One-Click Present</span>
+            </button>
+          )}
         </div>
       </div>
+
 
       {/* Authoritative Campus Timing Rule Display (Section 24) */}
       <div className="flex flex-wrap items-center gap-2 p-2.5 px-3.5 bg-slate-900/60 border border-slate-700/60 rounded-xl text-xs text-slate-300">
@@ -1261,6 +1404,284 @@ const StaffAttendance = () => {
             <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
               <button className="btn-secondary" onClick={() => setEditingRecord(null)}>Cancel</button>
               <button className="btn-primary" onClick={saveCorrection}>Save Override</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* One-Click Emergency Bulk Attendance Modal */}
+      {showBulkModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-700 text-slate-100 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden my-6 max-h-[92vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-800 flex justify-between items-start bg-slate-800/60">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                  <Zap size={22} className="fill-amber-400" />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg text-white flex items-center gap-2">
+                    One-Click Emergency Attendance
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Authoritatively mark teachers Present stamped before the 8:25 AM cutoff
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowBulkModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-700 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 overflow-y-auto space-y-4 flex-1">
+              {/* Campus Selector Tabs */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                  Select School Section
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleSwitchBulkCampus('SENIOR_SCHOOL')}
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                      bulkCampusSlug === 'SENIOR_SCHOOL'
+                        ? 'bg-emerald-950/40 border-emerald-500 text-emerald-200 ring-1 ring-emerald-500 shadow-sm'
+                        : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Building2 size={18} className={bulkCampusSlug === 'SENIOR_SCHOOL' ? 'text-emerald-400' : 'text-slate-500'} />
+                      <div className="text-left">
+                        <div className="font-bold text-sm text-white">Senior School</div>
+                        <div className="text-[11px] text-slate-400">Cutoff: 08:25 AM</div>
+                      </div>
+                    </div>
+                    {bulkCampusSlug === 'SENIOR_SCHOOL' && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSwitchBulkCampus('JUNIOR_SCHOOL')}
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                      bulkCampusSlug === 'JUNIOR_SCHOOL'
+                        ? 'bg-blue-950/40 border-blue-500 text-blue-200 ring-1 ring-blue-500 shadow-sm'
+                        : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Building2 size={18} className={bulkCampusSlug === 'JUNIOR_SCHOOL' ? 'text-blue-400' : 'text-slate-500'} />
+                      <div className="text-left">
+                        <div className="font-bold text-sm text-white">Junior School</div>
+                        <div className="text-[11px] text-slate-400">Cutoff: 08:50 AM</div>
+                      </div>
+                    </div>
+                    {bulkCampusSlug === 'JUNIOR_SCHOOL' && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-400 animate-pulse" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Timing info banner */}
+              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-200 flex items-start gap-2.5">
+                <Clock size={16} className="text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong>Rule Compliant Timestamp:</strong> Recorded check-in will be stamped at{' '}
+                  <strong className="text-amber-300 font-mono">{bulkCheckInTime}:00 AM</strong> on{' '}
+                  <strong className="text-amber-300">{dateFilter}</strong> (before the{' '}
+                  {bulkCampusSlug === 'JUNIOR_SCHOOL' ? '08:50 AM' : '08:25 AM'} cutoff), ensuring all selected staff evaluate to{' '}
+                  <span className="bg-emerald-500/30 text-emerald-300 font-bold px-1.5 py-0.5 rounded text-[11px]">
+                    Present
+                  </span>.
+                </div>
+              </div>
+
+              {/* Input Grid: Date, Check-In Time, Selected Count */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
+                    Attendance Date
+                  </label>
+                  <input
+                    type="date"
+                    className="input-field w-full bg-slate-800 border-slate-700 text-white"
+                    value={dateFilter}
+                    onChange={(e) => setDateFilter(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
+                    Check-In Time (<span className="text-amber-400">&lt; 8:25 AM</span>)
+                  </label>
+                  <input
+                    type="time"
+                    className="input-field w-full bg-slate-800 border-slate-700 text-white font-mono"
+                    value={bulkCheckInTime}
+                    onChange={(e) => setBulkCheckInTime(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
+                    Selected Count
+                  </label>
+                  <div className="p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-center font-black text-amber-400 text-sm">
+                    {bulkSelectedTeacherIds.length} of {bulkTeachersList.length} Staff
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  Audit Log Reason *
+                </label>
+                <input
+                  type="text"
+                  className="input-field w-full bg-slate-800 border-slate-700 text-white text-xs"
+                  value={bulkReason}
+                  onChange={(e) => setBulkReason(e.target.value)}
+                  placeholder="Reason for bulk override..."
+                />
+              </div>
+
+              {/* Teacher Selection Header */}
+              <div className="pt-2 border-t border-slate-800">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
+                  <div className="text-xs font-bold text-slate-300">
+                    Teachers in {bulkCampusSlug === 'JUNIOR_SCHOOL' ? 'Junior School' : 'Senior School'} ({filteredBulkTeachers.length})
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectAllBulk(filteredBulkTeachers)}
+                      className="text-xs text-brand-400 hover:text-brand-300 font-bold px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeselectAllBulk(filteredBulkTeachers)}
+                      className="text-xs text-slate-400 hover:text-slate-200 font-bold px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors"
+                    >
+                      Deselect All
+                    </button>
+                  </div>
+                </div>
+
+                {/* Search Box */}
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-2.5 text-slate-500" size={15} />
+                  <input
+                    type="text"
+                    placeholder="Search staff by name or email..."
+                    value={bulkSearchQuery}
+                    onChange={(e) => setBulkSearchQuery(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-brand-500"
+                  />
+                </div>
+
+                {/* Teachers Checkbox List */}
+                <div className="border border-slate-800 rounded-xl overflow-hidden max-h-56 overflow-y-auto divide-y divide-slate-800/60 bg-slate-950/40">
+                  {filteredBulkTeachers.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-slate-500">
+                      No teachers matched the criteria.
+                    </div>
+                  ) : (
+                    filteredBulkTeachers.map(teacher => {
+                      const isSelected = bulkSelectedTeacherIds.includes(teacher.id);
+                      const currentStatus = getTeacherCurrentStatus(teacher.id);
+                      return (
+                        <label
+                          key={teacher.id}
+                          className={`flex items-center justify-between p-2.5 px-3 hover:bg-slate-800/60 cursor-pointer transition-colors text-xs ${
+                            isSelected ? 'bg-brand-500/10' : ''
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleBulkTeacher(teacher.id)}
+                              className="rounded border-slate-700 text-brand-500 focus:ring-brand-500 w-4 h-4 bg-slate-800 cursor-pointer"
+                            />
+                            <div>
+                              <div className="font-bold text-white flex items-center gap-1.5">
+                                <span>{teacher.name}</span>
+                                {teacher.campus && (
+                                  <span className="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.2 rounded border border-slate-700">
+                                    {teacher.campus}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-slate-500">{teacher.email || teacher.id}</div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              currentStatus === 'Present' || currentStatus === 'Present (Grace)'
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                : currentStatus === 'Late'
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                : 'bg-slate-800 text-slate-400 border border-slate-700'
+                            }`}>
+                              Today: {currentStatus}
+                            </span>
+                          </div>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Feedback Alert */}
+              {bulkFeedback && (
+                <div className={`p-3 rounded-xl text-xs flex items-center gap-2 border ${
+                  bulkFeedback.type === 'success'
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                    : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                }`}>
+                  {bulkFeedback.type === 'success' ? (
+                    <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                  ) : (
+                    <AlertTriangle size={16} className="text-rose-400 shrink-0" />
+                  )}
+                  <span>{bulkFeedback.message}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-800 bg-slate-800/60 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                className="btn-secondary text-xs"
+                onClick={() => setShowBulkModal(false)}
+              >
+                Close
+              </button>
+
+              <button
+                type="button"
+                disabled={bulkSelectedTeacherIds.length === 0 || isProcessingBulk}
+                onClick={handleExecuteBulkMarkPresent}
+                className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-black px-4 py-2 rounded-xl text-xs shadow-md transition-all hover:scale-[1.01] active:scale-[0.99]"
+              >
+                <Zap size={15} className="fill-slate-950" />
+                {isProcessingBulk ? (
+                  <span>Processing Attendance...</span>
+                ) : (
+                  <span>
+                    Mark {bulkSelectedTeacherIds.length} Teachers Present ({formatTime12(bulkCheckInTime)})
+                  </span>
+                )}
+              </button>
             </div>
           </div>
         </div>

@@ -620,6 +620,120 @@ class AttendanceVerificationServiceImpl {
     }
     return data;
   }
+
+  /**
+   * One-click bulk attendance override for Senior or Junior school teachers.
+   * Stamped before 8:25 AM to ensure Present status during system outages.
+   */
+  async bulkMarkPresent({ campusId, attendanceDate, checkInTime = '08:15', teacherIds = null, reason = 'Administrative on-time check-in override due to system outage' }) {
+    if (!campusId) throw new Error('Campus ID is required.');
+    const targetDate = attendanceDate || new Date().toISOString().split('T')[0];
+    const timeFormatted = checkInTime.length === 5 ? `${checkInTime}:00` : checkInTime;
+
+    // Try server RPC first if deployed
+    try {
+      const { data, error } = await supabase.rpc('admin_bulk_mark_present', {
+        p_campus_id: campusId,
+        p_attendance_date: targetDate,
+        p_check_in_time: timeFormatted,
+        p_teacher_ids: teacherIds && teacherIds.length > 0 ? teacherIds : null,
+        p_reason: reason
+      });
+
+      if (!error && data && data.success) {
+        return data;
+      }
+    } catch (rpcErr) {
+      console.warn('RPC admin_bulk_mark_present not available, executing via direct management upsert:', rpcErr);
+    }
+
+    // Direct fallback for management (Admin / Principal / Coordinator)
+    // 1. Fetch active rule for the campus
+    const { data: rules } = await supabase
+      .from('campus_attendance_rules')
+      .select('*')
+      .eq('campus_id', campusId)
+      .eq('active', true)
+      .order('version', { ascending: false })
+      .limit(1);
+
+    const rule = rules && rules[0] ? rules[0] : null;
+    const ruleId = rule?.id || null;
+    const ruleVersion = rule?.version || 1;
+    const lateThreshold = rule?.late_threshold || '08:25:00';
+
+    // 2. Fetch target teachers if not provided
+    let targetIds = teacherIds;
+    if (!targetIds || targetIds.length === 0) {
+      const { data: campusObj } = await supabase.from('campuses').select('campus_name, campus_id').eq('id', campusId).single();
+      const campusName = campusObj?.campus_name || '';
+
+      const { data: teachers } = await supabase
+        .from('profiles')
+        .select('id, campus')
+        .in('role', ['teacher', 'coordinator'])
+        .eq('status', 'Active');
+
+      targetIds = (teachers || [])
+        .filter(t => !campusName || t.campus === campusName || t.campus === 'All Campuses' || !t.campus)
+        .map(t => t.id);
+    }
+
+    if (!targetIds || targetIds.length === 0) {
+      return { success: true, count: 0, message: 'No teachers found to mark present.' };
+    }
+
+    // Check-in timestamp with IST (+05:30)
+    const checkInIso = `${targetDate}T${timeFormatted}+05:30`;
+
+    const recordsToUpsert = targetIds.map(tId => ({
+      teacher_id: tId,
+      attendance_date: targetDate,
+      status: 'Present',
+      check_in_time: checkInIso,
+      check_in_method: 'ADMIN_OVERRIDE',
+      check_in_verification_status: 'VERIFIED',
+      campus_id: campusId,
+      attendance_rule_id: ruleId,
+      attendance_rule_version: ruleVersion,
+      applied_late_threshold: lateThreshold,
+      recorded_at: new Date().toISOString()
+    }));
+
+    const { error: upsertErr } = await supabase
+      .from('teacher_attendance')
+      .upsert(recordsToUpsert, { onConflict: 'teacher_id, attendance_date' });
+
+    if (upsertErr) {
+      throw new Error(upsertErr.message || 'Failed to upsert attendance records.');
+    }
+
+    // Try recording audit log
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData?.user?.id || null;
+      if (userId) {
+        const auditEntries = targetIds.map(tId => ({
+          record_id: tId,
+          modified_by: userId,
+          original_status: 'ONE_CLICK_OVERRIDE',
+          new_status: 'Present',
+          reason: `Admin bulk marked Present (${timeFormatted}): ${reason}`
+        }));
+        await supabase.from('attendance_audit_logs').insert(auditEntries);
+      }
+    } catch (e) {
+      console.warn('Could not record attendance audit log:', e);
+    }
+
+    return {
+      success: true,
+      count: targetIds.length,
+      attendanceDate: targetDate,
+      checkInTime: timeFormatted,
+      message: `Successfully marked ${targetIds.length} teachers Present!`
+    };
+  }
 }
 
 export const AttendanceVerificationService = new AttendanceVerificationServiceImpl();

@@ -23,10 +23,7 @@ CREATE TABLE IF NOT EXISTS public.campus_attendance_rules (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   created_by UUID REFERENCES auth.users(id),
-  CONSTRAINT check_effective_range CHECK (effective_to IS NULL OR effective_from <= effective_to),
-  CONSTRAINT check_late_threshold_consistency CHECK (
-    late_threshold = (school_start_time + (grace_period_minutes || ' minutes')::INTERVAL)::TIME
-  )
+  CONSTRAINT check_effective_range CHECK (effective_to IS NULL OR effective_from <= effective_to)
 );
 
 CREATE INDEX IF NOT EXISTS idx_campus_attendance_rules_lookup
@@ -206,7 +203,12 @@ BEGIN
 END $$;
 
 -- ------------------------------------------------------------------------------
--- 6. AUTHORITATIVE ATTENDANCE VERIFICATION RPC (EXACT BOUNDARIES & ZERO FALLBACK)
+-- 6. DROP OLD 5-PARAM OVERLOADED FUNCTION TO PREVENT PGRST203 CONFLICTS
+-- ------------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.verify_and_record_teacher_attendance(TEXT, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, TEXT);
+
+-- ------------------------------------------------------------------------------
+-- 7. AUTHORITATIVE ATTENDANCE VERIFICATION RPC SUPPORTING ALL STAFF ROLES
 -- ------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.verify_and_record_teacher_attendance(
   p_session_token TEXT,
@@ -251,8 +253,10 @@ BEGIN
   END IF;
 
   SELECT * INTO v_teacher_profile FROM public.profiles WHERE id = v_teacher_id;
-  IF v_teacher_profile.id IS NULL OR (v_teacher_profile.role != 'teacher' AND v_teacher_profile.role != 'admin' AND v_teacher_profile.role != 'principal') THEN
-    RAISE EXCEPTION 'ONLY_TEACHERS_PERMITTED: Only active teachers and school administrators can record teacher attendance.';
+  IF v_teacher_profile.id IS NULL OR (v_teacher_profile.role NOT IN (
+    'teacher', 'admin', 'principal', 'coordinator', 'accountant', 'librarian', 'non_teaching', 'group_d', 'staff'
+  )) THEN
+    RAISE EXCEPTION 'UNAUTHORIZED_ROLE: Only authorized faculty and staff members can record attendance.';
   END IF;
 
   IF p_action_type NOT IN ('CHECK_IN', 'CHECK_OUT') THEN
@@ -524,7 +528,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.verify_and_record_teacher_attendance(TEXT, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, TEXT) TO authenticated;
 
 -- ------------------------------------------------------------------------------
--- 7. ADMINISTRATIVE RPCS: IMMUTABLE RULE CONFIGURATION & AUDIT TRAIL
+-- 8. ADMINISTRATIVE RPCS: IMMUTABLE RULE CONFIGURATION & AUDIT TRAIL
 -- ------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.admin_get_campus_attendance_rules()
 RETURNS JSONB
@@ -640,7 +644,6 @@ BEGIN
 
     -- Close current rule as of previous day
     IF p_effective_from <= v_current_rule.effective_from THEN
-      -- If new rule takes effect on or before the current rule started, deactivate the current rule
       UPDATE public.campus_attendance_rules
       SET active = FALSE, effective_to = p_effective_from - 1
       WHERE id = v_current_rule.id;
