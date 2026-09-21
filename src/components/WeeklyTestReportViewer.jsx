@@ -126,7 +126,9 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
       setCompletionData(completion);
       setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (err) {
-      alert('Error updating report: ' + err.message);
+      console.error('Error updating report:', err);
+      const errorMsg = err?.message || err?.details || err?.error_description || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+      alert('Error updating report: ' + errorMsg);
     } finally {
       setIsRefreshing(false);
     }
@@ -146,10 +148,11 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
-      await html2pdf().set(opt).from(pdfContainerRef.current).save();
+      await window.html2pdf().from(pdfContainerRef.current).set(opt).save();
     } catch (err) {
       console.error('Error generating PDF:', err);
-      alert('Could not download PDF: ' + err.message);
+      const errorMsg = err?.message || err?.details || err?.error_description || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+      alert('Could not download PDF: ' + errorMsg);
     } finally {
       setIsGeneratingPdf(false);
     }
