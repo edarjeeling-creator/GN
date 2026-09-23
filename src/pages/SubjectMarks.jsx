@@ -63,7 +63,7 @@ const SubjectMarks = () => {
         const list = await MarksWorkflowService.getAssessmentPatterns(academicYear);
         setPatterns(list);
         if (cls) {
-          const matched = MarksCalculationEngine.resolvePattern(cls.name, academicYear, list);
+          const matched = MarksCalculationEngine.resolvePattern(cls.name, academicYear, list, subject?.name, cls.section);
           setActivePattern(matched);
         }
       } catch (err) {
@@ -71,7 +71,7 @@ const SubjectMarks = () => {
       }
     };
     fetchPatterns();
-  }, [cls?.name, academicYear]);
+  }, [cls?.name, cls?.section, subject?.name, academicYear]);
 
   // 2. Load submission status & detailed marks
   const loadSubmissionData = async () => {
@@ -220,8 +220,10 @@ const SubjectMarks = () => {
         const stStatus = statuses[key] || 'MARKED';
         studentScores[comp.component_code] = rawVal;
         studentStatuses[comp.component_code] = stStatus;
-        if (stStatus === 'ABSENT' || String(rawVal).toUpperCase() === 'A' || String(rawVal).toUpperCase() === 'ABS') {
-          hasAnyAbsent = true;
+        if (comp.contributes_to_total !== false) {
+          if (stStatus === 'ABSENT' || String(rawVal).toUpperCase() === 'A' || String(rawVal).toUpperCase() === 'ABS') {
+            hasAnyAbsent = true;
+          }
         }
       });
 
@@ -330,39 +332,64 @@ _Sent via Gyanoday Niketan ERP_`;
       const legacyPayload = [];
 
       classStudents.forEach(st => {
+        // Collect student scores and statuses for calculation
+        const studentScores = {};
+        const studentStatuses = {};
         components.forEach(comp => {
           const key = `${st.id}_${comp.component_code}`;
-          const rawVal = rawScores[key];
-          const stStatus = statuses[key] || 'MARKED';
+          studentScores[comp.component_code] = rawScores[key];
+          studentStatuses[comp.component_code] = statuses[key] || 'MARKED';
+        });
 
-          let converted = null;
-          if (stStatus === 'MARKED' && rawVal !== '' && rawVal !== undefined) {
-            converted = MarksCalculationEngine.convertComponentScore(
-              rawVal, 
-              comp, 
-              activePattern?.rounding_rule || 'ROUND_2_DECIMALS'
-            );
-          } else if (stStatus === 'ABSENT') {
-            converted = 0;
-          }
+        // Run authoritative ERP calculation for this student
+        const calcResult = MarksCalculationEngine.calculateStudentResult({
+          components,
+          rawScores: studentScores,
+          statuses: studentStatuses,
+          gradeBoundaries: activePattern?.grade_boundaries || [],
+          roundingRule: activePattern?.rounding_rule || 'ROUND_2_DECIMALS'
+        });
+
+        components.forEach(comp => {
+          const key = `${st.id}_${comp.component_code}`;
+          const compData = calcResult.componentBreakdown?.find(b => b.componentCode === comp.component_code);
+
+          let rawVal = comp.is_calculated ? compData?.rawScore : rawScores[key];
+          let stStatus = comp.is_calculated ? compData?.status : (statuses[key] || 'MARKED');
+          let converted = compData?.convertedScore;
 
           detailedPayload.push({
             studentId: st.id,
             componentId: comp.id,
-            rawScore: rawVal,
-            convertedScore: converted,
-            status: stStatus
+            rawScore: rawVal !== '' && rawVal !== null && rawVal !== undefined ? Number(rawVal) : null,
+            convertedScore: converted !== null && converted !== undefined ? Number(converted) : null,
+            status: stStatus || 'MARKED'
           });
 
           // Sync with legacy format for compatibility
-          const legacyTerm = `${academicYear}_${selectedTerm}_${comp.component_code === 'TEST' ? 'Test' : 'Exam'}`;
+          if (comp.component_code === 'TEST' || comp.component_code === 'EXAM') {
+            const legacyTerm = `${academicYear}_${selectedTerm}_${comp.component_code === 'TEST' ? 'Test' : 'Exam'}`;
+            legacyPayload.push({
+              student_id: st.id,
+              subject_id: subjectId,
+              term: legacyTerm,
+              score: stStatus === 'ABSENT' ? 0 : (rawVal !== '' && rawVal !== undefined && rawVal !== null ? Number(rawVal) : null)
+            });
+          }
+        });
+
+        // For Economics 3-Test pattern:
+        // TEST_AVG represents the Test mark. Sync to legacy ${academicYear}_${selectedTerm}_Test
+        const avgCompData = calcResult.componentBreakdown?.find(b => b.componentCode === 'TEST_AVG');
+        if (avgCompData) {
+          const legacyTerm = `${academicYear}_${selectedTerm}_Test`;
           legacyPayload.push({
             student_id: st.id,
             subject_id: subjectId,
             term: legacyTerm,
-            score: stStatus === 'ABSENT' ? 0 : (rawVal !== '' && rawVal !== undefined ? Number(rawVal) : null)
+            score: avgCompData.status === 'ABSENT' ? 0 : (avgCompData.rawScore !== null && avgCompData.rawScore !== undefined ? Number(avgCompData.rawScore) : null)
           });
-        });
+        }
       });
 
       await MarksWorkflowService.saveDraftMarks({
@@ -382,6 +409,177 @@ _Sent via Gyanoday Niketan ERP_`;
       setSaveStatus('error');
       alert('Failed to save draft: ' + err.message);
     }
+  };
+
+  // Export Marks to Excel
+  const handleExportExcel = () => {
+    try {
+      const exportData = filteredStudents.map(student => {
+        const studentScores = {};
+        const studentStatuses = {};
+        components.forEach(comp => {
+          const key = `${student.id}_${comp.component_code}`;
+          studentScores[comp.component_code] = rawScores[key];
+          studentStatuses[comp.component_code] = statuses[key] || 'MARKED';
+        });
+
+        const result = MarksCalculationEngine.calculateStudentResult({
+          components,
+          rawScores: studentScores,
+          statuses: studentStatuses,
+          gradeBoundaries: activePattern?.grade_boundaries || [],
+          roundingRule: activePattern?.rounding_rule || 'ROUND_2_DECIMALS'
+        });
+
+        const row = {
+          'Roll No': student.roll_no,
+          'Student Name': student.name
+        };
+
+        components.forEach(comp => {
+          const key = `${student.id}_${comp.component_code}`;
+          const compData = result.componentBreakdown?.find(b => b.componentCode === comp.component_code);
+          const stStatus = comp.is_calculated ? compData?.status : (statuses[key] || 'MARKED');
+          const rawVal = comp.is_calculated ? compData?.rawScore : rawScores[key];
+
+          const colHeader = comp.is_calculated
+            ? `${comp.component_name} (Auto Max ${comp.raw_max_marks})`
+            : `${comp.component_name} (Max ${comp.raw_max_marks})`;
+
+          if (stStatus === 'ABSENT') {
+            row[colHeader] = 'AB';
+          } else if (stStatus === 'NOT_APPLICABLE') {
+            row[colHeader] = 'NA';
+          } else if (rawVal !== '' && rawVal !== null && rawVal !== undefined) {
+            row[colHeader] = Number(rawVal);
+          } else {
+            row[colHeader] = '';
+          }
+        });
+
+        row['Calculated Total'] = result.hasAnyMark ? (result.isAllAbsent ? 'AB' : result.totalConverted) : '';
+        row['Grade'] = result.grade || '';
+
+        return row;
+      });
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      const sheetName = `${cls?.name || 'Class'}_${subject?.name || 'Subject'}`.substring(0, 31).replace(/[/\\?*[\]]/g, '_');
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      const fileName = `${cls?.name || 'Class'}_${cls?.section || ''}_${subject?.name || 'Subject'}_${selectedTerm}_${academicYear}.xlsx`.replace(/\s+/g, '_');
+      XLSX.writeFile(wb, fileName);
+    } catch (err) {
+      console.error('Excel Export Error:', err);
+      alert('Failed to export Excel: ' + err.message);
+    }
+  };
+
+  // Import Marks from Excel
+  const handleImportExcel = (e) => {
+    if (isReadOnly) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsName = wb.SheetNames[0];
+        const ws = wb.Sheets[wsName];
+        const rows = XLSX.utils.sheet_to_json(ws);
+
+        if (!rows || rows.length === 0) {
+          alert('No data rows found in the uploaded Excel file.');
+          return;
+        }
+
+        let updatedCount = 0;
+        const newRawScores = { ...rawScores };
+        const newStatuses = { ...statuses };
+
+        rows.forEach(row => {
+          // Find student by roll_no or name
+          const rollVal = row['Roll No'] !== undefined ? row['Roll No'] : row['Roll'] !== undefined ? row['Roll'] : row['RollNo'];
+          const nameVal = row['Student Name'] !== undefined ? row['Student Name'] : row['Name'];
+
+          const student = classStudents.find(st => {
+            if (rollVal !== undefined && rollVal !== null && rollVal !== '') {
+              return String(st.roll_no).trim() === String(rollVal).trim();
+            }
+            if (nameVal) {
+              return String(st.name).trim().toLowerCase() === String(nameVal).trim().toLowerCase();
+            }
+            return false;
+          });
+
+          if (!student) return;
+
+          let studentUpdated = false;
+
+          components.forEach(comp => {
+            // NEVER import calculated columns (e.g. TEST_AVG) - always recalculate!
+            if (comp.is_calculated) return;
+
+            // Look for matching column in row
+            const possibleCols = Object.keys(row).filter(k => {
+              const normK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+              const normCompCode = comp.component_code.toLowerCase().replace(/[^a-z0-9]/g, '');
+              const normCompName = comp.component_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+              return normK.includes(normCompCode) || normK.includes(normCompName);
+            });
+
+            if (possibleCols.length > 0) {
+              const rawCell = row[possibleCols[0]];
+              const key = `${student.id}_${comp.component_code}`;
+
+              if (rawCell !== undefined && rawCell !== null && rawCell !== '') {
+                const strCell = String(rawCell).trim().toUpperCase();
+                if (strCell === 'AB' || strCell === 'ABS' || strCell === 'ABSENT' || strCell === 'A') {
+                  newStatuses[key] = 'ABSENT';
+                  newRawScores[key] = '';
+                  studentUpdated = true;
+                } else if (strCell === 'NA' || strCell === 'N/A') {
+                  newStatuses[key] = 'NOT_APPLICABLE';
+                  newRawScores[key] = '';
+                  studentUpdated = true;
+                } else {
+                  const num = Number(rawCell);
+                  if (!isNaN(num) && num >= 0) {
+                    const clamped = Math.min(num, Number(comp.raw_max_marks));
+                    newRawScores[key] = String(clamped);
+                    newStatuses[key] = 'MARKED';
+                    studentUpdated = true;
+                  }
+                }
+              }
+            }
+          });
+
+          if (studentUpdated) {
+            updatedCount++;
+          }
+        });
+
+        if (updatedCount > 0) {
+          setRawScores(newRawScores);
+          setStatuses(newStatuses);
+          setSaveStatus('pending');
+          alert(`Successfully imported marks for ${updatedCount} students. Calculated fields (including Average) have been automatically recomputed. Click "Save Draft" to save changes.`);
+        } else {
+          alert('Could not match any rows with students in this class. Please ensure Roll No or Student Name columns match the roster.');
+        }
+      } catch (err) {
+        console.error('Excel Import Error:', err);
+        alert('Failed to parse Excel file: ' + err.message);
+      } finally {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
+    };
+    reader.readAsBinaryString(file);
   };
 
   // Submit to Coordinator Review
@@ -632,6 +830,37 @@ _Sent via Gyanoday Niketan ERP_`;
                 className="pl-8 pr-3 py-1.5 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 w-56 font-medium"
               />
             </div>
+
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+              title="Export current marksheet to Excel"
+            >
+              <FileText size={14} className="text-emerald-400" />
+              <span>Export</span>
+            </button>
+
+            {!isReadOnly && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                  title="Import marks from Excel spreadsheet"
+                >
+                  <Upload size={14} className="text-blue-400" />
+                  <span>Import</span>
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImportExcel}
+                  accept=".xlsx, .xls"
+                  className="hidden"
+                />
+              </>
+            )}
           </div>
         </div>
 
@@ -643,16 +872,25 @@ _Sent via Gyanoday Niketan ERP_`;
                 <th className="p-3 text-slate-100 font-bold text-sm">Student Name</th>
                 {components.map(comp => (
                   <th key={comp.id} className="p-3 text-center min-w-[140px] text-slate-100 font-bold">
-                    <div className="text-xs">{comp.component_name}</div>
+                    <div className="text-xs flex items-center justify-center gap-1.5">
+                      <span>{comp.component_name}</span>
+                      {comp.is_calculated && (
+                        <span className="px-1.5 py-0.5 text-[9px] bg-cyan-900/80 text-cyan-300 border border-cyan-500/50 rounded-full font-bold uppercase tracking-wider">
+                          Auto
+                        </span>
+                      )}
+                    </div>
                     <div className="text-[11px] font-mono text-slate-300 font-medium mt-0.5">
-                      Raw /{comp.raw_max_marks} (Weight: /{comp.converted_max_marks})
+                      {comp.is_calculated 
+                        ? `Auto Max /${comp.raw_max_marks}` 
+                        : `Raw /${comp.raw_max_marks} (Weight: /${comp.converted_max_marks})`}
                     </div>
                   </th>
                 ))}
                 <th className="p-3 text-center min-w-[110px] text-slate-100 font-bold">
                   <div className="text-xs">Calculated Total</div>
                   <div className="text-[11px] font-mono text-slate-300 font-medium mt-0.5">
-                    /{components.reduce((acc, c) => acc + (c.converted_max_marks || c.raw_max_marks), 0)}
+                    /{components.filter(c => c.contributes_to_total !== false).reduce((acc, c) => acc + Number(c.converted_max_marks || c.raw_max_marks), 0)}
                   </div>
                 </th>
                 <th className="p-3 text-center w-24 text-slate-100 font-bold text-xs">
@@ -695,9 +933,40 @@ _Sent via Gyanoday Niketan ERP_`;
                     {/* Component Inputs */}
                     {components.map(comp => {
                       const key = `${student.id}_${comp.component_code}`;
-                      const rawVal = rawScores[key] !== undefined ? rawScores[key] : '';
-                      const stStatus = statuses[key] || 'MARKED';
-                      const converted = MarksCalculationEngine.convertComponentScore(rawVal, comp);
+                      const compData = result.componentBreakdown?.find(b => b.componentCode === comp.component_code);
+                      const isCalc = comp.is_calculated;
+                      const rawVal = isCalc ? compData?.rawScore : (rawScores[key] !== undefined ? rawScores[key] : '');
+                      const stStatus = isCalc ? compData?.status : (statuses[key] || 'MARKED');
+                      const converted = compData?.convertedScore !== null && compData?.convertedScore !== undefined
+                        ? compData.convertedScore
+                        : MarksCalculationEngine.convertComponentScore(rawVal, comp);
+
+                      if (isCalc) {
+                        return (
+                          <td key={comp.id} className="p-3 text-center">
+                            <div className="flex flex-col items-center justify-center">
+                              {stStatus === 'ABSENT' ? (
+                                <span className="px-3 py-1 font-bold text-[11px] rounded-lg font-mono bg-rose-950 text-rose-300 border border-rose-500/60 shadow-sm">
+                                  AB
+                                </span>
+                              ) : rawVal !== '' && rawVal !== null && rawVal !== undefined ? (
+                                <div className="flex flex-col items-center">
+                                  <span className="w-24 py-1.5 px-2 font-mono font-bold text-xs rounded-lg bg-cyan-950/70 text-cyan-300 border border-cyan-500/60 text-center shadow-inner tracking-tight">
+                                    {Number(rawVal).toFixed(2)}
+                                  </span>
+                                  <span className="text-[10px] font-semibold text-cyan-400/90 mt-0.5">
+                                    Auto Average
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="font-mono text-slate-500 font-semibold text-xs">
+                                  —
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        );
+                      }
 
                       return (
                         <td key={comp.id} className="p-3 text-center">
@@ -772,9 +1041,9 @@ _Sent via Gyanoday Niketan ERP_`;
                     {/* Calculated Total */}
                     <td className="p-3 text-center bg-slate-900">
                       <span className="font-mono font-bold text-sm text-white">
-                        {result.hasAnyMark ? result.totalConverted : '—'}
+                        {result.hasAnyMark ? (result.isAllAbsent ? 'AB' : result.totalConverted) : '—'}
                       </span>
-                      {result.percentage !== null && (
+                      {result.percentage !== null && !result.isAllAbsent && (
                         <span className="block text-[11px] text-slate-300 font-mono font-semibold">
                           {result.percentage}%
                         </span>

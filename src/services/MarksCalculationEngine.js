@@ -13,10 +13,189 @@
 
 export class MarksCalculationEngine {
   /**
-   * Resolve applicable assessment pattern for a class and year
+   * Helper to check if a class and subject match Class 9H or Class 10H Economics
+   * @param {string} className
+   * @param {string} [classSection]
+   * @param {string} [subjectName]
+   * @returns {boolean}
    */
-  static resolvePattern(className, academicYear = '2026', patterns = []) {
-    if (!className || !patterns || patterns.length === 0) return null;
+  static isEconomics9Hor10H(className, classSection = null, subjectName = null) {
+    if (!subjectName) return false;
+    const normSub = String(subjectName).trim().toLowerCase();
+    if (!normSub.includes('eco')) return false;
+
+    const normClass = String(className || '').trim().toLowerCase();
+    const normSec = String(classSection || '').trim().toLowerCase();
+
+    // Direct section match
+    if (normSec === 'h') {
+      return normClass === '9' || normClass === '10' || normClass === 'class 9' || normClass === 'class 10' || normClass === 'ix' || normClass === 'x';
+    }
+
+    // Combined name match e.g. "9H", "10H", "Class 9H", "Class 10 H"
+    const is9H = /^(class\s*)?(9|ix)\s*h$/i.test(normClass);
+    const is10H = /^(class\s*)?(10|x)\s*h$/i.test(normClass);
+    return is9H || is10H;
+  }
+
+  /**
+   * Get default fallback pattern for Economics 3-Test assessment (Classes 9H & 10H)
+   */
+  static getDefaultEconomics3TestPattern(academicYear = '2026') {
+    return {
+      id: 'e0190001-0000-4000-a000-000000000001',
+      academic_year: academicYear,
+      pattern_name: 'Secondary Economics (Classes 9H & 10H) Scheme',
+      class_group: 'SECONDARY_ECONOMICS_3TEST',
+      applicable_classes: ['Class 9 H', 'Class 10 H', '9 H', '10 H', '9H', '10H'],
+      description: 'Special 3-Test Economics assessment with automated average for Classes 9H and 10H',
+      rounding_rule: 'ROUND_2_DECIMALS',
+      version: 1,
+      status: 'ACTIVE',
+      components: [
+        {
+          id: 'e0190001-0000-4000-a000-000000000002',
+          component_code: 'TEST_1',
+          component_name: 'Test 1',
+          raw_max_marks: 20,
+          converted_max_marks: 20,
+          weightage_percentage: 20,
+          display_order: 1,
+          contributes_to_total: false,
+          is_calculated: false
+        },
+        {
+          id: 'e0190001-0000-4000-a000-000000000003',
+          component_code: 'TEST_2',
+          component_name: 'Test 2',
+          raw_max_marks: 20,
+          converted_max_marks: 20,
+          weightage_percentage: 20,
+          display_order: 2,
+          contributes_to_total: false,
+          is_calculated: false
+        },
+        {
+          id: 'e0190001-0000-4000-a000-000000000004',
+          component_code: 'TEST_3',
+          component_name: 'Test 3',
+          raw_max_marks: 20,
+          converted_max_marks: 20,
+          weightage_percentage: 20,
+          display_order: 3,
+          contributes_to_total: false,
+          is_calculated: false
+        },
+        {
+          id: 'e0190001-0000-4000-a000-000000000005',
+          component_code: 'TEST_AVG',
+          component_name: 'Average',
+          raw_max_marks: 20,
+          converted_max_marks: 20,
+          weightage_percentage: 100,
+          display_order: 4,
+          contributes_to_total: true,
+          is_calculated: true,
+          formula: 'AVERAGE(TEST_1, TEST_2, TEST_3)'
+        }
+      ],
+      grade_boundaries: [
+        { grade_name: 'A', min_percentage: 80.00, max_percentage: 100.00, description: 'Excellent' },
+        { grade_name: 'B', min_percentage: 65.00, max_percentage: 79.99, description: 'Very Good' },
+        { grade_name: 'C', min_percentage: 50.00, max_percentage: 64.99, description: 'Good' },
+        { grade_name: 'D', min_percentage: 35.00, max_percentage: 49.99, description: 'Pass' },
+        { grade_name: 'E', min_percentage: 0.00, max_percentage: 34.99, description: 'Failed' }
+      ]
+    };
+  }
+
+  /**
+   * Calculate Economics 3-Test Average for Classes 9H & 10H
+   * Formula: Sum of tests with marks entered ÷ Number of tests attended (excluding ABSENT)
+   * 
+   * @param {Object} params
+   * @param {string|number} params.test1 - Score for Test 1
+   * @param {string|number} params.test2 - Score for Test 2
+   * @param {string|number} params.test3 - Score for Test 3
+   * @param {string} [params.status1='MARKED'] - 'MARKED' | 'ABSENT' | 'NOT_APPLICABLE'
+   * @param {string} [params.status2='MARKED'] - 'MARKED' | 'ABSENT' | 'NOT_APPLICABLE'
+   * @param {string} [params.status3='MARKED'] - 'MARKED' | 'ABSENT' | 'NOT_APPLICABLE'
+   * @param {string} [params.roundingRule='ROUND_2_DECIMALS']
+   * @returns {{ averageScore: number|null, status: string, displayText: string }}
+   */
+  static calculateEconomics3TestAverage({
+    test1, test2, test3,
+    status1 = 'MARKED', status2 = 'MARKED', status3 = 'MARKED',
+    roundingRule = 'ROUND_2_DECIMALS'
+  }) {
+    const tests = [
+      { raw: test1, status: status1 },
+      { raw: test2, status: status2 },
+      { raw: test3, status: status3 }
+    ];
+
+    let sum = 0;
+    let attendedCount = 0;
+    let absentCount = 0;
+
+    for (const t of tests) {
+      const isAbsent = t.status === 'ABSENT' || String(t.raw || '').trim().toUpperCase() === 'AB' || String(t.raw || '').trim().toUpperCase() === 'ABS';
+      if (isAbsent) {
+        absentCount++;
+      } else if (t.status === 'MARKED' && t.raw !== '' && t.raw !== null && t.raw !== undefined) {
+        const val = Number(t.raw);
+        if (!isNaN(val)) {
+          sum += val;
+          attendedCount++;
+        }
+      }
+    }
+
+    // All 3 tests marked Absent -> Average remains AB (not 0!)
+    if (absentCount === 3) {
+      return { averageScore: null, status: 'ABSENT', displayText: 'AB' };
+    }
+
+    // If no test has been entered and none marked absent -> unentered
+    if (attendedCount === 0 && absentCount === 0) {
+      return { averageScore: null, status: 'MARKED', displayText: '' };
+    }
+
+    // If attendedCount is 0 but some tests are marked absent and others unentered
+    if (attendedCount === 0) {
+      return { averageScore: null, status: 'ABSENT', displayText: 'AB' };
+    }
+
+    // Attended at least 1 test: compute average based on attended tests
+    const rawAvg = sum / attendedCount;
+    const roundedAvg = this.applyRounding(rawAvg, roundingRule);
+
+    return {
+      averageScore: roundedAvg,
+      status: 'MARKED',
+      displayText: roundedAvg !== null ? roundedAvg.toFixed(2) : ''
+    };
+  }
+
+  /**
+   * Resolve applicable assessment pattern for a class, subject, and year
+   */
+  static resolvePattern(className, academicYear = '2026', patterns = [], subjectName = null, classSection = null) {
+    if (!className) return null;
+
+    // Special Scope Restriction: Class 9H or 10H AND Subject Economics
+    if (this.isEconomics9Hor10H(className, classSection, subjectName)) {
+      if (patterns && patterns.length > 0) {
+        const ecoPattern = patterns.find(p => 
+          p.status === 'ACTIVE' && 
+          (p.class_group === 'SECONDARY_ECONOMICS_3TEST' || (p.pattern_name && p.pattern_name.toLowerCase().includes('economics')))
+        );
+        if (ecoPattern) return ecoPattern;
+      }
+      return this.getDefaultEconomics3TestPattern(academicYear);
+    }
+
+    if (!patterns || patterns.length === 0) return null;
 
     const normClass = String(className).trim().toLowerCase();
 
@@ -24,6 +203,7 @@ export class MarksCalculationEngine {
     const exactMatch = patterns.find(p => {
       if (p.status !== 'ACTIVE') return false;
       if (p.academic_year && p.academic_year !== academicYear) return false;
+      if (p.class_group === 'SECONDARY_ECONOMICS_3TEST') return false; // Reserved exclusively for Economics 9H/10H
       const classes = Array.isArray(p.applicable_classes) ? p.applicable_classes : [];
       return classes.some(c => String(c).trim().toLowerCase() === normClass);
     });
@@ -47,14 +227,14 @@ export class MarksCalculationEngine {
   /**
    * Alias helper: resolvePatternForClass
    */
-  static resolvePatternForClass(arg1, arg2, academicYear = '2026') {
+  static resolvePatternForClass(arg1, arg2, academicYear = '2026', subjectName = null, classSection = null) {
     if (Array.isArray(arg1)) {
-      return this.resolvePattern(arg2, academicYear, arg1);
+      return this.resolvePattern(arg2, academicYear, arg1, subjectName, classSection);
     }
     if (Array.isArray(arg2)) {
-      return this.resolvePattern(arg1, academicYear, arg2);
+      return this.resolvePattern(arg1, academicYear, arg2, subjectName, classSection);
     }
-    return this.resolvePattern(arg1, academicYear, arg2);
+    return this.resolvePattern(arg1, academicYear, arg2, subjectName, classSection);
   }
 
   /**
@@ -70,6 +250,41 @@ export class MarksCalculationEngine {
     let maxTotal = 0;
     let hasAnyMark = false;
     let isAllAbsent = true;
+
+    // Auto-calculate TEST_AVG if present in components
+    const hasTestAvg = components.some(c => c.component_code === 'TEST_AVG');
+    if (hasTestAvg) {
+      const t1Comp = components.find(c => c.component_code === 'TEST_1');
+      const t2Comp = components.find(c => c.component_code === 'TEST_2');
+      const t3Comp = components.find(c => c.component_code === 'TEST_3');
+      const avgComp = components.find(c => c.component_code === 'TEST_AVG');
+
+      const s1 = (t1Comp && componentScores[t1Comp.id]) || componentScores['TEST_1'] || {};
+      const s2 = (t2Comp && componentScores[t2Comp.id]) || componentScores['TEST_2'] || {};
+      const s3 = (t3Comp && componentScores[t3Comp.id]) || componentScores['TEST_3'] || {};
+
+      const avgCalc = this.calculateEconomics3TestAverage({
+        test1: s1.rawScore !== undefined ? s1.rawScore : s1.raw_score,
+        test2: s2.rawScore !== undefined ? s2.rawScore : s2.raw_score,
+        test3: s3.rawScore !== undefined ? s3.rawScore : s3.raw_score,
+        status1: s1.status || 'MARKED',
+        status2: s2.status || 'MARKED',
+        status3: s3.status || 'MARKED',
+        roundingRule
+      });
+
+      if (avgComp) {
+        const avgKey = avgComp.id;
+        const existing = componentScores[avgKey] || componentScores['TEST_AVG'];
+        if (!existing || existing.rawScore === null || existing.rawScore === undefined || existing.rawScore === '') {
+          componentScores[avgKey] = {
+            rawScore: avgCalc.averageScore,
+            convertedScore: avgCalc.averageScore,
+            status: avgCalc.status
+          };
+        }
+      }
+    }
 
     components.forEach(comp => {
       const scoreData = componentScores[comp.id] || componentScores[comp.component_code] || {};
@@ -117,7 +332,9 @@ export class MarksCalculationEngine {
     }
 
     let grade = null;
-    if (percentage !== null && gradeBoundaries && gradeBoundaries.length > 0) {
+    if (isAllAbsent && hasAnyMark) {
+      grade = 'AB';
+    } else if (percentage !== null && gradeBoundaries && gradeBoundaries.length > 0) {
       const matched = gradeBoundaries.find(b =>
         percentage >= Number(b.min_percentage) && percentage <= Number(b.max_percentage)
       );
@@ -133,7 +350,7 @@ export class MarksCalculationEngine {
       percentage,
       grade,
       hasAnyMark,
-      isAllAbsent
+      isAllAbsent: isAllAbsent && hasAnyMark
     };
   }
 
@@ -192,6 +409,27 @@ export class MarksCalculationEngine {
     let hasAnyMark = false;
     let isAllAbsent = true;
 
+    // Auto-calculate TEST_AVG if present in components
+    const hasTestAvg = components.some(c => c.component_code === 'TEST_AVG');
+    if (hasTestAvg) {
+      const avgCalc = this.calculateEconomics3TestAverage({
+        test1: rawScores['TEST_1'],
+        test2: rawScores['TEST_2'],
+        test3: rawScores['TEST_3'],
+        status1: statuses['TEST_1'] || 'MARKED',
+        status2: statuses['TEST_2'] || 'MARKED',
+        status3: statuses['TEST_3'] || 'MARKED',
+        roundingRule
+      });
+      if (avgCalc.status === 'ABSENT') {
+        statuses['TEST_AVG'] = 'ABSENT';
+        rawScores['TEST_AVG'] = '';
+      } else if (avgCalc.averageScore !== null) {
+        statuses['TEST_AVG'] = 'MARKED';
+        rawScores['TEST_AVG'] = avgCalc.averageScore;
+      }
+    }
+
     components.forEach(comp => {
       const code = comp.component_code;
       const status = statuses[code] || 'MARKED';
@@ -244,7 +482,9 @@ export class MarksCalculationEngine {
 
     // Grade
     let grade = null;
-    if (percentage !== null && gradeBoundaries && gradeBoundaries.length > 0) {
+    if (isAllAbsent && hasAnyMark) {
+      grade = 'AB';
+    } else if (percentage !== null && gradeBoundaries && gradeBoundaries.length > 0) {
       const matched = gradeBoundaries.find(b => 
         percentage >= Number(b.min_percentage) && percentage <= Number(b.max_percentage)
       );

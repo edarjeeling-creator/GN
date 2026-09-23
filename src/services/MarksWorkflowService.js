@@ -12,6 +12,7 @@ export class MarksWorkflowService {
    * Fetch all active assessment patterns with components and grade boundaries
    */
   static async getAssessmentPatterns(academicYear = '2026') {
+    let result = [];
     const { data: patterns, error: pErr } = await supabase
       .from('assessment_patterns')
       .select(`
@@ -24,10 +25,26 @@ export class MarksWorkflowService {
 
     if (pErr) {
       console.warn('Could not fetch assessment_patterns (table may be pending migration):', pErr.message);
-      return [];
+    } else if (patterns && patterns.length > 0) {
+      result = [...patterns];
     }
 
-    return patterns || [];
+    // Ensure SECONDARY_ECONOMICS_3TEST pattern is available even before database migration
+    const hasEcoPattern = result.some(p => 
+      p.class_group === 'SECONDARY_ECONOMICS_3TEST' || 
+      (p.pattern_name && p.pattern_name.toLowerCase().includes('economics'))
+    );
+    if (!hasEcoPattern) {
+      result.push(MarksCalculationEngine.getDefaultEconomics3TestPattern(academicYear));
+    }
+
+    return result.map(p => ({
+      ...p,
+      components: (p.components || []).map(c => ({
+        ...c,
+        is_calculated: Boolean(c.is_calculated || c.calculation_rule?.is_calculated || c.component_code === 'TEST_AVG')
+      }))
+    }));
   }
 
   /**

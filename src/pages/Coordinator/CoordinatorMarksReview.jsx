@@ -51,8 +51,9 @@ export default function CoordinatorMarksReview() {
       // 2. Fetch pattern with components and boundaries
       const patterns = await MarksWorkflowService.getAssessmentPatterns(sub.academic_year);
       const cls = classes.find(c => c.id === sub.class_id);
+      const subSubject = subjects.find(s => s.id === sub.subject_id);
       const activePattern = (sub.pattern_id ? patterns.find(p => p.id === sub.pattern_id) : null) || 
-                            MarksCalculationEngine.resolvePattern(cls?.name, sub.academic_year, patterns);
+                            MarksCalculationEngine.resolvePattern(cls?.name, sub.academic_year, patterns, subSubject?.name, cls?.section);
       setPattern(activePattern);
 
       // 3. Fetch detailed marks
