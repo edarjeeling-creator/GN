@@ -18,6 +18,24 @@ export const DEFAULT_ATTENDANCE_WINDOWS = {
 export const DEFAULT_QR_EXPIRY_SECONDS = 20;
 
 /**
+ * Authoritative set of staff roles eligible for staff attendance
+ */
+export const STAFF_ATTENDANCE_ROLES = Object.freeze([
+  'teacher',
+  'coordinator',
+  'non_teaching',
+  'group_d',
+  'staff',
+  'accountant',
+  'librarian'
+]);
+
+export function isStaffRoleEligibleForAttendance(role) {
+  if (!role) return false;
+  return STAFF_ATTENDANCE_ROLES.includes(role.toLowerCase().trim());
+}
+
+/**
  * Haversine formula for distance in meters
  */
 export function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
@@ -341,6 +359,9 @@ class AttendanceVerificationServiceImpl {
       if (msg.includes('ONLY_TEACHERS_PERMITTED')) {
         throw new Error('Unauthorized role. Only active teachers can mark teacher attendance.');
       }
+      if (msg.includes('v_rule') || msg.includes('is not assigned yet')) {
+        throw new Error('Database timing rule update required. Please execute fix_checkout_v_rule_error.sql in Supabase SQL Editor.');
+      }
 
       throw new Error(msg || 'Server verification failed. Please try again or request attendance correction.');
     }
@@ -369,9 +390,12 @@ class AttendanceVerificationServiceImpl {
         check_in_time: data.checkInTime,
         check_out_time: data.checkOutTime,
         working_hours: data.workingHours,
-        check_in_verification_status: 'VERIFIED',
-        check_in_method: 'DYNAMIC_QR',
-        check_in_distance_meters: data.distanceMeters
+        check_in_verification_status: data.action === 'CHECK_IN' ? 'VERIFIED' : (data.checkInVerificationStatus || 'VERIFIED'),
+        check_in_method: data.action === 'CHECK_IN' ? 'DYNAMIC_QR' : (data.checkInMethod || 'DYNAMIC_QR'),
+        check_out_verification_status: data.action === 'CHECK_OUT' ? 'VERIFIED' : null,
+        check_out_method: data.action === 'CHECK_OUT' ? 'DYNAMIC_QR' : null,
+        check_in_distance_meters: data.action === 'CHECK_IN' ? data.distanceMeters : undefined,
+        check_out_distance_meters: data.action === 'CHECK_OUT' ? data.distanceMeters : undefined
       }
     };
   }
@@ -662,43 +686,70 @@ class AttendanceVerificationServiceImpl {
     const ruleVersion = rule?.version || 1;
     const lateThreshold = rule?.late_threshold || '08:25:00';
 
-    // 2. Fetch target teachers if not provided
+    // 2. Fetch target staff if not provided
     let targetIds = teacherIds;
     if (!targetIds || targetIds.length === 0) {
       const { data: campusObj } = await supabase.from('campuses').select('campus_name, campus_id').eq('id', campusId).single();
       const campusName = campusObj?.campus_name || '';
 
-      const { data: teachers } = await supabase
+      const { data: staffList } = await supabase
         .from('profiles')
-        .select('id, campus')
-        .in('role', ['teacher', 'coordinator'])
+        .select('id, campus, role')
+        .in('role', STAFF_ATTENDANCE_ROLES)
         .eq('status', 'Active');
 
-      targetIds = (teachers || [])
+      targetIds = (staffList || [])
         .filter(t => !campusName || t.campus === campusName || t.campus === 'All Campuses' || !t.campus)
         .map(t => t.id);
     }
 
     if (!targetIds || targetIds.length === 0) {
-      return { success: true, count: 0, message: 'No teachers found to mark present.' };
+      return { success: true, count: 0, message: 'No eligible staff found to mark present.' };
+    }
+
+    // Check existing records to PRESERVE existing legitimate check-ins and check-outs
+    const { data: existingRecords } = await supabase
+      .from('teacher_attendance')
+      .select('teacher_id, check_in_time, check_out_time, check_in_method, check_in_verification_status')
+      .eq('attendance_date', targetDate)
+      .in('teacher_id', targetIds);
+
+    const existingMap = new Map((existingRecords || []).map(r => [r.teacher_id, r]));
+
+    // Only process staff who have NO check_in_time recorded today
+    const targetIdsToProcess = targetIds.filter(tId => {
+      const existing = existingMap.get(tId);
+      return !existing || !existing.check_in_time;
+    });
+
+    if (targetIdsToProcess.length === 0) {
+      return { 
+        success: true, 
+        count: 0, 
+        message: 'All selected staff already have legitimate morning check-in records for today. No records overwritten.' 
+      };
     }
 
     // Check-in timestamp with IST (+05:30)
     const checkInIso = `${targetDate}T${timeFormatted}+05:30`;
 
-    const recordsToUpsert = targetIds.map(tId => ({
-      teacher_id: tId,
-      attendance_date: targetDate,
-      status: 'Present',
-      check_in_time: checkInIso,
-      check_in_method: 'ADMIN_OVERRIDE',
-      check_in_verification_status: 'VERIFIED',
-      campus_id: campusId,
-      attendance_rule_id: ruleId,
-      attendance_rule_version: ruleVersion,
-      applied_late_threshold: lateThreshold,
-      recorded_at: new Date().toISOString()
-    }));
+    const recordsToUpsert = targetIdsToProcess.map(tId => {
+      const existing = existingMap.get(tId);
+      return {
+        ...(existing ? { id: existing.id } : {}),
+        teacher_id: tId,
+        attendance_date: targetDate,
+        status: 'Present',
+        check_in_time: checkInIso,
+        check_in_method: 'ADMIN_OVERRIDE',
+        check_in_verification_status: 'ADMIN_VERIFIED', // Truthful audit distinction (NOT DYNAMIC_QR)
+        campus_id: campusId,
+        attendance_rule_id: ruleId,
+        attendance_rule_version: ruleVersion,
+        applied_late_threshold: lateThreshold,
+        recorded_at: new Date().toISOString()
+      };
+    });
 
     const { error: upsertErr } = await supabase
       .from('teacher_attendance')
@@ -713,7 +764,7 @@ class AttendanceVerificationServiceImpl {
       const { data: authData } = await supabase.auth.getUser();
       const userId = authData?.user?.id || null;
       if (userId) {
-        const auditEntries = targetIds.map(tId => ({
+        const auditEntries = targetIdsToProcess.map(tId => ({
           record_id: tId,
           modified_by: userId,
           original_status: 'ONE_CLICK_OVERRIDE',

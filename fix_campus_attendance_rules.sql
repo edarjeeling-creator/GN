@@ -245,6 +245,11 @@ DECLARE
   v_record RECORD;
   v_working_hours_str TEXT;
   v_duration_seconds NUMERIC;
+  v_record_id UUID := NULL;
+  v_rule_version INT := NULL;
+  v_late_threshold_str TEXT := NULL;
+  v_check_in_time TIMESTAMPTZ := NULL;
+  v_check_out_time TIMESTAMPTZ := NULL;
 BEGIN
   v_teacher_id := auth.uid();
   IF v_teacher_id IS NULL THEN
@@ -464,7 +469,13 @@ BEGIN
       recorded_at = v_now,
       attendance_rule_id = v_rule.id,
       attendance_rule_version = v_rule.version,
-      applied_late_threshold = v_rule.late_threshold;
+      applied_late_threshold = v_rule.late_threshold
+    RETURNING id INTO v_record_id;
+
+    v_rule_version := v_rule.version;
+    v_late_threshold_str := v_rule.late_threshold::TEXT;
+    v_check_in_time := v_now;
+    v_check_out_time := NULL;
 
   ELSIF p_action_type = 'CHECK_OUT' THEN
     IF v_record.id IS NULL OR v_record.check_in_time IS NULL THEN
@@ -495,6 +506,11 @@ BEGIN
     WHERE id = v_record.id;
 
     v_status := v_record.status;
+    v_record_id := v_record.id;
+    v_check_in_time := v_record.check_in_time;
+    v_check_out_time := v_now;
+    v_rule_version := v_record.attendance_rule_version;
+    v_late_threshold_str := v_record.applied_late_threshold::TEXT;
   END IF;
 
   -- 8. Audit and Invalidate One-Time QR Token
@@ -512,14 +528,17 @@ BEGIN
     'success', true,
     'action', p_action_type,
     'status', v_status,
+    'recordId', v_record_id,
     'campusId', v_campus.campus_id,
     'campusName', v_campus.campus_name,
-    'checkInTime', CASE WHEN p_action_type = 'CHECK_IN' THEN v_now ELSE v_record.check_in_time END,
-    'checkOutTime', CASE WHEN p_action_type = 'CHECK_OUT' THEN v_now ELSE NULL END,
+    'checkInTime', v_check_in_time,
+    'checkOutTime', v_check_out_time,
     'workingHours', v_working_hours_str,
     'distanceMeters', ROUND(v_distance_meters::NUMERIC, 1),
-    'ruleVersion', CASE WHEN p_action_type = 'CHECK_IN' THEN v_rule.version ELSE v_record.attendance_rule_version END,
-    'lateThreshold', CASE WHEN p_action_type = 'CHECK_IN' THEN v_rule.late_threshold::TEXT ELSE v_record.applied_late_threshold::TEXT END
+    'accuracyMeters', ROUND(COALESCE(p_accuracy, 0)::NUMERIC, 1),
+    'serverTimestamp', v_now,
+    'ruleVersion', v_rule_version,
+    'lateThreshold', v_late_threshold_str
   );
 END;
 $$;

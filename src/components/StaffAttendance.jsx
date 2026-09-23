@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { AttendanceVerificationService } from '../services/AttendanceVerificationService';
+import { AttendanceVerificationService, STAFF_ATTENDANCE_ROLES } from '../services/AttendanceVerificationService';
 import { 
   Users, 
   CheckCircle, 
@@ -38,6 +38,7 @@ const StaffAttendance = () => {
   const [editingRecord, setEditingRecord] = useState(null);
   const [newStatus, setNewStatus] = useState('');
   const [correctionReason, setCorrectionReason] = useState('');
+  const [correctionCheckInTime, setCorrectionCheckInTime] = useState('08:30');
 
   // Campus-Specific Attendance Rules State
   const [campusRules, setCampusRules] = useState([]);
@@ -123,8 +124,8 @@ const StaffAttendance = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    // Fetch active teachers
-    const { data: tData } = await supabase.from('profiles').select('*').eq('role', 'teacher').eq('status', 'Active');
+    // Fetch active staff across all authoritative roles
+    const { data: tData } = await supabase.from('profiles').select('*').in('role', STAFF_ATTENDANCE_ROLES).eq('status', 'Active');
     if (tData) setTeachers(tData);
 
     // Fetch settings
@@ -213,10 +214,38 @@ const StaffAttendance = () => {
     alert('Settings saved!');
   };
 
+  const handleStartEdit = (f) => {
+    setEditingRecord(f);
+    setNewStatus(f.status);
+    setCorrectionReason('');
+    if (f.record?.check_in_time) {
+      try {
+        const d = new Date(f.record.check_in_time);
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mm = String(d.getMinutes()).padStart(2, '0');
+        setCorrectionCheckInTime(`${hh}:${mm}`);
+      } catch {
+        setCorrectionCheckInTime(settings.reporting_time || '08:30');
+      }
+    } else {
+      setCorrectionCheckInTime(settings.reporting_time || '08:30');
+    }
+  };
+
   const saveCorrection = async () => {
-    if (!correctionReason) {
+    if (!correctionReason.trim()) {
       alert("Please provide a reason for the correction.");
       return;
+    }
+
+    let checkInTimestamptz = null;
+    if (newStatus !== 'Absent') {
+      if (!correctionCheckInTime) {
+        alert("Please specify a Check-In Arrival Time so the staff member is eligible for afternoon checkout.");
+        return;
+      }
+      const timeClean = correctionCheckInTime.length === 5 ? `${correctionCheckInTime}:00` : correctionCheckInTime;
+      checkInTimestamptz = `${dateFilter}T${timeClean}+05:30`;
     }
     
     let recordId = editingRecord.record?.id;
@@ -224,12 +253,18 @@ const StaffAttendance = () => {
 
     // Insert or Update teacher_attendance
     if (recordId) {
+      const updatePayload = { 
+        status: newStatus,
+        check_in_method: 'MANUAL_CORRECTION',
+        check_in_verification_status: newStatus === 'Absent' ? 'UNVERIFIED' : 'ADMIN_VERIFIED', // Truthful audit distinction
+        updated_at: new Date().toISOString()
+      };
+      // Populate check_in_time if missing or newly required for afternoon checkout
+      if (checkInTimestamptz && !editingRecord.record?.check_in_time) {
+        updatePayload.check_in_time = checkInTimestamptz;
+      }
       const { error: updateError } = await supabase.from('teacher_attendance')
-        .update({ 
-          status: newStatus,
-          check_in_method: 'MANUAL_CORRECTION',
-          check_in_verification_status: 'VERIFIED'
-        })
+        .update(updatePayload)
         .eq('id', recordId);
       if (updateError) { alert("Error updating: " + updateError.message); return; }
     } else {
@@ -238,8 +273,9 @@ const StaffAttendance = () => {
           teacher_id: editingRecord.teacher.id,
           attendance_date: dateFilter,
           status: newStatus,
+          check_in_time: checkInTimestamptz,
           check_in_method: 'MANUAL_CORRECTION',
-          check_in_verification_status: 'VERIFIED'
+          check_in_verification_status: newStatus === 'Absent' ? 'UNVERIFIED' : 'ADMIN_VERIFIED'
         }])
         .select()
         .single();
@@ -250,10 +286,10 @@ const StaffAttendance = () => {
     // Insert into audit logs
     await supabase.from('attendance_audit_logs').insert([{
       record_id: recordId,
-      modified_by: profile.id,
+      modified_by: profile?.id || null,
       original_status: oldStatus,
       new_status: newStatus,
-      reason: correctionReason
+      reason: `Administrative manual override: ${correctionReason.trim()}${checkInTimestamptz ? ` (Arrival: ${correctionCheckInTime})` : ''}`
     }]);
 
     setEditingRecord(null);
@@ -1218,7 +1254,7 @@ const StaffAttendance = () => {
                       </td>
                       <td>
                         <button 
-                          onClick={() => { setEditingRecord(f); setNewStatus(f.status); setCorrectionReason(''); }} 
+                          onClick={() => handleStartEdit(f)} 
                           className="text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-500/10 p-2 rounded-full transition-colors"
                           title="Direct Administrative Correction"
                         >
@@ -1390,6 +1426,23 @@ const StaffAttendance = () => {
                   </select>
                 </div>
               </div>
+
+              {newStatus !== 'Absent' && (
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Check-In Arrival Time *</label>
+                  <input 
+                    type="time" 
+                    className="input-field py-2 font-mono w-full" 
+                    value={correctionCheckInTime} 
+                    onChange={e => setCorrectionCheckInTime(e.target.value)}
+                    required
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Required arrival timestamp so employee is eligible for afternoon secure checkout.
+                  </p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1">Audit Reason for Override *</label>
                 <textarea 
@@ -1534,6 +1587,15 @@ const StaffAttendance = () => {
                     {bulkSelectedTeacherIds.length} of {bulkTeachersList.length} Staff
                   </div>
                 </div>
+              </div>
+
+              {/* Authoritative Staff Role Breakdown */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px] p-2.5 bg-slate-800/80 border border-slate-700/80 rounded-xl">
+                <div><span className="text-slate-400">Teachers:</span> <strong className="text-white ml-1">{bulkSelectedTeacherIds.filter(id => teachers.find(t => t.id === id)?.role === 'teacher').length}</strong></div>
+                <div><span className="text-slate-400">Coordinators:</span> <strong className="text-purple-400 ml-1">{bulkSelectedTeacherIds.filter(id => teachers.find(t => t.id === id)?.role === 'coordinator').length}</strong></div>
+                <div><span className="text-slate-400">Group D:</span> <strong className="text-amber-400 ml-1">{bulkSelectedTeacherIds.filter(id => teachers.find(t => t.id === id)?.role === 'group_d').length}</strong></div>
+                <div><span className="text-slate-400">Non-Teaching:</span> <strong className="text-blue-400 ml-1">{bulkSelectedTeacherIds.filter(id => teachers.find(t => t.id === id)?.role === 'non_teaching').length}</strong></div>
+                <div><span className="text-slate-400">Other Staff:</span> <strong className="text-emerald-400 ml-1">{bulkSelectedTeacherIds.filter(id => !['teacher', 'coordinator', 'group_d', 'non_teaching'].includes(teachers.find(t => t.id === id)?.role)).length}</strong></div>
               </div>
 
               <div>

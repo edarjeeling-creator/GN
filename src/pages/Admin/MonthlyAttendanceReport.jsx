@@ -4,6 +4,7 @@ import { useData } from '../../context/DataContext';
 import { Calendar, Users, Loader2, Info } from 'lucide-react';
 import { getDaysInMonth, format, isWeekend, isFuture, parseISO } from 'date-fns';
 import { formatStudentDisplayName } from '../../utils/studentUtils';
+import { STAFF_ATTENDANCE_ROLES } from '../../services/AttendanceVerificationService';
 
 const MonthlyAttendanceReport = () => {
   const { classes, students, academicYear } = useData();
@@ -73,11 +74,12 @@ const MonthlyAttendanceReport = () => {
         if (attError) throw attError;
         setAttendanceData(data || []);
       } else if (role === 'teacher') {
-        // Fetch Teachers
+        // Fetch All Active Staff (Teaching & Support)
         const { data: teachers, error: tError } = await supabase
           .from('profiles')
-          .select('id, name')
-          .eq('role', 'teacher')
+          .select('id, name, role')
+          .in('role', STAFF_ATTENDANCE_ROLES)
+          .eq('status', 'Active')
           .order('name');
         
         if (tError) throw tError;
@@ -150,14 +152,14 @@ const MonthlyAttendanceReport = () => {
               }}
             >
               <option value="student">Student</option>
-              <option value="teacher">Teacher</option>
+              <option value="teacher">Staff / Faculty</option>
             </select>
           </div>
 
           <div>
             <label className="block text-sm font-semibold mb-2">Month</label>
             <input 
-              type="month"
+              type="month" 
               className="input-field w-full"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
@@ -186,7 +188,7 @@ const MonthlyAttendanceReport = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
           <h3 className="text-lg font-bold flex items-center gap-2">
             <Users size={20} className="text-gray-600" />
-            {role === 'student' ? 'Student' : 'Teacher'} Attendance ({format(parseISO(`${selectedMonth}-01`), 'MMMM yyyy')})
+            {role === 'student' ? 'Student' : 'Staff / Faculty'} Attendance ({format(parseISO(`${selectedMonth}-01`), 'MMMM yyyy')})
           </h3>
 
           <div className="flex items-center gap-3 text-sm flex-wrap">

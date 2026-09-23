@@ -1,182 +1,13 @@
 -- ==============================================================================
--- GYANODAY NIKETAN ERP: PHASE 1 PRODUCTION HARDENING & SECURITY RLS POLICIES
--- File: supabase/migrations/20260920_attendance_security_hardening.sql
+-- GYANODAY NIKETAN ERP: EMERGENCY ATTENDANCE CHECK-OUT RPC FIX
+-- Fixes: record "v_rule" is not assigned yet during CHECK_OUT action
 -- ==============================================================================
 
--- 1. Ensure designation column exists on public.profiles
-ALTER TABLE public.profiles 
-  ADD COLUMN IF NOT EXISTS designation TEXT;
+-- 1. Drop existing function signatures to ensure clean reload
+DROP FUNCTION IF EXISTS public.verify_and_record_teacher_attendance(TEXT, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, TEXT);
+DROP FUNCTION IF EXISTS public.verify_and_record_teacher_attendance(TEXT, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, TEXT);
 
--- ==============================================================================
--- 2. TEACHER_ATTENDANCE RLS HARDENING
--- ==============================================================================
--- Lockdown direct client inserts/updates:
--- Staff and teachers CANNOT directly insert or modify records via the client table API.
--- All legitimate attendance MUST be recorded via verify_and_record_teacher_attendance RPC.
--- Staff can SELECT only their own records. Leadership can view all.
-
-ALTER TABLE public.teacher_attendance ENABLE ROW LEVEL SECURITY;
-
--- Drop all legacy permissive policies
-DROP POLICY IF EXISTS "Allow authenticated all teacher_attendance" ON public.teacher_attendance;
-DROP POLICY IF EXISTS "Allow authenticated read teacher_attendance" ON public.teacher_attendance;
-DROP POLICY IF EXISTS "Allow admin all teacher_attendance" ON public.teacher_attendance;
-DROP POLICY IF EXISTS "Allow staff to view own attendance" ON public.teacher_attendance;
-DROP POLICY IF EXISTS "Staff can manage their own attendance" ON public.teacher_attendance;
-DROP POLICY IF EXISTS "Allow teachers to view own attendance" ON public.teacher_attendance;
-DROP POLICY IF EXISTS "Allow management modify teacher_attendance" ON public.teacher_attendance;
-
--- Scoped SELECT: User sees ONLY their own attendance; Admin/Principal/Coordinator see all
-CREATE POLICY "Allow staff to view own attendance" 
-  ON public.teacher_attendance FOR SELECT TO authenticated 
-  USING (
-    teacher_id = auth.uid() 
-    OR EXISTS (
-      SELECT 1 FROM public.profiles 
-      WHERE id = auth.uid() 
-      AND role IN ('admin', 'principal', 'coordinator')
-    )
-  );
-
--- Direct Table Modifications: RESTRICTED TO LEADERSHIP ONLY (Admin, Principal, Coordinator)
--- Regular staff/teachers cannot execute direct INSERT/UPDATE/DELETE outside the verified RPC
-CREATE POLICY "Allow management modify teacher_attendance" 
-  ON public.teacher_attendance FOR ALL TO authenticated 
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles 
-      WHERE id = auth.uid() 
-      AND role IN ('admin', 'principal', 'coordinator')
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.profiles 
-      WHERE id = auth.uid() 
-      AND role IN ('admin', 'principal', 'coordinator')
-    )
-  );
-
--- ==============================================================================
--- 3. ATTENDANCE_CORRECTION_REQUESTS RLS HARDENING
--- ==============================================================================
--- Staff can view only their own requests.
--- Staff can insert only for themselves and only with status 'PENDING'.
--- Only Admin and Principal can review/update requests.
-
-ALTER TABLE public.attendance_correction_requests ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Allow teachers to view own correction requests" ON public.attendance_correction_requests;
-DROP POLICY IF EXISTS "Allow staff to view own correction requests" ON public.attendance_correction_requests;
-DROP POLICY IF EXISTS "Allow teachers to insert own correction requests" ON public.attendance_correction_requests;
-DROP POLICY IF EXISTS "Allow staff to insert own correction requests" ON public.attendance_correction_requests;
-DROP POLICY IF EXISTS "Allow admin to update correction requests" ON public.attendance_correction_requests;
-DROP POLICY IF EXISTS "Allow management to update correction requests" ON public.attendance_correction_requests;
-
--- Scoped SELECT: Self or Management
-CREATE POLICY "Allow staff to view own correction requests"
-  ON public.attendance_correction_requests FOR SELECT TO authenticated
-  USING (
-    teacher_id = auth.uid() 
-    OR EXISTS (
-      SELECT 1 FROM public.profiles 
-      WHERE id = auth.uid() 
-      AND role IN ('admin', 'principal', 'coordinator')
-    )
-  );
-
--- Scoped INSERT: Can only insert for self with status 'PENDING'
-CREATE POLICY "Allow staff to insert own correction requests"
-  ON public.attendance_correction_requests FOR INSERT TO authenticated
-  WITH CHECK (
-    teacher_id = auth.uid() 
-    AND (status IS NULL OR status = 'PENDING')
-  );
-
--- Scoped UPDATE/DELETE: Only Admin and Principal can review
-CREATE POLICY "Allow management to update correction requests"
-  ON public.attendance_correction_requests FOR ALL TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles 
-      WHERE id = auth.uid() 
-      AND role IN ('admin', 'principal')
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.profiles 
-      WHERE id = auth.uid() 
-      AND role IN ('admin', 'principal')
-    )
-  );
-
--- ==============================================================================
--- 4. NOTICES RLS HARDENING
--- ==============================================================================
--- Notices are strictly scoped to the targeted audience.
--- Insertion and updates are restricted to Admin and Principal.
-
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'notices') THEN
-    ALTER TABLE public.notices ENABLE ROW LEVEL SECURITY;
-
-    DROP POLICY IF EXISTS "Allow authenticated read notices" ON public.notices;
-    DROP POLICY IF EXISTS "Allow public read notices" ON public.notices;
-    DROP POLICY IF EXISTS "Allow admin manage notices" ON public.notices;
-    DROP POLICY IF EXISTS "Allow targeted read notices" ON public.notices;
-
-    EXECUTE $policy$
-      CREATE POLICY "Allow targeted read notices"
-        ON public.notices FOR SELECT TO authenticated
-        USING (
-          target_audience = 'all'
-          OR (target_audience = 'staff' AND EXISTS (
-            SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('teacher', 'admin', 'principal', 'coordinator', 'accountant', 'librarian', 'non_teaching', 'group_d', 'staff')
-          ))
-          OR (target_audience = 'teachers' AND EXISTS (
-            SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('teacher', 'admin', 'principal', 'coordinator')
-          ))
-          OR (target_audience = 'non_teaching' AND EXISTS (
-            SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('non_teaching', 'accountant', 'librarian', 'admin', 'principal')
-          ))
-          OR (target_audience = 'group_d' AND EXISTS (
-            SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('group_d', 'admin', 'principal')
-          ))
-          OR (target_audience = 'students' AND EXISTS (
-            SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('student', 'admin', 'principal', 'teacher')
-          ))
-          OR (target_audience LIKE 'class:%')
-          OR EXISTS (
-            SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'principal')
-          )
-        );
-    $policy$;
-
-    EXECUTE $policy$
-      CREATE POLICY "Allow admin manage notices"
-        ON public.notices FOR ALL TO authenticated
-        USING (
-          EXISTS (
-            SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'principal')
-          )
-        )
-        WITH CHECK (
-          EXISTS (
-            SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'principal')
-          )
-        );
-    $policy$;
-  END IF;
-END $$;
-
--- ==============================================================================
--- 5. RE-ASSERT VERIFY_AND_RECORD_TEACHER_ATTENDANCE SECURITY CONTROLS
--- ==============================================================================
--- Full function definition with all safety checks, non_teaching & group_d support,
--- and strict auth.uid() ownership.
-
+-- 2. Create authoritative attendance verification RPC with safe variable handling
 CREATE OR REPLACE FUNCTION public.verify_and_record_teacher_attendance(
   p_session_token TEXT,
   p_action_type TEXT,
@@ -225,7 +56,7 @@ BEGIN
     RAISE EXCEPTION 'UNAUTHENTICATED: Please log in to mark attendance.';
   END IF;
 
-  -- 2. Verify authorized role
+  -- 2. Verify authorized role (all academic & support roles permitted)
   SELECT * INTO v_teacher_profile FROM public.profiles WHERE id = v_teacher_id;
   IF v_teacher_profile.id IS NULL OR (v_teacher_profile.role NOT IN (
     'teacher', 'admin', 'principal', 'coordinator', 'accountant', 'librarian', 'non_teaching', 'group_d', 'staff'
@@ -238,6 +69,7 @@ BEGIN
   END IF;
 
   v_now := NOW();
+  -- Local Indian Timezone (Asia/Kolkata)
   v_today := (v_now AT TIME ZONE 'Asia/Kolkata')::DATE;
   v_now_time_str := to_char(v_now AT TIME ZONE 'Asia/Kolkata', 'HH24:MI');
   v_now_local_time := (v_now AT TIME ZONE 'Asia/Kolkata')::TIME;
@@ -291,7 +123,7 @@ BEGIN
     RAISE EXCEPTION 'CAMPUS_INACTIVE: No active campus found in the system.';
   END IF;
 
-  -- 5. Cross-Campus Roaming Restriction
+  -- 5. Cross-Campus Roaming Restriction (Admin & Principal can roam)
   IF v_teacher_profile.role NOT IN ('admin', 'principal') THEN
     SELECT COUNT(*) INTO v_assignment_count
     FROM public.teacher_campus_assignments
@@ -379,6 +211,7 @@ BEGIN
       RAISE EXCEPTION 'ALREADY_CHECKED_IN';
     END IF;
 
+    -- Authoritative Campus Attendance Rule Lookup
     SELECT * INTO v_rule
     FROM public.campus_attendance_rules
     WHERE campus_id = v_campus.id
@@ -396,6 +229,7 @@ BEGIN
         v_campus.campus_name, v_today;
     END IF;
 
+    -- EXACT BOUNDARY COMPARISON: <= late_threshold is Present, > late_threshold is Late
     IF v_now_local_time <= v_rule.late_threshold THEN
       v_status := 'Present';
     ELSE
@@ -454,6 +288,7 @@ BEGIN
     v_duration_seconds := EXTRACT(EPOCH FROM (v_now - v_record.check_in_time));
     v_working_hours_str := to_char(INTERVAL '1 second' * v_duration_seconds, 'HH24:MI:SS');
 
+    -- Note: Check-out does NOT alter original check-in status (Late remains Late, Present remains Present)
     UPDATE public.teacher_attendance
     SET
       check_out_time = v_now,
@@ -488,6 +323,7 @@ BEGIN
     'Verified ' || p_action_type || ' at ' || v_campus.campus_name || ' (distance ' || ROUND(v_distance_meters::NUMERIC, 1) || 'm, accuracy ' || ROUND(COALESCE(p_accuracy, 0)::NUMERIC, 1) || 'm)'
   );
 
+  -- 10. Return authoritative verification receipt (Safe scalar variables only)
   RETURN jsonb_build_object(
     'success', true,
     'action', p_action_type,
@@ -507,4 +343,5 @@ BEGIN
 END;
 $$;
 
+-- Grant execution to authenticated users
 GRANT EXECUTE ON FUNCTION public.verify_and_record_teacher_attendance(TEXT, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, TEXT) TO authenticated;

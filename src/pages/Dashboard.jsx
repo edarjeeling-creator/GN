@@ -7,7 +7,7 @@ import {
   ChevronDown, User, Send, AlertTriangle,
   Phone, MessageSquare, Edit2, Check, X,
   QrCode, ShieldCheck, MapPin, HelpCircle,
-  Printer, IdCard, Building2
+  Printer, IdCard, Building2, Bell
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -75,6 +75,7 @@ const Dashboard = () => {
   const [recentNotices, setRecentNotices] = useState([]);
   const [isIdModalOpen, setIsIdModalOpen] = useState(false);
   const [selectedNoticeForModal, setSelectedNoticeForModal] = useState(null);
+  const [activeTopTab, setActiveTopTab] = useState('attendance'); // 'attendance' | 'notices'
 
   // Verified Hybrid Teacher Attendance Modals
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -274,6 +275,71 @@ const Dashboard = () => {
   const leaveToday = attendanceData.filter(a => ['Leave', 'Medical Leave'].includes(a.status)).length;
   const studentsAtRisk = alerts.length;
 
+  const getAttendanceStateDetails = () => {
+    if (!myAttendanceToday || !myAttendanceToday.check_in_time) {
+      return {
+        key: 'NO_CHECK_IN',
+        label: 'NO CHECK-IN',
+        sublabel: 'Morning scan required',
+        dotClass: 'bg-slate-600',
+        badgeClass: 'text-slate-400'
+      };
+    }
+
+    if (myAttendanceToday.check_out_time) {
+      const isQRVerified = myAttendanceToday.check_out_verification_status === 'VERIFIED';
+      return {
+        key: 'CHECKED_OUT',
+        label: isQRVerified ? '✓ QR VERIFIED' : 'CHECKED OUT',
+        sublabel: isQRVerified
+          ? `Campus GPS (${myAttendanceToday.check_out_distance_meters != null ? myAttendanceToday.check_out_distance_meters + 'm' : 'Verified'})`
+          : 'Shift Completed',
+        dotClass: isQRVerified ? 'bg-emerald-400' : 'bg-blue-400',
+        badgeClass: isQRVerified ? 'text-emerald-400' : 'text-blue-400'
+      };
+    }
+
+    if (myAttendanceToday.check_in_method === 'DYNAMIC_QR' && myAttendanceToday.check_in_verification_status === 'VERIFIED') {
+      return {
+        key: 'QR_VERIFIED',
+        label: '✓ QR VERIFIED',
+        sublabel: `Campus GPS (${myAttendanceToday.check_in_distance_meters != null ? myAttendanceToday.check_in_distance_meters + 'm' : 'Verified'})`,
+        dotClass: 'bg-emerald-400 animate-pulse',
+        badgeClass: 'text-emerald-400'
+      };
+    }
+
+    if (myAttendanceToday.check_in_method === 'MANUAL_CORRECTION' || myAttendanceToday.check_in_verification_status === 'MANUALLY_APPROVED') {
+      return {
+        key: 'MANUAL_CORRECTION',
+        label: 'MANUAL ENTRY',
+        sublabel: 'Approved correction',
+        dotClass: 'bg-blue-400',
+        badgeClass: 'text-blue-400'
+      };
+    }
+
+    if (myAttendanceToday.check_in_method === 'ADMIN_OVERRIDE' || myAttendanceToday.check_in_verification_status === 'ADMIN_VERIFIED') {
+      return {
+        key: 'ADMIN_RECORDED',
+        label: 'ADMIN RECORDED',
+        sublabel: 'Administrative override',
+        dotClass: 'bg-blue-400',
+        badgeClass: 'text-blue-400'
+      };
+    }
+
+    return {
+      key: 'UNVERIFIED',
+      label: 'UNVERIFIED',
+      sublabel: 'Direct record',
+      dotClass: 'bg-amber-400',
+      badgeClass: 'text-amber-400'
+    };
+  };
+
+  const attState = getAttendanceStateDetails();
+
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6">
       
@@ -316,206 +382,439 @@ const Dashboard = () => {
         </div>
       </div>
       
-      {/* Verified Hybrid Teacher Attendance Card */}
-      <Card className="bg-slate-900 text-white border border-slate-800 shadow-2xl overflow-hidden relative rounded-2xl">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-brand-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-        <div className="p-6 relative z-10">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
-            <div className="flex items-center gap-3.5">
-              <div className="p-3 bg-slate-800 border border-slate-700 rounded-2xl text-brand-400 shadow-inner">
-                <ShieldCheck size={26} />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-bold tracking-tight text-white">Today's Attendance</h2>
-                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    Live Verified
-                  </span>
-                </div>
-                <p className="text-slate-400 text-xs mt-0.5 flex items-center gap-1.5">
-                  <MapPin size={12} className="text-emerald-400" />
-                  Gyanoday Niketan Geofence • Standard Reporting: <strong className="text-slate-200">{reportingTimeConfig.time}</strong>
-                </p>
-              </div>
-            </div>
+      {/* Top Tab Navigation Menu */}
+      <div 
+        role="tablist" 
+        aria-label="Dashboard top navigation"
+        className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800/80 pb-2"
+      >
+        <div 
+          className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900/90 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-inner"
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+              e.preventDefault();
+              const nextTab = activeTopTab === 'attendance' ? 'notices' : 'attendance';
+              setActiveTopTab(nextTab);
+              document.getElementById(`tab-${nextTab}`)?.focus();
+            }
+          }}
+        >
+          <button
+            id="tab-attendance"
+            role="tab"
+            type="button"
+            aria-selected={activeTopTab === 'attendance'}
+            aria-controls="panel-attendance"
+            tabIndex={activeTopTab === 'attendance' ? 0 : -1}
+            onClick={() => setActiveTopTab('attendance')}
+            className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl font-bold text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
+              activeTopTab === 'attendance'
+                ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            <ShieldCheck size={18} className={activeTopTab === 'attendance' ? 'text-white' : 'text-emerald-500 dark:text-emerald-400'} />
+            <span>Today's Attendance</span>
+            {myAttendanceToday?.check_in_time ? (
+              <span 
+                className={`w-2.5 h-2.5 rounded-full ${myAttendanceToday.check_out_time ? 'bg-emerald-400' : 'bg-emerald-400 animate-pulse'}`} 
+                title={myAttendanceToday.check_out_time ? 'Shift Completed' : 'Checked In'}
+              />
+            ) : (
+              <span 
+                className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" 
+                title="Pending check-in"
+              />
+            )}
+          </button>
 
-            <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-              <button
-                type="button"
-                onClick={() => setIsCorrectionOpen(true)}
-                className="text-xs text-slate-400 hover:text-brand-300 flex items-center gap-1 px-3 py-1.5 rounded-xl hover:bg-slate-800/60 border border-transparent hover:border-slate-700 transition-colors"
-              >
-                <HelpCircle size={13} /> Request Correction
-              </button>
-            </div>
-          </div>
-
-          {/* Attendance State Machine Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 my-5">
-            {/* Check-In */}
-            <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5 flex flex-col justify-between">
-              <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Check-In</span>
-              <div className="my-1.5">
-                <span className="text-lg md:text-xl font-black font-mono text-white">
-                  {myAttendanceToday?.check_in_time 
-                    ? new Date(myAttendanceToday.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    : '--:--'}
-                </span>
-              </div>
-              <div>
-                {myAttendanceToday?.check_in_time ? (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                    <CheckCircle size={10} />
-                    {myAttendanceToday.check_in_verification_status === 'VERIFIED' 
-                      ? '✓ Verified — Dynamic QR'
-                      : myAttendanceToday.check_in_method === 'MANUAL_CORRECTION'
-                        ? 'Approved Correction'
-                        : 'Unverified / Legacy'}
-                  </span>
-                ) : (
-                  <span className="text-[11px] text-slate-400 font-medium">Pending morning scan</span>
-                )}
-              </div>
-            </div>
-
-            {/* Check-Out */}
-            <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5 flex flex-col justify-between">
-              <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Check-Out</span>
-              <div className="my-1.5">
-                <span className="text-lg md:text-xl font-black font-mono text-white">
-                  {myAttendanceToday?.check_out_time 
-                    ? new Date(myAttendanceToday.check_out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    : '--:--'}
-                </span>
-              </div>
-              <div>
-                {myAttendanceToday?.check_out_time ? (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20">
-                    <CheckCircle size={10} />
-                    {myAttendanceToday.check_out_verification_status === 'VERIFIED' 
-                      ? '✓ Verified — Dynamic QR'
-                      : 'Recorded'}
-                  </span>
-                ) : (
-                  <span className="text-[11px] text-slate-400 font-medium">
-                    {myAttendanceToday?.check_in_time ? 'Not yet checked out' : 'Pending check-in'}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Working Hours */}
-            <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5 flex flex-col justify-between">
-              <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Working Hours</span>
-              <div className="my-1.5">
-                <span className="text-lg md:text-xl font-black font-mono text-emerald-400">
-                  {myAttendanceToday?.working_hours || (
-                    myAttendanceToday?.check_in_time && myAttendanceToday?.check_out_time
-                      ? (() => {
-                          const diffMs = new Date(myAttendanceToday.check_out_time) - new Date(myAttendanceToday.check_in_time);
-                          const hours = Math.floor(diffMs / (1000 * 60 * 60));
-                          const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                          return `${String(hours).padStart(2, '0')}h ${String(mins).padStart(2, '0')}m`;
-                        })()
-                      : '--'
-                  )}
-                </span>
-              </div>
-              <span className="text-[11px] text-slate-400 font-medium">
-                {myAttendanceToday?.check_out_time ? 'Official shift duration' : 'Calculated at checkout'}
+          <button
+            id="tab-notices"
+            role="tab"
+            type="button"
+            aria-selected={activeTopTab === 'notices'}
+            aria-controls="panel-notices"
+            tabIndex={activeTopTab === 'notices' ? 0 : -1}
+            onClick={() => setActiveTopTab('notices')}
+            className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl font-bold text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 relative ${
+              activeTopTab === 'notices'
+                ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            <Bell size={18} className={activeTopTab === 'notices' ? 'text-white' : 'text-amber-500 dark:text-amber-400'} />
+            <span>Notices & Circulars</span>
+            {recentNotices.length > 0 && (
+              <span className={`px-2 py-0.5 text-xs font-black rounded-full transition-colors ${
+                activeTopTab === 'notices'
+                  ? 'bg-white text-brand-700 shadow-sm'
+                  : 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30'
+              }`}>
+                {recentNotices.length}
               </span>
-            </div>
-
-            {/* Status */}
-            <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5 flex flex-col justify-between">
-              <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Status</span>
-              <div className="my-1.5">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider ${
-                  !myAttendanceToday 
-                    ? 'bg-slate-800 text-slate-400' 
-                    : myAttendanceToday.status.includes('Present') 
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
-                      : myAttendanceToday.status === 'Late' 
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' 
-                        : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                }`}>
-                  {myAttendanceToday?.status || 'NOT MARKED'}
-                </span>
-              </div>
-              <span className="text-[11px] text-slate-400 font-medium">
-                {myAttendanceToday?.status === 'Late' ? 'Grace window exceeded' : 'Official status'}
-              </span>
-            </div>
-
-            {/* Verification */}
-            <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5 flex flex-col justify-between col-span-2 md:col-span-1">
-              <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Verification</span>
-              <div className="my-1.5">
-                <span className="text-xs font-black text-white flex items-center gap-1.5">
-                  <span className={`w-2 h-2 rounded-full ${
-                    myAttendanceToday?.check_in_verification_status === 'VERIFIED'
-                      ? 'bg-emerald-400 animate-pulse'
-                      : myAttendanceToday
-                        ? 'bg-amber-400'
-                        : 'bg-slate-600'
-                  }`} />
-                  {myAttendanceToday?.check_in_verification_status === 'VERIFIED'
-                    ? '✓ VERIFIED'
-                    : myAttendanceToday
-                      ? 'UNVERIFIED'
-                      : 'PENDING'}
-                </span>
-              </div>
-              <span className="text-[10px] text-slate-400 truncate">
-                {myAttendanceToday?.check_in_distance_meters != null 
-                  ? `Campus GPS (${myAttendanceToday.check_in_distance_meters}m)`
-                  : 'Server validation'}
-              </span>
-            </div>
-          </div>
-
-          {/* Action Trigger Row */}
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-800/80">
-            <p className="text-xs text-slate-400">
-              {!myAttendanceToday ? (
-                <span>Scan the dynamic QR displayed at school entrance/staffroom to record morning arrival.</span>
-              ) : !myAttendanceToday.check_out_time ? (
-                <span>Checked in successfully. Please scan the dynamic afternoon QR before leaving campus.</span>
-              ) : (
-                <span className="text-emerald-400 flex items-center gap-1.5">
-                  <CheckCircle size={14} /> Full daily attendance cycle completed and verified for today.
-                </span>
-              )}
-            </p>
-
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              {!myAttendanceToday ? (
-                <Button 
-                  onClick={handleOpenCheckInScanner} 
-                  className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 text-white h-11 px-6 text-sm font-bold shadow-lg hover:shadow-emerald-500/20 flex items-center gap-2"
-                >
-                  <QrCode size={18} /> Scan QR to Check In
-                </Button>
-              ) : !myAttendanceToday.check_out_time ? (
-                <Button 
-                  onClick={handleOpenCheckOutScanner} 
-                  variant="danger"
-                  className="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white h-11 px-6 text-sm font-bold shadow-lg hover:shadow-rose-600/20 flex items-center gap-2"
-                >
-                  <QrCode size={18} /> Scan QR to Check Out
-                </Button>
-              ) : (
-                <Button 
-                  disabled
-                  className="w-full sm:w-auto bg-slate-800 text-slate-400 h-11 px-6 text-sm font-bold border border-slate-700 cursor-default"
-                >
-                  <CheckCircle size={18} className="text-emerald-400 mr-2" /> Shift Completed
-                </Button>
-              )}
-            </div>
-          </div>
+            )}
+          </button>
         </div>
-      </Card>
+
+        {/* Quick Context Summary */}
+        <div className="text-xs text-slate-500 dark:text-slate-400 hidden sm:flex items-center gap-2">
+          {activeTopTab === 'attendance' ? (
+            <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700/60">
+              <span className="text-slate-400">Status:</span>
+              <strong className="text-slate-700 dark:text-slate-200 font-semibold">{myAttendanceToday?.status || 'Not Marked'}</strong>
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700/60">
+              <Bell size={13} className="text-brand-500" />
+              <span>Showing <strong className="text-slate-700 dark:text-slate-200 font-semibold">{recentNotices.length}</strong> official circular{recentNotices.length === 1 ? '' : 's'}</span>
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Tab Panels */}
+      <AnimatePresence mode="wait">
+        {activeTopTab === 'attendance' ? (
+          <motion.div
+            key="panel-attendance"
+            id="panel-attendance"
+            role="tabpanel"
+            aria-labelledby="tab-attendance"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-6"
+          >
+            {/* Verified Hybrid Teacher Attendance Card */}
+            <Card className="bg-slate-900 text-white border border-slate-800 shadow-2xl overflow-hidden relative rounded-2xl">
+              <div className="absolute top-0 right-0 w-80 h-80 bg-brand-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+              <div className="p-6 relative z-10">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
+                  <div className="flex items-center gap-3.5">
+                    <div className="p-3 bg-slate-800 border border-slate-700 rounded-2xl text-brand-400 shadow-inner">
+                      <ShieldCheck size={26} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-xl font-bold tracking-tight text-white">Today's Attendance</h2>
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          Live Verified
+                        </span>
+                      </div>
+                      <p className="text-slate-400 text-xs mt-0.5 flex items-center gap-1.5">
+                        <MapPin size={12} className="text-emerald-400" />
+                        Gyanoday Niketan Geofence • Standard Reporting: <strong className="text-slate-200">{reportingTimeConfig.time}</strong>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setIsCorrectionOpen(true)}
+                      className="text-xs text-slate-400 hover:text-brand-300 flex items-center gap-1 px-3 py-1.5 rounded-xl hover:bg-slate-800/60 border border-transparent hover:border-slate-700 transition-colors"
+                    >
+                      <HelpCircle size={13} /> Request Correction
+                    </button>
+                  </div>
+                </div>
+
+                {/* Attendance State Machine Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 my-5">
+                  {/* Check-In */}
+                  <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5 flex flex-col justify-between">
+                    <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Check-In</span>
+                    <div className="my-1.5">
+                      <span className="text-lg md:text-xl font-black font-mono text-white">
+                        {myAttendanceToday?.check_in_time 
+                          ? new Date(myAttendanceToday.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : '--:--'}
+                      </span>
+                    </div>
+                    <div>
+                      {myAttendanceToday?.check_in_time ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                          <CheckCircle size={10} />
+                          {myAttendanceToday.check_in_verification_status === 'VERIFIED' 
+                            ? '✓ Verified — Dynamic QR'
+                            : myAttendanceToday.check_in_method === 'ADMIN_OVERRIDE' || myAttendanceToday.check_in_verification_status === 'ADMIN_VERIFIED'
+                              ? 'Administrative Record'
+                              : myAttendanceToday.check_in_method === 'MANUAL_CORRECTION'
+                                ? 'Approved Correction'
+                                : 'Recorded'}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-slate-400 font-medium">Pending morning scan</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Check-Out */}
+                  <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5 flex flex-col justify-between">
+                    <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Check-Out</span>
+                    <div className="my-1.5">
+                      <span className="text-lg md:text-xl font-black font-mono text-white">
+                        {myAttendanceToday?.check_out_time 
+                          ? new Date(myAttendanceToday.check_out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : '--:--'}
+                      </span>
+                    </div>
+                    <div>
+                      {myAttendanceToday?.check_out_time ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20">
+                          <CheckCircle size={10} />
+                          {myAttendanceToday.check_out_verification_status === 'VERIFIED' 
+                            ? '✓ Verified — Dynamic QR'
+                            : 'Recorded'}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          {myAttendanceToday?.check_in_time ? 'Awaiting departure scan' : 'Pending check-in'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Working Hours */}
+                  <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5 flex flex-col justify-between">
+                    <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Working Hours</span>
+                    <div className="my-1.5">
+                      <span className="text-lg md:text-xl font-black font-mono text-emerald-400">
+                        {myAttendanceToday?.working_hours || (
+                          myAttendanceToday?.check_in_time && myAttendanceToday?.check_out_time
+                            ? (() => {
+                                const diffMs = new Date(myAttendanceToday.check_out_time) - new Date(myAttendanceToday.check_in_time);
+                                const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                                const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                                return `${String(hours).padStart(2, '0')}h ${String(mins).padStart(2, '0')}m`;
+                              })()
+                            : '--'
+                        )}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-medium">
+                      {myAttendanceToday?.check_out_time ? 'Official shift duration' : 'Calculated at checkout'}
+                    </span>
+                  </div>
+
+                  {/* Status */}
+                  <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5 flex flex-col justify-between">
+                    <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Status</span>
+                    <div className="my-1.5">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider ${
+                        !myAttendanceToday 
+                          ? 'bg-slate-800 text-slate-400' 
+                          : myAttendanceToday.status.includes('Present') 
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+                            : myAttendanceToday.status === 'Late' 
+                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' 
+                              : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                      }`}>
+                        {myAttendanceToday?.status || 'NOT MARKED'}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-medium">
+                      {myAttendanceToday?.status === 'Late' ? 'Grace window exceeded' : 'Official status'}
+                    </span>
+                  </div>
+
+                  {/* Verification */}
+                  <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5 flex flex-col justify-between col-span-2 md:col-span-1">
+                    <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Verification</span>
+                    <div className="my-1.5">
+                      <span className={`text-xs font-black flex items-center gap-1.5 ${attState.badgeClass}`}>
+                        <span className={`w-2 h-2 rounded-full ${attState.dotClass}`} />
+                        {attState.label}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 truncate">
+                      {attState.sublabel}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Action Trigger Row */}
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-800/80">
+                  <p className="text-xs text-slate-400">
+                    {!myAttendanceToday || !myAttendanceToday.check_in_time ? (
+                      <span>No morning check-in recorded for today. Afternoon check-out requires a recorded morning arrival first. Please scan to check in or contact admin for correction.</span>
+                    ) : !myAttendanceToday.check_out_time ? (
+                      <span>Checked in successfully ({attState.label}). Please scan the dynamic afternoon QR before leaving campus.</span>
+                    ) : (
+                      <span className="text-emerald-400 flex items-center gap-1.5">
+                        <CheckCircle size={14} /> Full daily attendance cycle completed and verified for today.
+                      </span>
+                    )}
+                  </p>
+
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    {!myAttendanceToday || !myAttendanceToday.check_in_time ? (
+                      <Button 
+                        onClick={handleOpenCheckInScanner} 
+                        className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 text-white h-11 px-6 text-sm font-bold shadow-lg hover:shadow-emerald-500/20 flex items-center gap-2"
+                      >
+                        <QrCode size={18} /> Scan QR to Check In
+                      </Button>
+                    ) : !myAttendanceToday.check_out_time ? (
+                      <Button 
+                        onClick={handleOpenCheckOutScanner} 
+                        variant="danger"
+                        className="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white h-11 px-6 text-sm font-bold shadow-lg hover:shadow-rose-600/20 flex items-center gap-2"
+                      >
+                        <QrCode size={18} /> Scan QR to Check Out
+                      </Button>
+                    ) : (
+                      <Button 
+                        disabled
+                        className="w-full sm:w-auto bg-slate-800 text-slate-400 h-11 px-6 text-sm font-bold border border-slate-700 cursor-default"
+                      >
+                        <CheckCircle size={18} className="text-emerald-400 mr-2" /> Shift Completed
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Teacher Attendance History */}
+            <TeacherAttendanceHistory teacherId={profile?.id} />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="panel-notices"
+            id="panel-notices"
+            role="tabpanel"
+            aria-labelledby="tab-notices"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-4"
+          >
+            {/* Pending Morning Check-In Reminder Banner */}
+            {(!myAttendanceToday || !myAttendanceToday.check_in_time) && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-300 shadow-md">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-amber-500/20 rounded-xl text-amber-400 shrink-0">
+                    <Clock size={20} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-amber-200">Morning Check-In Pending</h4>
+                    <p className="text-xs text-amber-300/80">You have not recorded your arrival for today yet. Scan the school QR code to record your attendance.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                  <Button
+                    size="sm"
+                    onClick={handleOpenCheckInScanner}
+                    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 px-4 flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <QrCode size={15} /> Scan Check In
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setActiveTopTab('attendance')}
+                    className="w-full sm:w-auto border-amber-500/40 text-amber-200 hover:bg-amber-500/20 text-xs h-9 px-3"
+                  >
+                    View Attendance
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Notices Section */}
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <AlertCircle size={22} className="text-brand-500" /> Recent Notices & Circulars
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Official announcements, circulars, and schedules published for you
+                  </p>
+                </div>
+                {recentNotices.length > 0 && (
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 self-start sm:self-auto">
+                    Showing latest {recentNotices.length} circular{recentNotices.length === 1 ? '' : 's'}
+                  </span>
+                )}
+              </div>
+
+              {recentNotices.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {recentNotices.map(notice => (
+                    <Card 
+                      key={notice.id} 
+                      hoverable 
+                      className="h-full flex flex-col relative overflow-hidden cursor-pointer group hover:border-brand-400 dark:hover:border-brand-600 transition-all bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md"
+                      onClick={() => setSelectedNoticeForModal(notice)}
+                    >
+                      <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-500"></div>
+                      <CardContent className="p-5 sm:p-6 flex-1 flex flex-col justify-between">
+                        <div>
+                          <div className="flex justify-between items-start mb-3 gap-2">
+                            <h4 className="font-bold text-base sm:text-lg leading-snug text-slate-800 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-2">
+                              {notice.title}
+                            </h4>
+                            <Badge 
+                              variant={notice.target_audience?.startsWith('class:') ? 'default' : 'secondary'} 
+                              className={`uppercase text-[10px] tracking-wider font-semibold whitespace-nowrap shrink-0 ${
+                                notice.target_audience?.startsWith('class:')
+                                  ? 'bg-brand-100 text-brand-800 border-brand-200 dark:bg-brand-950/80 dark:text-brand-300 dark:border-brand-800'
+                                  : ''
+                              }`}
+                            >
+                              {(() => {
+                                const aud = notice.target_audience;
+                                if (!aud || aud === 'all') return 'Entire School';
+                                if (aud === 'staff') return 'All Staff';
+                                if (aud === 'teachers') return 'Teachers';
+                                if (aud === 'non_teaching') return 'Non-Teaching';
+                                if (aud === 'group_d') return 'Group D';
+                                if (aud === 'students') return 'Students';
+                                if (aud.startsWith('class:')) {
+                                  const cid = aud.replace('class:', '');
+                                  const cls = classes.find(c => c.id === cid);
+                                  return cls ? `Class ${cls.name} ${cls.section || ''}`.trim() : 'Class';
+                                }
+                                return aud;
+                              })()}
+                            </Badge>
+                          </div>
+                          <div 
+                            className="text-slate-600 dark:text-slate-300 text-sm mb-4 line-clamp-3 prose prose-sm max-w-none pointer-events-none" 
+                            dangerouslySetInnerHTML={{ __html: notice.content }} 
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-slate-400 font-medium pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                          <span>{new Date(notice.publish_date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                          <span className="text-brand-600 dark:text-brand-400 font-semibold group-hover:underline flex items-center gap-1">
+                            Read circular &rarr;
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card className="bg-slate-50 dark:bg-slate-900/60 border-dashed border-slate-300 dark:border-slate-800 p-8 text-center">
+                  <div className="max-w-md mx-auto flex flex-col items-center">
+                    <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-3">
+                      <Bell size={22} />
+                    </div>
+                    <h4 className="font-bold text-base text-slate-800 dark:text-slate-200 mb-1">No Active Notices</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      There are no recent notices or circulars published for your role at this time. All new announcements will appear here.
+                    </p>
+                  </div>
+                </Card>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Attendance Scanner Modal */}
       <AttendanceScannerModal
@@ -533,9 +832,6 @@ const Dashboard = () => {
         teacherId={profile?.id}
         onSubmitted={() => fetchDashboardData()}
       />
-
-      {/* Teacher Attendance History */}
-      <TeacherAttendanceHistory teacherId={profile?.id} />
 
       {/* Calendar Widget - Visible to all faculty and staff */}
       <CalendarWidget />
@@ -754,68 +1050,6 @@ const Dashboard = () => {
           </Card>
         );
       })()}
-
-      {/* Recent Notices */}
-      {recentNotices.length > 0 && (
-        <div className="pt-4">
-          <h3 className="text-xl font-bold mb-4 text-slate-800 dark:text-white flex items-center gap-2">
-            <AlertCircle size={24} className="text-brand-500" /> Recent Notices & Circulars
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {recentNotices.map(notice => (
-              <Card 
-                key={notice.id} 
-                hoverable 
-                className="h-full flex flex-col relative overflow-hidden cursor-pointer group hover:border-brand-300 dark:hover:border-brand-700 transition-all"
-                onClick={() => setSelectedNoticeForModal(notice)}
-              >
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-500"></div>
-                <CardContent className="p-6 flex-1 flex flex-col">
-                  <div className="flex justify-between items-start mb-3 gap-2">
-                    <h4 className="font-bold text-lg leading-tight text-slate-800 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
-                      {notice.title}
-                    </h4>
-                    <Badge 
-                      variant={notice.target_audience?.startsWith('class:') ? 'default' : 'secondary'} 
-                      className={`uppercase text-[10px] tracking-wider font-semibold whitespace-nowrap ${
-                        notice.target_audience?.startsWith('class:')
-                          ? 'bg-brand-100 text-brand-800 border-brand-200 dark:bg-brand-950/80 dark:text-brand-300 dark:border-brand-800'
-                          : ''
-                      }`}
-                    >
-                      {(() => {
-                        const aud = notice.target_audience;
-                        if (!aud || aud === 'all') return 'Entire School';
-                        if (aud === 'staff') return 'All Staff';
-                        if (aud === 'teachers') return 'Teachers';
-                        if (aud === 'non_teaching') return 'Non-Teaching';
-                        if (aud === 'group_d') return 'Group D';
-                        if (aud === 'students') return 'Students';
-                        if (aud.startsWith('class:')) {
-                          const cid = aud.replace('class:', '');
-                          const cls = classes.find(c => c.id === cid);
-                          return cls ? `Class ${cls.name} ${cls.section || ''}`.trim() : 'Class';
-                        }
-                        return aud;
-                      })()}
-                    </Badge>
-                  </div>
-                  <div 
-                    className="text-slate-600 dark:text-slate-300 text-sm mb-4 flex-1 line-clamp-3 prose prose-sm max-w-none pointer-events-none" 
-                    dangerouslySetInnerHTML={{ __html: notice.content }} 
-                  />
-                  <div className="flex items-center justify-between text-xs text-slate-400 font-medium pt-3 border-t border-slate-100 dark:border-slate-800/80">
-                    <span>{new Date(notice.publish_date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</span>
-                    <span className="text-brand-600 dark:text-brand-400 font-semibold group-hover:underline flex items-center gap-1">
-                      Read circular &rarr;
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Quick Actions Bento Box */}
       <div className="pt-4">
