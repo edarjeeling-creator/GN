@@ -32,12 +32,13 @@ import UserCredentialsModal from '../components/admin/UserCredentialsModal';
 import CreateUserModal from '../components/admin/CreateUserModal';
 import EditUserModal from '../components/admin/EditUserModal';
 import DeactivateConfirmationModal from '../components/admin/DeactivateConfirmationModal';
+import CreateStudentModal from '../components/admin/CreateStudentModal';
 import { UserCredentialService } from '../services/UserCredentialService';
 
 const Admin = () => {
   const { logout, profile } = useAuth();
   const navigate = useNavigate();
-  const { academicYear, classes, subjects, students, updateStudentName, updateStudentLanguages, updateStudentPictureUrl, updateSubjectName, removeStudent, loadingData } = useData();
+  const { academicYear, classes, subjects, students, addStudent, updateStudentName, updateStudentLanguages, updateStudentPictureUrl, updateSubjectName, removeStudent, loadingData } = useData();
   const [stats, setStats] = useState({ classes: 0, students: 0, subjects: 0, teachers: 0 });
   const [activeTab, setActiveTab] = useState('dashboard');
   const [idCardTab, setIdCardTab] = useState('student');
@@ -73,6 +74,9 @@ const Admin = () => {
   const [deactivateModalUser, setDeactivateModalUser] = useState(null);
   const [deactivateActionType, setDeactivateActionType] = useState('deactivate'); // 'deactivate' | 'reactivate' | 'delete'
   const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
+
+  // Student Lifecycle Management
+  const [isCreateStudentModalOpen, setIsCreateStudentModalOpen] = useState(false);
 
   // Staff Filters
   const [staffRoleFilter, setStaffRoleFilter] = useState('all');
@@ -1178,17 +1182,43 @@ const Admin = () => {
             <div className="flex" style={{ flexDirection: 'column', gap: '2rem' }}>
           <div className="bento-card" style={{ padding: '2rem' }}>
             <div className="flex justify-between items-center mb-6" style={{ flexWrap: 'wrap', gap: '1rem' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Manage Students</h3>
-              <div className="flex gap-2 items-center">
+              <div className="flex items-center gap-3">
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Manage Students</h3>
+                <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                  {students.filter(s => manageStudentsClassFilter === 'all' || s.class_id === manageStudentsClassFilter).length} {students.filter(s => manageStudentsClassFilter === 'all' || s.class_id === manageStudentsClassFilter).length === 1 ? 'Student' : 'Students'}
+                </span>
+              </div>
+              <div className="flex gap-2 items-center flex-wrap">
                 <select 
                   className="input-field" 
-                  style={{ maxWidth: '250px', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}
+                  style={{ maxWidth: '250px', padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}
                   value={manageStudentsClassFilter}
                   onChange={(e) => setManageStudentsClassFilter(e.target.value)}
                 >
                   <option value="all">All Classes</option>
                   {classes.map(c => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
                 </select>
+
+                <button 
+                  type="button"
+                  onClick={() => setIsCreateStudentModalOpen(true)}
+                  className="btn-hero-primary flex items-center gap-1.5"
+                  style={{ 
+                    padding: '0.5rem 1rem', 
+                    borderRadius: 'var(--radius-sm)', 
+                    background: '#2563eb', 
+                    color: 'white', 
+                    border: 'none', 
+                    fontWeight: 600, 
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 4px rgba(37, 99, 235, 0.3)'
+                  }}
+                  title="Create a new student"
+                >
+                  <UserPlus size={16} />
+                  <span>Create Student</span>
+                </button>
+
                 {manageStudentsClassFilter !== 'all' && (
                   <button 
                     onClick={handleBulkDeleteStudents}
@@ -1918,6 +1948,18 @@ const Admin = () => {
         isOpen={isDeactivateModalOpen} 
         onClose={() => setIsDeactivateModalOpen(false)} 
         onSuccess={handleStatusChangeSuccess} 
+      />
+
+      {/* Student Lifecycle Management */}
+      <CreateStudentModal
+        isOpen={isCreateStudentModalOpen}
+        onClose={() => setIsCreateStudentModalOpen(false)}
+        classes={classes}
+        students={students}
+        initialClassId={manageStudentsClassFilter !== 'all' ? manageStudentsClassFilter : ''}
+        onSuccess={() => {
+          fetchStats();
+        }}
       />
 
     </motion.div>

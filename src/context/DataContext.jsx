@@ -239,7 +239,7 @@ export const DataProvider = ({ children }) => {
     }
   };
 
-  const addStudent = async (classId, name, rollNo, contactNumber = null) => {
+  const addStudent = async (classId, name, rollNo, contactNumber = null, extraData = {}) => {
     if (isReadOnly) {
       return { success: false, error: { message: "Portal is in Read-Only Mode. Please renew your subscription to register new students." } };
     }
@@ -248,13 +248,20 @@ export const DataProvider = ({ children }) => {
       return { success: false, error: { message: `Student limit reached (${allowedStudents} allowed). Please upgrade your subscription plan.` } };
     }
 
-    const payload = { class_id: classId, name, roll_no: rollNo };
-    if (contactNumber) payload.contact_number = String(contactNumber).trim();
+    const payload = { 
+      class_id: classId, 
+      name: name ? name.trim() : '', 
+      roll_no: Number(rollNo),
+      ...(extraData || {})
+    };
+    if (contactNumber && String(contactNumber).trim()) {
+      payload.contact_number = String(contactNumber).trim();
+    }
 
     const { data, error } = await supabase.from('students').insert([payload]).select();
-    if (!error && data) {
+    if (!error && data && data.length > 0) {
       setStudents(prev => [...prev, data[0]]);
-      return { success: true };
+      return { success: true, data: data[0] };
     }
     return { success: false, error };
   };
