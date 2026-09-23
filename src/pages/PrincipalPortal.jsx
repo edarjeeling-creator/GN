@@ -18,6 +18,7 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 import { absenteeNotificationService } from '../services/AbsenteeNotificationService';
+import { notificationService } from '../services/NotificationService';
 import { formatStudentDisplayName } from '../utils/studentUtils';
 
 const PrincipalPortal = () => {
@@ -34,6 +35,7 @@ const PrincipalPortal = () => {
   const [noticeTitle, setNoticeTitle] = useState('');
   const [noticeMessage, setNoticeMessage] = useState('');
   const [noticeAudience, setNoticeAudience] = useState('all');
+  const [sendingNotice, setSendingNotice] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -411,11 +413,115 @@ const PrincipalPortal = () => {
 
   const handleSendNotice = async (e) => {
     e.preventDefault();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { error } = await supabase.from('notices').insert([{ sender_uid: user.id, title: noticeTitle, content: noticeMessage, target_audience: noticeAudience }]);
-    if (!error) { setNoticeTitle(''); setNoticeMessage(''); fetchNotices(); alert('Notice sent successfully!'); }
-    else alert('Failed to send notice');
+    if (!noticeTitle.trim()) {
+      alert('Please enter a notice title');
+      return;
+    }
+
+    setSendingNotice(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('You must be logged in to publish notices.');
+        return;
+      }
+
+      let noticeId = null;
+      let recipientUserIds = [];
+
+      // 1. Try secure SECURITY DEFINER RPC first (handles server-authoritative insert & in-app notifications)
+      try {
+        const { data: rpcRes, error: rpcErr } = await supabase.rpc('publish_school_notice', {
+          p_title: noticeTitle.trim(),
+          p_content: noticeMessage,
+          p_target_audience: noticeAudience
+        });
+
+        if (!rpcErr && rpcRes?.success) {
+          noticeId = rpcRes.noticeId;
+          recipientUserIds = rpcRes.recipientUserIds || [];
+        } else if (rpcErr) {
+          console.warn('publish_school_notice RPC error, falling back to direct insert:', rpcErr);
+        }
+      } catch (rpcEx) {
+        console.warn('publish_school_notice RPC exception, falling back:', rpcEx);
+      }
+
+      // 2. Fallback to direct insert if RPC failed or is not yet migrated
+      if (!noticeId) {
+        const { data: insertedNotice, error: insertError } = await supabase
+          .from('notices')
+          .insert([{
+            sender_uid: user.id,
+            title: noticeTitle.trim(),
+            content: noticeMessage,
+            target_audience: noticeAudience,
+            publish_date: new Date().toISOString()
+          }])
+          .select('id')
+          .single();
+
+        if (insertError) {
+          throw insertError;
+        }
+        noticeId = insertedNotice?.id;
+
+        // Resolve recipients for in-app notification insertion fallback
+        try {
+          let query = supabase.from('profiles').select('id');
+          if (noticeAudience === 'teachers') {
+            query = query.in('role', ['teacher', 'coordinator']);
+          } else if (noticeAudience === 'staff') {
+            query = query.in('role', ['teacher', 'non_teaching', 'group_d', 'admin', 'principal', 'coordinator', 'accountant', 'librarian']);
+          } else if (noticeAudience === 'non_teaching') {
+            query = query.in('role', ['non_teaching', 'accountant', 'librarian']);
+          } else if (noticeAudience === 'group_d') {
+            query = query.eq('role', 'group_d');
+          } else if (noticeAudience === 'students') {
+            query = query.eq('role', 'student');
+          }
+          const { data: pRecips } = await query;
+          recipientUserIds = (pRecips || []).map(p => p.id);
+
+          // Insert fallback in-app notifications
+          if (recipientUserIds.length > 0) {
+            const cleanPreview = notificationService.stripHtml(noticeMessage).slice(0, 117);
+            const inAppRecords = recipientUserIds.map(uid => ({
+              user_id: uid,
+              title: noticeTitle.trim(),
+              message: cleanPreview || noticeTitle.trim(),
+              type: 'notice',
+              school_id: profile?.school_id || null,
+              is_read: false
+            }));
+            await supabase.from('notifications').insert(inAppRecords);
+          }
+        } catch (inAppErr) {
+          console.warn('Fallback in-app notification error:', inAppErr);
+        }
+      }
+
+      // 3. Dispatch Mobile / Web Push Notification via notificationService
+      if (noticeId) {
+        notificationService.dispatchNoticePush({
+          noticeId,
+          title: noticeTitle.trim(),
+          content: noticeMessage,
+          recipientUserIds
+        }).catch(pushErr => console.warn('Background notice push dispatch error:', pushErr));
+      }
+
+      // 4. Reset form & refresh notices
+      setNoticeTitle('');
+      setNoticeMessage('');
+      fetchNotices();
+      alert('Notice published successfully!');
+    } catch (err) {
+      console.error('Failed to send notice:', err);
+      alert('Failed to send notice: ' + (err.message || 'Unknown error'));
+    } finally {
+      setSendingNotice(false);
+    }
   };
 
   const [deletingNoticeId, setDeletingNoticeId] = useState(null);
@@ -1216,7 +1322,9 @@ const PrincipalPortal = () => {
                       </optgroup>
                     </select>
                   </div>
-                  <Button type="submit" className="w-full h-12 mt-2 shadow-lg shadow-brand-500/20">Publish Notice</Button>
+                  <Button type="submit" disabled={sendingNotice} className="w-full h-12 mt-2 shadow-lg shadow-brand-500/20">
+                    {sendingNotice ? 'Publishing Notice...' : 'Publish Notice'}
+                  </Button>
                 </form>
               </CardContent>
             </Card>

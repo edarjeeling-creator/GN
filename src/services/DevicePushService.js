@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
 import { supabase } from '../lib/supabase';
 import { requestFirebaseToken } from '../lib/firebase';
 
@@ -5,6 +7,78 @@ class DevicePushService {
   constructor() {
     this.initialized = false;
     this.activeChannel = null;
+    this.nativeListenersAttached = false;
+  }
+
+  /**
+   * Initializes native Capacitor push notifications on Android/iOS
+   */
+  async registerNativePushNotifications(user, schoolId) {
+    if (!Capacitor.isNativePlatform()) return;
+
+    try {
+      let permStatus = await PushNotifications.checkPermissions();
+
+      if (permStatus.receive === 'prompt') {
+        permStatus = await PushNotifications.requestPermissions();
+      }
+
+      if (permStatus.receive !== 'granted') {
+        console.warn('Native push notification permission not granted:', permStatus.receive);
+        return;
+      }
+
+      if (!this.nativeListenersAttached) {
+        this.nativeListenersAttached = true;
+
+        PushNotifications.addListener('registration', async (token) => {
+          console.log('Native FCM Token registered:', token.value?.slice(0, 16) + '...');
+          try {
+            const platform = Capacitor.getPlatform();
+            const deviceRecord = {
+              profile_id: user.id,
+              fcm_token: token.value,
+              platform: platform === 'ios' ? 'ios' : 'android',
+              device_name: `Native ${platform.toUpperCase()} - Capacitor`,
+              school_id: schoolId || null,
+              is_active: true,
+              last_seen_at: new Date().toISOString()
+            };
+
+            const { error: upsertErr } = await supabase
+              .from('user_devices')
+              .upsert(deviceRecord, { onConflict: 'profile_id,fcm_token' });
+
+            if (upsertErr) {
+              console.warn('Failed to upsert native device token:', upsertErr);
+            }
+          } catch (e) {
+            console.warn('Error saving native token to user_devices:', e);
+          }
+        });
+
+        PushNotifications.addListener('registrationError', (error) => {
+          console.warn('Push registration error:', error);
+        });
+
+        PushNotifications.addListener('pushNotificationReceived', (notification) => {
+          console.log('Foreground push notification received:', notification);
+        });
+
+        PushNotifications.addListener('pushNotificationActionPerformed', (notificationAction) => {
+          console.log('Push notification action performed:', notificationAction);
+          const data = notificationAction.notification?.data || {};
+          const linkUrl = data.linkUrl || (data.noticeId ? `/?noticeId=${data.noticeId}` : null);
+          if (linkUrl) {
+            window.location.href = linkUrl;
+          }
+        });
+      }
+
+      await PushNotifications.register();
+    } catch (err) {
+      console.warn('Graceful fallback: Native push registration issue:', err);
+    }
   }
 
   /**
@@ -14,6 +88,11 @@ class DevicePushService {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
+
+      // Register native push if on native Android / iOS
+      if (Capacitor.isNativePlatform()) {
+        await this.registerNativePushNotifications(user, schoolId);
+      }
 
       // Detect OS platform
       const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
@@ -60,10 +139,10 @@ class DevicePushService {
       if (upsertErr) {
         console.warn('Device push registration warning:', upsertErr);
       } else {
-        console.log('Mobile device registered for push notifications:', platform, token.slice(0, 16) + '...');
+        console.log('Device registered for push notifications:', platform, token.slice(0, 16) + '...');
       }
 
-      // 4. Request notification permission if not yet decided
+      // 4. Request notification permission if not yet decided (web)
       this.requestNotificationPermission();
 
       // 5. Start real-time notification listener for OS tray alerts
@@ -85,7 +164,7 @@ class DevicePushService {
       try {
         const permission = await Notification.requestPermission();
         return permission;
-      } catch (e) {
+      } catch {
         return 'denied';
       }
     }
@@ -110,9 +189,13 @@ class DevicePushService {
           const notif = payload.new;
           if (!notif) return;
 
-          const title = notif.title || '🚨 Gyanoday Niketan Alert';
+          const title = notif.title || '🔔 Gyanoday Niketan Alert';
           const body = notif.message || 'You have received a new school notification.';
-          const linkUrl = notif.type === 'attendance_absent' ? '/principal?tab=attendance' : '/';
+          const linkUrl = notif.type === 'attendance_absent' 
+            ? '/principal?tab=attendance' 
+            : notif.type === 'notice'
+              ? (notif.data?.notice_id ? `/?noticeId=${notif.data.notice_id}` : '/dashboard')
+              : '/';
 
           // Pop notification in phone's notification panel via Service Worker
           if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {

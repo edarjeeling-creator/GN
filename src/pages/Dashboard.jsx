@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -75,6 +75,7 @@ const Dashboard = () => {
   const [recentNotices, setRecentNotices] = useState([]);
   const [isIdModalOpen, setIsIdModalOpen] = useState(false);
   const [selectedNoticeForModal, setSelectedNoticeForModal] = useState(null);
+  const [deletingNoticeId, setDeletingNoticeId] = useState(null);
   const [activeTopTab, setActiveTopTab] = useState('attendance'); // 'attendance' | 'notices'
 
   // Verified Hybrid Teacher Attendance Modals
@@ -149,6 +150,50 @@ const Dashboard = () => {
     return () => { active = false; };
   }, [fetchDashboardData]);
 
+  // Deep-link handling: if app is opened with ?noticeId=<uuid>, auto-open that notice
+  const handledNoticeIdRef = useRef(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const targetNoticeId = params.get('noticeId');
+    if (!targetNoticeId || handledNoticeIdRef.current === targetNoticeId) return;
+
+    setActiveTopTab('notices');
+
+    let isMounted = true;
+    const loadDeepLinkedNotice = async () => {
+      try {
+        // Check if present in recentNotices
+        const existing = recentNotices.find(n => n.id === targetNoticeId);
+        if (existing) {
+          handledNoticeIdRef.current = targetNoticeId;
+          if (isMounted) setSelectedNoticeForModal(existing);
+          return;
+        }
+
+        // Fetch directly from database
+        const { data: fetchedNotice, error } = await supabase
+          .from('notices')
+          .select('*')
+          .eq('id', targetNoticeId)
+          .maybeSingle();
+
+        if (!error && fetchedNotice && isMounted) {
+          handledNoticeIdRef.current = targetNoticeId;
+          setSelectedNoticeForModal(fetchedNotice);
+        }
+      } catch (err) {
+        console.warn('Error loading deep-linked notice:', err);
+      }
+    };
+
+    loadDeepLinkedNotice();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [recentNotices]);
+
   if (profile?.role === 'student') {
     return <Navigate to="/student-portal" replace />;
   }
@@ -168,7 +213,6 @@ const Dashboard = () => {
     (profile.designation && profile.designation.toLowerCase().includes('coordinator'))
   );
   const isPrincipalOrAdmin = profile?.role === 'principal' || profile?.role === 'admin';
-  const [deletingNoticeId, setDeletingNoticeId] = useState(null);
 
   const handleDeleteNoticeFromDashboard = async (noticeId, title) => {
     if (!window.confirm(`Are you sure you want to delete the notice "${title || 'Untitled'}"? This action cannot be undone.`)) {

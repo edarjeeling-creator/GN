@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "457124017715",
+    "project_id": "supabase-500807",
+    "storage_bucket": "supabase-500807.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:457124017715:android:76c581db11d68e325e9546",
+        "android_client_info": {
+          "package_name": "com.gyanodayniketan.erp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDTr9SylL7onaIEvSa4JvEZpyccewf0JJ8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

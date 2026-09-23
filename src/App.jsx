@@ -55,6 +55,7 @@ const HPCStudentProfile = lazy(() => import('./pages/hpc/HPCStudentProfile'));
  */
 function NativeAppEntry() {
   const { session, profile, loading } = useAuth();
+  const search = window.location.search || '';
 
   if (loading) {
     return (
@@ -68,20 +69,43 @@ function NativeAppEntry() {
   }
 
   if (!session && profile?.role !== 'student') {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={`/login${search}`} replace />;
   }
 
-  if (profile?.role === 'student') return <Navigate to="/student-portal" replace />;
-  if (profile?.role === 'principal') return <Navigate to="/principal" replace />;
-  if (profile?.role === 'admin') return <Navigate to="/admin" replace />;
-  if (profile?.role === 'accountant') return <Navigate to="/fees" replace />;
-  if (profile?.role === 'librarian') return <Navigate to="/library" replace />;
-  return <Navigate to="/dashboard" replace />;
+  if (profile?.role === 'student') return <Navigate to={`/student-portal${search}`} replace />;
+  if (profile?.role === 'principal') return <Navigate to={`/principal${search}`} replace />;
+  if (profile?.role === 'admin') return <Navigate to={`/admin${search}`} replace />;
+  if (profile?.role === 'accountant') return <Navigate to={`/fees${search}`} replace />;
+  if (profile?.role === 'librarian') return <Navigate to={`/library${search}`} replace />;
+  return <Navigate to={`/dashboard${search}`} replace />;
+}
+
+function RootRoute() {
+  const isNative = Capacitor.isNativePlatform();
+  const { session, profile } = useAuth();
+  const search = window.location.search || '';
+  const searchParams = new URLSearchParams(search);
+  const noticeId = searchParams.get('noticeId');
+
+  if (isNative) {
+    return <NativeAppEntry />;
+  }
+
+  // If a web user opens deep-link /?noticeId=...
+  if (noticeId) {
+    if (session || profile?.role === 'student') {
+      return <Navigate to={`/dashboard${search}`} replace />;
+    } else {
+      return <Navigate to={`/login?redirect=${encodeURIComponent('/dashboard' + search)}`} replace />;
+    }
+  }
+
+  return (
+    <PublicLayout><Home /></PublicLayout>
+  );
 }
 
 function App() {
-  const isNative = Capacitor.isNativePlatform();
-
   return (
     <ThemeProvider>
       <>
@@ -95,17 +119,8 @@ function App() {
             </div>
           }>
             <Routes>
-              {/* Root Route: On native app goes directly to ERP dashboard / login; on web shows public school website */}
-              <Route 
-                path="/" 
-                element={
-                  isNative ? (
-                    <NativeAppEntry />
-                  ) : (
-                    <PublicLayout><Home /></PublicLayout>
-                  )
-                } 
-              />
+              {/* Root Route: On native app goes directly to ERP dashboard / login; on web shows public school website or deep links to notice */}
+              <Route path="/" element={<RootRoute />} />
             <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
             <Route path="/academics" element={<PublicLayout><Academics /></PublicLayout>} />
             <Route path="/admissions" element={<PublicLayout><Admissions /></PublicLayout>} />

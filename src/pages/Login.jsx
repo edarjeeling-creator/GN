@@ -52,6 +52,11 @@ const Login = () => {
     const auto = params.get('auto');
 
     if (auto !== 'true' || autoLoginSuccess) {
+      const redirect = params.get('redirect');
+      if (redirect) return <Navigate to={redirect} replace />;
+      const noticeId = params.get('noticeId');
+      if (noticeId) return <Navigate to={`/dashboard?noticeId=${noticeId}`} replace />;
+
       if (profile?.role === 'student') return <Navigate to="/student-portal" replace />;
       if (profile?.role === 'principal') return <Navigate to="/principal" replace />;
       if (profile?.role === 'admin') return <Navigate to="/admin" replace />;
