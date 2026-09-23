@@ -7,7 +7,7 @@ import {
   ChevronDown, User, Send, AlertTriangle,
   Phone, MessageSquare, Edit2, Check, X,
   QrCode, ShieldCheck, MapPin, HelpCircle,
-  Printer, IdCard, Building2, Bell
+  Printer, IdCard, Building2, Bell, Trash2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -167,6 +167,33 @@ const Dashboard = () => {
     profile.role === 'coordinator' ||
     (profile.designation && profile.designation.toLowerCase().includes('coordinator'))
   );
+  const isPrincipalOrAdmin = profile?.role === 'principal' || profile?.role === 'admin';
+  const [deletingNoticeId, setDeletingNoticeId] = useState(null);
+
+  const handleDeleteNoticeFromDashboard = async (noticeId, title) => {
+    if (!window.confirm(`Are you sure you want to delete the notice "${title || 'Untitled'}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingNoticeId(noticeId);
+    try {
+      let { error } = await supabase.from('notices').delete().eq('id', noticeId);
+      if (error) {
+        const { error: rpcErr } = await supabase.rpc('delete_school_notice', { p_notice_id: noticeId });
+        if (rpcErr) throw error || rpcErr;
+      }
+
+      setRecentNotices(prev => prev.filter(n => n.id !== noticeId));
+      if (selectedNoticeForModal?.id === noticeId) {
+        setSelectedNoticeForModal(null);
+      }
+    } catch (err) {
+      console.error('Error deleting notice:', err);
+      alert('Failed to delete notice: ' + (err.message || 'Unknown error'));
+    } finally {
+      setDeletingNoticeId(null);
+    }
+  };
 
   const handleOpenCheckInScanner = () => {
     setScannerActionType('CHECK_IN');
@@ -758,30 +785,47 @@ const Dashboard = () => {
                             <h4 className="font-bold text-base sm:text-lg leading-snug text-slate-800 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-2">
                               {notice.title}
                             </h4>
-                            <Badge 
-                              variant={notice.target_audience?.startsWith('class:') ? 'default' : 'secondary'} 
-                              className={`uppercase text-[10px] tracking-wider font-semibold whitespace-nowrap shrink-0 ${
-                                notice.target_audience?.startsWith('class:')
-                                  ? 'bg-brand-100 text-brand-800 border-brand-200 dark:bg-brand-950/80 dark:text-brand-300 dark:border-brand-800'
-                                  : ''
-                              }`}
-                            >
-                              {(() => {
-                                const aud = notice.target_audience;
-                                if (!aud || aud === 'all') return 'Entire School';
-                                if (aud === 'staff') return 'All Staff';
-                                if (aud === 'teachers') return 'Teachers';
-                                if (aud === 'non_teaching') return 'Non-Teaching';
-                                if (aud === 'group_d') return 'Group D';
-                                if (aud === 'students') return 'Students';
-                                if (aud.startsWith('class:')) {
-                                  const cid = aud.replace('class:', '');
-                                  const cls = classes.find(c => c.id === cid);
-                                  return cls ? `Class ${cls.name} ${cls.section || ''}`.trim() : 'Class';
-                                }
-                                return aud;
-                              })()}
-                            </Badge>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <Badge 
+                                variant={notice.target_audience?.startsWith('class:') ? 'default' : 'secondary'} 
+                                className={`uppercase text-[10px] tracking-wider font-semibold whitespace-nowrap shrink-0 ${
+                                  notice.target_audience?.startsWith('class:')
+                                    ? 'bg-brand-100 text-brand-800 border-brand-200 dark:bg-brand-950/80 dark:text-brand-300 dark:border-brand-800'
+                                    : ''
+                                }`}
+                              >
+                                {(() => {
+                                  const aud = notice.target_audience;
+                                  if (!aud || aud === 'all') return 'Entire School';
+                                  if (aud === 'staff') return 'All Staff';
+                                  if (aud === 'teachers') return 'Teachers';
+                                  if (aud === 'non_teaching') return 'Non-Teaching';
+                                  if (aud === 'group_d') return 'Group D';
+                                  if (aud === 'students') return 'Students';
+                                  if (aud.startsWith('class:')) {
+                                    const cid = aud.replace('class:', '');
+                                    const cls = classes.find(c => c.id === cid);
+                                    return cls ? `Class ${cls.name} ${cls.section || ''}`.trim() : 'Class';
+                                  }
+                                  return aud;
+                                })()}
+                              </Badge>
+                              {isPrincipalOrAdmin && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteNoticeFromDashboard(notice.id, notice.title);
+                                  }}
+                                  disabled={deletingNoticeId === notice.id}
+                                  className="p-1 px-2 rounded-lg text-red-600 dark:text-red-400 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 border border-red-200 dark:border-red-900/40 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
+                                  title="Delete notice"
+                                >
+                                  <Trash2 size={12} className={deletingNoticeId === notice.id ? 'animate-spin' : ''} />
+                                  <span className="hidden sm:inline">Delete</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
                           <div 
                             className="text-slate-600 dark:text-slate-300 text-sm mb-4 line-clamp-3 prose prose-sm max-w-none pointer-events-none" 
@@ -1206,6 +1250,8 @@ const Dashboard = () => {
         isOpen={!!selectedNoticeForModal}
         onClose={() => setSelectedNoticeForModal(null)}
         notice={selectedNoticeForModal}
+        canDelete={isPrincipalOrAdmin}
+        onDelete={(id) => handleDeleteNoticeFromDashboard(id, selectedNoticeForModal?.title)}
       />
     </motion.div>
   );

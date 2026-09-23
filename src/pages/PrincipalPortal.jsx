@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Search, Users, BookOpen, Bell, Send, Shield, User, Calendar, CheckCircle, XCircle, AlertTriangle, Printer, Clock, AlertCircle, FileText, ChevronDown, Settings, Upload, Phone, X, Check, CheckCheck, CheckCircle2, Trophy } from 'lucide-react';
+import { Search, Users, BookOpen, Bell, Send, Shield, User, Calendar, CheckCircle, XCircle, AlertTriangle, Printer, Clock, AlertCircle, FileText, ChevronDown, Settings, Upload, Phone, X, Check, CheckCheck, CheckCircle2, Trophy, Trash2 } from 'lucide-react';
 import Editor, { 
   Toolbar, BtnUndo, BtnRedo, BtnBold, BtnItalic, BtnUnderline, BtnStrikeThrough,
   BtnNumberedList, BtnBulletList, BtnLink, BtnClearFormatting, HtmlButton, Separator, BtnStyles
@@ -416,6 +416,36 @@ const PrincipalPortal = () => {
     const { error } = await supabase.from('notices').insert([{ sender_uid: user.id, title: noticeTitle, content: noticeMessage, target_audience: noticeAudience }]);
     if (!error) { setNoticeTitle(''); setNoticeMessage(''); fetchNotices(); alert('Notice sent successfully!'); }
     else alert('Failed to send notice');
+  };
+
+  const [deletingNoticeId, setDeletingNoticeId] = useState(null);
+
+  const handleDeleteNotice = async (noticeId, title) => {
+    const isConfirmed = window.confirm(`Are you sure you want to delete the notice "${title || 'Untitled'}"? This action cannot be undone.`);
+    if (!isConfirmed) return;
+
+    setDeletingNoticeId(noticeId);
+    try {
+      let { error } = await supabase
+        .from('notices')
+        .delete()
+        .eq('id', noticeId);
+
+      if (error) {
+        // Fallback to RPC in case direct delete is restricted by RLS
+        const { error: rpcErr } = await supabase.rpc('delete_school_notice', { p_notice_id: noticeId });
+        if (rpcErr) {
+          throw error || rpcErr;
+        }
+      }
+
+      setRecentNotices(prev => prev.filter(n => n.id !== noticeId));
+    } catch (err) {
+      console.error('Error deleting notice:', err);
+      alert('Failed to delete notice: ' + (err.message || 'Unknown error'));
+    } finally {
+      setDeletingNoticeId(null);
+    }
   };
 
   const handleNotifyAbsentee = async (student, date) => {
@@ -1192,18 +1222,32 @@ const PrincipalPortal = () => {
                   <div className="space-y-4">
                     {recentNotices.map(n => (
                       <div key={n.id} className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors">
-                        <div className="flex justify-between items-start mb-2 gap-2">
-                          <h3 className="font-bold text-slate-800 dark:text-white text-lg leading-tight">{n.title}</h3>
-                          <Badge 
-                            variant={n.target_audience?.startsWith('class:') ? 'default' : 'secondary'} 
-                            className={`uppercase text-[10px] whitespace-nowrap tracking-wider font-semibold ${
-                              n.target_audience?.startsWith('class:')
-                                ? 'bg-brand-100 text-brand-800 border-brand-200 dark:bg-brand-950/80 dark:text-brand-300 dark:border-brand-800'
-                                : ''
-                            }`}
-                          >
-                            {formatAudienceLabel(n.target_audience)}
-                          </Badge>
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-slate-800 dark:text-white text-lg leading-tight break-words">{n.title}</h3>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Badge 
+                              variant={n.target_audience?.startsWith('class:') ? 'default' : 'secondary'} 
+                              className={`uppercase text-[10px] whitespace-nowrap tracking-wider font-semibold ${
+                                n.target_audience?.startsWith('class:')
+                                  ? 'bg-brand-100 text-brand-800 border-brand-200 dark:bg-brand-950/80 dark:text-brand-300 dark:border-brand-800'
+                                  : ''
+                              }`}
+                            >
+                              {formatAudienceLabel(n.target_audience)}
+                            </Badge>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteNotice(n.id, n.title)}
+                              disabled={deletingNoticeId === n.id}
+                              className="px-2.5 py-1 rounded-lg text-red-600 dark:text-red-400 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/50 border border-red-200 dark:border-red-900/40 transition-colors flex items-center gap-1.5 text-xs font-bold cursor-pointer disabled:opacity-50"
+                              title="Delete notice"
+                            >
+                              <Trash2 size={13} className={deletingNoticeId === n.id ? 'animate-spin' : ''} />
+                              <span>{deletingNoticeId === n.id ? 'Deleting...' : 'Delete'}</span>
+                            </button>
+                          </div>
                         </div>
                         <div className="text-slate-600 dark:text-slate-300 text-sm mb-3 prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: n.content }} />
                         <p className="text-xs font-semibold text-slate-400">{new Date(n.publish_date).toLocaleString()}</p>

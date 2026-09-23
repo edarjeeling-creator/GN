@@ -1,8 +1,9 @@
-import React from 'react';
-import { X, Bell, Calendar, Users } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Bell, Calendar, Users, Trash2 } from 'lucide-react';
 import { Badge } from './ui/Badge';
 
-export default function NoticeDetailModal({ notice, isOpen, onClose }) {
+export default function NoticeDetailModal({ notice, isOpen, onClose, canDelete = false, onDelete = null }) {
+  const [deleting, setDeleting] = useState(false);
   if (!isOpen || !notice) return null;
 
   const getAudienceLabel = (aud) => {
@@ -59,7 +60,27 @@ export default function NoticeDetailModal({ notice, isOpen, onClose }) {
         />
 
         {/* Modal Footer */}
-        <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+        <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+          {canDelete && onDelete ? (
+            <button
+              type="button"
+              onClick={async () => {
+                if (window.confirm(`Are you sure you want to delete the notice "${notice.title || 'Untitled'}"? This action cannot be undone.`)) {
+                  setDeleting(true);
+                  try {
+                    await onDelete(notice.id);
+                  } finally {
+                    setDeleting(false);
+                  }
+                }
+              }}
+              disabled={deleting}
+              className="px-3.5 py-2 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/60 rounded-xl text-xs font-bold hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <Trash2 size={14} className={deleting ? 'animate-spin' : ''} />
+              <span>{deleting ? 'Deleting...' : 'Delete Notice'}</span>
+            </button>
+          ) : <div />}
           <button
             onClick={onClose}
             className="px-4 py-2 bg-slate-900 dark:bg-slate-800 text-white rounded-xl text-xs font-semibold hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors"
