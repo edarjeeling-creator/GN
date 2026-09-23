@@ -1,15 +1,18 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { 
   Trophy, Download, RefreshCw, AlertTriangle, 
-  Send, Calendar, ShieldAlert, BookOpen
+  Send, Calendar, ShieldAlert, BookOpen, FileText, 
+  Printer, Search, X
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { WeeklyTestReportService } from '../services/WeeklyTestReportService';
 import WeeklyTestConsolidatedPDF from './WeeklyTestConsolidatedPDF';
+import { getStudentHouse } from '../utils/houseData';
+import { formatStudentDisplayName } from '../utils/studentUtils';
 
-export default function WeeklyTestReportViewer({ academicYear = '2026', initialTerm = 'Finalterm', onSelectTab = null }) {
+export default function WeeklyTestReportViewer({ academicYear = '2026', initialTerm = 'Finalterm' }) {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState(null);
@@ -23,8 +26,18 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showMissingModal, setShowMissingModal] = useState(false);
   const [copiedWhatsapp, setCopiedWhatsapp] = useState(false);
-  const [honoursViewMode, setHonoursViewMode] = useState('class'); // 'class' | 'subject'
+  const [honoursViewMode, setHonoursViewMode] = useState('class'); // 'class' | 'subject' | 'all_marksheets'
   const pdfContainerRef = useRef(null);
+
+  // Marksheet Tab States
+  const [selectedClassFilter, setSelectedClassFilter] = useState('ALL');
+  const [marksheetSearch, setMarksheetSearch] = useState('');
+
+  // Interactive Student Marks Modal State
+  const [activeMarksModal, setActiveMarksModal] = useState(null);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalStudents, setModalStudents] = useState([]);
+  const [modalSearch, setModalSearch] = useState('');
 
   const isPrincipalOrAdmin = ['admin', 'superadmin', 'principal', 'coordinator'].includes(profile?.role);
 
@@ -90,7 +103,14 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
   }, [academicYear, selectedTerm]);
 
   useEffect(() => {
-    loadReports(null, selectedTerm);
+    let ignore = false;
+    async function initReports() {
+      if (!ignore) {
+        await loadReports(null, selectedTerm);
+      }
+    }
+    initReports();
+    return () => { ignore = true; };
   }, [academicYear, selectedTerm, loadReports]);
 
   // Handle term change (Finalterm vs Midterm)
@@ -108,85 +128,248 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
     await loadReports(reportId, selectedTerm);
   };
 
-  // Run refresh or trigger live recompile
-  const handleRunReportCheck = async (forceRevision = true) => {
+  // Force re-compilation of live marks
+  const handleRunReportCheck = async (forceCompile = false) => {
     setIsRefreshing(true);
     try {
-      const updated = await WeeklyTestReportService.generateConsolidatedReport({
-        cycleId: report?.cycle_id,
-        academicYear,
-        term: selectedTerm,
-        forceRevision,
-        revisionReason: `Live update triggered by ${profile?.name || 'Principal'}`,
-        generatedBy: profile?.id
-      });
-      if (updated && !updated.subject_honours_data && updated.summary_data?.subject_honours_data) {
-        updated.subject_honours_data = updated.summary_data.subject_honours_data;
+      if (forceCompile) {
+        setIsCompiling(true);
+        const compiled = await WeeklyTestReportService.generateConsolidatedReport({
+          academicYear,
+          term: selectedTerm,
+          isMondaySchedule: false,
+          generatedBy: profile?.id
+        });
+        setReport(compiled);
       }
-      setReport(updated);
-      setSelectedReportId(updated.id);
-
-      const completion = await WeeklyTestReportService.getCycleCompletionStatus({
-        academicYear,
-        term: selectedTerm,
-        testDate: updated.test_date
-      });
-      setCompletionData(completion);
-      setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      await loadReports(selectedReportId, selectedTerm);
     } catch (err) {
-      console.error('Error updating report:', err);
-      const errorMsg = err?.message || err?.details || err?.error_description || (typeof err === 'object' ? JSON.stringify(err) : String(err));
-      alert('Error updating report: ' + errorMsg);
+      console.error('Error recompiling report:', err);
     } finally {
       setIsRefreshing(false);
+      setIsCompiling(false);
     }
   };
 
-  // Generate and Download Official PDF from Immutable Snapshot
+  // High-Quality PDF Export
   const handleDownloadPdf = async () => {
     if (!report || !pdfContainerRef.current) return;
     setIsGeneratingPdf(true);
-
     try {
       const opt = {
         margin: [8, 8, 8, 8],
         filename: report.pdf_filename || `Weekly_Test_Report_${report.week_identifier}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] }
       };
 
-      await window.html2pdf().from(pdfContainerRef.current).set(opt).save();
+      await html2pdf().set(opt).from(pdfContainerRef.current).save();
     } catch (err) {
       console.error('Error generating PDF:', err);
-      const errorMsg = err?.message || err?.details || err?.error_description || (typeof err === 'object' ? JSON.stringify(err) : String(err));
-      alert('Could not download PDF: ' + errorMsg);
+      alert('Failed to generate PDF. Please try again or use browser print.');
     } finally {
       setIsGeneratingPdf(false);
     }
   };
 
-  // WhatsApp Alert to Principal (Concise secondary action, NO flooding)
+  // WhatsApp text notification for Principal
   const handleSendWhatsAppNotification = () => {
     if (!report) return;
     const text = WeeklyTestReportService.generateWhatsAppNotificationText(report);
     const encoded = encodeURIComponent(text);
-    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+    window.open(`https://wa.me/?text=${encoded}`, '_blank');
   };
 
-  const handleCopyWhatsAppText = () => {
+  const handleCopyWhatsAppText = async () => {
     if (!report) return;
     const text = WeeklyTestReportService.generateWhatsAppNotificationText(report);
-    navigator.clipboard.writeText(text);
-    setCopiedWhatsapp(true);
-    setTimeout(() => setCopiedWhatsapp(false), 2500);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedWhatsapp(true);
+      setTimeout(() => setCopiedWhatsapp(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy WhatsApp message:', err);
+    }
   };
 
-  if (loading && !report) {
+  // Open the interactive student marks modal
+  const handleOpenMarksModal = async (data) => {
+    setActiveMarksModal(data);
+    setModalSearch('');
+
+    if (data.students && data.students.length > 0) {
+      setModalStudents(data.students);
+      setModalLoading(false);
+      return;
+    }
+
+    setModalLoading(true);
+    try {
+      // Fetch students for this class
+      const { data: stData } = await supabase
+        .from('students')
+        .select('id, roll_no, name')
+        .eq('class_id', data.classId)
+        .order('roll_no', { ascending: true });
+
+      // Fetch marks from weekly_test_marks
+      const marksMap = {};
+      const { data: testData } = await supabase
+        .from('weekly_tests')
+        .select('id, max_marks')
+        .eq('class_id', data.classId)
+        .eq('subject_id', data.subjectId)
+        .order('test_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (testData?.id) {
+        const { data: mData } = await supabase
+          .from('weekly_test_marks')
+          .select('*')
+          .eq('test_id', testData.id);
+
+        if (mData) {
+          mData.forEach(m => {
+            marksMap[m.student_id] = { score: m.score, isAbsent: m.is_absent };
+          });
+        }
+      }
+
+      const fullClassName = data.fullClassName || '';
+      const maxMarks = data.maxMarks || testData?.max_marks || WeeklyTestReportService.getClassWeeklyTestMaxMarks(fullClassName);
+      const passingMarks = data.passingMarks || Math.round(maxMarks * 0.4);
+
+      const resolved = (stData || []).map(s => {
+        const entry = marksMap[s.id];
+        const isAbsent = Boolean(entry?.isAbsent);
+        const score = entry && entry.score !== null && entry.score !== undefined ? entry.score : null;
+        const percentage = (!isAbsent && score !== null && maxMarks > 0) ? ((score / maxMarks) * 100).toFixed(1) : null;
+        const house = getStudentHouse(s.name, fullClassName);
+
+        let result = 'Pending';
+        if (isAbsent) result = 'Absent';
+        else if (score !== null) {
+          result = score >= passingMarks ? 'Pass' : 'Fail';
+        }
+
+        return {
+          studentId: s.id,
+          rollNo: s.roll_no,
+          name: formatStudentDisplayName(s.name),
+          house,
+          total: score,
+          maxMarks,
+          percentage,
+          isAbsent,
+          result
+        };
+      });
+
+      setModalStudents(resolved);
+    } catch (err) {
+      console.error('Error fetching marks for modal:', err);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  // Print individual class marksheet
+  const handlePrintIndividualClass = (cls) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Please allow popups to print class marksheets.');
+      return;
+    }
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${cls.fullClassName} Marksheet - Gyanoday Niketan</title>
+        <style>
+          body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; font-size: 11px; color: #0f172a; }
+          .header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 15px; }
+          .header h1 { margin: 0; font-size: 18px; text-transform: uppercase; }
+          .header h2 { margin: 4px 0; font-size: 13px; color: #475569; }
+          .meta { display: flex; justify-content: space-between; border: 1px solid #cbd5e1; padding: 8px 12px; margin-bottom: 15px; background: #f8fafc; font-size: 11px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+          th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
+          th { background: #f1f5f9; text-transform: uppercase; font-size: 10px; font-weight: bold; }
+          .text-center { text-align: center; }
+          .text-right { text-align: right; }
+          .font-bold { font-weight: bold; }
+          .signatures { display: flex; justify-content: space-between; margin-top: 50px; padding: 0 40px; font-weight: 600; font-size: 11px; }
+          .sign-box { border-top: 1px solid #64748b; width: 180px; text-align: center; padding-top: 5px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>GYANODAY NIKETAN</h1>
+          <h2>Senior School Weekly Test Official Result Sheet</h2>
+          <div>Darjeeling, West Bengal • Academic Year ${academicYear}</div>
+        </div>
+        <div class="meta">
+          <div><strong>Class:</strong> ${cls.fullClassName}</div>
+          <div><strong>Scale:</strong> Max ${cls.maxMarks || 25} Marks</div>
+          <div><strong>Students Evaluated:</strong> ${cls.roster?.length || 0}</div>
+          <div><strong>Date:</strong> ${report?.test_date || new Date().toISOString().split('T')[0]}</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th class="text-center" style="width: 40px;">Roll</th>
+              <th>Student Name</th>
+              <th class="text-center" style="width: 80px;">House</th>
+              <th class="text-center" style="width: 90px;">Marks (${cls.maxMarks || 25})</th>
+              <th class="text-center" style="width: 60px;">%</th>
+              <th class="text-center" style="width: 80px;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(cls.roster || []).map(st => `
+              <tr style="${st.isAbsent ? 'background: #fffbeb;' : (st.total < 10 && !st.isAbsent ? 'background: #fff1f2;' : '')}">
+                <td class="text-center font-bold">${st.rollNo}</td>
+                <td class="font-bold">${st.name}</td>
+                <td class="text-center">${st.house || '—'}</td>
+                <td class="text-center font-bold">${st.isAbsent ? 'ABSENT' : `${st.total} / ${cls.maxMarks || st.maxMarks}`}</td>
+                <td class="text-center">${st.isAbsent ? '—' : `${st.percentage}%`}</td>
+                <td class="text-center font-bold">${st.isAbsent ? 'ABSENT' : st.total < 10 ? 'ATTENTION' : 'PASS'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <div class="signatures">
+          <div class="sign-box">Class Teacher Signature</div>
+          <div class="sign-box">Principal Signature</div>
+        </div>
+        <script>window.onload = function() { window.print(); };</script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
+  // Filter students inside modal
+  const filteredModalStudents = useMemo(() => {
+    if (!modalSearch.trim()) return modalStudents;
+    const q = modalSearch.toLowerCase().trim();
+    return modalStudents.filter(s => 
+      s.name.toLowerCase().includes(q) || 
+      String(s.rollNo).includes(q) ||
+      (s.house && s.house.toLowerCase().includes(q))
+    );
+  }, [modalStudents, modalSearch]);
+
+  if (loading) {
     return (
-      <div className="p-8 text-center bg-slate-900 rounded-2xl border border-slate-800 text-slate-400 flex items-center justify-center gap-3">
-        <RefreshCw className="animate-spin text-brand-400" size={22} />
-        <span>Loading Weekly Test Report...</span>
+      <div className="flex items-center justify-center p-12 bg-slate-900 border border-slate-800 rounded-2xl text-slate-300">
+        <RefreshCw className="animate-spin mr-3 text-brand-500" size={20} />
+        <span className="text-sm font-semibold">Loading Weekly Test Report...</span>
       </div>
     );
   }
@@ -196,7 +379,14 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
   const subjectHonours = report?.subject_honours_data || report?.summary_data?.subject_honours_data || [];
   const requiresAttention = report?.requires_attention_data || [];
   const missing = report?.missing_submissions_data || completionData?.missingSubmissions || [];
+  const classDetails = report?.class_details_data || [];
   const isFinal = report?.status === 'FINAL';
+
+  // Filtered class details for All Student Marksheets mode
+  const filteredClasses = classDetails.filter(cls => {
+    if (selectedClassFilter === 'ALL') return true;
+    return cls.classId === selectedClassFilter;
+  });
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto">
@@ -223,7 +413,7 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
             </div>
 
             <h1 className="text-xl sm:text-2xl font-black text-white mt-1">
-              Senior School Weekly Test Report
+              Senior School Weekly Test Report & Marksheets
             </h1>
             <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
               <span>{report?.week_identifier || 'Weekly Test'}</span>
@@ -384,16 +574,32 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
                         <th className="pb-1">Teacher</th>
                         <th className="pb-1 text-center">Entered</th>
                         <th className="pb-1 text-center">Pending</th>
+                        <th className="pb-1 text-center">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-900">
                       {missing.map((m, idx) => (
                         <tr key={idx} className="hover:bg-slate-900/50">
-                          <td className="py-1 font-bold text-white">{m.className} {m.section}</td>
-                          <td className="py-1">{m.subjectName}</td>
-                          <td className="py-1 text-slate-400">{m.teacherName}</td>
-                          <td className="py-1 text-center text-emerald-400 font-mono">{m.enteredCount}</td>
-                          <td className="py-1 text-center text-rose-400 font-mono font-bold">{m.pendingCount}</td>
+                          <td className="py-1.5 font-bold text-white">{m.className} {m.section}</td>
+                          <td className="py-1.5">{m.subjectName}</td>
+                          <td className="py-1.5 text-slate-400">{m.teacherName}</td>
+                          <td className="py-1.5 text-center text-emerald-400 font-mono">{m.enteredCount}</td>
+                          <td className="py-1.5 text-center text-rose-400 font-mono font-bold">{m.pendingCount}</td>
+                          <td className="py-1.5 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenMarksModal({
+                                classId: m.classId,
+                                fullClassName: `${m.className} ${m.section}`.trim(),
+                                subjectId: m.subjectId,
+                                subjectName: m.subjectName,
+                                teacherName: m.teacherName
+                              })}
+                              className="px-2.5 py-0.5 rounded bg-brand-500/20 hover:bg-brand-500/30 text-brand-300 text-[10px] font-bold transition cursor-pointer"
+                            >
+                              View Marks
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -452,14 +658,14 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
         </div>
       </div>
 
-      {/* 4. TUESDAY ASSEMBLY HONOURS PODIUM (High-Contrast, Instant Scan) */}
+      {/* 4. TUESDAY ASSEMBLY HONOURS & MARKSSHEETS SECTION */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-800 mb-4 gap-3">
           <div className="flex items-center gap-2">
             <Trophy className="text-amber-400 shrink-0" size={20} />
             <div>
               <h3 className="text-base font-black text-white uppercase tracking-wider">
-                Tuesday Assembly Honours Summary
+                Senior School Weekly Test Results
               </h3>
               <p className="text-[11px] text-slate-400">
                 Senior School (Classes 5–8 Max 25 • Classes 9–12 Max 20)
@@ -467,8 +673,8 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
             </div>
           </div>
 
-          {/* View Mode Switcher: Class Consolidated vs By Subject */}
-          <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs self-start sm:self-auto">
+          {/* View Mode Switcher: Class Consolidated vs By Subject vs All Student Marksheets */}
+          <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs self-start sm:self-auto flex-wrap">
             <button
               type="button"
               onClick={() => setHonoursViewMode('class')}
@@ -478,7 +684,7 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <span>🏅 Class Consolidated</span>
+              <span>🏅 Class Honours</span>
             </button>
             <button
               type="button"
@@ -499,10 +705,29 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
                 </span>
               )}
             </button>
+            <button
+              type="button"
+              onClick={() => setHonoursViewMode('all_marksheets')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                honoursViewMode === 'all_marksheets'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <FileText size={13} />
+              <span>All Student Marksheets</span>
+              {classDetails.length > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                  honoursViewMode === 'all_marksheets' ? 'bg-slate-950 text-amber-400 font-black' : 'bg-slate-800 text-slate-300'
+                }`}>
+                  {classDetails.length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
-        {/* View 1: Class Consolidated */}
+        {/* View 1: Class Consolidated Honours */}
         {honoursViewMode === 'class' && (
           honours.length === 0 ? (
             <div className="text-slate-400 text-center py-6 text-xs space-y-2">
@@ -592,79 +817,227 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
               {subjectHonours.map(subH => (
                 <div 
                   key={`${subH.classId}_${subH.subjectId}`}
-                  className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3.5 hover:border-slate-700 transition"
+                  className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3.5 hover:border-slate-700 transition flex flex-col justify-between"
                 >
-                  <div className="flex justify-between items-start border-b border-slate-800 pb-2 mb-2">
-                    <div>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="px-2 py-0.5 rounded bg-brand-500/20 text-brand-300 font-bold text-[10px]">
-                          {subH.fullClassName}
+                  <div>
+                    <div className="flex justify-between items-start border-b border-slate-800 pb-2 mb-2">
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="px-2 py-0.5 rounded bg-brand-500/20 text-brand-300 font-bold text-[10px]">
+                            {subH.fullClassName}
+                          </span>
+                          <h4 className="font-black text-sm text-white">{subH.subjectName}</h4>
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          Teacher: <span className="text-slate-200 font-medium">{subH.teacherName}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] font-bold text-amber-400 uppercase bg-amber-950/50 px-2 py-0.5 rounded border border-amber-800/40">
+                          Max: {subH.maxMarks} • Pass: {subH.passingMarks || 10}
                         </span>
-                        <h4 className="font-black text-sm text-white">{subH.subjectName}</h4>
-                      </div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">
-                        Teacher: <span className="text-slate-200 font-medium">{subH.teacherName}</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[10px] font-bold text-amber-400 uppercase bg-amber-950/50 px-2 py-0.5 rounded border border-amber-800/40">
-                        Max: {subH.maxMarks} • Pass: {subH.passingMarks || 10}
-                      </span>
-                      <div className="text-[9px] text-slate-500 mt-0.5">
-                        {subH.evaluatedCount} evaluated {subH.absentCount > 0 ? `(${subH.absentCount} absent)` : ''}
+                        <div className="text-[9px] text-slate-500 mt-0.5">
+                          {subH.evaluatedCount} evaluated {subH.absentCount > 0 ? `(${subH.absentCount} absent)` : ''}
+                        </div>
                       </div>
                     </div>
+
+                    {/* Top 3 Rankers */}
+                    {subH.topScorers.length === 0 ? (
+                      <span className="text-slate-500 italic text-xs block py-1">No marks entered</span>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {subH.topScorers.map(s => {
+                          const medal = s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : '🥉';
+                          const medalColor = s.rank === 1 ? 'text-amber-400' : s.rank === 2 ? 'text-slate-300' : 'text-amber-600';
+                          return (
+                            <li key={s.studentId} className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-base ${medalColor}`}>{medal}</span>
+                                <div>
+                                  <strong className="text-white font-bold">{s.name}</strong>
+                                  {s.house && <span className="text-slate-400 text-[10px] ml-1.5">({s.house})</span>}
+                                </div>
+                              </div>
+                              <div className="font-mono text-right">
+                                <span className="font-bold text-slate-200">{s.total} / {subH.maxMarks}</span>
+                                <span className="text-slate-400 text-[10px] ml-1">({s.percentage}%)</span>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+
+                    {/* Requires Attention (< 10) in this subject */}
+                    {subH.requiresAttention && subH.requiresAttention.length > 0 && (
+                      <div className="mt-2.5 pt-2 border-t border-slate-800/80">
+                        <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider block mb-1">
+                          Requires Attention (&lt; {subH.passingMarks || 10}):
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {subH.requiresAttention.map(att => (
+                            <span 
+                              key={att.studentId}
+                              className="px-2 py-0.5 rounded bg-rose-950/40 text-rose-300 border border-rose-900/50 text-[10px] font-medium"
+                            >
+                              {att.name}: <strong className="font-mono text-rose-200">{att.total}/{subH.maxMarks}</strong>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Top 3 Rankers */}
-                  {subH.topScorers.length === 0 ? (
-                    <span className="text-slate-500 italic text-xs block py-1">No marks entered</span>
-                  ) : (
-                    <ul className="space-y-1.5">
-                      {subH.topScorers.map(s => {
-                        const medal = s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : '🥉';
-                        const medalColor = s.rank === 1 ? 'text-amber-400' : s.rank === 2 ? 'text-slate-300' : 'text-amber-600';
-                        return (
-                          <li key={s.studentId} className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className={`text-base ${medalColor}`}>{medal}</span>
-                              <div>
-                                <strong className="text-white font-bold">{s.name}</strong>
-                                {s.house && <span className="text-slate-400 text-[10px] ml-1.5">({s.house})</span>}
-                              </div>
-                            </div>
-                            <div className="font-mono text-right">
-                              <span className="font-bold text-slate-200">{s.total} / {subH.maxMarks}</span>
-                              <span className="text-slate-400 text-[10px] ml-1">({s.percentage}%)</span>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-
-                  {/* Requires Attention (< 10) in this subject */}
-                  {subH.requiresAttention && subH.requiresAttention.length > 0 && (
-                    <div className="mt-2.5 pt-2 border-t border-slate-800/80">
-                      <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider block mb-1">
-                        Requires Attention (&lt; {subH.passingMarks || 10}):
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {subH.requiresAttention.map(att => (
-                          <span 
-                            key={att.studentId}
-                            className="px-2 py-0.5 rounded bg-rose-950/40 text-rose-300 border border-rose-900/50 text-[10px] font-medium"
-                          >
-                            {att.name}: <strong className="font-mono text-rose-200">{att.total}/{subH.maxMarks}</strong>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  {/* Action button to view all student marks */}
+                  <button
+                    type="button"
+                    onClick={() => handleOpenMarksModal({
+                      classId: subH.classId,
+                      fullClassName: subH.fullClassName,
+                      subjectId: subH.subjectId,
+                      subjectName: subH.subjectName,
+                      teacherName: subH.teacherName,
+                      maxMarks: subH.maxMarks,
+                      passingMarks: subH.passingMarks,
+                      students: subH.allStudents
+                    })}
+                    className="mt-3 w-full py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-[11px] font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  >
+                    <FileText size={12} className="text-brand-400" />
+                    <span>View All Student Marks</span>
+                  </button>
                 </div>
               ))}
             </div>
           )
+        )}
+
+        {/* View 3: All Student Marksheets (Comprehensive Class-by-Class View) */}
+        {honoursViewMode === 'all_marksheets' && (
+          <div className="space-y-4">
+            {/* Filter & Search Bar */}
+            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <span className="font-bold text-slate-400 uppercase text-[10px]">Filter Class:</span>
+                <select
+                  value={selectedClassFilter}
+                  onChange={e => setSelectedClassFilter(e.target.value)}
+                  className="bg-slate-900 text-white font-medium px-3 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500 text-xs w-full sm:w-52"
+                >
+                  <option value="ALL">All Senior Classes ({classDetails.length})</option>
+                  {classDetails.map(c => (
+                    <option key={c.classId} value={c.classId}>{c.fullClassName}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                <input
+                  type="text"
+                  value={marksheetSearch}
+                  onChange={e => setMarksheetSearch(e.target.value)}
+                  placeholder="Search student or roll..."
+                  className="bg-slate-900 text-white placeholder-slate-500 pl-8 pr-3 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500 text-xs w-full"
+                />
+              </div>
+            </div>
+
+            {/* Display each class roster */}
+            {filteredClasses.length === 0 ? (
+              <div className="text-slate-400 text-center py-8 text-xs italic bg-slate-950/40 rounded-xl border border-slate-800">
+                No class marksheets found matching your criteria. Try compiling live marks.
+              </div>
+            ) : (
+              filteredClasses.map(cls => {
+                const studentsToRender = marksheetSearch.trim()
+                  ? (cls.roster || []).filter(st => 
+                      st.name.toLowerCase().includes(marksheetSearch.toLowerCase().trim()) ||
+                      String(st.rollNo).includes(marksheetSearch.toLowerCase().trim()) ||
+                      (st.house && st.house.toLowerCase().includes(marksheetSearch.toLowerCase().trim()))
+                    )
+                  : (cls.roster || []);
+
+                return (
+                  <div key={cls.classId} className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2.5 border-b border-slate-800 gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-black text-sm text-white">{cls.fullClassName}</h4>
+                          <span className="text-[10px] font-bold text-amber-400 uppercase bg-amber-950/50 px-2 py-0.5 rounded border border-amber-800/40">
+                            Scale: Max {cls.maxMarks || 25}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 mt-0.5 block">
+                          {cls.roster?.length || 0} Students Evaluated
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handlePrintIndividualClass(cls)}
+                        className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+                      >
+                        <Printer size={13} />
+                        <span>Print Class Marksheet</span>
+                      </button>
+                    </div>
+
+                    {studentsToRender.length === 0 ? (
+                      <div className="text-center py-4 text-xs text-slate-500 italic">No matching students found in this class.</div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs text-slate-300">
+                          <thead className="bg-slate-900 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+                            <tr>
+                              <th className="p-2 w-14 text-center">Roll</th>
+                              <th className="p-2">Student Name</th>
+                              <th className="p-2 w-24 text-center">House</th>
+                              <th className="p-2 w-28 text-center">Marks ({cls.maxMarks || 25})</th>
+                              <th className="p-2 w-20 text-center">Percentage</th>
+                              <th className="p-2 w-24 text-center">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-900">
+                            {studentsToRender.map(st => {
+                              const isBelowThreshold = !st.isAbsent && st.total < (report.config_snapshot?.requires_attention_threshold || 10);
+                              return (
+                                <tr key={st.studentId} className={`hover:bg-slate-900/60 ${st.isAbsent ? 'bg-amber-950/20' : isBelowThreshold ? 'bg-rose-950/20' : ''}`}>
+                                  <td className="p-2 text-center font-bold text-white">{st.rollNo}</td>
+                                  <td className="p-2 font-semibold text-white">{st.name}</td>
+                                  <td className="p-2 text-center text-slate-400">{st.house || '—'}</td>
+                                  <td className="p-2 text-center font-mono font-bold text-slate-200">
+                                    {st.isAbsent ? (
+                                      <span className="text-amber-400">ABSENT</span>
+                                    ) : (
+                                      <span>{st.total} / {cls.maxMarks || st.maxMarks}</span>
+                                    )}
+                                  </td>
+                                  <td className="p-2 text-center font-mono">
+                                    {st.isAbsent ? '—' : `${st.percentage}%`}
+                                  </td>
+                                  <td className="p-2 text-center">
+                                    {st.isAbsent ? (
+                                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800">ABSENT</span>
+                                    ) : isBelowThreshold ? (
+                                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800">ATTENTION</span>
+                                    ) : (
+                                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">PASS</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
         )}
       </div>
 
@@ -710,7 +1083,143 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
         </div>
       )}
 
-      {/* 6. HIDDEN PRINTABLE / PDF TEMPLATE (Rendered strictly from immutable server snapshot) */}
+      {/* 6. INTERACTIVE STUDENT MARKS MODAL (View Marks on Subject Slip or Missing Row) */}
+      {activeMarksModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-800 flex justify-between items-start bg-slate-950">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-brand-500/20 text-brand-300 border border-brand-500/30">
+                    Weekly Test Marksheet
+                  </span>
+                  <span className="text-xs text-slate-400">Class: <strong className="text-white">{activeMarksModal.fullClassName}</strong></span>
+                </div>
+                <h3 className="text-lg font-black text-white mt-1">
+                  {activeMarksModal.subjectName}
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Teacher: <span className="text-slate-200 font-semibold">{activeMarksModal.teacherName}</span> • Max Marks: <span className="text-amber-400 font-mono font-bold">{activeMarksModal.maxMarks || 25}</span>
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handlePrintIndividualClass({
+                      fullClassName: `${activeMarksModal.fullClassName} — ${activeMarksModal.subjectName}`,
+                      maxMarks: activeMarksModal.maxMarks,
+                      roster: modalStudents
+                    });
+                  }}
+                  className="p-2 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition cursor-pointer"
+                  title="Print this marksheet"
+                >
+                  <Printer size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveMarksModal(null)}
+                  className="p-2 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Search & Count */}
+            <div className="p-3 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center gap-2">
+              <div className="relative flex-1 max-w-xs">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                <input
+                  type="text"
+                  value={modalSearch}
+                  onChange={e => setModalSearch(e.target.value)}
+                  placeholder="Search student or roll..."
+                  className="bg-slate-950 text-white placeholder-slate-500 pl-8 pr-3 py-1.5 rounded-lg border border-slate-700 text-xs w-full focus:outline-none focus:ring-1 focus:ring-brand-500"
+                />
+              </div>
+              <div className="text-xs text-slate-400">
+                Total: <strong className="text-white">{modalStudents.length}</strong> students
+              </div>
+            </div>
+
+            {/* Modal Table Content */}
+            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+              {modalLoading ? (
+                <div className="text-center py-12">
+                  <RefreshCw className="animate-spin mx-auto text-brand-500 mb-2" size={24} />
+                  <p className="text-xs text-slate-400">Loading student marks...</p>
+                </div>
+              ) : filteredModalStudents.length === 0 ? (
+                <div className="text-center py-10 text-xs text-slate-400 italic">
+                  No marks or students found for this entry.
+                </div>
+              ) : (
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-950 uppercase text-[10px] text-slate-400 border-b border-slate-800 sticky top-0">
+                    <tr>
+                      <th className="p-2 text-center w-12">Roll</th>
+                      <th className="p-2">Student Name</th>
+                      <th className="p-2 text-center w-20">House</th>
+                      <th className="p-2 text-center w-24">Marks ({activeMarksModal.maxMarks || 25})</th>
+                      <th className="p-2 text-center w-16">%</th>
+                      <th className="p-2 text-center w-20">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {filteredModalStudents.map(st => (
+                      <tr key={st.studentId} className={`hover:bg-slate-800/40 ${st.isAbsent ? 'bg-amber-950/20' : st.total < 10 && !st.isAbsent ? 'bg-rose-950/20' : ''}`}>
+                        <td className="p-2 text-center font-bold text-slate-200">{st.rollNo}</td>
+                        <td className="p-2 font-semibold text-white">{st.name}</td>
+                        <td className="p-2 text-center text-slate-400">{st.house || '—'}</td>
+                        <td className="p-2 text-center font-mono font-bold">
+                          {st.isAbsent ? (
+                            <span className="text-amber-400">ABSENT</span>
+                          ) : st.total !== null && st.total !== undefined ? (
+                            <span className="text-white">{st.total} / {activeMarksModal.maxMarks || st.maxMarks || 25}</span>
+                          ) : (
+                            <span className="text-slate-500">Pending</span>
+                          )}
+                        </td>
+                        <td className="p-2 text-center font-mono text-slate-300">
+                          {st.percentage ? `${st.percentage}%` : '—'}
+                        </td>
+                        <td className="p-2 text-center">
+                          {st.isAbsent ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800">ABSENT</span>
+                          ) : st.total !== null && st.total < 10 ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800">ATTENTION</span>
+                          ) : st.total !== null ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">PASS</span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400">PENDING</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 border-t border-slate-800 bg-slate-950 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setActiveMarksModal(null)}
+                className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7. HIDDEN PRINTABLE / PDF TEMPLATE (Rendered strictly from immutable server snapshot) */}
       <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
         <WeeklyTestConsolidatedPDF 
           report={report} 

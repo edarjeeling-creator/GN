@@ -1201,6 +1201,16 @@ export class WeeklyTestReportService {
               rollNo: a.rollNo,
               name: formatStudentDisplayName(a.name),
               house: a.house
+            })),
+            allStudents: subjectStudents.map(s => ({
+              studentId: s.student.id,
+              rollNo: s.rollNo,
+              name: formatStudentDisplayName(s.name),
+              house: s.house,
+              total: s.total,
+              maxMarks: s.maxMarks,
+              percentage: s.percentage,
+              isAbsent: s.isAbsent
             }))
           });
         }

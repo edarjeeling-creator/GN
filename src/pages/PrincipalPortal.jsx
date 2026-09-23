@@ -640,13 +640,21 @@ const PrincipalPortal = () => {
                     </p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('weekly_test_report')}
-                  className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow transition-transform active:scale-95 whitespace-nowrap text-center shrink-0 cursor-pointer"
-                >
-                  Open Weekly Test Report →
-                </button>
+                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('weekly_test_report')}
+                    className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow transition-transform active:scale-95 whitespace-nowrap text-center shrink-0 cursor-pointer"
+                  >
+                    Assembly Honours & Marksheets →
+                  </button>
+                  <Link
+                    to="/weekly-tests"
+                    className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl border border-slate-700 shadow transition-transform active:scale-95 whitespace-nowrap text-center shrink-0"
+                  >
+                    Teacher Test Oversight →
+                  </Link>
+                </div>
               </CardContent>
             </Card>
 
