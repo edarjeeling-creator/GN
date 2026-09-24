@@ -16,10 +16,12 @@
  */
 
 import { supabase } from '../lib/supabase';
-import { MarksCalculationEngine } from './MarksCalculationEngine';
+import { MarksCalculationEngine, getClassWeeklyTestMaxMarks } from './MarksCalculationEngine';
 import { formatStudentDisplayName } from '../utils/studentUtils';
 import { getStudentHouse } from '../utils/houseData';
 import { getTuesdayAssemblyReleaseDate, getISTDateParts } from '../utils/tuesdayAssemblySchedule';
+
+export { getClassWeeklyTestMaxMarks };
 
 /**
  * Returns ISO YYYY-MM-DD date string of the upcoming Tuesday Assembly
@@ -44,55 +46,6 @@ function isTableMissingError(error) {
     (typeof error.message === 'string' && error.message.toLowerCase().includes('does not exist')) ||
     (typeof error.details === 'string' && error.details.toLowerCase().includes('does not exist'))
   );
-}
-
-/**
- * Authoritative scale for Weekly Tests by Class:
- * Classes 5 to 8 -> Max 25 marks
- * Classes 9 to 12 -> Max 20 marks
- * 
- * Supports:
- * - Arabic digits (5-12)
- * - Roman numerals (V-XII)
- * - Strings with or without section suffixes (e.g. "8A", "Class 8 A", "Class VIII-A", "Class 10B", "Class XII")
- */
-export function getClassWeeklyTestMaxMarks(className = '') {
-  if (!className) return 25;
-  const str = String(className).trim();
-
-  // 1. Exact or word-bounded numbers: 9, 10, 11, 12 vs 5, 6, 7, 8
-  const numMatch = str.match(/\b(1[0-2]|9|[5-8])\b/);
-  if (numMatch) {
-    const num = parseInt(numMatch[1], 10);
-    if (num >= 9 && num <= 12) return 20;
-    if (num >= 5 && num <= 8) return 25;
-  }
-
-  // 2. Embedded numbers with section suffixes (e.g. "Class8A", "Class 8A", "10B", "8-A", "Class10")
-  const anyNumMatch = str.match(/(?:class\s*|grade\s*|^)?(1[0-2]|9|[5-8])(?:[a-z\s\-]|$)/i);
-  if (anyNumMatch) {
-    const num = parseInt(anyNumMatch[1], 10);
-    if (num >= 9 && num <= 12) return 20;
-    if (num >= 5 && num <= 8) return 25;
-  }
-
-  // 3. Roman numerals: IX, X, XI, XII vs V, VI, VII, VIII (with or without section suffix like VIII-A or VIIIA)
-  if (/(?:^|\b|class\s*)(ix|x|xi|xii)(?:[\s\-_]?[a-z]|\b|$)/i.test(str)) {
-    return 20;
-  }
-  if (/(?:^|\b|class\s*)(v|vi|vii|viii)(?:[\s\-_]?[a-z]|\b|$)/i.test(str)) {
-    return 25;
-  }
-
-  // Fallback for general numbers if string has any digit
-  const fallbackNum = str.match(/\d+/);
-  if (fallbackNum) {
-    const num = parseInt(fallbackNum[0], 10);
-    if (num >= 9 && num <= 12) return 20;
-    if (num >= 5 && num <= 8) return 25;
-  }
-
-  return 25;
 }
 
 export const DEFAULT_WEEKLY_TEST_CONFIG = {
@@ -739,6 +692,7 @@ export class WeeklyTestReportService {
         subjectEntries.push({
           subjectId: assign.subject_id,
           subjectName: subjectObj.name,
+          teacherId: assign.teacher_id,
           teacherName: teacherObj.name,
           totalStudents: studentCount,
           enteredCount,
@@ -934,6 +888,7 @@ export class WeeklyTestReportService {
 
     // Components
     let testCompIds = new Set(['c-test']);
+    const compMaxMap = new Map();
     try {
       const { data: compData, error: cErr } = await supabase
         .from('assessment_components')
@@ -945,6 +900,8 @@ export class WeeklyTestReportService {
           if (c.component_code === 'TEST' || /weekly.*test|periodic.*test|formative.*test|^test$/i.test(c.component_name || c.name || '')) {
             testCompIds.add(c.id);
           }
+          const mx = Number(c.raw_max_marks) || Number(c.converted_max_marks);
+          if (mx) compMaxMap.set(c.id, mx);
         });
       }
     } catch (err) {
@@ -1025,7 +982,7 @@ export class WeeklyTestReportService {
 
     for (const clsProg of classProgress) {
       const fullClassName = `${clsProg.className} ${clsProg.section}`.trim();
-      const classMaxMarks = getClassWeeklyTestMaxMarks(clsProg.className);
+      const classMaxMarks = getClassWeeklyTestMaxMarks(clsProg.className, clsProg.section);
       const clsStudents = (students || []).filter(s => s.class_id === clsProg.classId);
 
       const classStudentMap = new Map();
@@ -1061,7 +1018,7 @@ export class WeeklyTestReportService {
           if (submission) {
             const dm = detailedBySubAndStudent.get(`${submission.id}_${st.id}`);
             if (dm) {
-              const maxRaw = classMaxMarks;
+              const maxRaw = compMaxMap.get(dm.component_id) || classMaxMarks;
               if (dm.status === 'ABSENT' || String(dm.raw_score).toUpperCase() === 'A' || String(dm.raw_score).toUpperCase() === 'ABS') {
                 stRec.subjectScores[sub.subjectName] = { score: 0, max: maxRaw, isAbsent: true };
                 stRec.attemptedSubjects++;
@@ -1161,19 +1118,38 @@ export class WeeklyTestReportService {
             excludeAbsentFromRanking: config.exclude_absent_from_ranking ?? true
           });
 
+          const top3List = subHonours.topScorers.slice(0, 3).map(t => ({
+            studentId: t.student.id,
+            rollNo: t.rollNo,
+            name: formatStudentDisplayName(t.name),
+            house: t.house,
+            total: t.total,
+            maxMarks: t.maxMarks,
+            percentage: t.percentage,
+            rank: t.rank,
+            rankDisplay: t.rankDisplay,
+            isTie: t.isTie
+          }));
+
           subjectHonoursData.push({
             classId: clsProg.classId,
             className: clsProg.className,
-            section: clsProg.section,
+            class: clsProg.className,
+            section: clsProg.section || '',
             fullClassName,
             subjectId: sub.subjectId,
+            subject: sub.subjectName,
             subjectName: sub.subjectName,
+            teacherId: sub.teacherId,
+            teacher: sub.teacherName || 'Subject Teacher',
             teacherName: sub.teacherName || 'Subject Teacher',
             maxMarks: classMaxMarks,
             passingMarks: passingThreshold,
+            configuredPassingThreshold: passingThreshold,
             totalStudents: clsStudents.length,
             evaluatedCount: subjectStudents.filter(s => !s.isAbsent).length,
             absentCount: subjectStudents.filter(s => s.isAbsent).length,
+            top3: top3List,
             topScorers: subHonours.topScorers.map(t => ({
               studentId: t.student.id,
               rollNo: t.rollNo,
@@ -1267,10 +1243,23 @@ export class WeeklyTestReportService {
       });
 
       if (evaluatedRoster.length > 0) {
+        // Effective threshold: For max 20, if threshold is default 10 (40%), scale to 8 (40% of 20)
+        let effectiveThreshold = 10;
+        if (config.threshold_type === 'PERCENTAGE') {
+          effectiveThreshold = config.requires_attention_threshold !== undefined ? Number(config.requires_attention_threshold) : 40;
+        } else {
+          const rawThresh = config.requires_attention_threshold !== undefined ? Number(config.requires_attention_threshold) : 10;
+          if (classMaxMarks === 20 && (rawThresh === 10 || config.requires_attention_threshold === undefined)) {
+            effectiveThreshold = 8;
+          } else {
+            effectiveThreshold = rawThresh;
+          }
+        }
+
         // Authoritative per-class ranking with dense ties
         const { topScorers, requiresAttention } = MarksCalculationEngine.calculateHonoursAndAttention(evaluatedRoster, {
           rankingPolicy: config.ranking_policy || 'DENSE',
-          requiresAttentionThreshold: config.requires_attention_threshold || 10,
+          requiresAttentionThreshold: effectiveThreshold,
           thresholdType: config.threshold_type || 'SCORE',
           excludeAbsentFromRanking: config.exclude_absent_from_ranking ?? true
         });

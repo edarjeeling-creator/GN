@@ -22,6 +22,8 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { formatStudentDisplayName } from '../utils/studentUtils';
 import WhatsAppComposerModal from '../components/WhatsAppComposerModal';
+import { RoutineService, WORKING_DAYS } from '../services/RoutineService';
+import RoutinePrintablePDF from '../components/RoutineManagement/RoutinePrintablePDF';
 
 const Dashboard = () => {
   const { profile } = useAuth();
@@ -76,7 +78,15 @@ const Dashboard = () => {
   const [isIdModalOpen, setIsIdModalOpen] = useState(false);
   const [selectedNoticeForModal, setSelectedNoticeForModal] = useState(null);
   const [deletingNoticeId, setDeletingNoticeId] = useState(null);
-  const [activeTopTab, setActiveTopTab] = useState('attendance'); // 'attendance' | 'notices'
+  const [activeTopTab, setActiveTopTab] = useState('attendance'); // 'attendance' | 'notices' | 'routine'
+
+  // Routine System States
+  const [activeRoutineVersion, setActiveRoutineVersion] = useState(null);
+  const [myRoutineData, setMyRoutineData] = useState(null);
+  const [myTodayRoutine, setMyTodayRoutine] = useState(null);
+  const [myAckStatus, setMyAckStatus] = useState(null);
+  const [acknowledgingRoutine, setAcknowledgingRoutine] = useState(false);
+  const [showRoutinePrintModal, setShowRoutinePrintModal] = useState(false);
 
   // Verified Hybrid Teacher Attendance Modals
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -149,6 +159,55 @@ const Dashboard = () => {
     run();
     return () => { active = false; };
   }, [fetchDashboardData]);
+
+  // Load Teacher Routine & Acknowledgement Status
+  useEffect(() => {
+    if (!profile?.id) return;
+    let isMounted = true;
+    const fetchRoutine = async () => {
+      try {
+        const activeVer = await RoutineService.getActiveVersion();
+        if (!isMounted) return;
+        setActiveRoutineVersion(activeVer);
+        if (activeVer) {
+          const tRoutine = await RoutineService.getTeacherRoutine(profile.id, activeVer.id);
+          if (!isMounted) return;
+          setMyRoutineData(tRoutine);
+          const todayR = await RoutineService.getTodayTeacherRoutine(profile.id, new Date(), activeVer.id);
+          if (!isMounted) return;
+          setMyTodayRoutine(todayR);
+          const dist = await RoutineService.getDistributionStatus(activeVer.id);
+          if (!isMounted) return;
+          const myAck = dist.acknowledgements.find(a => a.teacher_id === profile.id);
+          setMyAckStatus(myAck || null);
+          // Record view
+          RoutineService.markViewedRoutine(activeVer.id, profile.id, profile.name);
+        }
+      } catch (err) {
+        console.warn('Error loading teacher routine:', err);
+      }
+    };
+    fetchRoutine();
+    return () => { isMounted = false; };
+  }, [profile?.id, profile?.name]);
+
+  const handleAcknowledgeMyRoutine = async () => {
+    if (!activeRoutineVersion || !profile?.id) return;
+    setAcknowledgingRoutine(true);
+    try {
+      const ack = await RoutineService.acknowledgeRoutine(
+        activeRoutineVersion.id,
+        profile.id,
+        profile.name || 'Teacher'
+      );
+      setMyAckStatus(ack);
+      alert("✓ Routine acknowledged successfully!");
+    } catch (e) {
+      alert("Error: " + e.message);
+    } finally {
+      setAcknowledgingRoutine(false);
+    }
+  };
 
   // Deep-link handling: if app is opened with ?noticeId=<uuid>, auto-open that notice
   const handledNoticeIdRef = useRef(null);
@@ -525,6 +584,29 @@ const Dashboard = () => {
               </span>
             )}
           </button>
+
+          <button
+            id="tab-routine"
+            role="tab"
+            type="button"
+            aria-selected={activeTopTab === 'routine'}
+            aria-controls="panel-routine"
+            tabIndex={activeTopTab === 'routine' ? 0 : -1}
+            onClick={() => setActiveTopTab('routine')}
+            className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl font-bold text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 relative ${
+              activeTopTab === 'routine'
+                ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            <Clock size={18} className={activeTopTab === 'routine' ? 'text-white' : 'text-blue-500 dark:text-blue-400'} />
+            <span>My Routine</span>
+            {activeRoutineVersion && !myAckStatus?.acknowledged_at && (
+              <span className="px-2 py-0.5 text-[10px] font-black rounded-full bg-amber-400 text-slate-950 animate-pulse">
+                Sign-off
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Quick Context Summary */}
@@ -751,6 +833,214 @@ const Dashboard = () => {
             {/* Teacher Attendance History */}
             <TeacherAttendanceHistory teacherId={profile?.id} />
           </motion.div>
+        ) : activeTopTab === 'routine' ? (
+          <motion.div
+            key="panel-routine"
+            id="panel-routine"
+            role="tabpanel"
+            aria-labelledby="tab-routine"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-6"
+          >
+            {/* Acknowledgement Status Banner */}
+            {activeRoutineVersion && (
+              <div className={`p-4 sm:p-5 rounded-2xl border shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                myAckStatus?.acknowledged_at
+                  ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-200'
+                  : 'bg-amber-950/40 border-amber-500/30 text-amber-200'
+              }`}>
+                <div className="flex items-start gap-3.5">
+                  <div className={`p-2.5 rounded-xl shrink-0 ${
+                    myAckStatus?.acknowledged_at ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400 animate-pulse'
+                  }`}>
+                    {myAckStatus?.acknowledged_at ? <CheckCircle2 size={24} /> : <AlertTriangle size={24} />}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-extrabold text-sm sm:text-base text-white">
+                        {myAckStatus?.acknowledged_at ? 'Routine Acknowledged' : 'New Weekly Routine Acknowledgment Required'}
+                      </h3>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
+                        {activeRoutineVersion.version_code}
+                      </span>
+                    </div>
+                    <p className="text-xs opacity-80 mt-0.5">
+                      {myAckStatus?.acknowledged_at
+                        ? `You formally acknowledged Routine ${activeRoutineVersion.version_code} on ${new Date(myAckStatus.acknowledged_at).toLocaleDateString()} at ${new Date(myAckStatus.acknowledged_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`
+                        : `The Principal has published Routine ${activeRoutineVersion.version_code}. Please review your 5-day teaching schedule below and click Acknowledge.`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5 self-end sm:self-auto shrink-0">
+                  <Button
+                    onClick={() => setShowRoutinePrintModal(true)}
+                    variant="outline"
+                    size="sm"
+                    className="border-slate-700 bg-slate-800 text-slate-200 hover:text-white flex items-center gap-1.5"
+                  >
+                    <Printer size={14} /> Print Slip
+                  </Button>
+                  {!myAckStatus?.acknowledged_at && (
+                    <Button
+                      onClick={handleAcknowledgeMyRoutine}
+                      disabled={acknowledgingRoutine}
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold shadow-md flex items-center gap-1.5"
+                    >
+                      <Check size={14} />
+                      {acknowledgingRoutine ? 'Recording...' : 'Acknowledge Routine'}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TODAY'S ROUTINE QUICK CARD SECTION */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Clock size={18} className="text-brand-500" />
+                    Today's Routine ({myTodayRoutine?.dayName || 'Today'})
+                  </h3>
+                  <p className="text-xs text-slate-500">Period-by-period breakdown for today</p>
+                </div>
+                <Badge variant="outline" className="text-xs font-mono font-bold">
+                  {myTodayRoutine?.periods?.filter(p => p.entry)?.length || 0} Teaching Periods Today
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {myTodayRoutine?.periods?.map((p) => {
+                  const entry = p.entry;
+                  const isSpecial = entry?.entry_type === 'TEST' || entry?.entry_type === 'ASSEMBLY';
+                  return (
+                    <div 
+                      key={p.period_num} 
+                      className={`p-3.5 rounded-2xl border transition-all ${
+                        entry 
+                          ? isSpecial 
+                            ? 'bg-amber-500/10 dark:bg-amber-950/30 border-amber-500/40 text-amber-900 dark:text-amber-200' 
+                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm'
+                          : 'bg-slate-50/50 dark:bg-slate-900/40 border-dashed border-slate-200 dark:border-slate-800/80 text-slate-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[11px] font-mono mb-1 text-slate-500 dark:text-slate-400">
+                        <span className="font-bold">{p.period_name}</span>
+                        <span>{p.start_time} – {p.end_time}</span>
+                      </div>
+                      {entry ? (
+                        <div>
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-extrabold text-sm text-slate-900 dark:text-white">
+                              {entry.class_name ? `Class ${entry.class_name} ${entry.section || ''}` : entry.entry_type}
+                            </span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-brand-100 dark:bg-brand-950 text-brand-700 dark:text-brand-300">
+                              {entry.entry_type}
+                            </span>
+                          </div>
+                          <div className="text-xs font-bold text-brand-600 dark:text-brand-400 mt-0.5">
+                            {entry.subject_name}
+                          </div>
+                          {entry.room && (
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                              Room: {entry.room}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="py-2 text-center text-xs font-mono text-slate-400">
+                          FREE PERIOD
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* MY WEEKLY ROUTINE (5-DAY MATRIX) */}
+            {myRoutineData && (
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 shadow-lg">
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-tight">
+                      My Complete Weekly Teaching Routine
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Classes: <strong className="text-slate-700 dark:text-slate-300">{myRoutineData.classesHandled?.join(', ') || 'General'}</strong> | Subjects: <strong className="text-slate-700 dark:text-slate-300">{myRoutineData.subjectsHandled?.join(', ') || 'Assigned'}</strong>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500">
+                      Total: <strong className="text-brand-600 dark:text-brand-400">{myRoutineData.totalAssignedPeriods} Periods</strong>
+                    </span>
+                    <Button
+                      onClick={() => setShowRoutinePrintModal(true)}
+                      size="sm"
+                      variant="outline"
+                      className="border-slate-300 dark:border-slate-700 text-xs font-bold"
+                    >
+                      <Printer size={13} className="mr-1.5" /> Print Routine Slip
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-center text-xs">
+                    <thead>
+                      <tr className="bg-slate-100 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+                        <th className="p-3 font-extrabold w-24 text-left border-r border-slate-200 dark:border-slate-800">Days</th>
+                        {RoutineService.getPeriods().map(p => (
+                          <th key={p.period_num} className="p-2 font-bold border-r border-slate-200 dark:border-slate-800 min-w-[95px]">
+                            <div>{p.period_name}</div>
+                            <div className="text-[9px] font-normal text-slate-400">{p.start_time}–{p.end_time}</div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                      {WORKING_DAYS.map(day => {
+                        const daySchedule = myRoutineData.scheduleByDay?.[day.id];
+                        return (
+                          <tr key={day.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                            <td className="p-3 font-extrabold text-left bg-slate-50/80 dark:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200">
+                              {day.name}
+                            </td>
+                            {RoutineService.getPeriods().map(p => {
+                              const periodCell = daySchedule?.periods?.find(pr => pr.period_num === p.period_num);
+                              const entry = periodCell?.entry;
+                              return (
+                                <td key={p.period_num} className="p-2 border-r border-slate-200 dark:border-slate-800 h-16 align-middle">
+                                  {entry ? (
+                                    <div className="flex flex-col justify-center items-center">
+                                      <span className="font-extrabold text-[11px] text-slate-900 dark:text-white">
+                                        {entry.class_name ? `Class ${entry.class_name} ${entry.section || ''}` : entry.entry_type}
+                                      </span>
+                                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                        {entry.subject_name || entry.entry_type}
+                                      </span>
+                                      {entry.room && <span className="text-[8px] text-slate-400">[{entry.room}]</span>}
+                                    </div>
+                                  ) : (
+                                    <span className="text-slate-300 dark:text-slate-700 text-[10px] font-mono">Free</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </motion.div>
         ) : (
           <motion.div
             key="panel-notices"
@@ -920,6 +1210,42 @@ const Dashboard = () => {
         teacherId={profile?.id}
         onSubmitted={() => fetchDashboardData()}
       />
+
+      {/* Teacher Routine Print Modal */}
+      {showRoutinePrintModal && myRoutineData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl">
+            <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <Printer className="w-5 h-5 text-brand-500" />
+                <h3 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase">
+                  Print Preview: My Weekly Routine Slip
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => window.print()}
+                  size="sm"
+                  className="bg-brand-600 hover:bg-brand-500 text-white font-bold"
+                >
+                  <Printer size={14} className="mr-1.5" /> Print Now
+                </Button>
+                <button onClick={() => setShowRoutinePrintModal(false)} className="text-slate-400 hover:text-white p-1">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-y-auto p-4 bg-slate-100 dark:bg-slate-950 flex-1">
+              <RoutinePrintablePDF
+                type="teacher"
+                data={myRoutineData}
+                periods={RoutineService.getPeriods()}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Calendar Widget - Visible to all faculty and staff */}
       <CalendarWidget />

@@ -684,7 +684,7 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <span>🏅 Class Honours</span>
+              <span>🏅 Class Consolidated</span>
             </button>
             <button
               type="button"
@@ -696,7 +696,7 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
               }`}
             >
               <BookOpen size={13} />
-              <span>By Subject (Assembly Slips)</span>
+              <span>📖 By Subject (Assembly Slips)</span>
               {subjectHonours.length > 0 && (
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
                   honoursViewMode === 'subject' ? 'bg-slate-950 text-amber-400 font-black' : 'bg-slate-800 text-slate-300'
@@ -766,11 +766,13 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
                       {clsH.topScorers.map(s => {
                         const medal = s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : '🥉';
                         const medalColor = s.rank === 1 ? 'text-amber-400' : s.rank === 2 ? 'text-slate-300' : 'text-amber-600';
+                        const isScaled = s.rawTotal !== undefined && (s.rawTotal !== s.total || (s.rawMaxMarks && s.rawMaxMarks !== (clsH.maxMarks || s.maxMarks)));
                         return (
-                          <li key={s.studentId} className="flex items-center justify-between text-xs">
+                          <li key={s.studentId} className="flex items-center justify-between text-xs py-0.5">
                             <div className="flex items-center gap-2">
                               <span className={`text-base ${medalColor}`}>{medal}</span>
                               <div>
+                                <span className="text-[11px] font-bold text-slate-400 mr-1.5">{s.rankDisplay || (s.rank === 1 ? '1st' : s.rank === 2 ? '2nd' : '3rd')}:</span>
                                 <strong className="text-white font-bold">{s.name}</strong>
                                 {s.house && <span className="text-slate-400 text-[10px] ml-1.5">({s.house})</span>}
                               </div>
@@ -780,8 +782,8 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
                                 <span className="font-bold text-slate-100">{s.total} / {clsH.maxMarks || s.maxMarks}</span>
                                 <span className="text-amber-400 text-[10px] font-semibold">({s.percentage}%)</span>
                               </div>
-                              {s.rawTotal !== undefined && s.rawTotal !== s.total && (
-                                <div className="text-[9px] text-slate-500 font-normal">
+                              {isScaled && (
+                                <div className="text-[9px] text-slate-400 font-normal">
                                   Raw: {s.rawTotal} / {s.rawMaxMarks}
                                 </div>
                               )}
@@ -851,10 +853,11 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
                           const medal = s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : '🥉';
                           const medalColor = s.rank === 1 ? 'text-amber-400' : s.rank === 2 ? 'text-slate-300' : 'text-amber-600';
                           return (
-                            <li key={s.studentId} className="flex items-center justify-between text-xs">
+                            <li key={s.studentId} className="flex items-center justify-between text-xs py-0.5">
                               <div className="flex items-center gap-2">
                                 <span className={`text-base ${medalColor}`}>{medal}</span>
                                 <div>
+                                  <span className="text-[11px] font-bold text-slate-400 mr-1.5">{s.rankDisplay || (s.rank === 1 ? '1st' : s.rank === 2 ? '2nd' : '3rd')} —</span>
                                   <strong className="text-white font-bold">{s.name}</strong>
                                   {s.house && <span className="text-slate-400 text-[10px] ml-1.5">({s.house})</span>}
                                 </div>
@@ -869,7 +872,7 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
                       </ul>
                     )}
 
-                    {/* Requires Attention (< 10) in this subject */}
+                    {/* Requires Attention (< passing threshold) in this subject */}
                     {subH.requiresAttention && subH.requiresAttention.length > 0 && (
                       <div className="mt-2.5 pt-2 border-t border-slate-800/80">
                         <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider block mb-1">
@@ -881,7 +884,7 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
                               key={att.studentId}
                               className="px-2 py-0.5 rounded bg-rose-950/40 text-rose-300 border border-rose-900/50 text-[10px] font-medium"
                             >
-                              {att.name}: <strong className="font-mono text-rose-200">{att.total}/{subH.maxMarks}</strong>
+                              {att.name} — <strong className="font-mono text-rose-200">{att.total}/{subH.maxMarks}</strong> ({att.percentage}%)
                             </span>
                           ))}
                         </div>
@@ -1057,28 +1060,35 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {requiresAttention.flatMap(c => c.students.map(st => (
-              <div 
-                key={`${c.classId}_${st.studentId}`} 
-                className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-rose-950 text-xs"
-              >
-                <div>
-                  <strong className="text-rose-200">{c.fullClassName}:</strong>
-                  <span className="text-slate-200 ml-1.5 font-medium">{st.name}</span>
-                  {st.house && <span className="text-slate-400 text-[10px] ml-1">({st.house})</span>}
-                </div>
-                <div className="font-mono text-right">
-                  <span className="font-bold text-rose-400">
-                    {st.total} / {st.maxMarks || c.maxMarks || 25} ({st.percentage}%)
-                  </span>
-                  {st.rawTotal !== undefined && st.rawTotal !== st.total && (
-                    <span className="text-[9px] text-slate-500 font-normal ml-1">
-                      (Raw: {st.rawTotal}/{st.rawMaxMarks})
-                    </span>
-                  )}
-                </div>
-              </div>
-            )))}
+            {requiresAttention.flatMap(c => {
+              const classMax = c.maxMarks || WeeklyTestReportService.getClassWeeklyTestMaxMarks(c.fullClassName);
+              return c.students.map(st => {
+                const studentMax = st.maxMarks || classMax;
+                const isScaled = st.rawTotal !== undefined && (st.rawTotal !== st.total || (st.rawMaxMarks && st.rawMaxMarks !== studentMax));
+                return (
+                  <div 
+                    key={`${c.classId}_${st.studentId}`} 
+                    className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-rose-950 text-xs"
+                  >
+                    <div>
+                      <strong className="text-rose-200">{c.fullClassName}:</strong>
+                      <span className="text-slate-200 ml-1.5 font-medium">{st.name}</span>
+                      {st.house && <span className="text-slate-400 text-[10px] ml-1">({st.house})</span>}
+                    </div>
+                    <div className="font-mono text-right">
+                      <span className="font-bold text-rose-400">
+                        {st.total} / {studentMax} ({st.percentage}%)
+                      </span>
+                      {isScaled && (
+                        <div className="text-[9px] text-slate-400 font-normal">
+                          Raw: {st.rawTotal} / {st.rawMaxMarks}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              });
+            })}
           </div>
         </div>
       )}

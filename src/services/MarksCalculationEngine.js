@@ -664,6 +664,69 @@ export class MarksCalculationEngine {
       totalEligible: eligibleStudents.length
     };
   }
+
+  /**
+   * Authoritative scale for Weekly Tests by Class:
+   * Classes 5 to 8 -> Max 25 marks
+   * Classes 9 to 12 -> Max 20 marks
+   * 
+   * Supports:
+   * - Arabic digits (5-12)
+   * - Roman numerals (V-XII)
+   * - Strings with or without section suffixes (e.g. "8A", "Class 8 A", "Class VIII-A", "Class 10B", "Class XII")
+   * - Objects with name / section properties
+   */
+  static getClassWeeklyTestMaxMarks(classInput = '', section = '') {
+    if (!classInput) return 25;
+    let str = '';
+    let sec = String(section || '').trim();
+
+    if (typeof classInput === 'object' && classInput !== null) {
+      str = String(classInput.name || classInput.className || classInput.class || '').trim();
+      if (!sec && classInput.section) sec = String(classInput.section).trim();
+    } else {
+      str = String(classInput).trim();
+    }
+
+    if (sec && !str.toLowerCase().includes(sec.toLowerCase())) {
+      str = `${str} ${sec}`.trim();
+    }
+
+    // 1. Roman numerals (longest match first: XII, XI, IX, X vs VIII, VII, VI, V)
+    if (/(?:^|\b|class\s*|grade\s*)(xii|xi|ix|x)(?:[\s\-_]?[a-z]|\b|$)/i.test(str)) {
+      return 20;
+    }
+    if (/(?:^|\b|class\s*|grade\s*)(viii|vii|vi|v)(?:[\s\-_]?[a-z]|\b|$)/i.test(str)) {
+      return 25;
+    }
+
+    // 2. Exact or word-bounded numbers: 9, 10, 11, 12 vs 5, 6, 7, 8
+    const numMatch = str.match(/\b(1[0-2]|9|[5-8])\b/);
+    if (numMatch) {
+      const num = parseInt(numMatch[1], 10);
+      if (num >= 9 && num <= 12) return 20;
+      if (num >= 5 && num <= 8) return 25;
+    }
+
+    // 3. Embedded numbers with section suffixes (e.g. "Class8A", "Class 8A", "10B", "8-A", "Class10")
+    const anyNumMatch = str.match(/(?:class\s*|grade\s*|^)?(1[0-2]|9|[5-8])(?:[a-z\s\-]|$)/i);
+    if (anyNumMatch) {
+      const num = parseInt(anyNumMatch[1], 10);
+      if (num >= 9 && num <= 12) return 20;
+      if (num >= 5 && num <= 8) return 25;
+    }
+
+    // 4. Fallback for general numbers if string has any digit
+    const fallbackNum = str.match(/\d+/);
+    if (fallbackNum) {
+      const num = parseInt(fallbackNum[0], 10);
+      if (num >= 9 && num <= 12) return 20;
+      if (num >= 5 && num <= 8) return 25;
+    }
+
+    return 25;
+  }
 }
 
+export const getClassWeeklyTestMaxMarks = MarksCalculationEngine.getClassWeeklyTestMaxMarks;
 export default MarksCalculationEngine;

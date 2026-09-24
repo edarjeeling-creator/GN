@@ -6,6 +6,8 @@
  * Renders ONLY the immutable server-provided snapshot data.
  * Does NOT perform independent client-side ranking or calculations.
  */
+import { getClassWeeklyTestMaxMarks } from '../services/WeeklyTestReportService';
+
 export default function WeeklyTestConsolidatedPDF({ report, branding = null, innerRef = null }) {
   if (!report) return null;
 
@@ -127,7 +129,7 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
                   >
                     <div className="font-extrabold text-xs text-slate-900 border-b border-slate-200 pb-1 mb-1.5 flex justify-between">
                       <span>{clsHonour.fullClassName}</span>
-                      <span className="text-[10px] text-slate-500 font-medium">Class Honours</span>
+                      <span className="text-[10px] text-slate-500 font-semibold">Scale: Max {clsHonour.maxMarks || 25} Marks</span>
                     </div>
 
                     {clsHonour.topScorers.length === 0 ? (
@@ -136,6 +138,7 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
                       <ul className="space-y-1">
                         {clsHonour.topScorers.map(s => {
                           const medal = s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : '🥉';
+                          const isScaled = s.rawTotal !== undefined && (s.rawTotal !== s.total || (s.rawMaxMarks && s.rawMaxMarks !== (s.maxMarks || clsHonour.maxMarks)));
                           return (
                             <li key={s.studentId} className="flex items-center justify-between text-[11px]">
                               <span className="flex items-center gap-1">
@@ -144,11 +147,11 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
                                 <span className="text-slate-800 font-semibold">{s.name}</span>
                                 {s.house && <span className="text-slate-500 text-[10px]">({s.house})</span>}
                               </span>
-                              <span className="font-mono font-bold text-slate-900">
-                                {s.total} / {s.maxMarks || clsHonour.maxMarks} ({s.percentage}%)
-                                {s.rawTotal !== undefined && s.rawTotal !== s.total && (
-                                  <span className="text-[9px] text-slate-500 font-normal ml-1">
-                                    (Raw: {s.rawTotal}/{s.rawMaxMarks})
+                              <span className="font-mono font-bold text-slate-900 text-right">
+                                <span>{s.total} / {s.maxMarks || clsHonour.maxMarks} ({s.percentage}%)</span>
+                                {isScaled && (
+                                  <span className="text-[9px] text-slate-500 font-normal block">
+                                    Raw: {s.rawTotal} / {s.rawMaxMarks}
                                   </span>
                                 )}
                               </span>
@@ -176,21 +179,28 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
               </div>
               <div className="bg-rose-50/50 border border-rose-200 rounded p-2 text-[11px]">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
-                  {requiresAttention.flatMap(c => c.students.map(s => (
-                    <div key={`${c.classId}_${s.studentId}`} className="flex justify-between border-b border-rose-100 py-0.5">
-                      <span className="text-slate-800">
-                        <strong>{c.fullClassName}:</strong> {s.name} {s.house && `(${s.house})`}
-                      </span>
-                      <span className="font-mono font-bold text-rose-700">
-                        {s.total} / {s.maxMarks || c.maxMarks || 25} ({s.percentage}%)
-                        {s.rawTotal !== undefined && s.rawTotal !== s.total && (
-                          <span className="text-[9px] text-slate-500 font-normal ml-1">
-                            (Raw: {s.rawTotal}/{s.rawMaxMarks})
+                  {requiresAttention.flatMap(c => {
+                    const classMax = c.maxMarks || getClassWeeklyTestMaxMarks(c.fullClassName);
+                    return c.students.map(s => {
+                      const studentMax = s.maxMarks || classMax;
+                      const isScaled = s.rawTotal !== undefined && (s.rawTotal !== s.total || (s.rawMaxMarks && s.rawMaxMarks !== studentMax));
+                      return (
+                        <div key={`${c.classId}_${s.studentId}`} className="flex justify-between border-b border-rose-100 py-0.5">
+                          <span className="text-slate-800">
+                            <strong>{c.fullClassName}:</strong> {s.name} {s.house && `(${s.house})`}
                           </span>
-                        )}
-                      </span>
-                    </div>
-                  )))}
+                          <span className="font-mono font-bold text-rose-700 text-right">
+                            <span>{s.total} / {studentMax} ({s.percentage}%)</span>
+                            {isScaled && (
+                              <span className="text-[9px] text-slate-500 font-normal block">
+                                Raw: {s.rawTotal} / {s.rawMaxMarks}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    });
+                  })}
                 </div>
               </div>
             </div>
@@ -273,7 +283,7 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
                   {subH.requiresAttention && subH.requiresAttention.length > 0 && (
                     <div className="mt-1.5 pt-1 border-t border-rose-200 text-[9px] text-rose-700">
                       <strong>Requires Attention (&lt; {subH.passingMarks || 10}):</strong>{' '}
-                      {subH.requiresAttention.map(a => `${a.name} (${a.total}/${subH.maxMarks})`).join(', ')}
+                      {subH.requiresAttention.map(a => `${a.name} (${a.total}/${subH.maxMarks} - ${a.percentage}%)`).join(', ')}
                     </div>
                   )}
                 </div>

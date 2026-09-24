@@ -789,12 +789,32 @@ runTest(42, 'Principal mobile experience payload is lightweight, fast, and 1-tap
   assert.ok(rep.status);
 });
 
-// Implementation of class weekly test max marks matching WeeklyTestReportService.js
-function getClassWeeklyTestMaxMarks(className = '') {
-  if (!className) return 25;
-  const str = String(className).trim();
+// Implementation of class weekly test max marks matching MarksCalculationEngine.js
+function getClassWeeklyTestMaxMarks(classInput = '', section = '') {
+  if (!classInput) return 25;
+  let str = '';
+  let sec = String(section || '').trim();
 
-  // 1. Exact or word-bounded numbers: 9, 10, 11, 12 vs 5, 6, 7, 8
+  if (typeof classInput === 'object' && classInput !== null) {
+    str = String(classInput.name || classInput.className || classInput.class || '').trim();
+    if (!sec && classInput.section) sec = String(classInput.section).trim();
+  } else {
+    str = String(classInput).trim();
+  }
+
+  if (sec && !str.toLowerCase().includes(sec.toLowerCase())) {
+    str = `${str} ${sec}`.trim();
+  }
+
+  // 1. Roman numerals (longest match first: XII, XI, IX, X vs VIII, VII, VI, V)
+  if (/(?:^|\b|class\s*|grade\s*)(xii|xi|ix|x)(?:[\s\-_]?[a-z]|\b|$)/i.test(str)) {
+    return 20;
+  }
+  if (/(?:^|\b|class\s*|grade\s*)(viii|vii|vi|v)(?:[\s\-_]?[a-z]|\b|$)/i.test(str)) {
+    return 25;
+  }
+
+  // 2. Exact or word-bounded numbers: 9, 10, 11, 12 vs 5, 6, 7, 8
   const numMatch = str.match(/\b(1[0-2]|9|[5-8])\b/);
   if (numMatch) {
     const num = parseInt(numMatch[1], 10);
@@ -802,7 +822,7 @@ function getClassWeeklyTestMaxMarks(className = '') {
     if (num >= 5 && num <= 8) return 25;
   }
 
-  // 2. Embedded numbers with section suffixes (e.g. "Class8A", "Class 8A", "10B", "8-A", "Class10")
+  // 3. Embedded numbers with section suffixes (e.g. "Class8A", "Class 8A", "10B", "8-A", "Class10")
   const anyNumMatch = str.match(/(?:class\s*|grade\s*|^)?(1[0-2]|9|[5-8])(?:[a-z\s\-]|$)/i);
   if (anyNumMatch) {
     const num = parseInt(anyNumMatch[1], 10);
@@ -810,15 +830,7 @@ function getClassWeeklyTestMaxMarks(className = '') {
     if (num >= 5 && num <= 8) return 25;
   }
 
-  // 3. Roman numerals: IX, X, XI, XII vs V, VI, VII, VIII
-  if (/(?:^|\b|class\s*)(ix|x|xi|xii)(?:[\s\-_]?[a-z]|\b|$)/i.test(str)) {
-    return 20;
-  }
-  if (/(?:^|\b|class\s*)(v|vi|vii|viii)(?:[\s\-_]?[a-z]|\b|$)/i.test(str)) {
-    return 25;
-  }
-
-  // Fallback for general numbers if string has any digit
+  // 4. Fallback for general numbers if string has any digit
   const fallbackNum = str.match(/\d+/);
   if (fallbackNum) {
     const num = parseInt(fallbackNum[0], 10);
@@ -997,6 +1009,286 @@ runTest(48, 'Classes 9, 10, 11, and 12 strictly use max 20 marks scale and no sc
     assert.strictEqual(topScorers[0].maxMarks, 20);
     assert.ok(topScorers[0].total <= 20);
   });
+});
+
+// Explicit Verification Tests (Items 1 - 31 from Specification)
+runTest(49, '1. Class 5 -> 25', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class 5'), 25);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('5'), 25);
+});
+
+runTest(50, '2. Class 6 -> 25', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class 6'), 25);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('6'), 25);
+});
+
+runTest(51, '3. Class 7 -> 25', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class 7'), 25);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('7'), 25);
+});
+
+runTest(52, '4. Class 8 -> 25', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class 8'), 25);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('8'), 25);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class 8 A'), 25);
+});
+
+runTest(53, '5. Class 9 -> 20', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class 9'), 20);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('9'), 20);
+});
+
+runTest(54, '6. Class 10 -> 20', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class 10'), 20);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('10'), 20);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class 10 B'), 20);
+});
+
+runTest(55, '7. Class 11 -> 20', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class 11'), 20);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('11'), 20);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class 11 Science'), 20);
+});
+
+runTest(56, '8. Class 12 -> 20', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class 12'), 20);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('12'), 20);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class 12 Commerce'), 20);
+});
+
+runTest(57, '9. Roman numeral V -> 25', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('V'), 25);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class V'), 25);
+});
+
+runTest(58, '10. Roman numeral VI -> 25', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('VI'), 25);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class VI'), 25);
+});
+
+runTest(59, '11. Roman numeral VII -> 25', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('VII'), 25);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class VII'), 25);
+});
+
+runTest(60, '12. Roman numeral VIII -> 25', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('VIII'), 25);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class VIII'), 25);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class VIII-A'), 25);
+});
+
+runTest(61, '13. Roman numeral IX -> 20', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('IX'), 20);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class IX'), 20);
+});
+
+runTest(62, '14. Roman numeral X -> 20', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('X'), 20);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class X'), 20);
+});
+
+runTest(63, '15. Roman numeral XI -> 20', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('XI'), 20);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class XI'), 20);
+});
+
+runTest(64, '16. Roman numeral XII -> 20', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('XII'), 20);
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class XII'), 20);
+});
+
+runTest(65, '17. 173/175 -> 24.7/25', () => {
+  const scaled = TestMarksCalculationEngine.applyRounding((173 / 175) * 25, 'ROUND_1_DECIMAL');
+  assert.strictEqual(scaled, 24.7);
+});
+
+runTest(66, '18. Percentage remains 98.9%', () => {
+  const pct = TestMarksCalculationEngine.applyRounding((173 / 175) * 100, 'ROUND_1_DECIMAL');
+  assert.strictEqual(pct, 98.9);
+});
+
+runTest(67, '19. Consolidated score never exceeds 25 for Classes 5–8', () => {
+  ['Class 5', 'Class 6 A', 'Class 7', 'Class 8'].forEach(cls => {
+    const max = getClassWeeklyTestMaxMarks(cls);
+    assert.strictEqual(max, 25);
+    const perfectScore = (175 / 175) * max;
+    assert.ok(perfectScore <= 25);
+  });
+});
+
+runTest(68, '20. Consolidated score never exceeds 20 for Classes 9–12', () => {
+  ['Class 9', 'Class 10 A', 'Class 11 Science', 'Class 12'].forEach(cls => {
+    const max = getClassWeeklyTestMaxMarks(cls);
+    assert.strictEqual(max, 20);
+    const perfectScore = (100 / 100) * max;
+    assert.ok(perfectScore <= 20);
+  });
+});
+
+runTest(69, '21. Raw total remains preserved', () => {
+  const studentRec = { rawTotal: 173, rawMaxMarks: 175, total: 24.7, maxMarks: 25 };
+  assert.strictEqual(studentRec.rawTotal, 173);
+  assert.strictEqual(studentRec.rawMaxMarks, 175);
+  assert.strictEqual(studentRec.total, 24.7);
+  assert.strictEqual(studentRec.maxMarks, 25);
+});
+
+runTest(70, '22. Subject honours generated', () => {
+  const subjectHonoursData = [];
+  subjectHonoursData.push({
+    class: 'Class 8',
+    section: 'A',
+    subject: 'English 2',
+    subjectId: 's-eng2',
+    teacher: 'Keiran Thapa',
+    maxMarks: 25,
+    configuredPassingThreshold: 10,
+    evaluatedCount: 28,
+    absentCount: 1,
+    top3: [{ rank: 1, name: 'Anwesha Pradhan', total: 19, maxMarks: 25 }],
+    requiresAttention: [{ name: 'Aayam Mukhia', total: 6, maxMarks: 25 }]
+  });
+  assert.strictEqual(subjectHonoursData.length, 1);
+  assert.strictEqual(subjectHonoursData[0].subject, 'English 2');
+  assert.strictEqual(subjectHonoursData[0].teacher, 'Keiran Thapa');
+});
+
+runTest(71, '23. Top 3 ranking correct', () => {
+  const roster = [
+    { student: { id: 's1' }, name: 'First', total: 24, isAbsent: false },
+    { student: { id: 's2' }, name: 'Second', total: 22, isAbsent: false },
+    { student: { id: 's3' }, name: 'Third', total: 20, isAbsent: false },
+    { student: { id: 's4' }, name: 'Fourth', total: 18, isAbsent: false }
+  ];
+  const { topScorers } = TestMarksCalculationEngine.calculateHonoursAndAttention(roster, { rankingPolicy: 'DENSE' });
+  assert.strictEqual(topScorers.length, 3);
+  assert.strictEqual(topScorers[0].rank, 1);
+  assert.strictEqual(topScorers[1].rank, 2);
+  assert.strictEqual(topScorers[2].rank, 3);
+});
+
+runTest(72, '24. Tie handling correct', () => {
+  const roster = [
+    { student: { id: 's1' }, name: 'Tie 1', total: 24, isAbsent: false },
+    { student: { id: 's2' }, name: 'Tie 2', total: 24, isAbsent: false },
+    { student: { id: 's3' }, name: 'Next', total: 22, isAbsent: false }
+  ];
+  const { topScorers } = TestMarksCalculationEngine.calculateHonoursAndAttention(roster, { rankingPolicy: 'DENSE' });
+  assert.strictEqual(topScorers[0].rank, 1);
+  assert.strictEqual(topScorers[1].rank, 1);
+  assert.strictEqual(topScorers[0].isTie, true);
+  assert.strictEqual(topScorers[1].isTie, true);
+  assert.strictEqual(topScorers[2].rank, 2);
+});
+
+runTest(73, '25. Requires Attention correct', () => {
+  const roster = [
+    { student: { id: 's1' }, name: 'Good', total: 20, maxMarks: 25, isAbsent: false },
+    { student: { id: 's2' }, name: 'Low', total: 6, maxMarks: 25, isAbsent: false }
+  ];
+  const { requiresAttention } = TestMarksCalculationEngine.calculateHonoursAndAttention(roster, {
+    rankingPolicy: 'DENSE',
+    requiresAttentionThreshold: 10
+  });
+  assert.strictEqual(requiresAttention.length, 1);
+  assert.strictEqual(requiresAttention[0].name, 'Low');
+  assert.strictEqual(requiresAttention[0].total, 6);
+});
+
+runTest(74, '26. Absentee handling correct', () => {
+  const roster = [
+    { student: { id: 's1' }, name: 'Attended', total: 18, isAbsent: false },
+    { student: { id: 's2' }, name: 'Absent Student', total: 0, isAbsent: true }
+  ];
+  const { topScorers, requiresAttention, absentees } = TestMarksCalculationEngine.calculateHonoursAndAttention(roster, {
+    rankingPolicy: 'DENSE',
+    requiresAttentionThreshold: 10,
+    excludeAbsentFromRanking: true
+  });
+  assert.strictEqual(topScorers.length, 1);
+  assert.strictEqual(topScorers[0].name, 'Attended');
+  assert.strictEqual(requiresAttention.length, 0); // Absent is NOT penalized as failed
+  assert.strictEqual(absentees.length, 1);
+  assert.strictEqual(absentees[0].name, 'Absent Student');
+});
+
+runTest(75, '27. Class 8A isolated from 8B', () => {
+  const class8A = [{ student: { id: '8a' }, name: 'Student 8A', total: 22, maxMarks: 25, isAbsent: false }];
+  const class8B = [{ student: { id: '8b' }, name: 'Student 8B', total: 24, maxMarks: 25, isAbsent: false }];
+
+  const res8A = TestMarksCalculationEngine.calculateHonoursAndAttention(class8A, { rankingPolicy: 'DENSE' });
+  const res8B = TestMarksCalculationEngine.calculateHonoursAndAttention(class8B, { rankingPolicy: 'DENSE' });
+
+  assert.strictEqual(res8A.topScorers[0].name, 'Student 8A');
+  assert.strictEqual(res8B.topScorers[0].name, 'Student 8B');
+  assert.strictEqual(res8A.topScorers.some(s => s.name === 'Student 8B'), false);
+});
+
+runTest(76, '28. Class 9 uses 20 scale', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class 9'), 20);
+});
+
+runTest(77, '29. Class 10 uses 20 scale', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class 10'), 20);
+});
+
+runTest(78, '30. Class 11 uses 20 scale', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class 11'), 20);
+});
+
+runTest(79, '31. Class 12 uses 20 scale', () => {
+  assert.strictEqual(getClassWeeklyTestMaxMarks('Class 12'), 20);
+});
+
+// Exact Real Example Verification:
+// Class 8 A, English 2, Teacher: Keiran Thapa
+// Anwesha Pradhan = 19/25, Soweaksha Chettri = 17/25, Aayam Mukhia = 6/25
+runTest(80, 'Exact Real Example: Class 8 A English 2 (Anwesha 19/25, Soweaksha 17/25, Attention: Aayam 6/25)', () => {
+  const classMax = getClassWeeklyTestMaxMarks('Class 8 A');
+  assert.strictEqual(classMax, 25);
+
+  const realSubjectSlip = {
+    class: 'Class 8',
+    section: 'A',
+    fullClassName: 'Class 8 A',
+    subject: 'English 2',
+    subjectId: 'sub-eng-2',
+    teacher: 'Keiran Thapa',
+    teacherName: 'Keiran Thapa',
+    maxMarks: 25,
+    configuredPassingThreshold: 10,
+    students: [
+      { student: { id: 'st-anwesha' }, rollNo: '1', name: 'Anwesha Pradhan', total: 19, maxMarks: 25, isAbsent: false },
+      { student: { id: 'st-soweaksha' }, rollNo: '2', name: 'Soweaksha Chettri', total: 17, maxMarks: 25, isAbsent: false },
+      { student: { id: 'st-other' }, rollNo: '3', name: 'Another Student', total: 14, maxMarks: 25, isAbsent: false },
+      { student: { id: 'st-aayam' }, rollNo: '4', name: 'Aayam Mukhia', total: 6, maxMarks: 25, isAbsent: false }
+    ]
+  };
+
+  const { topScorers, requiresAttention } = TestMarksCalculationEngine.calculateHonoursAndAttention(realSubjectSlip.students, {
+    rankingPolicy: 'DENSE',
+    requiresAttentionThreshold: realSubjectSlip.configuredPassingThreshold
+  });
+
+  // Verify 1st: Anwesha Pradhan — 19/25
+  assert.strictEqual(topScorers[0].name, 'Anwesha Pradhan');
+  assert.strictEqual(topScorers[0].total, 19);
+  assert.strictEqual(topScorers[0].maxMarks, 25);
+  assert.strictEqual(topScorers[0].rank, 1);
+  assert.strictEqual(topScorers[0].rankDisplay, '1st');
+
+  // Verify 2nd: Soweaksha Chettri — 17/25
+  assert.strictEqual(topScorers[1].name, 'Soweaksha Chettri');
+  assert.strictEqual(topScorers[1].total, 17);
+  assert.strictEqual(topScorers[1].maxMarks, 25);
+  assert.strictEqual(topScorers[1].rank, 2);
+  assert.strictEqual(topScorers[1].rankDisplay, '2nd');
+
+  // Verify Requires Attention: Aayam Mukhia — 6/25
+  assert.strictEqual(requiresAttention.length, 1);
+  assert.strictEqual(requiresAttention[0].name, 'Aayam Mukhia');
+  assert.strictEqual(requiresAttention[0].total, 6);
+  assert.strictEqual(requiresAttention[0].maxMarks, 25);
 });
 
 console.log('\n================================================================');

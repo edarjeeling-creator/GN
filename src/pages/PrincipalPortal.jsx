@@ -12,6 +12,7 @@ import StaffAttendance from '../components/StaffAttendance';
 import AcademicReports from '../components/AcademicReports';
 import WeeklyTestReportViewer from '../components/WeeklyTestReportViewer';
 import TestExamCommunicationCentre from '../components/TestExamCommunication/TestExamCommunicationCentre';
+import RoutineControlCentre from '../components/RoutineManagement/RoutineControlCentre';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -691,6 +692,7 @@ const PrincipalPortal = () => {
             const isPrincipal = !profile?.designation || profile?.designation === 'Principal';
             return [
               { id: 'overview', label: 'Overview' },
+              { id: 'routine_management', label: 'Routine Management' },
               { id: 'weekly_test_report', label: 'Weekly Test Report' },
               { id: 'test_exam_notices', label: 'Test & Exam Notices' },
               { id: 'staff_attendance', label: 'Staff Attendance' },
@@ -1226,6 +1228,12 @@ const PrincipalPortal = () => {
                 </Card>
               </>
             )}
+          </motion.div>
+        )}
+
+        {activeTab === 'routine_management' && (
+          <motion.div key="routine_management" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <RoutineControlCentre currentUser={profile} />
           </motion.div>
         )}
 
