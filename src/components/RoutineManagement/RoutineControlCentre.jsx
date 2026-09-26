@@ -4,11 +4,12 @@ import {
   Send, Printer, Copy, Plus, RefreshCw, Eye, ShieldCheck, 
   ChevronRight, Filter, Search, UserCheck, Bell, Sparkles, FileText, ArrowRight,
   Layers, Check, X, AlertCircle, Radio, Settings, History, Download,
-  GripVertical, ArrowRightLeft, Move, Save
+  GripVertical, ArrowRightLeft, Move, Save, MessageSquare, Share2, Building2, UserX
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { 
-  RoutineService, WORKING_DAYS, ROUTINE_ENTRY_TYPES 
+  RoutineService, WORKING_DAYS, ROUTINE_ENTRY_TYPES,
+  CAMPUS_WINGS, SENIOR_PERIOD_TIMINGS, JUNIOR_PERIOD_TIMINGS 
 } from '../../services/RoutineService';
 import RoutinePrintablePDF from './RoutinePrintablePDF';
 
@@ -150,6 +151,23 @@ export default function RoutineControlCentre({ currentUser }) {
   const [pdfType, setPdfType] = useState('teacher');
   const printComponentRef = useRef();
 
+  // Daily Substitution & Relief Desk State
+  const [subDate, setSubDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [subDayOverride, setSubDayOverride] = useState(null);
+  const [absentTeacherIds, setAbsentTeacherIds] = useState([]);
+  const [absentSearchQuery, setAbsentSearchQuery] = useState('');
+  const [absentWingFilter, setAbsentWingFilter] = useState('ALL'); // 'ALL' | 'SENIOR' | 'JUNIOR' | 'BRIDGE'
+  const [dailySubstitutions, setDailySubstitutions] = useState({});
+  const [dailyVacancies, setDailyVacancies] = useState([]);
+  const [loadingVacancies, setLoadingVacancies] = useState(false);
+  const [freeTeachersByPeriod, setFreeTeachersByPeriod] = useState({});
+  const [customReliefNotes, setCustomReliefNotes] = useState('');
+  const [whatsAppCopied, setWhatsAppCopied] = useState(false);
+  const [autoAssignSuccessMsg, setAutoAssignSuccessMsg] = useState('');
+  const [savingDailyPlan, setSavingDailyPlan] = useState(false);
+  const [dailyPlanSavedToast, setDailyPlanSavedToast] = useState(false);
+  const [selectedDailySubstitutionData, setSelectedDailySubstitutionData] = useState(null);
+
   // Load Initial Entities & Version Data
   const loadEntitiesAndRoutines = useCallback(async () => {
     setLoading(true);
@@ -192,9 +210,16 @@ export default function RoutineControlCentre({ currentUser }) {
         { id: 'c238361e-59f3-4cd1-acd4-a4ce2462a082', name: 'Ms. Pratika Tamang', department: 'History (9H Class Teacher)' },
         { id: 'da9fd64d-adb4-47d1-a7d1-a6cea1545d69', name: 'Ms. Supriya Chettri', department: 'Science & Chemistry (5A Class Teacher)' },
         { id: '9c6b9967-cc9f-49ff-882f-59a1bf938896', name: 'Ms. Anupama Gurung', department: 'Nepali (5B Class Teacher)' },
-        { id: 't-thendup-bhutia', name: 'Mr. Thendup Bhutia', department: 'Physical Training Instructor (PTI)' },
-        { id: 't-ashisraj-gurung', name: 'Mr. Ashisraj Gurung', department: 'Physical Training Instructor (PTI)' },
-        { id: 't-pti', name: 'Physical Training Instructors (PTI)', department: 'Sports & Games (Thendup & Ashisraj)' }
+        { id: 't-thendup-bhutia', name: 'Mr. Thendup Bhutia', department: 'Physical Training Instructor (PTI)', wing: 'SENIOR' },
+        { id: 't-ashisraj-gurung', name: 'Mr. Ashisraj Gurung', department: 'Physical Training Instructor (PTI)', wing: 'SENIOR' },
+        { id: 't-pti', name: 'Physical Training Instructors (PTI)', department: 'Sports & Games (Thendup & Ashisraj)', wing: 'SENIOR' },
+        // Junior School Exclusive Faculty (Primary Section)
+        { id: 't-pema', name: 'Ms. Pema', department: 'Junior Wing Primary Faculty', wing: 'JUNIOR' },
+        { id: 't-arpana', name: 'Ms. Arpana', department: 'Junior Wing Primary Faculty', wing: 'JUNIOR' },
+        { id: 't-srijana', name: 'Ms. Srijana', department: 'Junior Wing Primary Faculty', wing: 'JUNIOR' },
+        { id: 't-asha', name: 'Ms. Asha', department: 'Junior Wing Primary Faculty', wing: 'JUNIOR' },
+        { id: 't-prawesh', name: 'Mr. Prawesh', department: 'Junior Wing Primary Faculty', wing: 'JUNIOR' },
+        { id: 't-prerna', name: 'Ms. Prerna', department: 'Junior Wing Primary Faculty', wing: 'JUNIOR' }
       ];
 
       // Enrich profiles with department & class teacher designations
@@ -205,7 +230,8 @@ export default function RoutineControlCentre({ currentUser }) {
           return {
             ...t,
             name: info ? info.fullName : t.name,
-            department: info ? info.department : (t.department || '')
+            department: info ? info.department : (t.department || ''),
+            wing: info?.wing || RoutineService.getFacultyWing(t.id || t.name)
           };
         });
 
@@ -216,11 +242,17 @@ export default function RoutineControlCentre({ currentUser }) {
             return info && (info.slug === fb.id || info.profileId === fb.id || RoutineService.normalizeName(t.name) === RoutineService.normalizeName(fb.name));
           });
           if (!exists) {
-            teachers.push(fb);
+            teachers.push({
+              ...fb,
+              wing: fb.wing || RoutineService.getFacultyWing(fb.id || fb.name)
+            });
           }
         });
       } else {
-        teachers = masterFallback;
+        teachers = masterFallback.map(fb => ({
+          ...fb,
+          wing: fb.wing || RoutineService.getFacultyWing(fb.id || fb.name)
+        }));
       }
 
       setTeachersList(teachers);
@@ -853,6 +885,236 @@ export default function RoutineControlCentre({ currentUser }) {
     window.print();
   };
 
+  // --- DAILY SUBSTITUTION & RELIEF DESK LOGIC ---
+  const computedDayOfWeek = useMemo(() => {
+    if (subDayOverride) return Number(subDayOverride);
+    if (!subDate) return 5;
+    const d = new Date(subDate + 'T00:00:00');
+    const day = d.getDay();
+    if (day === 0 || day === 6) return 5; // Default to Friday on weekends
+    return day;
+  }, [subDate, subDayOverride]);
+
+  const activeDayName = useMemo(() => {
+    return WORKING_DAYS.find(w => w.id === computedDayOfWeek)?.name || 'Friday';
+  }, [computedDayOfWeek]);
+
+  // Load saved substitution plan when subDate changes
+  useEffect(() => {
+    if (!subDate) return;
+    const saved = RoutineService.getDailySubstitutions(subDate);
+    if (saved) {
+      if (Array.isArray(saved.absentTeacherIds)) setAbsentTeacherIds(saved.absentTeacherIds);
+      if (saved.dailySubstitutions) setDailySubstitutions(saved.dailySubstitutions);
+      if (saved.customReliefNotes) setCustomReliefNotes(saved.customReliefNotes);
+    }
+  }, [subDate]);
+
+  // Load daily vacancies whenever day, absent teachers, or version changes
+  const loadDailyVacancies = useCallback(async () => {
+    if (!selectedVersionId || absentTeacherIds.length === 0) {
+      setDailyVacancies([]);
+      return;
+    }
+    setLoadingVacancies(true);
+    try {
+      const vacs = await RoutineService.getDailyVacancies(computedDayOfWeek, absentTeacherIds, selectedVersionId);
+      setDailyVacancies(vacs);
+    } catch (e) {
+      console.error('Error fetching daily vacancies:', e);
+    } finally {
+      setLoadingVacancies(false);
+    }
+  }, [computedDayOfWeek, absentTeacherIds, selectedVersionId]);
+
+  useEffect(() => {
+    loadDailyVacancies();
+  }, [loadDailyVacancies]);
+
+  // Load free teachers for all vacant periods
+  useEffect(() => {
+    if (dailyVacancies.length === 0) {
+      setFreeTeachersByPeriod({});
+      return;
+    }
+    const periodNums = [...new Set(dailyVacancies.map(v => v.periodNum))];
+    let isCancelled = false;
+
+    const fetchFree = async () => {
+      const map = {};
+      for (const pNum of periodNums) {
+        const vacForP = dailyVacancies.find(v => v.periodNum === pNum);
+        const wing = vacForP ? vacForP.wing : 'SENIOR';
+        const recs = await RoutineService.getRecommendedSubstitutes(
+          computedDayOfWeek,
+          pNum,
+          wing,
+          selectedVersionId,
+          absentTeacherIds
+        );
+        map[pNum] = recs;
+      }
+      if (!isCancelled) {
+        setFreeTeachersByPeriod(map);
+      }
+    };
+
+    fetchFree();
+    return () => { isCancelled = true; };
+  }, [dailyVacancies, computedDayOfWeek, selectedVersionId, absentTeacherIds]);
+
+  // Filtered teachers list for absent faculty quick-picker
+  const filteredAbsentPickList = useMemo(() => {
+    return teachersList.filter(t => {
+      const wing = t.wing || RoutineService.getFacultyWing(t.id || t.name);
+      if (absentWingFilter !== 'ALL' && wing !== absentWingFilter) return false;
+      if (absentSearchQuery.trim()) {
+        const q = absentSearchQuery.toLowerCase();
+        const nMatch = t.name.toLowerCase().includes(q);
+        const dMatch = t.department?.toLowerCase().includes(q);
+        if (!nMatch && !dMatch) return false;
+      }
+      return true;
+    });
+  }, [teachersList, absentWingFilter, absentSearchQuery]);
+
+  // Toggle absent teacher
+  const toggleAbsentTeacher = (teacherIdOrName) => {
+    setAbsentTeacherIds(prev => {
+      const exists = prev.includes(teacherIdOrName);
+      if (exists) {
+        return prev.filter(t => t !== teacherIdOrName);
+      } else {
+        return [...prev, teacherIdOrName];
+      }
+    });
+  };
+
+  // Assign substitute to vacancy
+  const handleAssignSubstitute = (vacancyId, candidate) => {
+    setDailySubstitutions(prev => {
+      if (!candidate) {
+        const next = { ...prev };
+        delete next[vacancyId];
+        return next;
+      }
+      return {
+        ...prev,
+        [vacancyId]: {
+          substituteId: candidate.id,
+          substituteName: candidate.name,
+          substituteWing: candidate.wing,
+          badge: candidate.badge,
+          warning: candidate.warning,
+          autoAssigned: false,
+          assignedAt: new Date().toISOString()
+        }
+      };
+    });
+  };
+
+  // Auto-Assign all remaining vacancies
+  const handleAutoAssign = async () => {
+    if (dailyVacancies.length === 0) return;
+    try {
+      const autoAssigned = await RoutineService.autoAssignDailySubstitutions({
+        vacancies: dailyVacancies,
+        dayOfWeek: computedDayOfWeek,
+        versionId: selectedVersionId,
+        existingAssignments: dailySubstitutions,
+        absentTeacherQueries: absentTeacherIds
+      });
+      setDailySubstitutions(autoAssigned);
+      setAutoAssignSuccessMsg(`✨ Auto-allocated relief duties for ${Object.keys(autoAssigned).length} slots!`);
+      setTimeout(() => setAutoAssignSuccessMsg(''), 4000);
+    } catch (e) {
+      console.error('Auto assign error:', e);
+    }
+  };
+
+  // Save daily substitution plan
+  const handleSaveDailyPlan = () => {
+    setSavingDailyPlan(true);
+    RoutineService.saveDailySubstitutions(subDate, {
+      dateStr: subDate,
+      dayOfWeek: computedDayOfWeek,
+      absentTeacherIds,
+      dailySubstitutions,
+      customReliefNotes
+    });
+    setSavingDailyPlan(false);
+    setDailyPlanSavedToast(true);
+    setTimeout(() => setDailyPlanSavedToast(false), 3000);
+  };
+
+  // Copy WhatsApp Notice
+  const handleCopyWhatsAppNotice = () => {
+    const dayName = WORKING_DAYS.find(w => w.id === computedDayOfWeek)?.name || 'Day';
+    const subList = dailyVacancies.map(v => {
+      const assignment = dailySubstitutions[v.id];
+      return {
+        ...v,
+        substituteId: assignment?.substituteId,
+        substituteName: assignment?.substituteName,
+        substituteWing: assignment?.substituteWing,
+        badge: assignment?.badge
+      };
+    });
+
+    const absentList = absentTeacherIds.map(t => {
+      const info = RoutineService.resolveTeacherInfo(t);
+      return {
+        name: info?.name || t,
+        fullName: info?.fullName || t,
+        wing: info?.wing || RoutineService.getFacultyWing(t)
+      };
+    });
+
+    const text = RoutineService.formatWhatsAppNotice({
+      dateStr: subDate,
+      dayName,
+      absentTeachers: absentList,
+      substitutions: subList,
+      customNotes: customReliefNotes
+    });
+
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setWhatsAppCopied(true);
+      setTimeout(() => setWhatsAppCopied(false), 3500);
+    }
+  };
+
+  // Print Daily Relief Sheet
+  const handlePrintDailyRelief = () => {
+    const dayName = WORKING_DAYS.find(w => w.id === computedDayOfWeek)?.name || 'Day';
+    const subList = dailyVacancies.map(v => {
+      const assignment = dailySubstitutions[v.id];
+      return {
+        ...v,
+        substituteId: assignment?.substituteId,
+        substituteName: assignment?.substituteName,
+        substituteWing: assignment?.substituteWing,
+        badge: assignment?.badge
+      };
+    });
+
+    const absentList = absentTeacherIds.map(t => {
+      const info = RoutineService.resolveTeacherInfo(t);
+      return info?.fullName || info?.name || t;
+    });
+
+    setSelectedDailySubstitutionData({
+      dateStr: subDate,
+      dayName,
+      absentTeachers: absentList,
+      substitutions: subList,
+      customNotes: customReliefNotes
+    });
+    setPdfType('daily_substitution');
+    setPdfModalOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* 1. EXECUTIVE ROUTINE DASHBOARD HEADER */}
@@ -1009,11 +1271,12 @@ export default function RoutineControlCentre({ currentUser }) {
       {/* 2. SUB-NAVIGATION TABS */}
       <div className="flex overflow-x-auto gap-1 border-b border-slate-200 dark:border-slate-800 pb-2">
         {[
-          { id: 'teacher_builder', label: '👨‍🏫 Teacher-Centric Builder', desc: 'Replicates handwritten sheets' },
+          { id: 'teacher_builder', label: '👨‍🏫 Teacher Routine', desc: 'Replicates handwritten sheets' },
           { id: 'master_grid', label: '🏫 Master School Grid', desc: 'Searchable full timetable' },
-          { id: 'class_view', label: '📚 Class-Wise Routine', desc: 'Filter by class/section' },
+          { id: 'class_view', label: '📚 Class Timetable', desc: 'Filter by class/section' },
+          { id: 'daily_substitution', label: '📋 Daily Substitution Desk', desc: 'Wing relief & WhatsApp' },
           { id: 'who_is_teaching', label: '🔍 Who is Teaching?', desc: 'Live period supervision' },
-          { id: 'who_is_free', label: '🆓 Available Teachers', desc: 'Ready for substitution' },
+          { id: 'who_is_free', label: '🆓 Available Teachers', desc: 'Slot-by-slot free teacher check' },
           { id: 'distribution', label: '📬 Distribution & Acks', desc: 'Teacher sign-off tracking' },
           { id: 'period_config', label: '⚙️ Period Configuration', desc: 'Times, names & breaks' },
           { id: 'audit_log', label: '📜 Versions & Audit Log', desc: 'Change history trail' }
@@ -1601,6 +1864,675 @@ export default function RoutineControlCentre({ currentUser }) {
                 {item.room && <div className="text-[10px] text-slate-400 mt-1">Room: {item.room}</div>}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* 6. SUB-TAB: DAILY SUBSTITUTION & RELIEF DESK */}
+      {activeSubTab === 'daily_substitution' && (
+        <div className="space-y-6">
+          {/* A. DESK HEADER & CONTROL BAR */}
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-lg space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-brand-500" />
+                    Daily Substitution & Relief Desk
+                  </h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-brand-500/10 text-brand-500 border border-brand-500/30">
+                    Dual-Wing School
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Real-time morning absentee management, wing-aware relief allocation, staff WhatsApp notices & printable registers.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleAutoAssign}
+                  disabled={dailyVacancies.length === 0}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-xs font-black transition-all shadow-md"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Auto-Assign Free Substitutes
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCopyWhatsAppNotice}
+                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black transition-all shadow-md ${
+                    whatsAppCopied
+                      ? 'bg-emerald-600 text-white animate-bounce'
+                      : 'bg-emerald-500 hover:bg-emerald-600 text-slate-950'
+                  }`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  {whatsAppCopied ? '✓ Copied WhatsApp Notice!' : 'Copy Staff WhatsApp Notice'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePrintDailyRelief}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-black transition-all shadow-md"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  Print Relief Sheet
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSaveDailyPlan}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition-all shadow-md"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {dailyPlanSavedToast ? '✓ Saved!' : 'Save Plan'}
+                </button>
+
+                {absentTeacherIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm("Reset today's absent teachers and substitution assignments?")) {
+                        setAbsentTeacherIds([]);
+                        setDailySubstitutions({});
+                      }
+                    }}
+                    className="p-2 rounded-xl text-rose-500 hover:bg-rose-500/10 text-xs font-bold transition-all border border-rose-500/20"
+                    title="Clear absentees & plan"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Wing Advisory Badges */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-2.5">
+                <Building2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <div className="font-bold text-emerald-800 dark:text-emerald-400">Senior Wing (Classes 5 to 12)</div>
+                  <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                    Bell starts at <strong>08:15 AM</strong> • Prioritizes free Senior faculty
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2.5">
+                <Building2 className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <div className="font-bold text-amber-800 dark:text-amber-400">Junior Wing (Primary / KG)</div>
+                  <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                    Bell starts at <strong>08:40 AM</strong> (25-min offset) • Stationed primary teachers
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-start gap-2.5">
+                <Users className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <div className="font-bold text-purple-800 dark:text-purple-300">Cross-Campus Bridge Faculty</div>
+                  <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                    Pinky BK, Anjana Gurung, Sashank Lama, Rakesh Rai (Allow walking buffer)
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Notification Toasts */}
+            {autoAssignSuccessMsg && (
+              <div className="p-2.5 rounded-lg bg-violet-500/10 border border-violet-500/30 text-violet-400 text-xs font-semibold flex items-center gap-2">
+                <Sparkles className="w-4 h-4" />
+                {autoAssignSuccessMsg}
+              </div>
+            )}
+            {dailyPlanSavedToast && (
+              <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4" />
+                Substitution plan for {subDate} successfully saved to local records!
+              </div>
+            )}
+          </div>
+
+          {/* B. STEP 1: DATE & ABSENT FACULTY SELECTION */}
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-lg space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-brand-600 text-white text-xs font-black flex items-center justify-center">
+                  1
+                </span>
+                <h4 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-tight">
+                  Select Date & Mark Absent Teachers
+                </h4>
+              </div>
+
+              {/* Date & Day Selector */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                  <input
+                    type="date"
+                    value={subDate}
+                    onChange={e => setSubDate(e.target.value)}
+                    className="bg-transparent text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+                  />
+                </div>
+
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg">
+                  {WORKING_DAYS.map(w => (
+                    <button
+                      key={w.id}
+                      type="button"
+                      onClick={() => setSubDayOverride(w.id)}
+                      className={`px-2 py-1 text-[11px] font-bold rounded transition-all ${
+                        computedDayOfWeek === w.id
+                          ? 'bg-brand-600 text-white shadow-sm'
+                          : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                      title={w.name}
+                    >
+                      {w.short}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Absentee Quick Search & Wing Filter Tabs */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Type teacher name to mark absent..."
+                  value={absentSearchQuery}
+                  onChange={e => setAbsentSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+                {absentSearchQuery && (
+                  <button
+                    onClick={() => setAbsentSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1 overflow-x-auto pb-1">
+                {[
+                  { id: 'ALL', label: 'All Faculty' },
+                  { id: 'SENIOR', label: 'Senior Staff' },
+                  { id: 'JUNIOR', label: 'Junior Staff' },
+                  { id: 'BRIDGE', label: 'Bridge Staff' }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setAbsentWingFilter(tab.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                      absentWingFilter === tab.id
+                        ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Clickable Teacher Chip Cloud */}
+            <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-slate-800">
+              {filteredAbsentPickList.map(t => {
+                const isAbsent = absentTeacherIds.includes(t.id) || absentTeacherIds.includes(t.name);
+                const wing = t.wing || RoutineService.getFacultyWing(t.id || t.name);
+                const wingColor = 
+                  wing === 'JUNIOR' ? 'border-amber-500/40 text-amber-500' :
+                  wing === 'BRIDGE' ? 'border-purple-500/40 text-purple-400' :
+                  'border-emerald-500/40 text-emerald-500';
+
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => toggleAbsentTeacher(t.id)}
+                    className={`group px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
+                      isAbsent
+                        ? 'bg-rose-500 hover:bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-900/20'
+                        : 'bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    {isAbsent ? (
+                      <UserX className="w-3.5 h-3.5 text-white" />
+                    ) : (
+                      <span className={`w-2 h-2 rounded-full border ${wingColor}`}></span>
+                    )}
+                    <span>{t.name}</span>
+                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono ${
+                      isAbsent ? 'bg-rose-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'
+                    }`}>
+                      {wing}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Active Absentees Pill Bar */}
+            {absentTeacherIds.length > 0 && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                  <span className="font-extrabold text-rose-700 dark:text-rose-400 flex items-center gap-1">
+                    <UserX className="w-3.5 h-3.5" />
+                    Marked Absent Today ({absentTeacherIds.length}):
+                  </span>
+                  {absentTeacherIds.map(t => {
+                    const info = RoutineService.resolveTeacherInfo(t);
+                    const name = info?.name || t;
+                    const wing = info?.wing || RoutineService.getFacultyWing(t);
+                    return (
+                      <span
+                        key={t}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500 text-white font-bold text-xs shadow-sm"
+                      >
+                        <span>{name}</span>
+                        <span className="text-[9px] opacity-80">({wing})</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleAbsentTeacher(t)}
+                          className="hover:bg-rose-600 rounded p-0.5"
+                          title="Remove from absentees"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setAbsentTeacherIds([]); setDailySubstitutions({}); }}
+                  className="text-xs text-rose-600 dark:text-rose-400 hover:underline font-bold"
+                >
+                  Clear All
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* C. STEP 2: VACANCY MATRIX & SUBSTITUTION ALLOCATION */}
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-lg space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-brand-600 text-white text-xs font-black flex items-center justify-center">
+                  2
+                </span>
+                <div>
+                  <h4 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-tight">
+                    Vacant Periods & Substitute Assignment ({activeDayName})
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    System isolates free faculty per period and prioritizes appropriate campus wing.
+                  </p>
+                </div>
+              </div>
+
+              {/* KPI Badges */}
+              <div className="flex items-center gap-3 text-xs">
+                <span className="text-slate-500">
+                  Total Vacancies: <strong className="text-rose-500">{dailyVacancies.length}</strong>
+                </span>
+                <span className="text-slate-500">
+                  Relief Assigned:{' '}
+                  <strong className="text-emerald-500">
+                    {Object.keys(dailySubstitutions).filter(k => dailySubstitutions[k]?.substituteId).length} / {dailyVacancies.length}
+                  </strong>
+                </span>
+              </div>
+            </div>
+
+            {/* Empty State: No Teachers Absent */}
+            {absentTeacherIds.length === 0 && (
+              <div className="p-8 text-center rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-300 dark:border-slate-700 space-y-2">
+                <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
+                <h5 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  All Teachers Marked Present Today!
+                </h5>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  Click on any teacher's chip in Step 1 above to mark them on leave and instantly generate their vacant periods.
+                </p>
+              </div>
+            )}
+
+            {/* Empty State: Absent Teachers Have No Classes Today */}
+            {absentTeacherIds.length > 0 && dailyVacancies.length === 0 && (
+              <div className="p-8 text-center rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-300 dark:border-slate-700 space-y-2">
+                <AlertCircle className="w-8 h-8 text-amber-500 mx-auto" />
+                <h5 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  No Classes Scheduled on {activeDayName} for Absent Staff
+                </h5>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  The marked teachers do not have any teaching periods scheduled for this day in Routine {activeVersion?.version_code || 'V1'}.
+                </p>
+              </div>
+            )}
+
+            {/* Vacancies List */}
+            {dailyVacancies.length > 0 && (
+              <div className="space-y-6">
+                {/* 1. SENIOR WING VACANCIES (Classes 5 to 12) */}
+                {dailyVacancies.filter(v => v.wing === 'SENIOR' || !v.wing).length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between border-b border-emerald-500/30 pb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        <h5 className="text-xs font-black uppercase text-emerald-800 dark:text-emerald-400 tracking-wider">
+                          Senior Wing Vacancies (Classes 5 to 12 • Starts 08:15 AM)
+                        </h5>
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-500">
+                        {dailyVacancies.filter(v => v.wing === 'SENIOR' || !v.wing).length} Slots
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3">
+                      {dailyVacancies
+                        .filter(v => v.wing === 'SENIOR' || !v.wing)
+                        .map(vac => {
+                          const assignment = dailySubstitutions[vac.id];
+                          const candidates = freeTeachersByPeriod[vac.periodNum] || [];
+
+                          // Check if candidate is already assigned in another class during this period
+                          const isAlreadyAssignedInPeriod = (candId) => {
+                            return Object.entries(dailySubstitutions).some(([vId, assign]) => {
+                              if (vId === vac.id) return false;
+                              const otherVac = dailyVacancies.find(dv => dv.id === vId);
+                              return otherVac?.periodNum === vac.periodNum && assign?.substituteId === candId;
+                            });
+                          };
+
+                          return (
+                            <div
+                              key={vac.id}
+                              className={`p-3.5 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 ${
+                                assignment?.substituteId
+                                  ? 'bg-white dark:bg-slate-900 border-emerald-500/40 shadow-sm'
+                                  : 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-300 dark:border-rose-900/40'
+                              }`}
+                            >
+                              {/* Left: Slot Specs */}
+                              <div className="flex flex-wrap items-center gap-3">
+                                <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700">
+                                  P{vac.periodNum}
+                                </span>
+
+                                <div className="text-xs">
+                                  <div className="font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                                    <span>{vac.fullClassName}</span>
+                                    <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">
+                                      [{vac.subject}]
+                                    </span>
+                                    {vac.room && (
+                                      <span className="text-[10px] text-slate-400 font-normal">
+                                        ({vac.room})
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                                    <Clock className="w-3 h-3 text-slate-400" />
+                                    <span>{vac.periodTime || '08:15–08:55'}</span>
+                                    <span>•</span>
+                                    <span className="text-rose-600 dark:text-rose-400 font-bold">
+                                      Absent: {vac.absentTeacherName}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Right: Substitute Selector & Assignment Controls */}
+                              <div className="flex items-center gap-2 ml-auto md:ml-0">
+                                <div className="relative">
+                                  <select
+                                    value={assignment?.substituteId || ''}
+                                    onChange={e => {
+                                      const cand = candidates.find(c => c.id === e.target.value);
+                                      handleAssignSubstitute(vac.id, cand);
+                                    }}
+                                    className="input-field text-xs font-bold py-1.5 px-3 bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white max-w-xs"
+                                  >
+                                    <option value="">-- Choose Substitute Faculty --</option>
+                                    
+                                    {/* Senior Free Faculty */}
+                                    {candidates.filter(c => c.rank === 1).length > 0 && (
+                                      <optgroup label="🟢 Free Senior Faculty (Direct Match)">
+                                        {candidates.filter(c => c.rank === 1).map(c => {
+                                          const busyElsewhere = isAlreadyAssignedInPeriod(c.id);
+                                          return (
+                                            <option key={c.id} value={c.id} disabled={busyElsewhere}>
+                                              {c.name} {busyElsewhere ? '⚠️ (Assigned elsewhere in P' + vac.periodNum + ')' : '(Free)'}
+                                            </option>
+                                          );
+                                        })}
+                                      </optgroup>
+                                    )}
+
+                                    {/* Bridge Faculty */}
+                                    {candidates.filter(c => c.rank === 2).length > 0 && (
+                                      <optgroup label="🚏 Free Bridge Faculty (Cross-Campus Transit)">
+                                        {candidates.filter(c => c.rank === 2).map(c => {
+                                          const busyElsewhere = isAlreadyAssignedInPeriod(c.id);
+                                          return (
+                                            <option key={c.id} value={c.id} disabled={busyElsewhere}>
+                                              {c.name} {busyElsewhere ? '⚠️ (Assigned elsewhere)' : '(Bridge)'}
+                                            </option>
+                                          );
+                                        })}
+                                      </optgroup>
+                                    )}
+
+                                    {/* Junior Faculty */}
+                                    {candidates.filter(c => c.rank === 3).length > 0 && (
+                                      <optgroup label="⚠️ Free Junior Faculty (Distance Travel Required)">
+                                        {candidates.filter(c => c.rank === 3).map(c => {
+                                          const busyElsewhere = isAlreadyAssignedInPeriod(c.id);
+                                          return (
+                                            <option key={c.id} value={c.id} disabled={busyElsewhere}>
+                                              {c.name} {busyElsewhere ? '⚠️ (Assigned elsewhere)' : '(Junior Campus)'}
+                                            </option>
+                                          );
+                                        })}
+                                      </optgroup>
+                                    )}
+                                  </select>
+                                </div>
+
+                                {assignment?.substituteId ? (
+                                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 whitespace-nowrap">
+                                    Assigned
+                                  </span>
+                                ) : (
+                                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase bg-rose-500/10 text-rose-500 border border-rose-500/30 whitespace-nowrap">
+                                    Needs Relief
+                                  </span>
+                                )}
+
+                                {assignment?.substituteId && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAssignSubstitute(vac.id, null)}
+                                    className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                    title="Unassign slot"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. JUNIOR WING VACANCIES (Primary / KG) */}
+                {dailyVacancies.filter(v => v.wing === 'JUNIOR').length > 0 && (
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between border-b border-amber-500/30 pb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        <h5 className="text-xs font-black uppercase text-amber-800 dark:text-amber-400 tracking-wider">
+                          Junior Wing Vacancies (Primary / KG • Starts 08:40 AM • 25m Offset)
+                        </h5>
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-500">
+                        {dailyVacancies.filter(v => v.wing === 'JUNIOR').length} Slots
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3">
+                      {dailyVacancies
+                        .filter(v => v.wing === 'JUNIOR')
+                        .map(vac => {
+                          const assignment = dailySubstitutions[vac.id];
+                          const candidates = freeTeachersByPeriod[vac.periodNum] || [];
+
+                          return (
+                            <div
+                              key={vac.id}
+                              className={`p-3.5 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 ${
+                                assignment?.substituteId
+                                  ? 'bg-white dark:bg-slate-900 border-emerald-500/40 shadow-sm'
+                                  : 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-300 dark:border-rose-900/40'
+                              }`}
+                            >
+                              <div className="flex flex-wrap items-center gap-3">
+                                <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-amber-500/10 text-amber-500 border border-amber-500/30">
+                                  P{vac.periodNum}
+                                </span>
+
+                                <div className="text-xs">
+                                  <div className="font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                                    <span>{vac.fullClassName}</span>
+                                    <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">
+                                      [{vac.subject}]
+                                    </span>
+                                  </div>
+                                  <div className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                                    <Clock className="w-3 h-3 text-slate-400" />
+                                    <span>{vac.periodTime || '08:40–09:20'}</span>
+                                    <span>•</span>
+                                    <span className="text-rose-600 dark:text-rose-400 font-bold">
+                                      Absent: {vac.absentTeacherName}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 ml-auto md:ml-0">
+                                <select
+                                  value={assignment?.substituteId || ''}
+                                  onChange={e => {
+                                    const cand = candidates.find(c => c.id === e.target.value);
+                                    handleAssignSubstitute(vac.id, cand);
+                                  }}
+                                  className="input-field text-xs font-bold py-1.5 px-3 bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white max-w-xs"
+                                >
+                                  <option value="">-- Choose Substitute Faculty --</option>
+                                  {candidates.map(c => (
+                                    <option key={c.id} value={c.id}>
+                                      {c.name} ({c.wing})
+                                    </option>
+                                  ))}
+                                </select>
+
+                                {assignment?.substituteId ? (
+                                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 whitespace-nowrap">
+                                    Assigned
+                                  </span>
+                                ) : (
+                                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase bg-rose-500/10 text-rose-500 border border-rose-500/30 whitespace-nowrap">
+                                    Needs Relief
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* D. STEP 3: LIVE WHATSAPP STAFF NOTICE PREVIEW CARD */}
+          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/10 dark:bg-slate-900 p-5 shadow-lg space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-500/20 pb-3">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-emerald-500" />
+                <div>
+                  <h4 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-tight">
+                    Staff WhatsApp Notice Live Preview
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    Ready-to-copy text formatted with bold markdown and instructions for teacher WhatsApp groups.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCopyWhatsAppNotice}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-black transition-all shadow-md self-start sm:self-auto"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                {whatsAppCopied ? '✓ Copied to Clipboard!' : 'Copy to Clipboard'}
+              </button>
+            </div>
+
+            {/* Custom Notes Input */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-bold text-slate-500 shrink-0">Custom Staff Note:</label>
+              <input
+                type="text"
+                placeholder="e.g. Morning Assembly postponed due to weather; Period 9 test remains as scheduled."
+                value={customReliefNotes}
+                onChange={e => setCustomReliefNotes(e.target.value)}
+                className="flex-1 px-3 py-1.5 text-xs rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+
+            {/* WhatsApp Bubble Preview */}
+            <div className="p-4 rounded-xl bg-white dark:bg-slate-950 border border-emerald-500/20 shadow-inner font-mono text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed select-all">
+              {RoutineService.formatWhatsAppNotice({
+                dateStr: subDate,
+                dayName: activeDayName,
+                absentTeachers: absentTeacherIds.map(t => {
+                  const info = RoutineService.resolveTeacherInfo(t);
+                  return {
+                    name: info?.name || t,
+                    fullName: info?.fullName || t,
+                    wing: info?.wing || RoutineService.getFacultyWing(t)
+                  };
+                }),
+                substitutions: dailyVacancies.map(v => {
+                  const assignment = dailySubstitutions[v.id];
+                  return {
+                    ...v,
+                    substituteId: assignment?.substituteId,
+                    substituteName: assignment?.substituteName,
+                    substituteWing: assignment?.substituteWing,
+                    badge: assignment?.badge
+                  };
+                }),
+                customNotes: customReliefNotes
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -2381,7 +3313,7 @@ export default function RoutineControlCentre({ currentUser }) {
               <div className="flex items-center gap-3">
                 <Printer className="w-5 h-5 text-brand-500" />
                 <h3 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase">
-                  Print Preview: {pdfType === 'teacher' ? 'Teacher Routine Slip' : pdfType === 'class' ? 'Class Timetable' : 'Master School Timetable'}
+                  Print Preview: {pdfType === 'teacher' ? 'Teacher Routine Slip' : pdfType === 'class' ? 'Class Timetable' : pdfType === 'daily_substitution' ? 'Daily Substitution & Relief Timetable' : 'Master School Timetable'}
                 </h3>
               </div>
               <div className="flex items-center gap-2">
@@ -2401,7 +3333,15 @@ export default function RoutineControlCentre({ currentUser }) {
               <RoutinePrintablePDF
                 innerRef={printComponentRef}
                 type={pdfType}
-                data={pdfType === 'teacher' ? selectedTeacherData : pdfType === 'class' ? classRoutineData : { masterEntries }}
+                data={
+                  pdfType === 'teacher' 
+                    ? selectedTeacherData 
+                    : pdfType === 'class' 
+                    ? classRoutineData 
+                    : pdfType === 'daily_substitution'
+                    ? selectedDailySubstitutionData
+                    : { masterEntries }
+                }
                 periods={periods}
               />
             </div>

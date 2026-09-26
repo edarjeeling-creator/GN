@@ -303,9 +303,108 @@ const TEACHER_IDENTITY_MAP = {
     profileId: '9c6b9967-cc9f-49ff-882f-59a1bf938896',
     name: 'Anupama Gurung',
     fullName: 'Ms. Anupama Gurung',
-    department: 'Nepali (5B Class Teacher)'
+    department: 'Nepali (5B Class Teacher)',
+    wing: 'SENIOR'
+  },
+  // Junior School Exclusive Faculty (Stationed at Junior Wing, Primary/KG)
+  'Ms. Pema': {
+    slug: 't-pema',
+    profileId: 't-pema',
+    name: 'Pema',
+    fullName: 'Ms. Pema',
+    department: 'Junior Wing Primary Faculty',
+    wing: 'JUNIOR'
+  },
+  'Ms. Arpana': {
+    slug: 't-arpana',
+    profileId: 't-arpana',
+    name: 'Arpana',
+    fullName: 'Ms. Arpana',
+    department: 'Junior Wing Primary Faculty',
+    wing: 'JUNIOR'
+  },
+  'Ms. Srijana': {
+    slug: 't-srijana',
+    profileId: 't-srijana',
+    name: 'Srijana',
+    fullName: 'Ms. Srijana',
+    department: 'Junior Wing Primary Faculty',
+    wing: 'JUNIOR'
+  },
+  'Ms. Asha': {
+    slug: 't-asha',
+    profileId: 't-asha',
+    name: 'Asha',
+    fullName: 'Ms. Asha',
+    department: 'Junior Wing Primary Faculty',
+    wing: 'JUNIOR'
+  },
+  'Mr. Prawesh': {
+    slug: 't-prawesh',
+    profileId: 't-prawesh',
+    name: 'Prawesh',
+    fullName: 'Mr. Prawesh',
+    department: 'Junior Wing Primary Faculty',
+    wing: 'JUNIOR'
+  },
+  'Ms. Prerna': {
+    slug: 't-prerna',
+    profileId: 't-prerna',
+    name: 'Prerna',
+    fullName: 'Ms. Prerna',
+    department: 'Junior Wing Primary Faculty',
+    wing: 'JUNIOR'
   }
 };
+
+const CAMPUS_WINGS = {
+  SENIOR: {
+    id: 'SENIOR',
+    label: 'Senior Wing',
+    campus: 'Senior Campus (Main Building)',
+    startTime: '08:15 AM',
+    offsetMinutes: 0,
+    grades: 'Classes 5 to 12'
+  },
+  JUNIOR: {
+    id: 'JUNIOR',
+    label: 'Junior Wing',
+    campus: 'Junior Campus (Primary Section)',
+    startTime: '08:40 AM',
+    offsetMinutes: 25,
+    grades: 'Nursery to Class 4'
+  },
+  BRIDGE: {
+    id: 'BRIDGE',
+    label: 'Cross-Campus Bridge Faculty',
+    campus: 'Senior & Junior Wings (Physical Travel)',
+    startTime: 'Senior 08:15 AM / Junior 08:40 AM',
+    grades: 'Both Wings (Check 25-min offset)'
+  }
+};
+
+const SENIOR_PERIOD_TIMINGS = [
+  { period_num: 1, period_name: '1st Period', start_time: '08:15', end_time: '08:55' },
+  { period_num: 2, period_name: '2nd Period', start_time: '08:55', end_time: '09:35' },
+  { period_num: 3, period_name: '3rd Period', start_time: '09:35', end_time: '10:15' },
+  { period_num: 4, period_name: '4th Period', start_time: '10:15', end_time: '10:55' },
+  { period_num: 5, period_name: '5th Period', start_time: '10:55', end_time: '11:35' },
+  { period_num: 6, period_name: '6th Period', start_time: '11:35', end_time: '12:15' },
+  { period_num: 7, period_name: '7th Period', start_time: '12:15', end_time: '12:55' },
+  { period_num: 8, period_name: '8th Period', start_time: '12:55', end_time: '13:35' },
+  { period_num: 9, period_name: '9th Period', start_time: '13:35', end_time: '14:15' }
+];
+
+const JUNIOR_PERIOD_TIMINGS = [
+  { period_num: 1, period_name: '1st Period', start_time: '08:40', end_time: '09:20' },
+  { period_num: 2, period_name: '2nd Period', start_time: '09:20', end_time: '10:00' },
+  { period_num: 3, period_name: '3rd Period', start_time: '10:00', end_time: '10:40' },
+  { period_num: 4, period_name: '4th Period', start_time: '10:40', end_time: '11:20' },
+  { period_num: 5, period_name: '5th Period', start_time: '11:20', end_time: '12:00' },
+  { period_num: 6, period_name: '6th Period', start_time: '12:00', end_time: '12:40' },
+  { period_num: 7, period_name: '7th Period', start_time: '12:40', end_time: '13:20' },
+  { period_num: 8, period_name: '8th Period', start_time: '13:20', end_time: '14:00' }
+];
 
 function normalizeName(name) {
   if (!name) return '';
@@ -1626,6 +1725,270 @@ class TestRoutineEngine {
     };
   }
 
+  // Resolve faculty wing
+  getFacultyWing(teacherIdOrName) {
+    if (!teacherIdOrName) return 'SENIOR';
+    const info = resolveTeacherInfo(teacherIdOrName);
+    if (info && info.wing) return info.wing;
+    const norm = normalizeName(String(teacherIdOrName));
+    if (norm.includes('pinky') || norm.includes('pinki') || norm.includes('anjana') || 
+        norm.includes('sashank') || norm.includes('rakesh')) {
+      return 'BRIDGE';
+    }
+    if (norm.includes('pema') || norm.includes('arpana') || norm.includes('srijana') || 
+        (norm.includes('asha') && !norm.includes('sashank')) || norm.includes('prawesh') || norm.includes('prerna')) {
+      return 'JUNIOR';
+    }
+    return 'SENIOR';
+  }
+
+  // Resolve class wing
+  getClassWing(className) {
+    if (!className) return 'SENIOR';
+    const str = String(className).trim().toLowerCase();
+    if (str.includes('nursery') || str.includes('lkg') || str.includes('ukg') || 
+        str === '1' || str === '2' || str === '3' || str === '4' ||
+        str.startsWith('cl 1') || str.startsWith('cl 2') || str.startsWith('cl 3') || str.startsWith('cl 4') ||
+        str.startsWith('class 1') || str.startsWith('class 2') || str.startsWith('class 3') || str.startsWith('class 4')) {
+      return 'JUNIOR';
+    }
+    return 'SENIOR';
+  }
+
+  // Get daily vacancies for absent teachers
+  getDailyVacancies(dayOfWeek, absentTeacherQueries = [], versionId = null) {
+    if (!absentTeacherQueries || absentTeacherQueries.length === 0) return [];
+    const absentAliases = new Set();
+    for (const q of absentTeacherQueries) {
+      const aliases = resolveTeacherAliases(q);
+      aliases.forEach(a => {
+        absentAliases.add(a);
+        absentAliases.add(normalizeName(a));
+      });
+    }
+
+    const dayEntries = this.entries.filter(e => 
+      (!versionId || e.version_id === versionId) && 
+      Number(e.day_of_week) === Number(dayOfWeek)
+    );
+
+    const vacancies = [];
+    for (const e of dayEntries) {
+      const match = 
+        absentAliases.has(e.teacher_id) || 
+        absentAliases.has(e.teacher_name) || 
+        absentAliases.has(normalizeName(e.teacher_name));
+
+      if (match) {
+        const wing = this.getClassWing(e.class_name);
+        const timingList = wing === 'JUNIOR' ? JUNIOR_PERIOD_TIMINGS : SENIOR_PERIOD_TIMINGS;
+        const timingObj = timingList.find(p => p.period_num === e.period_num) || {};
+        const timeDisplay = timingObj.start_time ? `${timingObj.start_time}–${timingObj.end_time}` : '';
+
+        vacancies.push({
+          id: `vac-${e.id || `${e.day_of_week}-${e.period_num}-${e.class_name}-${e.section || 'A'}-${e.teacher_id}`}`,
+          entryId: e.id,
+          dayOfWeek: Number(e.day_of_week),
+          periodNum: Number(e.period_num),
+          className: e.class_name,
+          section: e.section || '',
+          fullClassName: `Class ${e.class_name}${e.section ? ` ${e.section}` : ''}`,
+          subject: e.subject_name || e.entry_type || 'General',
+          entryType: e.entry_type,
+          room: e.room || '',
+          absentTeacherId: e.teacher_id,
+          absentTeacherName: e.teacher_name,
+          wing,
+          periodTime: timeDisplay,
+          periodName: timingObj.period_name || `${e.period_num}th Period`,
+          originalEntry: e
+        });
+      }
+    }
+
+    return vacancies.sort((a, b) => {
+      if (a.wing !== b.wing) return a.wing === 'SENIOR' ? -1 : 1;
+      if (a.periodNum !== b.periodNum) return a.periodNum - b.periodNum;
+      return a.className.localeCompare(b.className);
+    });
+  }
+
+  // Get recommended substitutes
+  getRecommendedSubstitutes(dayOfWeek, periodNum, targetWing = 'SENIOR', versionId = null, excludedTeacherIds = []) {
+    const freeRes = this.getWhoIsFree(dayOfWeek, periodNum, versionId);
+    const excludedSet = new Set(excludedTeacherIds.map(id => String(id).toLowerCase()));
+
+    const candidates = [];
+    for (const [key, info] of Object.entries(TEACHER_IDENTITY_MAP)) {
+      const id = info.profileId || info.slug;
+      if (excludedSet.has(id.toLowerCase()) || excludedSet.has(normalizeName(info.name))) continue;
+      const isBusy = this.entries.some(e => 
+        (!versionId || e.version_id === versionId) && 
+        Number(e.day_of_week) === Number(dayOfWeek) && 
+        Number(e.period_num) === Number(periodNum) && 
+        (e.teacher_id === id || e.teacher_name === info.fullName || e.teacher_name === info.name)
+      );
+      if (!isBusy) {
+        const wing = info.wing || this.getFacultyWing(id);
+        let rank = 1;
+        let warning = null;
+        if (wing === targetWing) {
+          rank = 1;
+        } else if (wing === 'BRIDGE') {
+          rank = 2;
+          warning = 'Cross-campus faculty: Check 25-min offset and physical travel between Senior & Junior wings.';
+        } else {
+          rank = 3;
+          warning = `Stationed at ${wing} campus: Physical travel between campuses required.`;
+        }
+        candidates.push({
+          id,
+          name: info.fullName || key,
+          department: info.department,
+          wing,
+          rank,
+          warning
+        });
+      }
+    }
+
+    return candidates.sort((a, b) => {
+      if (a.rank !== b.rank) return a.rank - b.rank;
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  // Auto assign daily substitutions
+  autoAssignDailySubstitutions({ vacancies = [], dayOfWeek, versionId = null, existingAssignments = {}, absentTeacherQueries = [] }) {
+    const periodOccupied = new Map();
+    const teacherLoad = new Map();
+
+    for (const [vacId, assign] of Object.entries(existingAssignments)) {
+      if (assign && assign.substituteId) {
+        const vac = vacancies.find(v => v.id === vacId);
+        const pNum = vac?.periodNum;
+        if (pNum) {
+          if (!periodOccupied.has(pNum)) periodOccupied.set(pNum, new Set());
+          periodOccupied.get(pNum).add(assign.substituteId);
+        }
+        teacherLoad.set(assign.substituteId, (teacherLoad.get(assign.substituteId) || 0) + 1);
+      }
+    }
+
+    const updatedAssignments = { ...existingAssignments };
+
+    for (const vac of vacancies) {
+      if (updatedAssignments[vac.id]?.substituteId) continue;
+
+      const currentPeriodOccupied = periodOccupied.get(vac.periodNum) || new Set();
+      const excluded = [
+        ...absentTeacherQueries,
+        ...Array.from(currentPeriodOccupied)
+      ];
+
+      const candidates = this.getRecommendedSubstitutes(
+        dayOfWeek,
+        vac.periodNum,
+        vac.wing,
+        versionId,
+        excluded
+      );
+
+      if (candidates.length === 0) continue;
+
+      const rank1 = candidates.filter(c => c.rank === 1);
+      const eligible = rank1.length > 0 ? rank1 : candidates;
+
+      eligible.sort((a, b) => {
+        const loadA = teacherLoad.get(a.id) || 0;
+        const loadB = teacherLoad.get(b.id) || 0;
+        if (loadA !== loadB) return loadA - loadB;
+        return a.name.localeCompare(b.name);
+      });
+
+      const chosen = eligible[0];
+      if (chosen) {
+        if (!periodOccupied.has(vac.periodNum)) periodOccupied.set(vac.periodNum, new Set());
+        periodOccupied.get(vac.periodNum).add(chosen.id);
+        teacherLoad.set(chosen.id, (teacherLoad.get(chosen.id) || 0) + 1);
+
+        updatedAssignments[vac.id] = {
+          substituteId: chosen.id,
+          substituteName: chosen.name,
+          substituteWing: chosen.wing,
+          autoAssigned: true
+        };
+      }
+    }
+
+    return updatedAssignments;
+  }
+
+  // Format WhatsApp notice
+  formatWhatsAppNotice({ dateStr, dayName, absentTeachers = [], substitutions = [], customNotes = '' }) {
+    const divider = '═══════════════════════════════';
+    const lines = [
+      divider,
+      '📋 *GYANODAY NIKETAN SCHOOL*',
+      '*DAILY RELIEF & SUBSTITUTION TIMETABLE*',
+      divider,
+      `📅 *Date:* ${dateStr}${dayName ? ` (${dayName})` : ''}`,
+      '⏰ *Campus Bell Timings:*',
+      '   • Senior Wing: *08:15 AM* (Classes 5 to 12)',
+      '   • Junior Wing: *08:40 AM* (Nursery to Class 4) [25-min offset]',
+      ''
+    ];
+
+    if (absentTeachers.length > 0) {
+      lines.push('⚠️ *STAFF ON LEAVE TODAY:*');
+      absentTeachers.forEach(t => {
+        const name = typeof t === 'string' ? t : (t.fullName || t.name);
+        lines.push(`• ${name}`);
+      });
+      lines.push('');
+    }
+
+    const seniorSubs = substitutions.filter(s => s.wing === 'SENIOR' || !s.wing);
+    if (seniorSubs.length > 0) {
+      lines.push('🏫 *SENIOR WING SUBSTITUTIONS (Classes 5–12)*:');
+      seniorSubs.forEach(s => {
+        const subDisplay = s.substituteName 
+          ? `👉 *Relief: ${s.substituteName}*` 
+          : '⚠️ _Relief Unassigned_';
+        lines.push(`• *P${s.periodNum}* (${s.periodTime || '08:15'}): ${s.fullClassName} - ${s.subject}`);
+        lines.push(`  ${subDisplay} (rep. ${s.absentTeacherName})`);
+      });
+      lines.push('');
+    }
+
+    const juniorSubs = substitutions.filter(s => s.wing === 'JUNIOR');
+    if (juniorSubs.length > 0) {
+      lines.push('🎒 *JUNIOR WING SUBSTITUTIONS (Primary Section)*:');
+      juniorSubs.forEach(s => {
+        const subDisplay = s.substituteName 
+          ? `👉 *Relief: ${s.substituteName}*` 
+          : '⚠️ _Relief Unassigned_';
+        lines.push(`• *P${s.periodNum}* (${s.periodTime || '08:40'}): ${s.fullClassName} - ${s.subject}`);
+        lines.push(`  ${subDisplay} (rep. ${s.absentTeacherName})`);
+      });
+      lines.push('');
+    }
+
+    lines.push('📢 *INSTRUCTIONS FOR FACULTY:*');
+    lines.push('1. Teachers on relief duty are requested to report to the respective classrooms *promptly before the bell rings*.');
+    lines.push('2. Bridge Faculty (Pinky BK, Anjana Gurung, Sashank Lama, Rakesh Rai) please note the 25-minute offset between campuses.');
+    lines.push('3. Free periods should be utilized in the Staff Room or Library for academic preparation.');
+    if (customNotes) {
+      lines.push(`4. Note: ${customNotes}`);
+    }
+    lines.push('');
+    lines.push('— *Principal / Academic Office*');
+    lines.push('   *Gyanoday Niketan, Kurseong*');
+    lines.push(divider);
+
+    return lines.join('\n');
+  }
+
   // Move or swap teacher period (Drag & Drop)
   moveOrSwapTeacherPeriod({ teacherId, sourceDay, sourcePeriod, targetDay, targetPeriod, isSwap = false }) {
     const aliases = resolveTeacherAliases(teacherId);
@@ -2365,6 +2728,7 @@ runTest('Test 55: Selecting Mr. Rahul Chettri by Supabase Profile UUID loads all
 
 runTest('Test 56: Verifying all 34 faculty resolve cleanly by Supabase Profile UUID without falling back to generic "Teacher"', () => {
   for (const [key, info] of Object.entries(TEACHER_IDENTITY_MAP)) {
+    if (info.wing === 'JUNIOR') continue; // Junior-only faculty teach primary classes on junior campus
     const routine = engine.getTeacherRoutine(info.profileId, 'c0000000-2026-0001-0000-000000000001', info.name);
     assert.notStrictEqual(routine.teacherName, 'Teacher', `Teacher name for ${key} should not be generic 'Teacher'`);
     assert.ok(routine.totalAssignedPeriods > 0, `Teacher ${key} should have assigned periods`);
@@ -2521,6 +2885,121 @@ runTest('Test 64: PTI sessions (9H + 5A, 12H Physical Education) appear in class
   const monP3_12h = cls12h.scheduleByDay[1].periods[2];
   assert.ok(monP3_12h.entry);
   assert.strictEqual(monP3_12h.entry.subject_name, 'Physical Education');
+});
+
+// 12. Daily Substitution & Dual-Wing Relief Desk Tests
+runTest('Test 65: Junior-exclusive faculty (Pema, Arpana, Srijana, Asha, Prawesh, Prerna) correctly registered with wing JUNIOR', () => {
+  const juniorTeachers = ['Pema', 'Arpana', 'Srijana', 'Asha', 'Prawesh', 'Prerna'];
+  for (const name of juniorTeachers) {
+    const wing = engine.getFacultyWing(name);
+    assert.strictEqual(wing, 'JUNIOR', `${name} should be classified as JUNIOR wing`);
+  }
+});
+
+runTest('Test 66: Cross-campus Bridge faculty (Pinky BK, Anjana Gurung, Sashank Lama, Rakesh Rai) correctly classified as BRIDGE', () => {
+  const bridgeTeachers = ['Mrs. Pinky BK', 'Mrs. Anjana Gurung', 'Mr. Sashank Lama', 'Mr. Rakesh Rai'];
+  for (const name of bridgeTeachers) {
+    const wing = engine.getFacultyWing(name);
+    assert.strictEqual(wing, 'BRIDGE', `${name} should be classified as BRIDGE wing`);
+  }
+});
+
+runTest('Test 67: Senior faculty correctly classified with wing SENIOR', () => {
+  const seniorTeachers = ['Subodh', 'Mrs. Urvashi Rumba', 'Mr. Rajesh Singh', 'Mr. Sagar Gurung', 'Ms. Kalyani Sharma'];
+  for (const name of seniorTeachers) {
+    const wing = engine.getFacultyWing(name);
+    assert.strictEqual(wing, 'SENIOR', `${name} should be classified as SENIOR wing`);
+  }
+});
+
+runTest('Test 68: Senior campus timings start at 08:15 AM and Junior campus timings start at 08:40 AM (25-min offset)', () => {
+  assert.strictEqual(SENIOR_PERIOD_TIMINGS[0].start_time, '08:15');
+  assert.strictEqual(SENIOR_PERIOD_TIMINGS[0].end_time, '08:55');
+  assert.strictEqual(JUNIOR_PERIOD_TIMINGS[0].start_time, '08:40');
+  assert.strictEqual(JUNIOR_PERIOD_TIMINGS[0].end_time, '09:20');
+  assert.strictEqual(CAMPUS_WINGS.SENIOR.startTime, '08:15 AM');
+  assert.strictEqual(CAMPUS_WINGS.JUNIOR.startTime, '08:40 AM');
+  assert.strictEqual(CAMPUS_WINGS.JUNIOR.offsetMinutes, 25);
+});
+
+runTest('Test 69: Extracting daily vacancies for absent teacher (Mr. Rajesh Singh on Friday) returns all scheduled periods', () => {
+  const vacancies = engine.getDailyVacancies(5, ['Mr. Rajesh Singh'], 'v-2026-v1-published');
+  // Mr. Rajesh Singh has 6 scheduled periods on Friday: P2 (7A), P3 (6A), P5 (5A), P6 (6B), P7 (7B), P8 (5B)
+  assert.strictEqual(vacancies.length, 6);
+  assert.deepStrictEqual(vacancies.map(v => v.periodNum), [2, 3, 5, 6, 7, 8]);
+  assert.strictEqual(vacancies[0].fullClassName, 'Class 7 A');
+  assert.strictEqual(vacancies[0].subject, 'Robotics');
+  assert.strictEqual(vacancies[0].wing, 'SENIOR');
+  assert.strictEqual(vacancies[0].periodTime, '08:55–09:35');
+});
+
+runTest('Test 70: Substitute recommendation prioritizes same-wing teachers and flags cross-campus bridge teachers', () => {
+  // Friday Period 1: Target Wing is SENIOR
+  const candidates = engine.getRecommendedSubstitutes(5, 1, 'SENIOR', 'v-2026-v1-published', ['t-rajesh-singh']);
+  assert.ok(candidates.length > 0);
+  
+  // Rank 1 candidates must all be SENIOR wing
+  const rank1 = candidates.filter(c => c.rank === 1);
+  assert.ok(rank1.length > 0);
+  rank1.forEach(c => assert.strictEqual(c.wing, 'SENIOR'));
+
+  // Bridge candidates must be Rank 2 with cross-campus warning
+  const rank2 = candidates.filter(c => c.rank === 2);
+  rank2.forEach(c => {
+    assert.strictEqual(c.wing, 'BRIDGE');
+    assert.ok(c.warning.includes('Cross-campus'));
+  });
+
+  // Junior candidates must be Rank 3
+  const rank3 = candidates.filter(c => c.rank === 3);
+  rank3.forEach(c => assert.strictEqual(c.wing, 'JUNIOR'));
+});
+
+runTest('Test 71: Auto-assign algorithm fairly allocates available substitutes across vacant slots without duplicate assignments in the same period', () => {
+  const vacancies = engine.getDailyVacancies(5, ['Mr. Rajesh Singh'], 'v-2026-v1-published');
+  const plan = engine.autoAssignDailySubstitutions({
+    vacancies,
+    dayOfWeek: 5,
+    versionId: 'v-2026-v1-published',
+    existingAssignments: {},
+    absentTeacherQueries: ['Mr. Rajesh Singh']
+  });
+
+  // All 6 slots should be assigned
+  const assignedIds = Object.keys(plan);
+  assert.strictEqual(assignedIds.length, 6);
+
+  // Each assigned substitute should have a valid name and ID
+  for (const vacId of assignedIds) {
+    assert.ok(plan[vacId].substituteId);
+    assert.ok(plan[vacId].substituteName);
+  }
+
+  // Ensure Mr. Rajesh Singh was not assigned to his own vacant slot!
+  for (const vacId of assignedIds) {
+    assert.notStrictEqual(plan[vacId].substituteId, 't-rajesh-singh');
+  }
+});
+
+runTest('Test 72: Staff WhatsApp relief notice formatter generates properly formatted markdown notice with wing headers and timings', () => {
+  const notice = engine.formatWhatsAppNotice({
+    dateStr: '2026-09-26',
+    dayName: 'Friday',
+    absentTeachers: ['Mr. Rajesh Singh'],
+    substitutions: [
+      { periodNum: 1, periodTime: '08:15–08:55', fullClassName: 'Class 6 A', subject: 'Robotics', substituteName: 'Mr. Sagar Gurung', absentTeacherName: 'Mr. Rajesh Singh', wing: 'SENIOR' },
+      { periodNum: 2, periodTime: '08:55–09:35', fullClassName: 'Class 7 A', subject: 'Robotics', substituteName: 'Mr. Akash Kharel', absentTeacherName: 'Mr. Rajesh Singh', wing: 'SENIOR' }
+    ],
+    customNotes: 'Senior school morning assembly as scheduled.'
+  });
+
+  assert.ok(notice.includes('GYANODAY NIKETAN SCHOOL'));
+  assert.ok(notice.includes('Senior Wing: *08:15 AM*'));
+  assert.ok(notice.includes('Junior Wing: *08:40 AM*'));
+  assert.ok(notice.includes('Mr. Rajesh Singh'));
+  assert.ok(notice.includes('Relief: Mr. Sagar Gurung'));
+  assert.ok(notice.includes('Bridge Faculty (Pinky BK, Anjana Gurung, Sashank Lama, Rakesh Rai)'));
+  assert.ok(notice.includes('25-minute offset between campuses'));
 });
 
 console.log('\n================================================================');

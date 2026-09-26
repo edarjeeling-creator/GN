@@ -24,9 +24,9 @@ export default function RoutinePrintablePDF({
         <div className="flex justify-between items-center mt-2 px-2 text-xs font-bold text-slate-800 border-t border-slate-300 pt-1">
           <span>ACADEMIC YEAR: {branding.academicYear}</span>
           <span className="uppercase text-amber-700">
-            {type === 'teacher' ? 'WEEKLY TEACHER ROUTINE' : type === 'class' ? 'WEEKLY CLASS TIMETABLE' : 'MASTER SCHOOL TIMETABLE'}
+            {type === 'teacher' ? 'WEEKLY TEACHER ROUTINE' : type === 'class' ? 'WEEKLY CLASS TIMETABLE' : type === 'daily_substitution' ? 'DAILY SUBSTITUTION & RELIEF TIMETABLE' : 'MASTER SCHOOL TIMETABLE'}
           </span>
-          <span>CAMPUS: SENIOR SCHOOL</span>
+          <span>{type === 'daily_substitution' ? 'CAMPUSES: SENIOR & JUNIOR WINGS' : 'CAMPUS: SENIOR SCHOOL'}</span>
         </div>
       </div>
 
@@ -159,6 +159,139 @@ export default function RoutinePrintablePDF({
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* DAILY SUBSTITUTION / RELIEF VIEW */}
+      {type === 'daily_substitution' && (
+        <div className="space-y-4">
+          {/* Day & Timings Bar */}
+          <div className="bg-slate-50 border border-slate-300 rounded p-3 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div>
+                <span className="text-slate-500 font-medium">DATE:</span>{' '}
+                <strong className="text-sm font-black text-slate-900">{data.dateStr}</strong>
+              </div>
+              <div>
+                <span className="text-slate-500 font-medium">DAY:</span>{' '}
+                <strong className="text-sm font-black text-slate-900">{data.dayName}</strong>
+              </div>
+              <div>
+                <span className="text-slate-500 font-medium">SENIOR BELL:</span>{' '}
+                <strong className="text-slate-900">08:15 AM (Classes 5–12)</strong>
+              </div>
+              <div>
+                <span className="text-slate-500 font-medium">JUNIOR BELL:</span>{' '}
+                <strong className="text-slate-900">08:40 AM (Primary/KG)</strong>
+              </div>
+            </div>
+            {data.absentTeachers && data.absentTeachers.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-slate-200">
+                <span className="text-rose-700 font-bold">ABSENT FACULTY TODAY:</span>{' '}
+                <span className="font-semibold text-slate-800">
+                  {data.absentTeachers.map(t => typeof t === 'string' ? t : (t.fullName || t.name)).join(', ')}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Senior Wing Substitutions Table */}
+          {(!data.substitutions || data.substitutions.filter(s => s.wing === 'SENIOR' || !s.wing).length === 0) ? (
+            <div className="p-4 text-center text-xs text-slate-500 bg-slate-50 rounded border border-slate-200">
+              No Senior Wing substitutions required for this day.
+            </div>
+          ) : (
+            <div>
+              <div className="font-black text-xs uppercase tracking-wider text-slate-800 mb-1 flex items-center justify-between">
+                <span>Senior Wing Relief Timetable (Starts 08:15 AM)</span>
+                <span className="text-[10px] text-slate-500 font-normal">Classes 5 to 12</span>
+              </div>
+              <table className="w-full border-collapse border border-slate-400 text-center text-xs">
+                <thead>
+                  <tr className="bg-slate-100 border-b border-slate-400">
+                    <th className="border border-slate-400 p-1.5 font-bold w-12">Period</th>
+                    <th className="border border-slate-400 p-1.5 font-bold w-24">Timing</th>
+                    <th className="border border-slate-400 p-1.5 font-bold w-20">Class</th>
+                    <th className="border border-slate-400 p-1.5 font-bold">Subject</th>
+                    <th className="border border-slate-400 p-1.5 font-bold">Absent Teacher</th>
+                    <th className="border border-slate-400 p-1.5 font-bold bg-amber-50">Substitute / Relief</th>
+                    <th className="border border-slate-400 p-1.5 font-bold w-14">Room</th>
+                    <th className="border border-slate-400 p-1.5 font-bold w-24">Teacher Sign</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.substitutions.filter(s => s.wing === 'SENIOR' || !s.wing).map((sub, idx) => (
+                    <tr key={idx} className="border-b border-slate-300">
+                      <td className="border border-slate-400 p-1.5 font-extrabold bg-slate-50">P{sub.periodNum}</td>
+                      <td className="border border-slate-400 p-1.5 text-[10px] text-slate-600">{sub.periodTime || '08:15–08:55'}</td>
+                      <td className="border border-slate-400 p-1.5 font-black">{sub.fullClassName}</td>
+                      <td className="border border-slate-400 p-1.5 font-semibold text-emerald-800">{sub.subject}</td>
+                      <td className="border border-slate-400 p-1.5 text-rose-700 font-medium">{sub.absentTeacherName}</td>
+                      <td className="border border-slate-400 p-1.5 font-black text-slate-900 bg-amber-50/50">
+                        {sub.substituteName ? (
+                          <div className="flex flex-col items-center">
+                            <span>{sub.substituteName}</span>
+                            {sub.badge && <span className="text-[8px] text-slate-500 font-normal">({sub.badge})</span>}
+                          </div>
+                        ) : (
+                          <span className="text-amber-700 italic">Unassigned</span>
+                        )}
+                      </td>
+                      <td className="border border-slate-400 p-1.5 text-[10px] text-slate-600">{sub.room || '—'}</td>
+                      <td className="border border-slate-400 p-1.5"></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Junior Wing Substitutions Table (if any) */}
+          {data.substitutions && data.substitutions.filter(s => s.wing === 'JUNIOR').length > 0 && (
+            <div className="pt-2">
+              <div className="font-black text-xs uppercase tracking-wider text-slate-800 mb-1 flex items-center justify-between">
+                <span>Junior Wing Relief Timetable (Starts 08:40 AM)</span>
+                <span className="text-[10px] text-amber-700 font-bold">Primary Section (25m Bell Offset)</span>
+              </div>
+              <table className="w-full border-collapse border border-slate-400 text-center text-xs">
+                <thead>
+                  <tr className="bg-amber-50/80 border-b border-slate-400">
+                    <th className="border border-slate-400 p-1.5 font-bold w-12">Period</th>
+                    <th className="border border-slate-400 p-1.5 font-bold w-24">Timing</th>
+                    <th className="border border-slate-400 p-1.5 font-bold w-20">Class</th>
+                    <th className="border border-slate-400 p-1.5 font-bold">Subject</th>
+                    <th className="border border-slate-400 p-1.5 font-bold">Absent Teacher</th>
+                    <th className="border border-slate-400 p-1.5 font-bold bg-amber-100/50">Substitute / Relief</th>
+                    <th className="border border-slate-400 p-1.5 font-bold w-14">Room</th>
+                    <th className="border border-slate-400 p-1.5 font-bold w-24">Teacher Sign</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.substitutions.filter(s => s.wing === 'JUNIOR').map((sub, idx) => (
+                    <tr key={idx} className="border-b border-slate-300">
+                      <td className="border border-slate-400 p-1.5 font-extrabold bg-amber-50/30">P{sub.periodNum}</td>
+                      <td className="border border-slate-400 p-1.5 text-[10px] text-slate-600">{sub.periodTime || '08:40–09:20'}</td>
+                      <td className="border border-slate-400 p-1.5 font-black">{sub.fullClassName}</td>
+                      <td className="border border-slate-400 p-1.5 font-semibold text-emerald-800">{sub.subject}</td>
+                      <td className="border border-slate-400 p-1.5 text-rose-700 font-medium">{sub.absentTeacherName}</td>
+                      <td className="border border-slate-400 p-1.5 font-black text-slate-900 bg-amber-50/50">
+                        {sub.substituteName ? (
+                          <div className="flex flex-col items-center">
+                            <span>{sub.substituteName}</span>
+                            {sub.badge && <span className="text-[8px] text-slate-500 font-normal">({sub.badge})</span>}
+                          </div>
+                        ) : (
+                          <span className="text-amber-700 italic">Unassigned</span>
+                        )}
+                      </td>
+                      <td className="border border-slate-400 p-1.5 text-[10px] text-slate-600">{sub.room || '—'}</td>
+                      <td className="border border-slate-400 p-1.5"></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
