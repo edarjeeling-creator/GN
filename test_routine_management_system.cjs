@@ -389,7 +389,7 @@ class TestRoutineEngine {
       { id: 'd4', version_id: versionId, day_of_week: 3, period_num: 8, teacher_id: 't-dipika-thapa', teacher_name: 'Mrs. Dipika Thapa', class_id: 'c-5b', class_name: '5', section: 'B', subject_name: 'Spelling', entry_type: 'SUBJECT' },
       { id: 'd5', version_id: versionId, day_of_week: 4, period_num: 7, teacher_id: 't-dipika-thapa', teacher_name: 'Mrs. Dipika Thapa', class_id: 'c-5b', class_name: '5', section: 'B', subject_name: 'English 2', entry_type: 'SUBJECT' },
       { id: 'd6', version_id: versionId, day_of_week: 5, period_num: 3, teacher_id: 't-dipika-thapa', teacher_name: 'Mrs. Dipika Thapa', class_id: 'c-5b', class_name: '5', section: 'B', subject_name: 'English 2', entry_type: 'SUBJECT' },
-      { id: 'd7', version_id: versionId, day_of_week: 5, period_num: 5, teacher_id: 't-dipika-thapa', teacher_name: 'Mrs. Dipika Thapa', class_id: 'c-5a', class_name: '5', section: 'A', subject_name: 'English 2', entry_type: 'SUBJECT' },
+      { id: 'd7', version_id: versionId, day_of_week: 5, period_num: 4, teacher_id: 't-dipika-thapa', teacher_name: 'Mrs. Dipika Thapa', class_id: 'c-5a', class_name: '5', section: 'A', subject_name: 'English 2', entry_type: 'SUBJECT' },
 
       // Mr. Sashank Lama: Music
       { id: 's1', version_id: versionId, day_of_week: 1, period_num: 7, teacher_id: 't-sashank-lama', teacher_name: 'Mr. Sashank Lama', class_id: 'c-9h', class_name: '9', section: 'H', subject_name: 'Music', entry_type: 'SINGING' },
@@ -1207,7 +1207,7 @@ class TestRoutineEngine {
     { id: 'rs-thu-8', version_id: versionId, academic_year: '2026', day_of_week: 4, period_num: 8, teacher_id: 't-rajesh-singh', teacher_name: 'Mr. Rajesh Singh', class_id: 'c-5b', class_name: '5', section: 'B', subject_name: 'Computer Applications', entry_type: 'SUBJECT' },
     { id: 'rs-fri-2', version_id: versionId, academic_year: '2026', day_of_week: 5, period_num: 2, teacher_id: 't-rajesh-singh', teacher_name: 'Mr. Rajesh Singh', class_id: 'c-7a', class_name: '7', section: 'A', subject_name: 'Robotics', entry_type: 'ROBOTICS' },
     { id: 'rs-fri-3', version_id: versionId, academic_year: '2026', day_of_week: 5, period_num: 3, teacher_id: 't-rajesh-singh', teacher_name: 'Mr. Rajesh Singh', class_id: 'c-6a', class_name: '6', section: 'A', subject_name: 'Robotics', entry_type: 'ROBOTICS' },
-    { id: 'rs-fri-4', version_id: versionId, academic_year: '2026', day_of_week: 5, period_num: 4, teacher_id: 't-rajesh-singh', teacher_name: 'Mr. Rajesh Singh', class_id: 'c-5a', class_name: '5', section: 'A', subject_name: 'Robotics', entry_type: 'ROBOTICS' },
+    { id: 'rs-fri-5', version_id: versionId, academic_year: '2026', day_of_week: 5, period_num: 5, teacher_id: 't-rajesh-singh', teacher_name: 'Mr. Rajesh Singh', class_id: 'c-5a', class_name: '5', section: 'A', subject_name: 'Robotics', entry_type: 'ROBOTICS' },
     { id: 'rs-fri-6', version_id: versionId, academic_year: '2026', day_of_week: 5, period_num: 6, teacher_id: 't-rajesh-singh', teacher_name: 'Mr. Rajesh Singh', class_id: 'c-6b', class_name: '6', section: 'B', subject_name: 'Robotics', entry_type: 'ROBOTICS' },
     { id: 'rs-fri-7', version_id: versionId, academic_year: '2026', day_of_week: 5, period_num: 7, teacher_id: 't-rajesh-singh', teacher_name: 'Mr. Rajesh Singh', class_id: 'c-7b', class_name: '7', section: 'B', subject_name: 'Computer Applications', entry_type: 'SUBJECT' },
     { id: 'rs-fri-8', version_id: versionId, academic_year: '2026', day_of_week: 5, period_num: 8, teacher_id: 't-rajesh-singh', teacher_name: 'Mr. Rajesh Singh', class_id: 'c-5b', class_name: '5', section: 'B', subject_name: 'Robotics', entry_type: 'ROBOTICS' },
@@ -1524,6 +1524,48 @@ class TestRoutineEngine {
       freeCount: freeIds.length,
       freeTeacherIds: freeIds
     };
+  }
+
+  // Move or swap teacher period (Drag & Drop)
+  moveOrSwapTeacherPeriod({ teacherId, sourceDay, sourcePeriod, targetDay, targetPeriod, isSwap = false }) {
+    const aliases = resolveTeacherAliases(teacherId);
+    const sourceEntry = this.entries.find(e => {
+      const matchTeacher = aliases.has(e.teacher_id) || aliases.has(e.teacher_name);
+      return matchTeacher && Number(e.day_of_week) === Number(sourceDay) && Number(e.period_num) === Number(sourcePeriod);
+    });
+    if (!sourceEntry) throw new Error('Source entry not found');
+
+    const targetEntry = this.entries.find(e => {
+      const matchTeacher = aliases.has(e.teacher_id) || aliases.has(e.teacher_name);
+      return matchTeacher && Number(e.day_of_week) === Number(targetDay) && Number(e.period_num) === Number(targetPeriod);
+    });
+
+    const targetPeriodObj = this.periods.find(p => p.period_num === Number(targetPeriod));
+    const sourcePeriodObj = this.periods.find(p => p.period_num === Number(sourcePeriod));
+
+    if (targetEntry) {
+      if (isSwap) {
+        targetEntry.day_of_week = Number(sourceDay);
+        targetEntry.period_num = Number(sourcePeriod);
+        targetEntry.period_name = sourcePeriodObj?.period_name || `${sourcePeriod}th Period`;
+
+        sourceEntry.day_of_week = Number(targetDay);
+        sourceEntry.period_num = Number(targetPeriod);
+        sourceEntry.period_name = targetPeriodObj?.period_name || `${targetPeriod}th Period`;
+      } else {
+        const idx = this.entries.indexOf(targetEntry);
+        if (idx >= 0) this.entries.splice(idx, 1);
+        sourceEntry.day_of_week = Number(targetDay);
+        sourceEntry.period_num = Number(targetPeriod);
+        sourceEntry.period_name = targetPeriodObj?.period_name || `${targetPeriod}th Period`;
+      }
+    } else {
+      sourceEntry.day_of_week = Number(targetDay);
+      sourceEntry.period_num = Number(targetPeriod);
+      sourceEntry.period_name = targetPeriodObj?.period_name || `${targetPeriod}th Period`;
+    }
+
+    return { sourceEntry, targetEntry };
   }
 
   // Publish
@@ -2245,6 +2287,77 @@ runTest('Test 57: Selecting teacher with full department & class teacher annotat
   );
   assert.strictEqual(sgRoutine.totalAssignedPeriods, 28);
   assert.strictEqual(sgRoutine.teacherName, 'Mr. Sagar Gurung');
+});
+
+runTest('Test 58: Mr. Rajesh Singh Friday routine captures updated September 2026 schedule (Period 5 Class 5A Robotics)', () => {
+  const rsRoutine = engine.getTeacherRoutine('t-rajesh-singh', 'v-2026-v1-published');
+  assert.strictEqual(rsRoutine.totalAssignedPeriods, 30);
+  
+  // Friday is day 5
+  const friPeriods = rsRoutine.scheduleByDay[5].periods;
+  const friP4 = friPeriods.find(p => p.period_num === 4);
+  const friP5 = friPeriods.find(p => p.period_num === 5);
+
+  // Period 4 is now Free for Rajesh Singh
+  assert.strictEqual(friP4.is_free, true);
+  assert.strictEqual(friP4.entry, null);
+
+  // Period 5 is Class 5A Robotics
+  assert.ok(friP5.entry);
+  assert.strictEqual(friP5.entry.class_name, '5');
+  assert.strictEqual(friP5.entry.section, 'A');
+  assert.strictEqual(friP5.entry.subject_name, 'Robotics');
+});
+
+runTest('Test 59: Drag & drop to free slot via moveOrSwapTeacherPeriod updates period without conflicts', () => {
+  // Move Rajesh Singh Friday Period 5 to Friday Period 4
+  const result = engine.moveOrSwapTeacherPeriod({
+    teacherId: 't-rajesh-singh',
+    sourceDay: 5,
+    sourcePeriod: 5,
+    targetDay: 5,
+    targetPeriod: 4,
+    isSwap: false
+  });
+
+  assert.ok(result.sourceEntry);
+  assert.strictEqual(result.sourceEntry.day_of_week, 5);
+  assert.strictEqual(result.sourceEntry.period_num, 4);
+
+  // Move back to Period 5 to preserve original state
+  engine.moveOrSwapTeacherPeriod({
+    teacherId: 't-rajesh-singh',
+    sourceDay: 5,
+    sourcePeriod: 4,
+    targetDay: 5,
+    targetPeriod: 5,
+    isSwap: false
+  });
+});
+
+runTest('Test 60: Drag & drop swap via moveOrSwapTeacherPeriod cleanly interchanges two periods', () => {
+  // Swap Rajesh Singh Friday Period 2 (7A Robotics) with Period 3 (6A Robotics)
+  const result = engine.moveOrSwapTeacherPeriod({
+    teacherId: 't-rajesh-singh',
+    sourceDay: 5,
+    sourcePeriod: 2,
+    targetDay: 5,
+    targetPeriod: 3,
+    isSwap: true
+  });
+
+  assert.strictEqual(result.sourceEntry.period_num, 3);
+  assert.strictEqual(result.targetEntry.period_num, 2);
+
+  // Swap back
+  engine.moveOrSwapTeacherPeriod({
+    teacherId: 't-rajesh-singh',
+    sourceDay: 5,
+    sourcePeriod: 3,
+    targetDay: 5,
+    targetPeriod: 2,
+    isSwap: true
+  });
 });
 
 console.log('\n================================================================');

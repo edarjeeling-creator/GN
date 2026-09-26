@@ -3,7 +3,8 @@ import {
   Calendar, Clock, Users, BookOpen, AlertTriangle, CheckCircle2, 
   Send, Printer, Copy, Plus, RefreshCw, Eye, ShieldCheck, 
   ChevronRight, Filter, Search, UserCheck, Bell, Sparkles, FileText, ArrowRight,
-  Layers, Check, X, AlertCircle, Radio, Settings, History, Download
+  Layers, Check, X, AlertCircle, Radio, Settings, History, Download,
+  GripVertical, ArrowRightLeft, Move
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { 
@@ -43,6 +44,15 @@ export default function RoutineControlCentre({ currentUser }) {
     room: '',
     notes: ''
   });
+  const [cellRelocateDay, setCellRelocateDay] = useState(1);
+  const [cellRelocatePeriod, setCellRelocatePeriod] = useState(1);
+
+  // Drag-and-Drop & Move / Swap Mode States
+  const [draggedCell, setDraggedCell] = useState(null); // { dayId, periodNum, entry }
+  const [dragOverCell, setDragOverCell] = useState(null); // { dayId, periodNum }
+  const [activeMoveSource, setActiveMoveSource] = useState(null); // { dayId, periodNum, entry }
+  const [swapConfirmModal, setSwapConfirmModal] = useState(null); // { source, target }
+  const [statusNotice, setStatusNotice] = useState(null); // { message, type }
 
   // Master Grid Search & Filter States
   const [masterSearchQuery, setMasterSearchQuery] = useState('');
@@ -336,6 +346,8 @@ export default function RoutineControlCentre({ currentUser }) {
   // Open Cell Editor
   const handleOpenCellEditor = (dayId, periodNum, existingEntry = null) => {
     setEditingCell({ dayId, periodNum, entry: existingEntry });
+    setCellRelocateDay(dayId);
+    setCellRelocatePeriod(periodNum);
     if (existingEntry) {
       setCellForm({
         class_id: existingEntry.class_id || '',
@@ -392,6 +404,8 @@ export default function RoutineControlCentre({ currentUser }) {
     // Refresh entries
     const refreshed = await RoutineService.getMasterRoutine(selectedVersionId);
     setMasterEntries(refreshed);
+    const updatedTeacherData = await RoutineService.getTeacherRoutine(selectedTeacherId, selectedVersionId, teacher?.name);
+    setSelectedTeacherData(updatedTeacherData);
   };
 
   // Clear Cell
@@ -400,6 +414,9 @@ export default function RoutineControlCentre({ currentUser }) {
     const remaining = masterEntries.filter(e => e.id !== entryId);
     await RoutineService.saveBatchEntries(selectedVersionId, remaining);
     setMasterEntries(remaining);
+    const teacher = teachersList.find(t => t.id === selectedTeacherId);
+    const updatedTeacherData = await RoutineService.getTeacherRoutine(selectedTeacherId, selectedVersionId, teacher?.name);
+    setSelectedTeacherData(updatedTeacherData);
   };
 
   // Duplicate Day
@@ -410,9 +427,172 @@ export default function RoutineControlCentre({ currentUser }) {
       await RoutineService.duplicateTeacherDay(selectedTeacherId, sourceDayId, Number(targetDayId), selectedVersionId);
       const refreshed = await RoutineService.getMasterRoutine(selectedVersionId);
       setMasterEntries(refreshed);
+      const teacher = teachersList.find(t => t.id === selectedTeacherId);
+      const updatedTeacherData = await RoutineService.getTeacherRoutine(selectedTeacherId, selectedVersionId, teacher?.name);
+      setSelectedTeacherData(updatedTeacherData);
       alert(`Copied Day ${sourceDayId} schedule to Day ${targetDayId} for ${selectedTeacherData?.teacherName}!`);
     } catch (err) {
       alert("Error duplicating day: " + err.message);
+    }
+  };
+
+  // Execute Relocation or Swap (Unified for Drag & Drop, Click-to-Move, and Cell Editor)
+  const executeMoveOrSwap = async ({ sourceDay, sourcePeriod, targetDay, targetPeriod, isSwap = false }) => {
+    try {
+      const teacher = teachersList.find(t => t.id === selectedTeacherId);
+      await RoutineService.moveOrSwapTeacherPeriod({
+        versionId: selectedVersionId,
+        teacherId: selectedTeacherId,
+        teacherName: teacher?.name || selectedTeacherData?.teacherName || '',
+        sourceDay: Number(sourceDay),
+        sourcePeriod: Number(sourcePeriod),
+        targetDay: Number(targetDay),
+        targetPeriod: Number(targetPeriod),
+        isSwap
+      });
+
+      // Refresh master entries and teacher projection
+      const refreshed = await RoutineService.getMasterRoutine(selectedVersionId);
+      setMasterEntries(refreshed);
+      const updatedTeacherData = await RoutineService.getTeacherRoutine(selectedTeacherId, selectedVersionId, teacher?.name);
+      setSelectedTeacherData(updatedTeacherData);
+
+      const srcDayName = WORKING_DAYS.find(w => w.id === Number(sourceDay))?.name || `Day ${sourceDay}`;
+      const tgtDayName = WORKING_DAYS.find(w => w.id === Number(targetDay))?.name || `Day ${targetDay}`;
+      const msg = isSwap
+        ? `✓ Swapped ${srcDayName} Period ${sourcePeriod} with ${tgtDayName} Period ${targetPeriod}!`
+        : `✓ Moved schedule from ${srcDayName} Period ${sourcePeriod} to ${tgtDayName} Period ${targetPeriod}!`;
+
+      setStatusNotice({ message: msg, type: 'success' });
+      setTimeout(() => setStatusNotice(null), 5000);
+      setActiveMoveSource(null);
+      setSwapConfirmModal(null);
+      setEditingCell(null);
+    } catch (err) {
+      alert("Error moving/swapping period: " + err.message);
+    }
+  };
+
+  // Drag and Drop Event Handlers
+  const handleDragStart = (e, dayId, periodNum, entry) => {
+    if (!entry) return;
+    try {
+      e.dataTransfer.setData('text/plain', JSON.stringify({ dayId, periodNum }));
+      e.dataTransfer.effectAllowed = 'move';
+    } catch (err) {}
+    setDraggedCell({ dayId, periodNum, entry });
+  };
+
+  const handleDragOver = (e, dayId, periodNum) => {
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'move';
+    }
+    if (!dragOverCell || dragOverCell.dayId !== dayId || dragOverCell.periodNum !== periodNum) {
+      setDragOverCell({ dayId, periodNum });
+    }
+  };
+
+  const handleDragLeave = (e, dayId, periodNum) => {
+    if (dragOverCell && dragOverCell.dayId === dayId && dragOverCell.periodNum === periodNum) {
+      setDragOverCell(null);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedCell(null);
+    setDragOverCell(null);
+  };
+
+  const handleDrop = async (e, targetDayId, targetPeriodNum, targetEntry) => {
+    e.preventDefault();
+    setDragOverCell(null);
+    const source = draggedCell;
+    setDraggedCell(null);
+
+    if (!source) return;
+    if (source.dayId === targetDayId && source.periodNum === targetPeriodNum) {
+      return; // Dropped on self
+    }
+
+    if (targetEntry) {
+      setSwapConfirmModal({
+        source: { dayId: source.dayId, periodNum: source.periodNum, entry: source.entry },
+        target: { dayId: targetDayId, periodNum: targetPeriodNum, entry: targetEntry }
+      });
+    } else {
+      await executeMoveOrSwap({
+        sourceDay: source.dayId,
+        sourcePeriod: source.periodNum,
+        targetDay: targetDayId,
+        targetPeriod: targetPeriodNum,
+        isSwap: false
+      });
+    }
+  };
+
+  // Click-to-Move / Swap Handler
+  const handleCellClick = (dayId, periodNum, entry) => {
+    if (activeMoveSource) {
+      if (activeMoveSource.dayId === dayId && activeMoveSource.periodNum === periodNum) {
+        // Cancel if clicking the same source cell
+        setActiveMoveSource(null);
+        return;
+      }
+      if (entry) {
+        setSwapConfirmModal({
+          source: activeMoveSource,
+          target: { dayId, periodNum, entry }
+        });
+      } else {
+        executeMoveOrSwap({
+          sourceDay: activeMoveSource.dayId,
+          sourcePeriod: activeMoveSource.periodNum,
+          targetDay: dayId,
+          targetPeriod: periodNum,
+          isSwap: false
+        });
+      }
+      return;
+    }
+    // Default click opens editor modal
+    handleOpenCellEditor(dayId, periodNum, entry);
+  };
+
+  // Relocate from inside the Cell Editor Modal
+  const handleRelocateFromEditor = async () => {
+    if (!editingCell || !editingCell.entry) return;
+    const targetDay = Number(cellRelocateDay);
+    const targetPeriod = Number(cellRelocatePeriod);
+
+    if (targetDay === editingCell.dayId && targetPeriod === editingCell.periodNum) {
+      alert("Source and target slots are identical.");
+      return;
+    }
+
+    const daySchedule = selectedTeacherData?.scheduleByDay?.[targetDay];
+    const targetOccupant = daySchedule?.periods?.find(pr => pr.period_num === targetPeriod)?.entry;
+
+    if (targetOccupant) {
+      const srcName = editingCell.entry.subject_name || editingCell.entry.entry_type;
+      const tgtName = targetOccupant.subject_name || targetOccupant.entry_type;
+      if (window.confirm(`Day ${targetDay} Period ${targetPeriod} is currently scheduled with "${tgtName}". Do you want to SWAP with "${srcName}"?`)) {
+        await executeMoveOrSwap({
+          sourceDay: editingCell.dayId,
+          sourcePeriod: editingCell.periodNum,
+          targetDay,
+          targetPeriod,
+          isSwap: true
+        });
+      }
+    } else {
+      await executeMoveOrSwap({
+        sourceDay: editingCell.dayId,
+        sourcePeriod: editingCell.periodNum,
+        targetDay,
+        targetPeriod,
+        isSwap: false
+      });
     }
   };
 
@@ -766,22 +946,60 @@ export default function RoutineControlCentre({ currentUser }) {
             )}
           </div>
 
+          {/* Status Notice Banner */}
+          {statusNotice && (
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center justify-between animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{statusNotice.message}</span>
+              </div>
+              <button onClick={() => setStatusNotice(null)} className="text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Active Move / Relocate Mode Guidance Banner */}
+          {activeMoveSource && (
+            <div className="p-3.5 rounded-xl bg-indigo-500/20 border-2 border-dashed border-indigo-400 text-indigo-200 text-xs font-semibold flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-lg">
+              <div className="flex items-center gap-2">
+                <ArrowRightLeft className="w-4 h-4 text-indigo-300 animate-spin shrink-0" />
+                <span>
+                  <strong>Moving Slot:</strong> {activeMoveSource.entry?.subject_name} ({activeMoveSource.entry?.class_name ? `Class ${activeMoveSource.entry.class_name} ${activeMoveSource.entry.section || ''}` : activeMoveSource.entry?.entry_type}) from {WORKING_DAYS.find(w => w.id === activeMoveSource.dayId)?.name}, Period {activeMoveSource.periodNum}.
+                  <span className="block sm:inline sm:ml-2 font-normal text-indigo-300">
+                    👉 <strong>Click any destination period slot below</strong> to move (to a free slot) or swap (with an occupied slot).
+                  </span>
+                </span>
+              </div>
+              <button
+                onClick={() => setActiveMoveSource(null)}
+                className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold shrink-0 self-end sm:self-auto border border-slate-700"
+              >
+                Cancel Move
+              </button>
+            </div>
+          )}
+
           {/* Interactive 5-Day x 9-Period Timetable Matrix */}
           <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 shadow-lg">
-            <div className="p-4 bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+            <div className="p-4 bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h3 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-tight">
                   {((selectedTeacherData?.teacherName && selectedTeacherData.teacherName !== 'Teacher')
                     ? selectedTeacherData.teacherName
                     : (teachersList.find(t => t.id === selectedTeacherId)?.name || 'Teacher'))} — Weekly Schedule
                 </h3>
-                <p className="text-[11px] text-slate-500">
-                  Click any cell to assign Class, Subject, or Special School Activity (Assembly, Test, Library, PT, etc.)
+                <p className="text-[11px] text-slate-500 flex items-center gap-1.5 flex-wrap mt-0.5">
+                  <span>⚡ <strong>Drag & Drop:</strong> Drag any period card to relocate or swap.</span>
+                  <span className="hidden sm:inline">|</span>
+                  <span>🖱️ <strong>Click-to-Move:</strong> Click ⇄ on any card to move without dragging.</span>
+                  <span className="hidden sm:inline">|</span>
+                  <span>✏️ <strong>Click slot</strong> to edit details.</span>
                 </p>
               </div>
               <button
                 onClick={() => { setPdfType('teacher'); setPdfModalOpen(true); }}
-                className="text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1"
+                className="text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1 self-start sm:self-auto"
               >
                 <Printer className="w-3.5 h-3.5" />
                 Print Slip
@@ -818,21 +1036,66 @@ export default function RoutineControlCentre({ currentUser }) {
                           const isSpecialTest = entry?.entry_type === 'TEST';
                           const isSpecialAssembly = entry?.entry_type === 'ASSEMBLY';
 
+                          const isDragged = draggedCell?.dayId === day.id && draggedCell?.periodNum === p.period_num;
+                          const isDragOver = dragOverCell?.dayId === day.id && dragOverCell?.periodNum === p.period_num;
+                          const isMoveSource = activeMoveSource?.dayId === day.id && activeMoveSource?.periodNum === p.period_num;
+                          const isMoveCandidate = Boolean(activeMoveSource && !isMoveSource);
+
                           return (
                             <td 
                               key={p.period_num} 
-                              onClick={() => handleOpenCellEditor(day.id, p.period_num, entry)}
-                              className={`p-2 border-r border-slate-200 dark:border-slate-800 h-20 align-middle cursor-pointer transition-all hover:bg-brand-500/10 ${
-                                isSpecialTest ? 'bg-amber-500/10 border-l-2 border-amber-500' :
-                                isSpecialAssembly ? 'bg-indigo-500/10 border-l-2 border-indigo-500' :
-                                entry ? 'bg-emerald-500/5' : ''
+                              draggable={Boolean(entry)}
+                              onDragStart={(e) => handleDragStart(e, day.id, p.period_num, entry)}
+                              onDragOver={(e) => handleDragOver(e, day.id, p.period_num)}
+                              onDragLeave={(e) => handleDragLeave(e, day.id, p.period_num)}
+                              onDragEnd={handleDragEnd}
+                              onDrop={(e) => handleDrop(e, day.id, p.period_num, entry)}
+                              onClick={() => handleCellClick(day.id, p.period_num, entry)}
+                              className={`relative p-2 border-r border-slate-200 dark:border-slate-800 h-20 align-middle transition-all select-none ${
+                                isDragged 
+                                  ? 'opacity-30 scale-95 ring-2 ring-brand-500 bg-brand-500/10' 
+                                  : isDragOver && entry 
+                                  ? 'ring-2 ring-dashed ring-amber-500 bg-amber-500/20 scale-[1.03] shadow-md z-10' 
+                                  : isDragOver && !entry 
+                                  ? 'ring-2 ring-dashed ring-emerald-500 bg-emerald-500/20 scale-[1.03] shadow-md z-10' 
+                                  : isMoveSource 
+                                  ? 'ring-2 ring-indigo-500 bg-indigo-500/20 shadow-lg z-10' 
+                                  : isMoveCandidate 
+                                  ? (entry 
+                                      ? 'hover:ring-2 hover:ring-amber-400 hover:bg-amber-500/15 cursor-pointer bg-slate-50/50 dark:bg-slate-800/40' 
+                                      : 'hover:ring-2 hover:ring-emerald-400 hover:bg-emerald-500/15 cursor-pointer bg-slate-50/50 dark:bg-slate-800/40') 
+                                  : isSpecialTest 
+                                  ? 'bg-amber-500/10 border-l-2 border-amber-500 cursor-pointer hover:bg-amber-500/20' 
+                                  : isSpecialAssembly 
+                                  ? 'bg-indigo-500/10 border-l-2 border-indigo-500 cursor-pointer hover:bg-indigo-500/20' 
+                                  : entry 
+                                  ? 'bg-emerald-500/5 cursor-grab active:cursor-grabbing hover:bg-brand-500/10' 
+                                  : 'cursor-pointer hover:bg-brand-500/10'
                               }`}
                             >
                               {entry ? (
-                                <div className="flex flex-col justify-center items-center gap-0.5 group">
-                                  <span className="font-black text-[11px] text-slate-900 dark:text-white">
-                                    {entry.class_name ? `Class ${entry.class_name} ${entry.section || ''}` : entry.entry_type}
-                                  </span>
+                                <div className="flex flex-col justify-center items-center gap-0.5 group relative">
+                                  {/* Quick Action Button on Hover */}
+                                  <div className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 z-20">
+                                    <button
+                                      type="button"
+                                      title="Click-to-Move or Swap this period"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveMoveSource({ dayId: day.id, periodNum: p.period_num, entry });
+                                      }}
+                                      className="p-1 rounded bg-slate-800 text-slate-200 hover:bg-brand-600 hover:text-white shadow text-[9px] flex items-center gap-0.5 border border-slate-700"
+                                    >
+                                      <ArrowRightLeft className="w-2.5 h-2.5" />
+                                    </button>
+                                  </div>
+
+                                  <div className="flex items-center gap-1">
+                                    <GripVertical className="w-2.5 h-2.5 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab shrink-0" />
+                                    <span className="font-black text-[11px] text-slate-900 dark:text-white">
+                                      {entry.class_name ? `Class ${entry.class_name} ${entry.section || ''}` : entry.entry_type}
+                                    </span>
+                                  </div>
                                   <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
                                     isSpecialTest ? 'bg-amber-500/20 text-amber-300' :
                                     isSpecialAssembly ? 'bg-indigo-500/20 text-indigo-300' :
@@ -843,11 +1106,25 @@ export default function RoutineControlCentre({ currentUser }) {
                                   {entry.room && (
                                     <span className="text-[8px] text-slate-400">[{entry.room}]</span>
                                   )}
+
+                                  {isMoveCandidate && (
+                                    <span className="text-[9px] font-extrabold text-amber-500 flex items-center gap-0.5 mt-0.5">
+                                      <ArrowRightLeft className="w-2.5 h-2.5" /> Swap
+                                    </span>
+                                  )}
                                 </div>
                               ) : (
-                                <span className="text-slate-400 dark:text-slate-600 text-[11px] font-mono hover:text-brand-500">
-                                  + Free
-                                </span>
+                                <div className="flex flex-col items-center justify-center">
+                                  {isMoveCandidate ? (
+                                    <span className="text-[10px] font-extrabold text-emerald-500 flex items-center gap-0.5 animate-bounce">
+                                      <Move className="w-2.5 h-2.5" /> Move Here
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400 dark:text-slate-600 text-[11px] font-mono hover:text-brand-500">
+                                      + Free
+                                    </span>
+                                  )}
+                                </div>
                               )}
                             </td>
                           );
@@ -1433,6 +1710,56 @@ export default function RoutineControlCentre({ currentUser }) {
                 </div>
               </div>
 
+              {/* Quick Relocate Section inside Cell Editor */}
+              {editingCell.entry && (
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-xs">
+                      <ArrowRightLeft className="w-3.5 h-3.5 text-brand-500" />
+                      Quick Relocate / Move Period
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-semibold">Convenient Shift</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Shift this scheduled period directly to a different day or period number:
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">Target Day</label>
+                      <select
+                        className="input-field w-full py-1.5 px-2 text-xs bg-white dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white"
+                        value={cellRelocateDay}
+                        onChange={e => setCellRelocateDay(Number(e.target.value))}
+                      >
+                        {WORKING_DAYS.map(w => (
+                          <option key={w.id} value={w.id}>{w.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">Target Period</label>
+                      <select
+                        className="input-field w-full py-1.5 px-2 text-xs bg-white dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white"
+                        value={cellRelocatePeriod}
+                        onChange={e => setCellRelocatePeriod(Number(e.target.value))}
+                      >
+                        {periods.map(p => (
+                          <option key={p.period_num} value={p.period_num}>{p.period_name} ({p.start_time})</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRelocateFromEditor}
+                    className="w-full py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow transition-all"
+                  >
+                    <Move className="w-3.5 h-3.5" />
+                    Relocate to {WORKING_DAYS.find(w => w.id === Number(cellRelocateDay))?.name} Period {cellRelocatePeriod}
+                  </button>
+                </div>
+              )}
+
               <div className="flex justify-between items-center pt-3 border-t border-slate-200 dark:border-slate-800">
                 {editingCell.entry && (
                   <button
@@ -1460,6 +1787,92 @@ export default function RoutineControlCentre({ currentUser }) {
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 11b. SWAP / REPLACE CONFIRMATION MODAL */}
+      {swapConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <ArrowRightLeft className="w-5 h-5 text-brand-500" />
+                <h3 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase">
+                  Swap or Replace Period Slot?
+                </h3>
+              </div>
+              <button onClick={() => setSwapConfirmModal(null)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              The destination slot already has a scheduled class. Choose whether to <strong>Swap</strong> both periods or <strong>Overwrite</strong> the destination:
+            </p>
+
+            {/* Comparison Preview */}
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/60 space-y-1">
+                <div className="text-[10px] uppercase font-bold text-indigo-500 dark:text-indigo-400">Moving Period</div>
+                <div className="font-extrabold text-slate-900 dark:text-white text-sm">
+                  {swapConfirmModal.source.entry?.class_name ? `Class ${swapConfirmModal.source.entry.class_name} ${swapConfirmModal.source.entry.section || ''}` : swapConfirmModal.source.entry?.entry_type}
+                </div>
+                <div className="text-brand-600 dark:text-brand-400 font-semibold">
+                  {swapConfirmModal.source.entry?.subject_name}
+                </div>
+                <div className="text-[10px] text-slate-400">
+                  {WORKING_DAYS.find(w => w.id === swapConfirmModal.source.dayId)?.name}, Period {swapConfirmModal.source.periodNum}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 space-y-1">
+                <div className="text-[10px] uppercase font-bold text-amber-500 dark:text-amber-400">Current Occupant</div>
+                <div className="font-extrabold text-slate-900 dark:text-white text-sm">
+                  {swapConfirmModal.target.entry?.class_name ? `Class ${swapConfirmModal.target.entry.class_name} ${swapConfirmModal.target.entry.section || ''}` : swapConfirmModal.target.entry?.entry_type}
+                </div>
+                <div className="text-amber-600 dark:text-amber-400 font-semibold">
+                  {swapConfirmModal.target.entry?.subject_name}
+                </div>
+                <div className="text-[10px] text-slate-400">
+                  {WORKING_DAYS.find(w => w.id === swapConfirmModal.target.dayId)?.name}, Period {swapConfirmModal.target.periodNum}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800 text-xs">
+              <button
+                onClick={() => setSwapConfirmModal(null)}
+                className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => executeMoveOrSwap({
+                  sourceDay: swapConfirmModal.source.dayId,
+                  sourcePeriod: swapConfirmModal.source.periodNum,
+                  targetDay: swapConfirmModal.target.dayId,
+                  targetPeriod: swapConfirmModal.target.periodNum,
+                  isSwap: false
+                })}
+                className="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold"
+              >
+                Overwrite / Replace
+              </button>
+              <button
+                onClick={() => executeMoveOrSwap({
+                  sourceDay: swapConfirmModal.source.dayId,
+                  sourcePeriod: swapConfirmModal.source.periodNum,
+                  targetDay: swapConfirmModal.target.dayId,
+                  targetPeriod: swapConfirmModal.target.periodNum,
+                  isSwap: true
+                })}
+                className="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-extrabold flex items-center justify-center gap-1.5 shadow-md"
+              >
+                <ArrowRightLeft className="w-3.5 h-3.5" />
+                Swap Both Periods
+              </button>
+            </div>
           </div>
         </div>
       )}

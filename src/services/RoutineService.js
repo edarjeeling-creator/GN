@@ -350,7 +350,7 @@ function getInitialSeedData() {
     { id: 'd4', version_id: versionId, academic_year: '2026', day_of_week: 3, period_num: 8, teacher_id: 't-dipika-thapa', teacher_name: 'Mrs. Dipika Thapa', class_id: 'c-5b', class_name: '5', section: 'B', subject_name: 'Spelling', entry_type: 'SUBJECT' },
     { id: 'd5', version_id: versionId, academic_year: '2026', day_of_week: 4, period_num: 7, teacher_id: 't-dipika-thapa', teacher_name: 'Mrs. Dipika Thapa', class_id: 'c-5b', class_name: '5', section: 'B', subject_name: 'English 2', entry_type: 'SUBJECT' },
     { id: 'd6', version_id: versionId, academic_year: '2026', day_of_week: 5, period_num: 3, teacher_id: 't-dipika-thapa', teacher_name: 'Mrs. Dipika Thapa', class_id: 'c-5b', class_name: '5', section: 'B', subject_name: 'English 2', entry_type: 'SUBJECT' },
-    { id: 'd7', version_id: versionId, academic_year: '2026', day_of_week: 5, period_num: 5, teacher_id: 't-dipika-thapa', teacher_name: 'Mrs. Dipika Thapa', class_id: 'c-5a', class_name: '5', section: 'A', subject_name: 'English 2', entry_type: 'SUBJECT' },
+    { id: 'd7', version_id: versionId, academic_year: '2026', day_of_week: 5, period_num: 4, teacher_id: 't-dipika-thapa', teacher_name: 'Mrs. Dipika Thapa', class_id: 'c-5a', class_name: '5', section: 'A', subject_name: 'English 2', entry_type: 'SUBJECT' },
 
     // 3. MR. SASHANK LAMA (Music)
     // Mon: 7th 9, 8th 10, 9th 5A | Tue: 8th 10, 9th TEST | Wed: 7th 9, 8th 10, 9th 5A | Thu: 7th 9, 8th 10, 9th 5A | Fri: 8th 9, 9th 5B
@@ -1180,7 +1180,7 @@ function getInitialSeedData() {
     { id: 'rs-thu-8', version_id: versionId, academic_year: '2026', day_of_week: 4, period_num: 8, teacher_id: 't-rajesh-singh', teacher_name: 'Mr. Rajesh Singh', class_id: 'c-5b', class_name: '5', section: 'B', subject_name: 'Computer Applications', entry_type: 'SUBJECT' },
     { id: 'rs-fri-2', version_id: versionId, academic_year: '2026', day_of_week: 5, period_num: 2, teacher_id: 't-rajesh-singh', teacher_name: 'Mr. Rajesh Singh', class_id: 'c-7a', class_name: '7', section: 'A', subject_name: 'Robotics', entry_type: 'ROBOTICS' },
     { id: 'rs-fri-3', version_id: versionId, academic_year: '2026', day_of_week: 5, period_num: 3, teacher_id: 't-rajesh-singh', teacher_name: 'Mr. Rajesh Singh', class_id: 'c-6a', class_name: '6', section: 'A', subject_name: 'Robotics', entry_type: 'ROBOTICS' },
-    { id: 'rs-fri-4', version_id: versionId, academic_year: '2026', day_of_week: 5, period_num: 4, teacher_id: 't-rajesh-singh', teacher_name: 'Mr. Rajesh Singh', class_id: 'c-5a', class_name: '5', section: 'A', subject_name: 'Robotics', entry_type: 'ROBOTICS' },
+    { id: 'rs-fri-5', version_id: versionId, academic_year: '2026', day_of_week: 5, period_num: 5, teacher_id: 't-rajesh-singh', teacher_name: 'Mr. Rajesh Singh', class_id: 'c-5a', class_name: '5', section: 'A', subject_name: 'Robotics', entry_type: 'ROBOTICS' },
     { id: 'rs-fri-6', version_id: versionId, academic_year: '2026', day_of_week: 5, period_num: 6, teacher_id: 't-rajesh-singh', teacher_name: 'Mr. Rajesh Singh', class_id: 'c-6b', class_name: '6', section: 'B', subject_name: 'Robotics', entry_type: 'ROBOTICS' },
     { id: 'rs-fri-7', version_id: versionId, academic_year: '2026', day_of_week: 5, period_num: 7, teacher_id: 't-rajesh-singh', teacher_name: 'Mr. Rajesh Singh', class_id: 'c-7b', class_name: '7', section: 'B', subject_name: 'Computer Applications', entry_type: 'SUBJECT' },
     { id: 'rs-fri-8', version_id: versionId, academic_year: '2026', day_of_week: 5, period_num: 8, teacher_id: 't-rajesh-singh', teacher_name: 'Mr. Rajesh Singh', class_id: 'c-5b', class_name: '5', section: 'B', subject_name: 'Robotics', entry_type: 'ROBOTICS' },
@@ -1280,6 +1280,27 @@ class RoutineStore {
             this.persist();
           } else if (missingSeedEntries.length > 0) {
             this.entries = [...this.entries, ...missingSeedEntries];
+            this.persist();
+          }
+
+          // Auto-migrate Rajesh Singh September routine update (Friday Period 4 -> Period 5 Robotics, Dipika Thapa Period 4 English 2)
+          const rsFriOld = this.entries.find(e => e.id === 'rs-fri-4' || (e.teacher_id === 't-rajesh-singh' && e.day_of_week === 5 && e.period_num === 4));
+          if (rsFriOld) {
+            rsFriOld.id = 'rs-fri-5';
+            rsFriOld.period_num = 5;
+            const p5 = this.periods.find(p => p.period_num === 5);
+            rsFriOld.period_name = p5?.period_name || '5th Period';
+            rsFriOld.start_time = p5?.start_time;
+            rsFriOld.end_time = p5?.end_time;
+
+            const d7Old = this.entries.find(e => (e.id === 'd7' || e.teacher_id === 't-dipika-thapa') && e.day_of_week === 5 && e.period_num === 5);
+            if (d7Old) {
+              d7Old.period_num = 4;
+              const p4 = this.periods.find(p => p.period_num === 4);
+              d7Old.period_name = p4?.period_name || '4th Period';
+              d7Old.start_time = p4?.start_time;
+              d7Old.end_time = p4?.end_time;
+            }
             this.persist();
           }
 
@@ -2095,6 +2116,94 @@ export class RoutineService {
       // Ignored
     }
     return cloned;
+  }
+
+  /**
+   * MOVES OR SWAPS A TEACHER'S PERIOD FROM ONE SLOT TO ANOTHER (Supports Drag & Drop)
+   */
+  static async moveOrSwapTeacherPeriod({
+    versionId,
+    teacherId,
+    teacherName = '',
+    sourceDay,
+    sourcePeriod,
+    targetDay,
+    targetPeriod,
+    isSwap = false
+  }) {
+    const aliases = this.resolveTeacherAliases(teacherId, teacherName);
+    const periods = this.getPeriods();
+    const targetPeriodObj = periods.find(p => p.period_num === Number(targetPeriod));
+    const sourcePeriodObj = periods.find(p => p.period_num === Number(sourcePeriod));
+
+    // Find source entry
+    const sourceEntry = memoryStore.entries.find(e => {
+      const matchTeacher = aliases.has(e.teacher_id) || aliases.has(e.teacher_name) || (e.teacher_name && aliases.has(this.normalizeName(e.teacher_name)));
+      return matchTeacher && Number(e.day_of_week) === Number(sourceDay) && Number(e.period_num) === Number(sourcePeriod);
+    });
+
+    if (!sourceEntry) {
+      throw new Error(`Source period at Day ${sourceDay}, Period ${sourcePeriod} not found.`);
+    }
+
+    // Find target entry if any for this teacher
+    const targetEntry = memoryStore.entries.find(e => {
+      const matchTeacher = aliases.has(e.teacher_id) || aliases.has(e.teacher_name) || (e.teacher_name && aliases.has(this.normalizeName(e.teacher_name)));
+      return matchTeacher && Number(e.day_of_week) === Number(targetDay) && Number(e.period_num) === Number(targetPeriod);
+    });
+
+    if (targetEntry) {
+      if (isSwap) {
+        // Swap slots between the two periods
+        targetEntry.day_of_week = Number(sourceDay);
+        targetEntry.period_num = Number(sourcePeriod);
+        targetEntry.period_name = sourcePeriodObj?.period_name || `${sourcePeriod}th Period`;
+        targetEntry.start_time = sourcePeriodObj?.start_time;
+        targetEntry.end_time = sourcePeriodObj?.end_time;
+        targetEntry.updated_at = new Date().toISOString();
+
+        sourceEntry.day_of_week = Number(targetDay);
+        sourceEntry.period_num = Number(targetPeriod);
+        sourceEntry.period_name = targetPeriodObj?.period_name || `${targetPeriod}th Period`;
+        sourceEntry.start_time = targetPeriodObj?.start_time;
+        sourceEntry.end_time = targetPeriodObj?.end_time;
+        sourceEntry.updated_at = new Date().toISOString();
+      } else {
+        // Replace: remove target entry
+        const tIdx = memoryStore.entries.indexOf(targetEntry);
+        if (tIdx >= 0) memoryStore.entries.splice(tIdx, 1);
+
+        sourceEntry.day_of_week = Number(targetDay);
+        sourceEntry.period_num = Number(targetPeriod);
+        sourceEntry.period_name = targetPeriodObj?.period_name || `${targetPeriod}th Period`;
+        sourceEntry.start_time = targetPeriodObj?.start_time;
+        sourceEntry.end_time = targetPeriodObj?.end_time;
+        sourceEntry.updated_at = new Date().toISOString();
+      }
+    } else {
+      // Move to free slot
+      sourceEntry.day_of_week = Number(targetDay);
+      sourceEntry.period_num = Number(targetPeriod);
+      sourceEntry.period_name = targetPeriodObj?.period_name || `${targetPeriod}th Period`;
+      sourceEntry.start_time = targetPeriodObj?.start_time;
+      sourceEntry.end_time = targetPeriodObj?.end_time;
+      sourceEntry.updated_at = new Date().toISOString();
+    }
+
+    memoryStore.persist();
+
+    // Persist to Supabase if accessible
+    try {
+      if (targetEntry && isSwap) {
+        await supabase.from('master_routine').upsert([sourceEntry, targetEntry]);
+      } else if (sourceEntry) {
+        await supabase.from('master_routine').upsert([sourceEntry]);
+      }
+    } catch (err) {
+      // Ignored
+    }
+
+    return { success: true, sourceEntry, targetEntry };
   }
 
   /**
