@@ -98,49 +98,73 @@ export default function RoutineControlCentre({ currentUser }) {
   const loadEntitiesAndRoutines = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Fetch Teachers from profiles
+      // 1. Fetch Teachers from profiles & enrich with master timetable directory
       const { data: profs } = await supabase.from('profiles').select('id, name, email, role');
-      let teachers = (profs || []).filter(p => p.role === 'teacher');
-      
-      // Fallback if profiles table is empty with anon key
-      if (teachers.length === 0) {
-        teachers = [
-          { id: 'c50b872e-ca97-44f7-ad84-d18f8e2f2ea5', name: 'Subodh', department: 'Mathematics & Science' },
-          { id: 't-dhirendra-lama', name: 'Mr. Dhirendra Lama', department: 'Arts & SUPW' },
-          { id: 't-ajoy-gurung', name: 'Mr. Ajoy Gurung', department: 'Library' },
-          { id: 't-sarita-sharma', name: 'Mrs. Sarita Sharma', department: 'Nepali' },
-          { id: 't-pinki-gupta', name: 'Mrs. Pinki Gupta', department: 'Hindi' },
-          { id: 't-s-routh', name: 'Mrs. S. Routh', department: 'Hindi' },
-          { id: 't-kalyan-mukhia', name: 'Mr. Kalyan Mukhia', department: 'Mathematics & Physics' },
-          { id: 't-akash-kharel', name: 'Mr. Akash Kharel', department: 'Economics & GK' },
-          { id: 't-kalyani-sharma', name: 'Ms. Kalyani Sharma', department: 'Mathematics' },
-          { id: 't-promeeta-thapa', name: 'Ms. Promeeta Thapa', department: 'English' },
-          { id: 't-prajwal-singh', name: 'Mr. Prajwal Singh', department: 'Physical Education' },
-          { id: 't-deven-gurung', name: 'Mr. Deven Gurung', department: 'Computer Applications' },
-          { id: 't-sashank-lama', name: 'Mr. Sashank Lama', department: 'Music' },
-          { id: 't-dipika-thapa', name: 'Mrs. Dipika Thapa', department: 'English' },
-          { id: 't-pinky-bk', name: 'Mrs. Pinky BK', department: 'Nepali' },
-          { id: 't-keiran-thapa', name: 'Mr. Keiran Thapa', department: 'English (XII H Class Teacher)' },
-          { id: 't-rakesh-rai', name: 'Mr. Rakesh Rai', department: 'Arts & Craft' },
-          { id: 't-pti', name: 'Physical Training Instructors (PTI)', department: 'Sports' },
-          { id: 't-pallavi-bakshi', name: 'Mrs. Pallavi Bakshi', department: 'Biology (XI Sc Class Teacher)' },
-          { id: 't-sailika-thapa', name: 'Mrs. Sailika Thapa', department: 'English' },
-          { id: 't-anjana-gurung', name: 'Mrs. Anjana Gurung', department: 'English' },
-          { id: 't-riwaz-pradhan', name: 'Mr. Riwaz Pradhan', department: 'Political Science & Sociology (XI H Class Teacher)' },
-          { id: 't-suraj-pradhan', name: 'Mr. Suraj Pradhan', department: 'Physics (XI Sc Class Teacher)' },
-          { id: 't-urvashi-rumba', name: 'Mrs. Urvashi Rumba', department: 'Biology & EVS (9 Sc Class Teacher)' },
-          { id: 't-sujata-rai', name: 'Ms. Sujata Rai', department: 'Geography (10 H Class Teacher)' },
-          { id: 't-dipanker-parajuli', name: 'Mr. Dipanker Parajuli', department: 'Chemistry & GK (10 Sc Class Teacher)' },
-          { id: 't-nirjala-pradhan', name: 'Mrs. Nirjala Pradhan', department: 'Geography (7B Class Teacher)' },
-          { id: 't-pranay-pradhan', name: 'Mr. Pranay Pradhan', department: 'History, Geog & Hospitality (8B Class Teacher)' },
-          { id: 't-pratika-tamang', name: 'Ms. Pratika Tamang', department: 'History (9H Class Teacher)' },
-          { id: 't-supriya-chettri', name: 'Ms. Supriya Chettri', department: 'Science & Chemistry (5A Class Teacher)' },
-          { id: 't-anupama-gurung', name: 'Ms. Anupama Gurung', department: 'Nepali (5B Class Teacher)' },
-          { id: 't-rajesh-singh', name: 'Mr. Rajesh Singh', department: 'Computer & Robotics (6A Class Teacher)' },
-          { id: 't-sagar-gurung', name: 'Mr. Sagar Gurung', department: 'Mathematics, History & English (6B Class Teacher)' },
-          { id: 't-rahul-chettri', name: 'Mr. Rahul Chettri', department: 'Computer Applications & Chemistry (8A Class Teacher)' }
-        ];
+      let loadedTeachers = (profs || []).filter(p => p.role === 'teacher');
+
+      const masterFallback = [
+        { id: 'c50b872e-ca97-44f7-ad84-d18f8e2f2ea5', name: 'Subodh', department: 'Mathematics & Science (7A Class Teacher)' },
+        { id: '215e579d-67a1-4401-a4a2-8f5e4c0bbf37', name: 'Mrs. Urvashi Rumba', department: 'Biology & EVS (9 Sc Class Teacher)' },
+        { id: 'bca2d46e-18a9-4484-8baa-ac441f267cf9', name: 'Mr. Sagar Gurung', department: 'Mathematics, History & English (6B Class Teacher)' },
+        { id: '0bb4ebf5-8eba-436f-a65a-0a4ee1c30917', name: 'Mr. Rahul Chettri', department: 'Computer Applications & Chemistry (8A Class Teacher)' },
+        { id: '14de2742-ff92-4638-a48e-80e95a26d008', name: 'Mr. Rajesh Singh', department: 'Computer & Robotics (6A Class Teacher)' },
+        { id: 'eaf09732-8e34-4273-a35e-02f1920e4bb5', name: 'Mrs. Sarita Sharma', department: '2L Nepali (6B MSc)' },
+        { id: 'cb94aecc-8f54-4ee9-ab36-6c37db01bc7a', name: 'Mrs. Pinki Gupta', department: 'Hindi (2L & TL)' },
+        { id: '618f3dfa-4b60-4e6c-9657-b02b3463e699', name: 'Mrs. S. Routh', department: 'Hindi & Library' },
+        { id: '3112076d-5476-405b-b3c8-ef240a3e2a3c', name: 'Mr. Kalyan Mukhia', department: 'Mathematics & Physics' },
+        { id: 'b7cdfbd6-f22c-4d50-9ad1-f2584cc3f442', name: 'Mr. Akash Kharel', department: 'Economics & GK' },
+        { id: 'c3521dfd-8886-45d2-a11d-cabfdabe3684', name: 'Ms. Kalyani Sharma', department: 'Mathematics' },
+        { id: '124f949f-f736-438c-9b8f-5a32a721bb58', name: 'Ms. Promeeta Thapa', department: 'English 1' },
+        { id: '1a0a2998-da0e-4ad5-9505-1514b423825d', name: 'Mr. Prajwal Singh', department: 'Physical Education & Games' },
+        { id: 't-deven-gurung', name: 'Mr. Deven Gurung', department: 'Computer Applications' },
+        { id: 'ddf9bd21-8576-4777-b25d-7fa8c78ceccd', name: 'Mr. Sashank Lama', department: 'Music' },
+        { id: 'df48470e-69b8-4b75-be3f-46aa28f58a32', name: 'Mr. Dhirendra Lama', department: 'Arts & SUPW (9H Class Teacher)' },
+        { id: '19c8be5c-6d67-4864-b86d-e7579c827d94', name: 'Mr. Ajoy Gurung', department: 'Library' },
+        { id: 'c67e3207-943a-463c-a691-e8d418c22a9e', name: 'Mrs. Dipika Thapa', department: 'English 2 & Spelling' },
+        { id: 'f0e6046b-c8e0-4a02-bdfc-dbbca4d9a11d', name: 'Mrs. Pinky BK', department: 'TL Nepali' },
+        { id: '3ee2cf65-5cd5-4338-9a02-091de8093351', name: 'Mr. Keiran Thapa', department: 'English (XII H Class Teacher)' },
+        { id: '146560d1-b86f-4c78-92ac-c54fcde1c6e9', name: 'Mr. Rakesh Rai', department: 'Arts & Craft' },
+        { id: '0c931bba-2279-4871-ad49-a5c358d46c14', name: 'Mrs. Pallavi Bakshi', department: 'Biology (XI Sc Class Teacher)' },
+        { id: 'e89d0118-5f83-45d2-86b8-390b3a16bc81', name: 'Mrs. Sailika Thapa', department: 'English' },
+        { id: '8fb84b96-bee6-4fcf-a7e2-e716e3e013f3', name: 'Mrs. Anjana Gurung', department: 'English' },
+        { id: 'ae821917-7d09-42ed-8d98-636a2e66f1bd', name: 'Mr. Riwaz Pradhan', department: 'Political Science & Sociology (XI H Class Teacher)' },
+        { id: 'eee0a918-12b4-48aa-ba81-9ba605e1114d', name: 'Mr. Suraj Pradhan', department: 'Physics (XI Sc Class Teacher)' },
+        { id: '7f4847ea-c1dd-4b44-a8c1-bb670188b0e4', name: 'Ms. Sujata Rai', department: 'Geography (10 H Class Teacher)' },
+        { id: 'e1a89308-e6c2-467f-b31b-ebaeb0a343e3', name: 'Mr. Dipanker Parajuli', department: 'Chemistry & GK (10 Sc Class Teacher)' },
+        { id: '5c4ddcf8-4b88-4684-bd5c-2937ed3a6282', name: 'Mrs. Nirjala Pradhan', department: 'Geography (7B Class Teacher)' },
+        { id: '5ac6dbcc-9183-4a3b-8889-3cfa44656d83', name: 'Mr. Pranay Pradhan', department: 'History, Geog & Hospitality (8B Class Teacher)' },
+        { id: 'c238361e-59f3-4cd1-acd4-a4ce2462a082', name: 'Ms. Pratika Tamang', department: 'History (9H Class Teacher)' },
+        { id: 'da9fd64d-adb4-47d1-a7d1-a6cea1545d69', name: 'Ms. Supriya Chettri', department: 'Science & Chemistry (5A Class Teacher)' },
+        { id: '9c6b9967-cc9f-49ff-882f-59a1bf938896', name: 'Ms. Anupama Gurung', department: 'Nepali (5B Class Teacher)' },
+        { id: 't-pti', name: 'Physical Training Instructors (PTI)', department: 'Sports & Games' }
+      ];
+
+      // Enrich profiles with department & class teacher designations
+      let teachers = [];
+      if (loadedTeachers.length > 0) {
+        teachers = loadedTeachers.map(t => {
+          const info = RoutineService.resolveTeacherInfo(t.id) || RoutineService.resolveTeacherInfo(t.name);
+          return {
+            ...t,
+            name: info ? info.fullName : t.name,
+            department: info ? info.department : (t.department || '')
+          };
+        });
+
+        // Ensure any timetable faculty not yet registered in profiles is included
+        masterFallback.forEach(fb => {
+          const exists = teachers.some(t => {
+            const info = RoutineService.resolveTeacherInfo(t.id) || RoutineService.resolveTeacherInfo(t.name);
+            return info && (info.slug === fb.id || info.profileId === fb.id || RoutineService.normalizeName(t.name) === RoutineService.normalizeName(fb.name));
+          });
+          if (!exists) {
+            teachers.push(fb);
+          }
+        });
+      } else {
+        teachers = masterFallback;
       }
+
       setTeachersList(teachers);
       if (!selectedTeacherId && teachers.length > 0) {
         setSelectedTeacherId(teachers[0].id);
@@ -246,10 +270,12 @@ export default function RoutineControlCentre({ currentUser }) {
   // Sync Teacher Routine View
   useEffect(() => {
     if (!selectedTeacherId || !selectedVersionId) return;
-    RoutineService.getTeacherRoutine(selectedTeacherId, selectedVersionId).then(res => {
+    const selectedTeacherObj = teachersList.find(t => t.id === selectedTeacherId);
+    const hintName = selectedTeacherObj?.name || '';
+    RoutineService.getTeacherRoutine(selectedTeacherId, selectedVersionId, hintName).then(res => {
       setSelectedTeacherData(res);
     });
-  }, [selectedTeacherId, selectedVersionId, masterEntries]);
+  }, [selectedTeacherId, selectedVersionId, masterEntries, teachersList]);
 
   // Sync Class-Wise Routine View
   useEffect(() => {
@@ -745,7 +771,9 @@ export default function RoutineControlCentre({ currentUser }) {
             <div className="p-4 bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
               <div>
                 <h3 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-tight">
-                  {selectedTeacherData?.teacherName || 'Teacher'} — Weekly Schedule
+                  {((selectedTeacherData?.teacherName && selectedTeacherData.teacherName !== 'Teacher')
+                    ? selectedTeacherData.teacherName
+                    : (teachersList.find(t => t.id === selectedTeacherId)?.name || 'Teacher'))} — Weekly Schedule
                 </h3>
                 <p className="text-[11px] text-slate-500">
                   Click any cell to assign Class, Subject, or Special School Activity (Assembly, Test, Library, PT, etc.)

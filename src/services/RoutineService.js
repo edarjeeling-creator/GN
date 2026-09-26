@@ -15,6 +15,247 @@
 import { supabase } from '../lib/supabase';
 import NotificationService from './NotificationService';
 
+export const TEACHER_IDENTITY_MAP = {
+  'Subodh': {
+    slug: 't-subodh-rai',
+    profileId: 'c50b872e-ca97-44f7-ad84-d18f8e2f2ea5',
+    name: 'Subodh',
+    fullName: 'Mr. Subodh Rai',
+    department: 'Mathematics & Science (7A Class Teacher)'
+  },
+  'Mrs. Urvashi Rumba': {
+    slug: 't-urvashi-rumba',
+    profileId: '215e579d-67a1-4401-a4a2-8f5e4c0bbf37',
+    name: 'Urvashi Rumba',
+    fullName: 'Mrs. Urvashi Rumba',
+    department: 'Biology & EVS (9 Sc Class Teacher)'
+  },
+  'Mr. Sagar Gurung': {
+    slug: 't-sagar-gurung',
+    profileId: 'bca2d46e-18a9-4484-8baa-ac441f267cf9',
+    name: 'Sagar Gurung',
+    fullName: 'Mr. Sagar Gurung',
+    department: 'Mathematics, History & English (6B Class Teacher)'
+  },
+  'Mr. Rahul Chettri': {
+    slug: 't-rahul-chettri',
+    profileId: '0bb4ebf5-8eba-436f-a65a-0a4ee1c30917',
+    name: 'Rahul Chettri',
+    fullName: 'Mr. Rahul Chettri',
+    department: 'Computer Applications & Chemistry (8A Class Teacher)'
+  },
+  'Mr. Rajesh Singh': {
+    slug: 't-rajesh-singh',
+    profileId: '14de2742-ff92-4638-a48e-80e95a26d008',
+    name: 'Rajesh Singh',
+    fullName: 'Mr. Rajesh Singh',
+    department: 'Computer & Robotics (6A Class Teacher)'
+  },
+  'Mrs. Sarita Sharma': {
+    slug: 't-sarita-sharma',
+    profileId: 'eaf09732-8e34-4273-a35e-02f1920e4bb5',
+    name: 'Sarita Sharma',
+    fullName: 'Mrs. Sarita Sharma',
+    department: '2L Nepali (6B MSc)'
+  },
+  'Mrs. Pinki Gupta': {
+    slug: 't-pinki-gupta',
+    profileId: 'cb94aecc-8f54-4ee9-ab36-6c37db01bc7a',
+    name: 'Pinki Gupta',
+    fullName: 'Mrs. Pinki Gupta',
+    department: 'Hindi (2L & TL)'
+  },
+  'Mrs. S. Routh': {
+    slug: 't-s-routh',
+    profileId: '618f3dfa-4b60-4e6c-9657-b02b3463e699',
+    name: 'Sunita Routh',
+    fullName: 'Mrs. S. Routh',
+    department: 'Hindi & Library'
+  },
+  'Mr. Kalyan Mukhia': {
+    slug: 't-kalyan-mukhia',
+    profileId: '3112076d-5476-405b-b3c8-ef240a3e2a3c',
+    name: 'Kalyan Mukhia',
+    fullName: 'Mr. Kalyan Mukhia',
+    department: 'Mathematics & Physics'
+  },
+  'Mr. Akash Kharel': {
+    slug: 't-akash-kharel',
+    profileId: 'b7cdfbd6-f22c-4d50-9ad1-f2584cc3f442',
+    name: 'Akash Kharel',
+    fullName: 'Mr. Akash Kharel',
+    department: 'Economics & GK'
+  },
+  'Ms. Kalyani Sharma': {
+    slug: 't-kalyani-sharma',
+    profileId: 'c3521dfd-8886-45d2-a11d-cabfdabe3684',
+    name: 'Kalyani Sharma',
+    fullName: 'Ms. Kalyani Sharma',
+    department: 'Mathematics'
+  },
+  'Ms. Promeeta Thapa': {
+    slug: 't-promeeta-thapa',
+    profileId: '124f949f-f736-438c-9b8f-5a32a721bb58',
+    name: 'Proneeta Thapa',
+    fullName: 'Ms. Promeeta Thapa',
+    department: 'English 1'
+  },
+  'Mr. Prajwal Singh': {
+    slug: 't-prajwal-singh',
+    profileId: '1a0a2998-da0e-4ad5-9505-1514b423825d',
+    name: 'Prajwal Singh',
+    fullName: 'Mr. Prajwal Singh',
+    department: 'Physical Education & Games'
+  },
+  'Physical Training Instructors (PTI)': {
+    slug: 't-pti',
+    profileId: '1a0a2998-da0e-4ad5-9505-1514b423825d',
+    name: 'PTI',
+    fullName: 'Physical Training Instructors (PTI)',
+    department: 'Sports & Games'
+  },
+  'Mr. Deven Gurung': {
+    slug: 't-deven-gurung',
+    profileId: 'a1111111-2026-0009-0000-000000000009',
+    name: 'Deven Gurung',
+    fullName: 'Mr. Deven Gurung',
+    department: 'Computer Applications'
+  },
+  'Mr. Sashank Lama': {
+    slug: 't-sashank-lama',
+    profileId: 'ddf9bd21-8576-4777-b25d-7fa8c78ceccd',
+    name: 'Sashank Lama',
+    fullName: 'Mr. Sashank Lama',
+    department: 'Music'
+  },
+  'Mr. Dhirendra Lama': {
+    slug: 't-dhirendra-lama',
+    profileId: 'df48470e-69b8-4b75-be3f-46aa28f58a32',
+    name: 'Dhirendra Lama',
+    fullName: 'Mr. Dhirendra Lama',
+    department: 'Arts & SUPW (9H Class Teacher)'
+  },
+  'Mr. Ajoy Gurung': {
+    slug: 't-ajoy-gurung',
+    profileId: '19c8be5c-6d67-4864-b86d-e7579c827d94',
+    name: 'Ajoy Gurung',
+    fullName: 'Mr. Ajoy Gurung',
+    department: 'Library'
+  },
+  'Mrs. Dipika Thapa': {
+    slug: 't-dipika-thapa',
+    profileId: 'c67e3207-943a-463c-a691-e8d418c22a9e',
+    name: 'Dipika Chettri',
+    fullName: 'Mrs. Dipika Thapa',
+    department: 'English 2 & Spelling'
+  },
+  'Mrs. Pinky BK': {
+    slug: 't-pinky-bk',
+    profileId: 'f0e6046b-c8e0-4a02-bdfc-dbbca4d9a11d',
+    name: 'Pinki BK',
+    fullName: 'Mrs. Pinky BK',
+    department: 'TL Nepali'
+  },
+  'Mr. Keiran Thapa': {
+    slug: 't-keiran-thapa',
+    profileId: '3ee2cf65-5cd5-4338-9a02-091de8093351',
+    name: 'Keiran Thapa',
+    fullName: 'Mr. Keiran Thapa',
+    department: 'English (XII H Class Teacher)'
+  },
+  'Mr. Rakesh Rai': {
+    slug: 't-rakesh-rai',
+    profileId: '146560d1-b86f-4c78-92ac-c54fcde1c6e9',
+    name: 'Rakesh Rai',
+    fullName: 'Mr. Rakesh Rai',
+    department: 'Arts & Craft'
+  },
+  'Mrs. Pallavi Bakshi': {
+    slug: 't-pallavi-bakshi',
+    profileId: '0c931bba-2279-4871-ad49-a5c358d46c14',
+    name: 'Pallavi Bakshi Gupta',
+    fullName: 'Mrs. Pallavi Bakshi',
+    department: 'Biology (XI Sc Class Teacher)'
+  },
+  'Mrs. Sailika Thapa': {
+    slug: 't-sailika-thapa',
+    profileId: 'e89d0118-5f83-45d2-86b8-390b3a16bc81',
+    name: 'Salika Thapa',
+    fullName: 'Mrs. Sailika Thapa',
+    department: 'English'
+  },
+  'Mrs. Anjana Gurung': {
+    slug: 't-anjana-gurung',
+    profileId: '8fb84b96-bee6-4fcf-a7e2-e716e3e013f3',
+    name: 'Anjana Gurung',
+    fullName: 'Mrs. Anjana Gurung',
+    department: 'English'
+  },
+  'Mr. Riwaz Pradhan': {
+    slug: 't-riwaz-pradhan',
+    profileId: 'ae821917-7d09-42ed-8d98-636a2e66f1bd',
+    name: 'Riwaz Pradhan',
+    fullName: 'Mr. Riwaz Pradhan',
+    department: 'Political Science & Sociology (XI H Class Teacher)'
+  },
+  'Mr. Suraj Pradhan': {
+    slug: 't-suraj-pradhan',
+    profileId: 'eee0a918-12b4-48aa-ba81-9ba605e1114d',
+    name: 'Suraj Pradhan',
+    fullName: 'Mr. Suraj Pradhan',
+    department: 'Physics (XI Sc Class Teacher)'
+  },
+  'Ms. Sujata Rai': {
+    slug: 't-sujata-rai',
+    profileId: '7f4847ea-c1dd-4b44-a8c1-bb670188b0e4',
+    name: 'Sujata Rai',
+    fullName: 'Ms. Sujata Rai',
+    department: 'Geography (10 H Class Teacher)'
+  },
+  'Mr. Dipanker Parajuli': {
+    slug: 't-dipanker-parajuli',
+    profileId: 'e1a89308-e6c2-467f-b31b-ebaeb0a343e3',
+    name: 'Dipankar Parajuli',
+    fullName: 'Mr. Dipanker Parajuli',
+    department: 'Chemistry & GK (10 Sc Class Teacher)'
+  },
+  'Mrs. Nirjala Pradhan': {
+    slug: 't-nirjala-pradhan',
+    profileId: '5c4ddcf8-4b88-4684-bd5c-2937ed3a6282',
+    name: 'Nirjala Pradhan',
+    fullName: 'Mrs. Nirjala Pradhan',
+    department: 'Geography (7B Class Teacher)'
+  },
+  'Mr. Pranay Pradhan': {
+    slug: 't-pranay-pradhan',
+    profileId: '5ac6dbcc-9183-4a3b-8889-3cfa44656d83',
+    name: 'Pranay Pradhan',
+    fullName: 'Mr. Pranay Pradhan',
+    department: 'History, Geog & Hospitality (8B Class Teacher)'
+  },
+  'Ms. Pratika Tamang': {
+    slug: 't-pratika-tamang',
+    profileId: 'c238361e-59f3-4cd1-acd4-a4ce2462a082',
+    name: 'Pratika Tamang',
+    fullName: 'Ms. Pratika Tamang',
+    department: 'History (9H Class Teacher)'
+  },
+  'Ms. Supriya Chettri': {
+    slug: 't-supriya-chettri',
+    profileId: 'da9fd64d-adb4-47d1-a7d1-a6cea1545d69',
+    name: 'Ms Supriya Chettri',
+    fullName: 'Ms. Supriya Chettri',
+    department: 'Science & Chemistry (5A Class Teacher)'
+  },
+  'Ms. Anupama Gurung': {
+    slug: 't-anupama-gurung',
+    profileId: '9c6b9967-cc9f-49ff-882f-59a1bf938896',
+    name: 'Anupama Gurung',
+    fullName: 'Ms. Anupama Gurung',
+    department: 'Nepali (5B Class Teacher)'
+  }
+};
+
 export const WORKING_DAYS = [
   { id: 1, name: 'Monday', short: 'Mon' },
   { id: 2, name: 'Tuesday', short: 'Tue' },
@@ -1175,60 +1416,136 @@ export class RoutineService {
   }
 
   /**
+   * Helper to normalize names for resilient matching
+   */
+  static normalizeName(name) {
+    if (!name) return '';
+    return name
+      .toLowerCase()
+      .replace(/^(mr\.|mrs\.|ms\.|dr\.)\s*/, '')
+      .replace(/[^a-z0-9]/g, '')
+      .trim();
+  }
+
+  /**
+   * Resolves teacher identity metadata by UUID, slug, or name
+   */
+  static resolveTeacherInfo(query) {
+    if (!query) return null;
+    const cleanQ = this.normalizeName(query);
+    for (const [key, info] of Object.entries(TEACHER_IDENTITY_MAP)) {
+      if (
+        info.profileId === query ||
+        info.slug === query ||
+        info.name === query ||
+        info.fullName === query ||
+        this.normalizeName(info.name) === cleanQ ||
+        this.normalizeName(info.fullName) === cleanQ ||
+        this.normalizeName(key) === cleanQ
+      ) {
+        return info;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Resolves a set of all aliases (UUIDs, slugs, names) for a given teacher
+   */
+  static resolveTeacherAliases(teacherId, hintName = '') {
+    const aliases = new Set();
+    if (teacherId) aliases.add(teacherId);
+    if (hintName) {
+      aliases.add(hintName);
+      aliases.add(this.normalizeName(hintName));
+    }
+    const info = this.resolveTeacherInfo(teacherId) || this.resolveTeacherInfo(hintName);
+    if (info) {
+      aliases.add(info.profileId);
+      aliases.add(info.slug);
+      aliases.add(info.name);
+      aliases.add(info.fullName);
+      aliases.add(this.normalizeName(info.name));
+      aliases.add(this.normalizeName(info.fullName));
+    }
+    return aliases;
+  }
+
+  /**
+   * Formats the proper display name for a teacher
+   */
+  static resolveTeacherName(teacherId) {
+    const info = this.resolveTeacherInfo(teacherId);
+    return info ? info.fullName : null;
+  }
+
+  /**
    * Retrieves all master routine entries for a version with optional filters
    */
   static async getMasterRoutine(versionId, filters = {}) {
     let entries = [];
+    const isTargetPublished = (
+      versionId === 'c0000000-2026-0001-0000-000000000001' ||
+      versionId === 'v-2026-v1-published'
+    );
+
     try {
-      let query = supabase.from('master_routine').select('*').eq('version_id', versionId);
+      let query = supabase.from('master_routine').select('*');
+      if (isTargetPublished) {
+        query = query.in('version_id', ['c0000000-2026-0001-0000-000000000001', 'v-2026-v1-published']);
+      } else {
+        query = query.eq('version_id', versionId);
+      }
       if (filters.day_of_week) query = query.eq('day_of_week', filters.day_of_week);
       if (filters.period_num) query = query.eq('period_num', filters.period_num);
-      if (filters.teacher_id) query = query.eq('teacher_id', filters.teacher_id);
       if (filters.class_id) query = query.eq('class_id', filters.class_id);
+
+      if (filters.teacher_id) {
+        const aliases = this.resolveTeacherAliases(filters.teacher_id, filters.teacher_name);
+        const uuidList = Array.from(aliases).filter(a => typeof a === 'string' && a.length > 5);
+        if (uuidList.length > 0) {
+          query = query.in('teacher_id', uuidList);
+        }
+      }
+
       const { data, error } = await query;
+      // Only accept if adequate data returned (avoid partial database states)
       if (!error && data && data.length > 0) {
-        entries = data;
+        if (!filters.teacher_id && isTargetPublished && data.length < 500) {
+          // If master routine table has only partial seed, prefer complete memoryStore
+        } else {
+          entries = data;
+        }
       }
     } catch (err) {
       // Fallback
     }
 
     if (entries.length === 0) {
-      entries = memoryStore.entries.filter(e => e.version_id === versionId);
-      if (filters.day_of_week) entries = entries.filter(e => e.day_of_week === Number(filters.day_of_week));
+      entries = memoryStore.entries.filter(e => {
+        if (isTargetPublished) {
+          return e.version_id === 'v-2026-v1-published' || e.version_id === 'c0000000-2026-0001-0000-000000000001';
+        }
+        return e.version_id === versionId;
+      });
+
+      if (filters.day_of_week) {
+        entries = entries.filter(e => e.day_of_week === Number(filters.day_of_week));
+      }
+
       if (filters.teacher_id) {
+        const aliases = this.resolveTeacherAliases(filters.teacher_id, filters.teacher_name);
         entries = entries.filter(e => {
-          if (e.teacher_id === filters.teacher_id) return true;
-          const aliases = {
-            't-dhirendra-lama': 'df48470e-69b8-4b75-be3f-46aa28f58a32',
-            'df48470e-69b8-4b75-be3f-46aa28f58a32': 't-dhirendra-lama',
-            't-ajoy-gurung': '19c8be5c-6d67-4864-b86d-e7579c827d94',
-            '19c8be5c-6d67-4864-b86d-e7579c827d94': 't-ajoy-gurung',
-            't-subodh-rai': 'c50b872e-ca97-44f7-ad84-d18f8e2f2ea5',
-            'c50b872e-ca97-44f7-ad84-d18f8e2f2ea5': 't-subodh-rai',
-            't-sarita-sharma': 'a1111111-2026-0001-0000-000000000001',
-            'a1111111-2026-0001-0000-000000000001': 't-sarita-sharma',
-            't-pinki-gupta': 'a1111111-2026-0002-0000-000000000002',
-            'a1111111-2026-0002-0000-000000000002': 't-pinki-gupta',
-            't-s-routh': 'a1111111-2026-0003-0000-000000000003',
-            'a1111111-2026-0003-0000-000000000003': 't-s-routh',
-            't-kalyan-mukhia': 'a1111111-2026-0004-0000-000000000004',
-            'a1111111-2026-0004-0000-000000000004': 't-kalyan-mukhia',
-            't-akash-kharel': 'a1111111-2026-0005-0000-000000000005',
-            'a1111111-2026-0005-0000-000000000005': 't-akash-kharel',
-            't-kalyani-sharma': 'a1111111-2026-0006-0000-000000000006',
-            'a1111111-2026-0006-0000-000000000006': 't-kalyani-sharma',
-            't-promeeta-thapa': 'a1111111-2026-0007-0000-000000000007',
-            'a1111111-2026-0007-0000-000000000007': 't-promeeta-thapa',
-            't-prajwal-singh': 'a1111111-2026-0008-0000-000000000008',
-            'a1111111-2026-0008-0000-000000000008': 't-prajwal-singh',
-            't-deven-gurung': 'a1111111-2026-0009-0000-000000000009',
-            'a1111111-2026-0009-0000-000000000009': 't-deven-gurung'
-          };
-          return aliases[filters.teacher_id] === e.teacher_id;
+          if (aliases.has(e.teacher_id)) return true;
+          if (aliases.has(e.teacher_name)) return true;
+          if (e.teacher_name && aliases.has(this.normalizeName(e.teacher_name))) return true;
+          return false;
         });
       }
-      if (filters.entry_type) entries = entries.filter(e => e.entry_type === filters.entry_type);
+
+      if (filters.entry_type) {
+        entries = entries.filter(e => e.entry_type === filters.entry_type);
+      }
     }
 
     return entries;
@@ -1239,8 +1556,8 @@ export class RoutineService {
    * Returns a 5-day x 9-period matrix for a specific teacher.
    * Free periods are marked with is_free: true.
    */
-  static async getTeacherRoutine(teacherId, versionId) {
-    const entries = await this.getMasterRoutine(versionId, { teacher_id: teacherId });
+  static async getTeacherRoutine(teacherId, versionId, teacherNameHint = '') {
+    const entries = await this.getMasterRoutine(versionId, { teacher_id: teacherId, teacher_name: teacherNameHint });
     const periods = this.getPeriods();
     
     // Construct 5 days x periods matrix
@@ -1263,7 +1580,7 @@ export class RoutineService {
       };
     });
 
-    const teacherName = entries[0]?.teacher_name || 'Teacher';
+    const teacherName = entries[0]?.teacher_name || teacherNameHint || this.resolveTeacherName(teacherId) || 'Teacher';
     const uniqueClasses = [...new Set(entries.map(e => `${e.class_name || ''} ${e.section || ''}`.trim()).filter(Boolean))];
     const uniqueSubjects = [...new Set(entries.map(e => e.subject_name).filter(Boolean))];
 
