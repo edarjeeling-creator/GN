@@ -4,7 +4,7 @@ import {
   Send, Printer, Copy, Plus, RefreshCw, Eye, ShieldCheck, 
   ChevronRight, Filter, Search, UserCheck, Bell, Sparkles, FileText, ArrowRight,
   Layers, Check, X, AlertCircle, Radio, Settings, History, Download,
-  GripVertical, ArrowRightLeft, Move
+  GripVertical, ArrowRightLeft, Move, Save
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { 
@@ -47,12 +47,22 @@ export default function RoutineControlCentre({ currentUser }) {
   const [cellRelocateDay, setCellRelocateDay] = useState(1);
   const [cellRelocatePeriod, setCellRelocatePeriod] = useState(1);
 
-  // Drag-and-Drop & Move / Swap Mode States
+  // Drag-and-Drop & Move / Swap Mode States & Refs
   const [draggedCell, setDraggedCell] = useState(null); // { dayId, periodNum, entry }
   const [dragOverCell, setDragOverCell] = useState(null); // { dayId, periodNum }
   const [activeMoveSource, setActiveMoveSource] = useState(null); // { dayId, periodNum, entry }
   const [swapConfirmModal, setSwapConfirmModal] = useState(null); // { source, target }
   const [statusNotice, setStatusNotice] = useState(null); // { message, type }
+
+  // Save State (Explicit Button & Auto-Save Tracking)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [lastSavedTime, setLastSavedTime] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  // Mutable Drag & Click Collision Refs
+  const dragSourceRef = useRef(null);
+  const isDraggingRef = useRef(false);
+  const justDroppedRef = useRef(false);
 
   // Master Grid Search & Filter States
   const [masterSearchQuery, setMasterSearchQuery] = useState('');
@@ -436,6 +446,32 @@ export default function RoutineControlCentre({ currentUser }) {
     }
   };
 
+  // Manual Save Routine Changes to Database & Browser Storage
+  const handleManualSave = async () => {
+    setSaving(true);
+    try {
+      await RoutineService.saveBatchEntries(selectedVersionId, masterEntries);
+      const refreshed = await RoutineService.getMasterRoutine(selectedVersionId);
+      setMasterEntries(refreshed);
+      const teacher = teachersList.find(t => t.id === selectedTeacherId);
+      const updatedTeacherData = await RoutineService.getTeacherRoutine(selectedTeacherId, selectedVersionId, teacher?.name, refreshed);
+      setSelectedTeacherData(updatedTeacherData);
+
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setLastSavedTime(timeStr);
+      setHasUnsavedChanges(false);
+      setStatusNotice({
+        message: `✓ Routine changes saved successfully at ${timeStr}! (Stored in Database & Browser)`,
+        type: 'success'
+      });
+      setTimeout(() => setStatusNotice(null), 6000);
+    } catch (err) {
+      alert("Error saving routine: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Execute Relocation or Swap (Unified for Drag & Drop, Click-to-Move, and Cell Editor)
   const executeMoveOrSwap = async ({ sourceDay, sourcePeriod, targetDay, targetPeriod, isSwap = false }) => {
     try {
@@ -454,17 +490,24 @@ export default function RoutineControlCentre({ currentUser }) {
       // Refresh master entries and teacher projection
       const refreshed = await RoutineService.getMasterRoutine(selectedVersionId);
       setMasterEntries(refreshed);
-      const updatedTeacherData = await RoutineService.getTeacherRoutine(selectedTeacherId, selectedVersionId, teacher?.name);
+      const updatedTeacherData = await RoutineService.getTeacherRoutine(selectedTeacherId, selectedVersionId, teacher?.name, refreshed);
       setSelectedTeacherData(updatedTeacherData);
+
+      // Auto-save backup
+      await RoutineService.saveBatchEntries(selectedVersionId, refreshed);
 
       const srcDayName = WORKING_DAYS.find(w => w.id === Number(sourceDay))?.name || `Day ${sourceDay}`;
       const tgtDayName = WORKING_DAYS.find(w => w.id === Number(targetDay))?.name || `Day ${targetDay}`;
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setLastSavedTime(timeStr);
+      setHasUnsavedChanges(false);
+
       const msg = isSwap
-        ? `✓ Swapped ${srcDayName} Period ${sourcePeriod} with ${tgtDayName} Period ${targetPeriod}!`
-        : `✓ Moved schedule from ${srcDayName} Period ${sourcePeriod} to ${tgtDayName} Period ${targetPeriod}!`;
+        ? `✓ Swapped ${srcDayName} Period ${sourcePeriod} with ${tgtDayName} Period ${targetPeriod}! (Saved at ${timeStr})`
+        : `✓ Moved schedule from ${srcDayName} Period ${sourcePeriod} to ${tgtDayName} Period ${targetPeriod}! (Saved at ${timeStr})`;
 
       setStatusNotice({ message: msg, type: 'success' });
-      setTimeout(() => setStatusNotice(null), 5000);
+      setTimeout(() => setStatusNotice(null), 6000);
       setActiveMoveSource(null);
       setSwapConfirmModal(null);
       setEditingCell(null);
@@ -476,11 +519,13 @@ export default function RoutineControlCentre({ currentUser }) {
   // Drag and Drop Event Handlers
   const handleDragStart = (e, dayId, periodNum, entry) => {
     if (!entry) return;
+    isDraggingRef.current = true;
+    dragSourceRef.current = { dayId, periodNum, entry };
+    setDraggedCell({ dayId, periodNum, entry });
     try {
       e.dataTransfer.setData('text/plain', JSON.stringify({ dayId, periodNum }));
       e.dataTransfer.effectAllowed = 'move';
     } catch (err) {}
-    setDraggedCell({ dayId, periodNum, entry });
   };
 
   const handleDragOver = (e, dayId, periodNum) => {
@@ -495,22 +540,56 @@ export default function RoutineControlCentre({ currentUser }) {
 
   const handleDragLeave = (e, dayId, periodNum) => {
     if (dragOverCell && dragOverCell.dayId === dayId && dragOverCell.periodNum === periodNum) {
+      const related = e.relatedTarget;
+      if (e.currentTarget && e.currentTarget.contains(related)) {
+        return;
+      }
       setDragOverCell(null);
     }
   };
 
   const handleDragEnd = () => {
-    setDraggedCell(null);
     setDragOverCell(null);
+    setDraggedCell(null);
+    setTimeout(() => {
+      dragSourceRef.current = null;
+      isDraggingRef.current = false;
+    }, 200);
   };
 
   const handleDrop = async (e, targetDayId, targetPeriodNum, targetEntry) => {
     e.preventDefault();
+    e.stopPropagation();
     setDragOverCell(null);
-    const source = draggedCell;
-    setDraggedCell(null);
+    justDroppedRef.current = true;
+    setTimeout(() => {
+      justDroppedRef.current = false;
+    }, 300);
 
-    if (!source) return;
+    let source = dragSourceRef.current || draggedCell;
+    if (!source) {
+      try {
+        const raw = e.dataTransfer.getData('text/plain');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const daySchedule = selectedTeacherData?.scheduleByDay?.[parsed.dayId];
+          const foundEntry = daySchedule?.periods?.find(pr => pr.period_num === parsed.periodNum)?.entry;
+          if (foundEntry) {
+            source = { dayId: parsed.dayId, periodNum: parsed.periodNum, entry: foundEntry };
+          }
+        }
+      } catch (err) {}
+    }
+
+    setDraggedCell(null);
+    dragSourceRef.current = null;
+    isDraggingRef.current = false;
+
+    if (!source) {
+      console.warn("Drop detected but drag source could not be resolved.");
+      return;
+    }
+
     if (source.dayId === targetDayId && source.periodNum === targetPeriodNum) {
       return; // Dropped on self
     }
@@ -533,6 +612,9 @@ export default function RoutineControlCentre({ currentUser }) {
 
   // Click-to-Move / Swap Handler
   const handleCellClick = (dayId, periodNum, entry) => {
+    if (justDroppedRef.current || isDraggingRef.current) {
+      return; // Ignore spurious click fired immediately after drop
+    }
     if (activeMoveSource) {
       if (activeMoveSource.dayId === dayId && activeMoveSource.periodNum === periodNum) {
         // Cancel if clicking the same source cell
@@ -997,13 +1079,46 @@ export default function RoutineControlCentre({ currentUser }) {
                   <span>✏️ <strong>Click slot</strong> to edit details.</span>
                 </p>
               </div>
-              <button
-                onClick={() => { setPdfType('teacher'); setPdfModalOpen(true); }}
-                className="text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1 self-start sm:self-auto"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                Print Slip
-              </button>
+              <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                {/* Live Save Status Indicator Badge */}
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-semibold border border-slate-200 dark:border-slate-700">
+                  {hasUnsavedChanges ? (
+                    <span className="flex items-center gap-1.5 text-amber-500 font-bold">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                      Unsaved Changes
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-emerald-500 font-bold">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      {lastSavedTime ? `Saved (${lastSavedTime})` : 'All Changes Saved'}
+                    </span>
+                  )}
+                </div>
+
+                {/* Explicit Save Routine Button */}
+                <button
+                  type="button"
+                  onClick={handleManualSave}
+                  disabled={saving}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold flex items-center gap-1.5 shadow transition-all ${
+                    hasUnsavedChanges
+                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white ring-2 ring-emerald-400 animate-pulse'
+                      : 'bg-brand-600 hover:bg-brand-500 text-white shadow-md'
+                  }`}
+                  title="Save Routine Changes to Database and Browser Storage"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{saving ? 'Saving...' : 'Save Routine Changes'}</span>
+                </button>
+
+                <button
+                  onClick={() => { setPdfType('teacher'); setPdfModalOpen(true); }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1 border border-slate-200 dark:border-slate-700"
+                >
+                  <Printer className="w-3.5 h-3.5 text-brand-500" />
+                  Print Slip
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto">

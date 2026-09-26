@@ -1283,26 +1283,63 @@ class RoutineStore {
             this.persist();
           }
 
-          // Auto-migrate Rajesh Singh September routine update (Friday Period 4 -> Period 5 Robotics, Dipika Thapa Period 4 English 2)
-          const rsFriOld = this.entries.find(e => e.id === 'rs-fri-4' || (e.teacher_id === 't-rajesh-singh' && e.day_of_week === 5 && e.period_num === 4));
-          if (rsFriOld) {
-            rsFriOld.id = 'rs-fri-5';
-            rsFriOld.period_num = 5;
-            const p5 = this.periods.find(p => p.period_num === 5);
-            rsFriOld.period_name = p5?.period_name || '5th Period';
-            rsFriOld.start_time = p5?.start_time;
-            rsFriOld.end_time = p5?.end_time;
-
-            const d7Old = this.entries.find(e => (e.id === 'd7' || e.teacher_id === 't-dipika-thapa') && e.day_of_week === 5 && e.period_num === 5);
-            if (d7Old) {
-              d7Old.period_num = 4;
-              const p4 = this.periods.find(p => p.period_num === 4);
-              d7Old.period_name = p4?.period_name || '4th Period';
-              d7Old.start_time = p4?.start_time;
-              d7Old.end_time = p4?.end_time;
+          // Auto-migrate & enforce Rajesh Singh September routine update:
+          // Friday Period 4 MUST be Free for Rajesh Singh, Friday Period 5 MUST be Class 5A Robotics
+          // Remove any duplicate or old Friday Period 4 entry for Rajesh Singh
+          this.entries = this.entries.filter(e => {
+            const isRS = e.teacher_id === 't-rajesh-singh' || e.teacher_id === '14de2742-ff92-4638-a48e-80e95a26d008' || (e.teacher_name && e.teacher_name.includes('Rajesh Singh'));
+            if (isRS && Number(e.day_of_week) === 5 && Number(e.period_num) === 4) {
+              return false; // Remove! Period 4 is free for Rajesh Singh
             }
-            this.persist();
+            return true;
+          });
+
+          // Ensure Rajesh Singh has Friday Period 5 Class 5A Robotics
+          const hasRSFri5 = this.entries.some(e => {
+            const isRS = e.teacher_id === 't-rajesh-singh' || e.teacher_id === '14de2742-ff92-4638-a48e-80e95a26d008' || (e.teacher_name && e.teacher_name.includes('Rajesh Singh'));
+            return isRS && Number(e.day_of_week) === 5 && Number(e.period_num) === 5;
+          });
+
+          if (!hasRSFri5) {
+            const p5 = this.periods.find(p => p.period_num === 5);
+            this.entries.push({
+              id: 'rs-fri-5',
+              version_id: 'v-2026-v1-published',
+              academic_year: '2026',
+              day_of_week: 5,
+              period_num: 5,
+              period_name: p5?.period_name || '5th Period',
+              start_time: p5?.start_time,
+              end_time: p5?.end_time,
+              teacher_id: 't-rajesh-singh',
+              teacher_name: 'Mr. Rajesh Singh',
+              class_id: 'c-5a',
+              class_name: '5',
+              section: 'A',
+              subject_name: 'Robotics',
+              entry_type: 'ROBOTICS'
+            });
           }
+
+          // Ensure Mrs. Dipika Thapa has Friday Period 4 English 2 (not Period 5)
+          const d7Old = this.entries.find(e => (e.id === 'd7' || e.teacher_id === 't-dipika-thapa') && e.day_of_week === 5 && e.period_num === 5);
+          if (d7Old) {
+            d7Old.period_num = 4;
+            const p4 = this.periods.find(p => p.period_num === 4);
+            d7Old.period_name = p4?.period_name || '4th Period';
+            d7Old.start_time = p4?.start_time;
+            d7Old.end_time = p4?.end_time;
+          }
+
+          // Deduplicate entries by (version_id, teacher_id, day_of_week, period_num) to prevent any duplicated slots
+          const seenSlots = new Set();
+          this.entries = this.entries.filter(e => {
+            const key = `${e.version_id || 'v1'}_${e.teacher_id}_${e.day_of_week}_${e.period_num}`;
+            if (seenSlots.has(key)) return false;
+            seenSlots.add(key);
+            return true;
+          });
+          this.persist();
 
           // Ensure default published version exists in versions
           if (!this.versions.some(v => v.id === 'v-2026-v1-published' || v.id === 'c0000000-2026-0001-0000-000000000001')) {
