@@ -33,6 +33,42 @@ export default function RoutineControlCentre({ currentUser }) {
   // Teacher-Centric Builder State
   const [selectedTeacherId, setSelectedTeacherId] = useState('');
   const [selectedTeacherData, setSelectedTeacherData] = useState(null);
+  const [teacherSearchQuery, setTeacherSearchQuery] = useState('');
+
+  // Filtered teachers list for rapid search
+  const filteredTeachersList = useMemo(() => {
+    if (!teacherSearchQuery.trim()) return teachersList;
+    const q = teacherSearchQuery.toLowerCase().trim();
+    return teachersList.filter(t => 
+      t.name.toLowerCase().includes(q) || 
+      (t.department && t.department.toLowerCase().includes(q))
+    );
+  }, [teachersList, teacherSearchQuery]);
+
+  const handleTeacherSearchChange = (query) => {
+    setTeacherSearchQuery(query);
+    if (!query.trim()) return;
+    const q = query.toLowerCase().trim();
+    const matches = teachersList.filter(t => 
+      t.name.toLowerCase().includes(q) || 
+      (t.department && t.department.toLowerCase().includes(q))
+    );
+    // If only 1 teacher matches, auto-select them immediately
+    if (matches.length === 1) {
+      setSelectedTeacherId(matches[0].id);
+    } else if (matches.length > 0 && !matches.some(m => m.id === selectedTeacherId)) {
+      setSelectedTeacherId(matches[0].id);
+    }
+  };
+
+  const handleTeacherSearchKeyDown = (e) => {
+    if (e.key === 'Enter' && filteredTeachersList.length > 0) {
+      e.preventDefault();
+      setSelectedTeacherId(filteredTeachersList[0].id);
+    } else if (e.key === 'Escape') {
+      setTeacherSearchQuery('');
+    }
+  };
 
   // Cell Editing Modal / Drawer State
   const [editingCell, setEditingCell] = useState(null); // { dayId, periodNum, entry }
@@ -1001,22 +1037,63 @@ export default function RoutineControlCentre({ currentUser }) {
       {activeSubTab === 'teacher_builder' && (
         <div className="space-y-4">
           {/* Teacher Selector Toolbar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div className="flex items-center gap-3">
-              <label className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 whitespace-nowrap">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <label className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 whitespace-nowrap flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-brand-500" />
                 Select Teacher:
               </label>
+
+              {/* Fast Search Bar */}
+              <div className="relative w-44 sm:w-56">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={teacherSearchQuery}
+                  onChange={e => handleTeacherSearchChange(e.target.value)}
+                  onKeyDown={handleTeacherSearchKeyDown}
+                  placeholder="Search name / subject..."
+                  className="w-full text-xs py-1.5 pl-8 pr-7 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all"
+                />
+                {teacherSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setTeacherSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded-full"
+                    title="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Teacher Dropdown Filtered by Search */}
               <select
-                className="input-field text-xs font-bold py-1.5 px-3 bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                className="input-field text-xs font-bold py-1.5 px-3 bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white max-w-[220px] sm:max-w-[280px]"
                 value={selectedTeacherId}
                 onChange={e => setSelectedTeacherId(e.target.value)}
               >
-                {teachersList.map(t => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} {t.department ? `(${t.department})` : ''}
+                {!filteredTeachersList.some(t => t.id === selectedTeacherId) && (
+                  <option value={selectedTeacherId} disabled>
+                    Current: {teachersList.find(t => t.id === selectedTeacherId)?.name || 'Selected Teacher'}
                   </option>
-                ))}
+                )}
+                {filteredTeachersList.length === 0 ? (
+                  <option value="" disabled>No teacher matches "{teacherSearchQuery}"</option>
+                ) : (
+                  filteredTeachersList.map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} {t.department ? `(${t.department})` : ''}
+                    </option>
+                  ))
+                )}
               </select>
+
+              {teacherSearchQuery && filteredTeachersList.length > 0 && (
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+                  {filteredTeachersList.length} {filteredTeachersList.length === 1 ? 'match' : 'matches'}
+                </span>
+              )}
             </div>
 
             {selectedTeacherData && (
@@ -1027,6 +1104,29 @@ export default function RoutineControlCentre({ currentUser }) {
               </div>
             )}
           </div>
+
+          {/* Quick Match Suggestion Chips when search has 2 to 6 matches */}
+          {teacherSearchQuery && filteredTeachersList.length > 1 && filteredTeachersList.length <= 6 && (
+            <div className="flex flex-wrap items-center gap-1.5 px-3.5 py-2 bg-brand-50/50 dark:bg-brand-950/20 rounded-xl border border-brand-200 dark:border-brand-900/40 text-xs">
+              <span className="text-brand-700 dark:text-brand-300 font-bold text-[11px] flex items-center gap-1">
+                <Sparkles className="w-3 h-3" /> Quick Pick:
+              </span>
+              {filteredTeachersList.map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setSelectedTeacherId(t.id)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                    t.id === selectedTeacherId
+                      ? 'bg-brand-600 text-white shadow-sm ring-2 ring-brand-400'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-brand-400 hover:text-brand-600 dark:hover:text-brand-400'
+                  }`}
+                >
+                  {t.name}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Status Notice Banner */}
           {statusNotice && (
