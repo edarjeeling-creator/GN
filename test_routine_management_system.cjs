@@ -296,8 +296,9 @@ const TEACHER_IDENTITY_MAP = {
 function normalizeName(name) {
   if (!name) return '';
   return name
+    .replace(/\s*\(.*?\).*/g, '') // Remove department / designation / parenthetical notes
     .toLowerCase()
-    .replace(/^(mr\.|mrs\.|ms\.|dr\.)\s*/, '')
+    .replace(/^(miss|mrs|mr|ms|dr)\.?\s*/i, '') // Remove honorifics with or without dot
     .replace(/[^a-z0-9]/g, '')
     .trim();
 }
@@ -2226,6 +2227,24 @@ runTest('Test 56: Verifying all 34 faculty resolve cleanly by Supabase Profile U
     assert.notStrictEqual(routine.teacherName, 'Teacher', `Teacher name for ${key} should not be generic 'Teacher'`);
     assert.ok(routine.totalAssignedPeriods > 0, `Teacher ${key} should have assigned periods`);
   }
+});
+
+runTest('Test 57: Selecting teacher with full department & class teacher annotations in hintName resolves all periods', () => {
+  const urRoutine = engine.getTeacherRoutine(
+    '215e579d-67a1-4401-a4a2-8f5e4c0bbf37',
+    'c0000000-2026-0001-0000-000000000001',
+    'Mrs. Urvashi Rumba (Biology & EVS (9 Sc Class Teacher))'
+  );
+  assert.strictEqual(urRoutine.totalAssignedPeriods, 28);
+  assert.strictEqual(urRoutine.teacherName, 'Mrs. Urvashi Rumba');
+
+  const sgRoutine = engine.getTeacherRoutine(
+    'bca2d46e-18a9-4484-8baa-ac441f267cf9',
+    'c0000000-2026-0001-0000-000000000001',
+    'Mr. Sagar Gurung (Mathematics, History & English (6B Class Teacher))'
+  );
+  assert.strictEqual(sgRoutine.totalAssignedPeriods, 28);
+  assert.strictEqual(sgRoutine.teacherName, 'Mr. Sagar Gurung');
 });
 
 console.log('\n================================================================');

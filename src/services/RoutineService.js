@@ -1255,6 +1255,8 @@ class RoutineStore {
   }
 
   init() {
+    const seed = getInitialSeedData();
+
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         const storedVersions = localStorage.getItem(KEY_VERSIONS);
@@ -1266,21 +1268,24 @@ class RoutineStore {
           this.auditLogs = JSON.parse(localStorage.getItem(KEY_AUDIT) || '[]');
           this.periods = JSON.parse(localStorage.getItem(KEY_PERIODS) || JSON.stringify(DEFAULT_PERIODS));
 
-          // Auto-heal: Ensure Subodh's authentic routine from handwritten sheets is present in localStorage
-          const subodhCount = this.entries.filter(e => 
-            e.teacher_id === 'c50b872e-ca97-44f7-ad84-d18f8e2f2ea5' || 
-            e.teacher_id === 't-subodh-rai' || 
-            (e.teacher_name && e.teacher_name.toLowerCase().includes('subodh'))
-          ).length;
+          // Ensure authentic master routine is fully present
+          // Seed has 811 authentic entries covering all 34 teachers from Principal's handwritten timetable
+          const existingIds = new Set(this.entries.map(e => e.id));
+          const missingSeedEntries = seed.entries.filter(e => !existingIds.has(e.id));
 
-          if (subodhCount < 29) {
-            const seed = getInitialSeedData();
-            const subodhSeedEntries = seed.entries.filter(e => e.teacher_id === 'c50b872e-ca97-44f7-ad84-d18f8e2f2ea5');
-            this.entries = this.entries.filter(e => 
-              e.teacher_id !== 'c50b872e-ca97-44f7-ad84-d18f8e2f2ea5' && 
-              e.teacher_id !== 't-subodh-rai' && 
-              !(e.teacher_name && e.teacher_name.toLowerCase().includes('subodh'))
-            ).concat(subodhSeedEntries);
+          if (this.entries.length < 500 || missingSeedEntries.length > 50) {
+            // Outdated cache upgrade: Merge all seed entries, keeping any custom user-added entries
+            const customEntries = this.entries.filter(e => !seed.entries.some(se => se.id === e.id));
+            this.entries = [...seed.entries, ...customEntries];
+            this.persist();
+          } else if (missingSeedEntries.length > 0) {
+            this.entries = [...this.entries, ...missingSeedEntries];
+            this.persist();
+          }
+
+          // Ensure default published version exists in versions
+          if (!this.versions.some(v => v.id === 'v-2026-v1-published' || v.id === 'c0000000-2026-0001-0000-000000000001')) {
+            this.versions.unshift(seed.versions[0]);
             this.persist();
           }
 
@@ -1291,7 +1296,6 @@ class RoutineStore {
       console.warn('LocalStorage read error, using in-memory fallback:', e);
     }
 
-    const seed = getInitialSeedData();
     this.versions = seed.versions;
     this.entries = seed.entries;
     this.acknowledgements = [];
@@ -1421,8 +1425,9 @@ export class RoutineService {
   static normalizeName(name) {
     if (!name) return '';
     return name
+      .replace(/\s*\(.*?\).*/g, '') // Remove department / designation / parenthetical notes
       .toLowerCase()
-      .replace(/^(mr\.|mrs\.|ms\.|dr\.)\s*/, '')
+      .replace(/^(miss|mrs|mr|ms|dr)\.?\s*/i, '') // Remove honorifics with or without dot
       .replace(/[^a-z0-9]/g, '')
       .trim();
   }
@@ -1485,8 +1490,10 @@ export class RoutineService {
   static async getMasterRoutine(versionId, filters = {}) {
     let entries = [];
     const isTargetPublished = (
+      !versionId ||
       versionId === 'c0000000-2026-0001-0000-000000000001' ||
-      versionId === 'v-2026-v1-published'
+      versionId === 'v-2026-v1-published' ||
+      String(versionId).includes('published')
     );
 
     try {
@@ -1513,6 +1520,17 @@ export class RoutineService {
       if (!error && data && data.length > 0) {
         if (!filters.teacher_id && isTargetPublished && data.length < 500) {
           // If master routine table has only partial seed, prefer complete memoryStore
+        } else if (filters.teacher_id && isTargetPublished && data.length < 15) {
+          // If Supabase returned an incomplete stub for a teacher in published version, check if memoryStore has the fuller schedule
+          const aliases = this.resolveTeacherAliases(filters.teacher_id, filters.teacher_name);
+          const memCount = memoryStore.entries.filter(e => {
+            return aliases.has(e.teacher_id) || aliases.has(e.teacher_name) || (e.teacher_name && aliases.has(this.normalizeName(e.teacher_name)));
+          }).length;
+          if (memCount > data.length) {
+            // Memory store has fuller authentic schedule
+          } else {
+            entries = data;
+          }
         } else {
           entries = data;
         }
@@ -1522,12 +1540,21 @@ export class RoutineService {
     }
 
     if (entries.length === 0) {
-      entries = memoryStore.entries.filter(e => {
-        if (isTargetPublished) {
-          return e.version_id === 'v-2026-v1-published' || e.version_id === 'c0000000-2026-0001-0000-000000000001';
-        }
-        return e.version_id === versionId;
-      });
+      let pool = memoryStore.entries;
+
+      // Filter by version if specific version entries exist
+      const versionSpecific = pool.filter(e => e.version_id === versionId);
+      if (versionSpecific.length > 0) {
+        pool = versionSpecific;
+      } else if (isTargetPublished) {
+        pool = pool.filter(e => e.version_id === 'v-2026-v1-published' || e.version_id === 'c0000000-2026-0001-0000-000000000001');
+      }
+
+      // If pool filtered to 0, use all master entries
+      if (pool.length === 0) {
+        pool = memoryStore.entries;
+      }
+      entries = pool;
 
       if (filters.day_of_week) {
         entries = entries.filter(e => e.day_of_week === Number(filters.day_of_week));
@@ -1543,6 +1570,10 @@ export class RoutineService {
         });
       }
 
+      if (filters.class_id) {
+        entries = entries.filter(e => e.class_id === filters.class_id);
+      }
+
       if (filters.entry_type) {
         entries = entries.filter(e => e.entry_type === filters.entry_type);
       }
@@ -1556,8 +1587,35 @@ export class RoutineService {
    * Returns a 5-day x 9-period matrix for a specific teacher.
    * Free periods are marked with is_free: true.
    */
-  static async getTeacherRoutine(teacherId, versionId, teacherNameHint = '') {
-    const entries = await this.getMasterRoutine(versionId, { teacher_id: teacherId, teacher_name: teacherNameHint });
+  static async getTeacherRoutine(teacherId, versionId, teacherNameHint = '', cachedEntries = null) {
+    let entries = [];
+    const aliases = this.resolveTeacherAliases(teacherId, teacherNameHint);
+
+    // 1. Try from cachedEntries if provided and non-empty
+    if (cachedEntries && Array.isArray(cachedEntries) && cachedEntries.length > 0) {
+      entries = cachedEntries.filter(e => {
+        if (aliases.has(e.teacher_id)) return true;
+        if (aliases.has(e.teacher_name)) return true;
+        if (e.teacher_name && aliases.has(this.normalizeName(e.teacher_name))) return true;
+        return false;
+      });
+    }
+
+    // 2. Query master routine if not found in cache
+    if (entries.length === 0) {
+      entries = await this.getMasterRoutine(versionId, { teacher_id: teacherId, teacher_name: teacherNameHint });
+    }
+
+    // 3. Resilient fallback: Search memoryStore directly across all aliases
+    if (entries.length === 0) {
+      entries = memoryStore.entries.filter(e => {
+        if (aliases.has(e.teacher_id)) return true;
+        if (aliases.has(e.teacher_name)) return true;
+        if (e.teacher_name && aliases.has(this.normalizeName(e.teacher_name))) return true;
+        return false;
+      });
+    }
+
     const periods = this.getPeriods();
     
     // Construct 5 days x periods matrix

@@ -272,7 +272,7 @@ export default function RoutineControlCentre({ currentUser }) {
     if (!selectedTeacherId || !selectedVersionId) return;
     const selectedTeacherObj = teachersList.find(t => t.id === selectedTeacherId);
     const hintName = selectedTeacherObj?.name || '';
-    RoutineService.getTeacherRoutine(selectedTeacherId, selectedVersionId, hintName).then(res => {
+    RoutineService.getTeacherRoutine(selectedTeacherId, selectedVersionId, hintName, masterEntries).then(res => {
       setSelectedTeacherData(res);
     });
   }, [selectedTeacherId, selectedVersionId, masterEntries, teachersList]);
