@@ -122,11 +122,13 @@ DO $$ BEGIN
             UNIQUE (version_id, teacher_id, day_of_week, period_num);
     END IF;
     
+    -- Drop overly restrictive class unique constraint to support parallel electives (Art/Music) and Library co-teaching
+    ALTER TABLE public.master_routine DROP CONSTRAINT IF EXISTS master_routine_version_class_day_period_key;
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'master_routine_version_class_day_period_key'
+        SELECT 1 FROM pg_constraint WHERE conname = 'master_routine_version_class_day_period_teacher_key'
     ) THEN
-        ALTER TABLE public.master_routine ADD CONSTRAINT master_routine_version_class_day_period_key 
-            UNIQUE (version_id, class_id, day_of_week, period_num);
+        ALTER TABLE public.master_routine ADD CONSTRAINT master_routine_version_class_day_period_teacher_key 
+            UNIQUE (version_id, class_id, day_of_week, period_num, teacher_id);
     END IF;
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
