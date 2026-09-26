@@ -144,6 +144,20 @@ const TEACHER_IDENTITY_MAP = {
     fullName: 'Mr. Prajwal Singh',
     department: 'Physical Education & Games'
   },
+  'Mr. Thendup Bhutia': {
+    slug: 't-thendup-bhutia',
+    profileId: 't-thendup-bhutia',
+    name: 'Thendup Bhutia',
+    fullName: 'Mr. Thendup Bhutia',
+    department: 'Physical Training Instructor (PTI)'
+  },
+  'Mr. Ashisraj Gurung': {
+    slug: 't-ashisraj-gurung',
+    profileId: 't-ashisraj-gurung',
+    name: 'Ashisraj Gurung',
+    fullName: 'Mr. Ashisraj Gurung',
+    department: 'Physical Training Instructor (PTI)'
+  },
   'Physical Training Instructors (PTI)': {
     slug: 't-pti',
     profileId: '1a0a2998-da0e-4ad5-9505-1514b423825d',
@@ -338,6 +352,28 @@ function resolveTeacherAliases(teacherId, hintName = '') {
     aliases.add(normalizeName(info.name));
     aliases.add(normalizeName(info.fullName));
   }
+
+  // Unify PTI faculty aliases: Mr. Thendup Bhutia and Mr. Ashisraj Gurung share this exact timetable
+  const isPTI = (
+    teacherId === 't-pti' || teacherId === 't-thendup-bhutia' || teacherId === 't-ashisraj-gurung' ||
+    (info && (info.slug === 't-pti' || info.slug === 't-thendup-bhutia' || info.slug === 't-ashisraj-gurung')) ||
+    (hintName && /thendup|ashisraj|ashis|bhutia|pti|physical training instructor/i.test(hintName))
+  );
+  if (isPTI) {
+    aliases.add('t-pti');
+    aliases.add('t-thendup-bhutia');
+    aliases.add('t-ashisraj-gurung');
+    aliases.add('Physical Training Instructors (PTI)');
+    aliases.add('Mr. Thendup Bhutia');
+    aliases.add('Thendup Bhutia');
+    aliases.add('Mr. Ashisraj Gurung');
+    aliases.add('Ashisraj Gurung');
+    aliases.add('PTI');
+    aliases.add(normalizeName('Physical Training Instructors (PTI)'));
+    aliases.add(normalizeName('Mr. Thendup Bhutia'));
+    aliases.add(normalizeName('Mr. Ashisraj Gurung'));
+  }
+
   return aliases;
 }
 
@@ -481,11 +517,47 @@ class TestRoutineEngine {
       { id: 'rk5', version_id: versionId, day_of_week: 2, period_num: 5, teacher_id: 't-rakesh-rai', teacher_name: 'Mr. Rakesh Rai', class_id: 'c-5a', class_name: '5', section: 'A', subject_name: 'Art & Craft', entry_type: 'DRAWING' },
       { id: 'rk6', version_id: versionId, day_of_week: 2, period_num: 9, teacher_id: 't-rakesh-rai', teacher_name: 'Mr. Rakesh Rai', class_id: 'c-5a', class_name: '5', section: 'A', subject_name: 'Weekly Test', entry_type: 'TEST' },
 
-      // PTI: PT / Games / Assembly
-      { id: 'pt1', version_id: versionId, day_of_week: 2, period_num: 1, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-school', class_name: 'All', section: '', subject_name: 'Morning Assembly', entry_type: 'ASSEMBLY' },
-      { id: 'pt2', version_id: versionId, day_of_week: 2, period_num: 4, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-8b', class_name: '8', section: 'B', subject_name: 'PT / Games', entry_type: 'GAMES' },
-      { id: 'pt3', version_id: versionId, day_of_week: 2, period_num: 5, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-8b', class_name: '8', section: 'B', subject_name: 'PT / Games', entry_type: 'GAMES' },
-      { id: 'pt4', version_id: versionId, day_of_week: 2, period_num: 9, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-7b', class_name: '7', section: 'B', subject_name: 'Weekly Test', entry_type: 'TEST' },
+      // 8. PTI's (Mr. Thendup Bhutia & Mr. Ashisraj Gurung - Sports, PT, Games & Taekwondo)
+      // Monday (5): P3 12H Physical Education, P4 9Sc PT/Games, P6 11Sc Physical Education, P7 11H Physical Education, P9 9H + 5A PT/Games
+      { id: 'pt-mon-3', version_id: versionId, day_of_week: 1, period_num: 3, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-12h', class_name: '12', section: 'H', subject_name: 'Physical Education', entry_type: 'GAMES', notes: 'PTI: Thendup Bhutia & Ashisraj Gurung' },
+      { id: 'pt-mon-4', version_id: versionId, day_of_week: 1, period_num: 4, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-9sc', class_name: '9', section: 'Sc', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'PTI: Thendup Bhutia & Ashisraj Gurung' },
+      { id: 'pt-mon-6', version_id: versionId, day_of_week: 1, period_num: 6, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-11sc', class_name: '11', section: 'Sc', subject_name: 'Physical Education', entry_type: 'GAMES', notes: 'PTI: Thendup Bhutia & Ashisraj Gurung' },
+      { id: 'pt-mon-7', version_id: versionId, day_of_week: 1, period_num: 7, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-11h', class_name: '11', section: 'H', subject_name: 'Physical Education', entry_type: 'GAMES', notes: 'PTI: Thendup Bhutia & Ashisraj Gurung' },
+      { id: 'pt-mon-9', version_id: versionId, day_of_week: 1, period_num: 9, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-9h-5a', class_name: '9H + 5A', section: '', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'Joint PT / Games: 9H & 5A' },
+
+      // Tuesday (5): P1 Morning Assembly, P4 8B PT, P5 8B Games, P8 7B PT/Games, P9 7B Weekly Test
+      { id: 'pt1', version_id: versionId, day_of_week: 2, period_num: 1, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-school', class_name: 'All', section: '', subject_name: 'Morning Assembly', entry_type: 'ASSEMBLY', notes: 'Whole School Morning Assembly' },
+      { id: 'pt2', version_id: versionId, day_of_week: 2, period_num: 4, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-8b', class_name: '8', section: 'B', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'Physical Training' },
+      { id: 'pt3', version_id: versionId, day_of_week: 2, period_num: 5, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-8b', class_name: '8', section: 'B', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'Outdoor Games' },
+      { id: 'pt-tue-8', version_id: versionId, day_of_week: 2, period_num: 8, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-7b', class_name: '7', section: 'B', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'PTI: Thendup Bhutia & Ashisraj Gurung' },
+      { id: 'pt4', version_id: versionId, day_of_week: 2, period_num: 9, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-7b', class_name: '7', section: 'B', subject_name: 'Weekly Test', entry_type: 'TEST', notes: 'Weekly Test Supervision' },
+
+      // Wednesday (6): P2 10H PT/Games, P4 5B PT, P5 5B Games, P7 6B PT, P8 6B Games, P9 9Sc + 5A PT/Games
+      { id: 'pt-wed-2', version_id: versionId, day_of_week: 3, period_num: 2, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-10h', class_name: '10', section: 'H', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'PTI: Thendup Bhutia & Ashisraj Gurung' },
+      { id: 'pt-wed-4', version_id: versionId, day_of_week: 3, period_num: 4, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-5b', class_name: '5', section: 'B', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'Physical Training' },
+      { id: 'pt-wed-5', version_id: versionId, day_of_week: 3, period_num: 5, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-5b', class_name: '5', section: 'B', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'Outdoor Games' },
+      { id: 'pt-wed-7', version_id: versionId, day_of_week: 3, period_num: 7, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-6b', class_name: '6', section: 'B', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'Physical Training' },
+      { id: 'pt-wed-8', version_id: versionId, day_of_week: 3, period_num: 8, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-6b', class_name: '6', section: 'B', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'Outdoor Games' },
+      { id: 'pt-wed-9', version_id: versionId, day_of_week: 3, period_num: 9, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-9sc-5a', class_name: '9Sc + 5A', section: '', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'Joint PT / Games: 9Sc & 5A' },
+
+      // Thursday (8): P1 10Sc PT/Games, P2 7A PT/Games, P4 8A PT, P5 8A Games, P6 12Sc Physical Education, P7 6A PT, P8 6A Games, P9 5A + 6A PT/Games
+      { id: 'pt-thu-1', version_id: versionId, day_of_week: 4, period_num: 1, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-10sc', class_name: '10', section: 'Sc', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'PTI: Thendup Bhutia & Ashisraj Gurung' },
+      { id: 'pt-thu-2', version_id: versionId, day_of_week: 4, period_num: 2, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-7a', class_name: '7', section: 'A', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'PTI: Thendup Bhutia & Ashisraj Gurung' },
+      { id: 'pt-thu-4', version_id: versionId, day_of_week: 4, period_num: 4, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-8a', class_name: '8', section: 'A', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'Physical Training' },
+      { id: 'pt-thu-5', version_id: versionId, day_of_week: 4, period_num: 5, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-8a', class_name: '8', section: 'A', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'Outdoor Games' },
+      { id: 'pt-thu-6', version_id: versionId, day_of_week: 4, period_num: 6, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-12sc', class_name: '12', section: 'Sc', subject_name: 'Physical Education', entry_type: 'GAMES', notes: 'PTI: Thendup Bhutia & Ashisraj Gurung' },
+      { id: 'pt-thu-7', version_id: versionId, day_of_week: 4, period_num: 7, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-6a', class_name: '6', section: 'A', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'Physical Training' },
+      { id: 'pt-thu-8', version_id: versionId, day_of_week: 4, period_num: 8, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-6a', class_name: '6', section: 'A', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'Outdoor Games' },
+      { id: 'pt-thu-9', version_id: versionId, day_of_week: 4, period_num: 9, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-5a-6a', class_name: '5A + 6A', section: '', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'Joint PT / Games: 5A & 6A' },
+
+      // Friday (7): P3 5A Taekwondo, P4 7A Taekwondo, P5 6B Taekwondo, P6 9H PT/Games, P7 5A PT, P8 5A Games, P9 5B + 6B PT/Games
+      { id: 'pt-fri-3', version_id: versionId, day_of_week: 5, period_num: 3, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-5a', class_name: '5', section: 'A', subject_name: 'Taekwondo', entry_type: 'GAMES', notes: 'Taekwondo Martial Arts' },
+      { id: 'pt-fri-4', version_id: versionId, day_of_week: 5, period_num: 4, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-7a', class_name: '7', section: 'A', subject_name: 'Taekwondo', entry_type: 'GAMES', notes: 'Taekwondo Martial Arts' },
+      { id: 'pt-fri-5', version_id: versionId, day_of_week: 5, period_num: 5, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-6b', class_name: '6', section: 'B', subject_name: 'Taekwondo', entry_type: 'GAMES', notes: 'Taekwondo Martial Arts' },
+      { id: 'pt-fri-6', version_id: versionId, day_of_week: 5, period_num: 6, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-9h', class_name: '9', section: 'H', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'PTI: Thendup Bhutia & Ashisraj Gurung' },
+      { id: 'pt-fri-7', version_id: versionId, day_of_week: 5, period_num: 7, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-5a', class_name: '5', section: 'A', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'Physical Training' },
+      { id: 'pt-fri-8', version_id: versionId, day_of_week: 5, period_num: 8, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-5a', class_name: '5', section: 'A', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'Outdoor Games' },
+      { id: 'pt-fri-9', version_id: versionId, day_of_week: 5, period_num: 9, teacher_id: 't-pti', teacher_name: 'Physical Training Instructors (PTI)', class_id: 'c-5b-6b', class_name: '5B + 6B', section: '', subject_name: 'PT / Games', entry_type: 'GAMES', notes: 'Joint PT / Games: 5B & 6B' },
 
       // Mr. Subodh Rai: 6 Math & Physics, 7 Physics & Chemistry (Class Teacher 7A)
       // Monday (5): 1st 7A Chem, 2nd 7B Phy, 6th 6B Math, 7th 6B Phy, 8th 6A Phy
@@ -1460,23 +1532,51 @@ class TestRoutineEngine {
       };
     });
 
-    const teacherName = tEntries[0]?.teacher_name || hintName || resolveTeacherName(teacherId) || 'Teacher';
+    let teacherName = 'Teacher';
+    if (teacherId === 't-thendup-bhutia' || (hintName && /thendup/i.test(hintName))) {
+      teacherName = 'Mr. Thendup Bhutia';
+    } else if (teacherId === 't-ashisraj-gurung' || (hintName && /ashisraj|ashis/i.test(hintName))) {
+      teacherName = 'Mr. Ashisraj Gurung';
+    } else if (tEntries[0]?.teacher_name) {
+      teacherName = tEntries[0].teacher_name;
+    } else if (resolveTeacherName(teacherId)) {
+      teacherName = resolveTeacherName(teacherId);
+    } else if (hintName) {
+      teacherName = hintName;
+    }
+
+    const periodMap = new Map();
+    tEntries.forEach(e => {
+      const key = `${e.day_of_week}_${e.period_num}`;
+      if (!periodMap.has(key)) {
+        periodMap.set(key, e);
+      }
+    });
+    const uniqueSlots = Array.from(periodMap.values());
+
     return {
       teacherId,
       teacherName,
       scheduleByDay,
-      totalAssignedPeriods: tEntries.length,
-      freePeriodsCount: (5 * 9) - tEntries.length
+      totalAssignedPeriods: uniqueSlots.length,
+      freePeriodsCount: (5 * 9) - uniqueSlots.length
     };
   }
 
   // Class projection
   getClassRoutine(className, section, versionId) {
-    const cEntries = this.entries.filter(e => 
-      e.version_id === versionId && 
-      String(e.class_name) === String(className) && 
-      (!section || String(e.section).toLowerCase() === String(section).toLowerCase())
-    );
+    const cEntries = this.entries.filter(e => {
+      if (e.version_id !== versionId) return false;
+      if (String(e.class_name) === String(className) && (!section || String(e.section).toLowerCase() === String(section).toLowerCase())) {
+        return true;
+      }
+      if (e.class_name && typeof e.class_name === 'string') {
+        const targetClean = `${className}${section || ''}`.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const entryClean = e.class_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (entryClean.includes(targetClean)) return true;
+      }
+      return false;
+    });
     const scheduleByDay = {};
     WORKING_DAYS.forEach(day => {
       scheduleByDay[day.id] = {
@@ -2358,6 +2458,69 @@ runTest('Test 60: Drag & drop swap via moveOrSwapTeacherPeriod cleanly interchan
     targetPeriod: 2,
     isSwap: true
   });
+});
+
+runTest('Test 61: Mr. Thendup Bhutia weekly schedule captures 31 assigned periods and 14 free periods', () => {
+  const tbRoutine = engine.getTeacherRoutine('t-thendup-bhutia', 'v-2026-v1-published', 'Mr. Thendup Bhutia');
+  assert.strictEqual(tbRoutine.teacherName, 'Mr. Thendup Bhutia');
+  assert.strictEqual(tbRoutine.totalAssignedPeriods, 31);
+  assert.strictEqual(tbRoutine.freePeriodsCount, 14); // 45 - 31 = 14
+  
+  // Verify Monday schedule: 5 periods assigned (P3, P4, P6, P7, P9)
+  const mon = tbRoutine.scheduleByDay[1];
+  assert.strictEqual(mon.periods.filter(p => !p.is_free).length, 5);
+  assert.strictEqual(mon.periods.filter(p => p.is_free).length, 4);
+});
+
+runTest('Test 62: Mr. Ashisraj Gurung weekly schedule captures 31 assigned periods and 14 free periods', () => {
+  const agRoutine = engine.getTeacherRoutine('t-ashisraj-gurung', 'v-2026-v1-published', 'Mr. Ashisraj Gurung');
+  assert.strictEqual(agRoutine.teacherName, 'Mr. Ashisraj Gurung');
+  assert.strictEqual(agRoutine.totalAssignedPeriods, 31);
+  assert.strictEqual(agRoutine.freePeriodsCount, 14); // 45 - 31 = 14
+
+  // Verify Thursday schedule: 8 periods assigned (P1, P2, P4, P5, P6, P7, P8, P9)
+  const thu = agRoutine.scheduleByDay[4];
+  assert.strictEqual(thu.periods.filter(p => !p.is_free).length, 8);
+  assert.strictEqual(thu.periods.filter(p => p.is_free).length, 1);
+});
+
+runTest('Test 63: PTI Friday schedule captures Taekwondo block (P3 5A, P4 7A, P5 6B) and 5A PT/Games', () => {
+  const ptiRoutine = engine.getTeacherRoutine('t-pti', 'v-2026-v1-published', 'Physical Training Instructors (PTI)');
+  assert.strictEqual(ptiRoutine.totalAssignedPeriods, 31);
+  assert.strictEqual(ptiRoutine.freePeriodsCount, 14);
+
+  const fri = ptiRoutine.scheduleByDay[5];
+  // P3 5A Taekwondo
+  assert.strictEqual(fri.periods[2].entry.subject_name, 'Taekwondo');
+  assert.strictEqual(fri.periods[2].entry.class_name, '5');
+  assert.strictEqual(fri.periods[2].entry.section, 'A');
+
+  // P4 7A Taekwondo
+  assert.strictEqual(fri.periods[3].entry.subject_name, 'Taekwondo');
+  assert.strictEqual(fri.periods[3].entry.class_name, '7');
+  assert.strictEqual(fri.periods[3].entry.section, 'A');
+
+  // P5 6B Taekwondo
+  assert.strictEqual(fri.periods[4].entry.subject_name, 'Taekwondo');
+  assert.strictEqual(fri.periods[4].entry.class_name, '6');
+  assert.strictEqual(fri.periods[4].entry.section, 'B');
+
+  // P7 5A PT & P8 5A Games
+  assert.strictEqual(fri.periods[6].entry.subject_name, 'PT / Games');
+  assert.strictEqual(fri.periods[7].entry.subject_name, 'PT / Games');
+});
+
+runTest('Test 64: PTI sessions (9H + 5A, 12H Physical Education) appear in class routines', () => {
+  const cls9h = engine.getClassRoutine('9', 'H', 'v-2026-v1-published');
+  const monP9_9h = cls9h.scheduleByDay[1].periods[8];
+  assert.ok(monP9_9h.entry);
+  assert.strictEqual(monP9_9h.entry.class_name, '9H + 5A');
+  assert.strictEqual(monP9_9h.entry.subject_name, 'PT / Games');
+
+  const cls12h = engine.getClassRoutine('12', 'H', 'v-2026-v1-published');
+  const monP3_12h = cls12h.scheduleByDay[1].periods[2];
+  assert.ok(monP3_12h.entry);
+  assert.strictEqual(monP3_12h.entry.subject_name, 'Physical Education');
 });
 
 console.log('\n================================================================');

@@ -192,7 +192,9 @@ export default function RoutineControlCentre({ currentUser }) {
         { id: 'c238361e-59f3-4cd1-acd4-a4ce2462a082', name: 'Ms. Pratika Tamang', department: 'History (9H Class Teacher)' },
         { id: 'da9fd64d-adb4-47d1-a7d1-a6cea1545d69', name: 'Ms. Supriya Chettri', department: 'Science & Chemistry (5A Class Teacher)' },
         { id: '9c6b9967-cc9f-49ff-882f-59a1bf938896', name: 'Ms. Anupama Gurung', department: 'Nepali (5B Class Teacher)' },
-        { id: 't-pti', name: 'Physical Training Instructors (PTI)', department: 'Sports & Games' }
+        { id: 't-thendup-bhutia', name: 'Mr. Thendup Bhutia', department: 'Physical Training Instructor (PTI)' },
+        { id: 't-ashisraj-gurung', name: 'Mr. Ashisraj Gurung', department: 'Physical Training Instructor (PTI)' },
+        { id: 't-pti', name: 'Physical Training Instructors (PTI)', department: 'Sports & Games (Thendup & Ashisraj)' }
       ];
 
       // Enrich profiles with department & class teacher designations
