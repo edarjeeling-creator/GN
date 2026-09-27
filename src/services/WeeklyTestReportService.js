@@ -211,11 +211,14 @@ export class WeeklyTestReportService {
    */
   static async clearOldMarks({ academicYear = '2026', term = 'Finalterm', testDate = null }) {
     try {
-      // 1. Delete legacy public.marks for weekly test
+      // 1. Delete legacy public.marks for weekly tests across all test terms
       const legacyTerms = [
-        `${academicYear}_${term}_Test`,
-        `${academicYear}_${term === 'Finalterm' ? 'Final-Term' : 'Mid-Term'}_Test`,
-        `${academicYear}_${term === 'Finalterm' ? 'Final Term' : 'Mid Term'}_Test`
+        `${academicYear}_Finalterm_Test`,
+        `${academicYear}_Midterm_Test`,
+        `${academicYear}_Final-Term_Test`,
+        `${academicYear}_Mid-Term_Test`,
+        `${academicYear}_Final Term_Test`,
+        `${academicYear}_Mid Term_Test`
       ];
       try {
         await supabase
@@ -226,23 +229,57 @@ export class WeeklyTestReportService {
         console.warn('Notice deleting legacy marks:', e);
       }
 
-      // 2. Delete any weekly_test_reports snapshots for this term so report regenerates clean
+      // 2. Delete test components from student_marks_detailed
+      try {
+        const { data: testComps } = await supabase
+          .from('assessment_components')
+          .select('id')
+          .eq('component_code', 'TEST');
+        if (testComps && testComps.length > 0) {
+          const compIds = testComps.map(c => c.id);
+          await supabase
+            .from('student_marks_detailed')
+            .delete()
+            .in('component_id', compIds);
+        }
+      } catch (e) {
+        console.warn('Notice deleting detailed test marks:', e);
+      }
+
+      // 3. Delete weekly_tests and weekly_test_marks
+      try {
+        await supabase.from('weekly_test_marks').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('weekly_tests').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      } catch (e) {
+        console.warn('Notice deleting weekly_tests:', e);
+      }
+
+      // 4. Clear submission notes and dates on class_subject_mark_submissions
+      try {
+        await supabase
+          .from('class_subject_mark_submissions')
+          .update({ submission_notes: null, status: 'DRAFT' })
+          .not('submission_notes', 'is', null);
+      } catch (e) {
+        console.warn('Notice clearing submission notes:', e);
+      }
+
+      // 5. Delete any weekly_test_reports snapshots so report regenerates clean
       try {
         await supabase
           .from('weekly_test_reports')
           .delete()
-          .eq('academic_year', academicYear)
-          .eq('term', term);
+          .eq('academic_year', academicYear);
       } catch (e) {
         console.warn('Notice deleting weekly_test_reports:', e);
       }
 
-      // 3. Clear localStorage report caches
+      // 6. Clear localStorage report caches
       if (typeof window !== 'undefined' && window.localStorage) {
         const keysToRemove = [];
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
-          if (k && (k.startsWith('gn_weekly_test_') || k.startsWith('gn_report_') || k.startsWith('weekly_test_report_'))) {
+          if (k && (k.startsWith('gn_weekly_test_') || k.startsWith('gn_report_') || k.startsWith('weekly_test_report_') || k.includes('weekly_test'))) {
             keysToRemove.push(k);
           }
         }
