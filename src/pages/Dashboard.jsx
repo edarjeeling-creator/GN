@@ -3,7 +3,7 @@ import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  BookOpen, AlertCircle, CheckCircle, Clock, Users, Camera, 
+  BookOpen, AlertCircle, CheckCircle, CheckCircle2, Clock, Users, Camera, 
   ChevronDown, User, Send, AlertTriangle,
   Phone, MessageSquare, Edit2, Check, X,
   QrCode, ShieldCheck, MapPin, HelpCircle,
@@ -79,6 +79,22 @@ const Dashboard = () => {
   const [selectedNoticeForModal, setSelectedNoticeForModal] = useState(null);
   const [deletingNoticeId, setDeletingNoticeId] = useState(null);
   const [activeTopTab, setActiveTopTab] = useState('attendance'); // 'attendance' | 'notices' | 'routine'
+
+  // Scroll Container & Tab Refs for smooth horizontal scrolling
+  const tabsScrollContainerRef = useRef(null);
+  const tabRefs = useRef({});
+
+  // Auto-scroll active tab smoothly into view when activeTopTab changes
+  useEffect(() => {
+    const activeEl = tabRefs.current[activeTopTab];
+    if (activeEl && tabsScrollContainerRef.current) {
+      activeEl.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center'
+      });
+    }
+  }, [activeTopTab]);
 
   // Routine System States
   const [activeRoutineVersion, setActiveRoutineVersion] = useState(null);
@@ -514,107 +530,135 @@ const Dashboard = () => {
       
       {/* Top Tab Navigation Menu */}
       <div 
-        role="tablist" 
-        aria-label="Dashboard top navigation"
-        className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800/80 pb-2"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800/80 pb-2"
       >
+        {/* Scrollable Tabs Wrapper */}
         <div 
-          className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900/90 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-inner"
-          onKeyDown={(e) => {
-            if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-              e.preventDefault();
-              const nextTab = activeTopTab === 'attendance' ? 'notices' : 'attendance';
-              setActiveTopTab(nextTab);
-              document.getElementById(`tab-${nextTab}`)?.focus();
+          ref={tabsScrollContainerRef}
+          className="w-full sm:w-auto max-w-full overflow-x-auto tabs-scrollbar pb-2 sm:pb-1"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+          onWheel={(e) => {
+            if (Math.abs(e.deltaX) === 0 && Math.abs(e.deltaY) > 0 && tabsScrollContainerRef.current) {
+              tabsScrollContainerRef.current.scrollLeft += e.deltaY;
             }
           }}
         >
-          <button
-            id="tab-attendance"
-            role="tab"
-            type="button"
-            aria-selected={activeTopTab === 'attendance'}
-            aria-controls="panel-attendance"
-            tabIndex={activeTopTab === 'attendance' ? 0 : -1}
-            onClick={() => setActiveTopTab('attendance')}
-            className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl font-bold text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
-              activeTopTab === 'attendance'
-                ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
-            }`}
+          <div 
+            role="tablist" 
+            aria-label="Dashboard top navigation"
+            className="inline-flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900/90 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-inner min-w-max"
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                e.preventDefault();
+                const tabIds = ['attendance', 'notices', 'routine'];
+                const currentIndex = tabIds.indexOf(activeTopTab);
+                let nextIndex = 0;
+                if (e.key === 'ArrowRight') {
+                  nextIndex = (currentIndex + 1) % tabIds.length;
+                } else {
+                  nextIndex = (currentIndex - 1 + tabIds.length) % tabIds.length;
+                }
+                const nextTab = tabIds[nextIndex];
+                setActiveTopTab(nextTab);
+                document.getElementById(`tab-${nextTab}`)?.focus();
+              }
+            }}
           >
-            <ShieldCheck size={18} className={activeTopTab === 'attendance' ? 'text-white' : 'text-emerald-500 dark:text-emerald-400'} />
-            <span>Today's Attendance</span>
-            {myAttendanceToday?.check_in_time ? (
-              <span 
-                className={`w-2.5 h-2.5 rounded-full ${myAttendanceToday.check_out_time ? 'bg-emerald-400' : 'bg-emerald-400 animate-pulse'}`} 
-                title={myAttendanceToday.check_out_time ? 'Shift Completed' : 'Checked In'}
-              />
-            ) : (
-              <span 
-                className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" 
-                title="Pending check-in"
-              />
-            )}
-          </button>
+            <button
+              ref={el => { tabRefs.current['attendance'] = el; }}
+              id="tab-attendance"
+              role="tab"
+              type="button"
+              aria-selected={activeTopTab === 'attendance'}
+              aria-controls="panel-attendance"
+              tabIndex={activeTopTab === 'attendance' ? 0 : -1}
+              onClick={() => setActiveTopTab('attendance')}
+              className={`shrink-0 whitespace-nowrap flex items-center gap-2.5 px-4 py-2.5 rounded-xl font-bold text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer ${
+                activeTopTab === 'attendance'
+                  ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <ShieldCheck size={18} className={activeTopTab === 'attendance' ? 'text-white' : 'text-emerald-500 dark:text-emerald-400'} />
+              <span>Today's Attendance</span>
+              {myAttendanceToday?.check_in_time ? (
+                <span 
+                  className={`w-2.5 h-2.5 rounded-full shrink-0 ${myAttendanceToday.check_out_time ? 'bg-emerald-400' : 'bg-emerald-400 animate-pulse'}`} 
+                  title={myAttendanceToday.check_out_time ? 'Shift Completed' : 'Checked In'}
+                />
+              ) : (
+                <span 
+                  className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0" 
+                  title="Pending check-in"
+                />
+              )}
+            </button>
 
-          <button
-            id="tab-notices"
-            role="tab"
-            type="button"
-            aria-selected={activeTopTab === 'notices'}
-            aria-controls="panel-notices"
-            tabIndex={activeTopTab === 'notices' ? 0 : -1}
-            onClick={() => setActiveTopTab('notices')}
-            className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl font-bold text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 relative ${
-              activeTopTab === 'notices'
-                ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <Bell size={18} className={activeTopTab === 'notices' ? 'text-white' : 'text-amber-500 dark:text-amber-400'} />
-            <span>Notices & Circulars</span>
-            {recentNotices.length > 0 && (
-              <span className={`px-2 py-0.5 text-xs font-black rounded-full transition-colors ${
+            <button
+              ref={el => { tabRefs.current['notices'] = el; }}
+              id="tab-notices"
+              role="tab"
+              type="button"
+              aria-selected={activeTopTab === 'notices'}
+              aria-controls="panel-notices"
+              tabIndex={activeTopTab === 'notices' ? 0 : -1}
+              onClick={() => setActiveTopTab('notices')}
+              className={`shrink-0 whitespace-nowrap flex items-center gap-2.5 px-4 py-2.5 rounded-xl font-bold text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 relative cursor-pointer ${
                 activeTopTab === 'notices'
-                  ? 'bg-white text-brand-700 shadow-sm'
-                  : 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30'
-              }`}>
-                {recentNotices.length}
-              </span>
-            )}
-          </button>
+                  ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <Bell size={18} className={activeTopTab === 'notices' ? 'text-white' : 'text-amber-500 dark:text-amber-400'} />
+              <span>Notices & Circulars</span>
+              {recentNotices.length > 0 && (
+                <span className={`px-2 py-0.5 text-xs font-black rounded-full shrink-0 transition-colors ${
+                  activeTopTab === 'notices'
+                    ? 'bg-white text-brand-700 shadow-sm'
+                    : 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30'
+                }`}>
+                  {recentNotices.length}
+                </span>
+              )}
+            </button>
 
-          <button
-            id="tab-routine"
-            role="tab"
-            type="button"
-            aria-selected={activeTopTab === 'routine'}
-            aria-controls="panel-routine"
-            tabIndex={activeTopTab === 'routine' ? 0 : -1}
-            onClick={() => setActiveTopTab('routine')}
-            className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl font-bold text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 relative ${
-              activeTopTab === 'routine'
-                ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <Clock size={18} className={activeTopTab === 'routine' ? 'text-white' : 'text-blue-500 dark:text-blue-400'} />
-            <span>My Routine</span>
-            {activeRoutineVersion && !myAckStatus?.acknowledged_at && (
-              <span className="px-2 py-0.5 text-[10px] font-black rounded-full bg-amber-400 text-slate-950 animate-pulse">
-                Sign-off
-              </span>
-            )}
-          </button>
+            <button
+              ref={el => { tabRefs.current['routine'] = el; }}
+              id="tab-routine"
+              role="tab"
+              type="button"
+              aria-selected={activeTopTab === 'routine'}
+              aria-controls="panel-routine"
+              tabIndex={activeTopTab === 'routine' ? 0 : -1}
+              onClick={() => setActiveTopTab('routine')}
+              className={`shrink-0 whitespace-nowrap flex items-center gap-2.5 px-4 py-2.5 rounded-xl font-bold text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 relative cursor-pointer ${
+                activeTopTab === 'routine'
+                  ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <Clock size={18} className={activeTopTab === 'routine' ? 'text-white' : 'text-blue-500 dark:text-blue-400'} />
+              <span>My Routine</span>
+              {activeRoutineVersion && !myAckStatus?.acknowledged_at && (
+                <span className="px-2 py-0.5 text-[10px] font-black rounded-full bg-amber-400 text-slate-950 animate-pulse shrink-0">
+                  Sign-off
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Quick Context Summary */}
-        <div className="text-xs text-slate-500 dark:text-slate-400 hidden sm:flex items-center gap-2">
+        <div className="text-xs text-slate-500 dark:text-slate-400 hidden sm:flex items-center gap-2 shrink-0">
           {activeTopTab === 'attendance' ? (
             <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700/60">
               <span className="text-slate-400">Status:</span>
               <strong className="text-slate-700 dark:text-slate-200 font-semibold">{myAttendanceToday?.status || 'Not Marked'}</strong>
+            </span>
+          ) : activeTopTab === 'routine' ? (
+            <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700/60">
+              <Clock size={13} className="text-blue-500" />
+              <span>Routine: <strong className="text-slate-700 dark:text-slate-200 font-semibold">{activeRoutineVersion ? activeRoutineVersion.version_code : 'Standard'}</strong></span>
             </span>
           ) : (
             <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700/60">
@@ -990,7 +1034,7 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto tabs-scrollbar pb-1">
                   <table className="w-full border-collapse text-center text-xs">
                     <thead>
                       <tr className="bg-slate-100 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
