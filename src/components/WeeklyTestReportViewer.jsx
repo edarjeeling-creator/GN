@@ -1096,7 +1096,7 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
                     </div>
 
                     {studentsToRender.length === 0 ? (
-                      <div className="text-center py-4 text-xs text-slate-500 italic">No matching students found in this class.</div>
+                      <div className="text-center py-4 text-xs text-slate-500 italic">No marks entered for this weekly test yet.</div>
                     ) : (
                       <div className="overflow-x-auto">
                         <table className="w-full text-left text-xs text-slate-300">

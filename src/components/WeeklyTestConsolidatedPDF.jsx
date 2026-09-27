@@ -15,7 +15,7 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
   const honours = report.honours_data || [];
   const subjectHonours = report.subject_honours_data || report.summary_data?.subject_honours_data || [];
   const requiresAttention = report.requires_attention_data || [];
-  const classDetails = report.class_details_data || [];
+  const classDetails = (report.class_details_data || []).filter(cls => cls.roster && cls.roster.length > 0);
   const config = report.config_snapshot || {};
   const schoolName = branding?.school_name || config.school_branding?.school_name || 'Gyanoday Niketan';
   const sectionName = branding?.section_name || config.school_branding?.section_name || 'Senior School';

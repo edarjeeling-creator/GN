@@ -15,11 +15,11 @@
  * - Configurable thresholds and Coordinator integration
  */
 
-import { supabase } from '../lib/supabase';
-import { MarksCalculationEngine, getClassWeeklyTestMaxMarks } from './MarksCalculationEngine';
-import { formatStudentDisplayName } from '../utils/studentUtils';
-import { getStudentHouse } from '../utils/houseData';
-import { getTuesdayAssemblyReleaseDate, getISTDateParts } from '../utils/tuesdayAssemblySchedule';
+import { supabase } from '../lib/supabase.js';
+import { MarksCalculationEngine, getClassWeeklyTestMaxMarks } from './MarksCalculationEngine.js';
+import { formatStudentDisplayName } from '../utils/studentUtils.js';
+import { getStudentHouse } from '../utils/houseData.js';
+import { getTuesdayAssemblyReleaseDate, getISTDateParts } from '../utils/tuesdayAssemblySchedule.js';
 
 export { getClassWeeklyTestMaxMarks };
 
@@ -669,7 +669,7 @@ export class WeeklyTestReportService {
           if (s.submission_notes && s.submission_notes.includes('[TestDate:')) {
             return s.submission_notes.includes(resolvedTestDate);
           }
-          return true;
+          return false;
         });
       } else {
         submissions = (subData || []).filter(s => {
@@ -677,7 +677,7 @@ export class WeeklyTestReportService {
           if (s.submission_notes && s.submission_notes.includes('[TestDate:')) {
             return s.submission_notes.includes(resolvedTestDate);
           }
-          return true;
+          return false;
         });
       }
     } catch (err) {
@@ -1107,7 +1107,7 @@ export class WeeklyTestReportService {
           if (s.submission_notes && s.submission_notes.includes('[TestDate:')) {
             return s.submission_notes.includes(resolvedTestDate);
           }
-          return true;
+          return false;
         });
       } else {
         submissions = (subData || []).filter(s => {
@@ -1115,7 +1115,7 @@ export class WeeklyTestReportService {
           if (s.submission_notes && s.submission_notes.includes('[TestDate:')) {
             return s.submission_notes.includes(resolvedTestDate);
           }
-          return true;
+          return false;
         });
       }
     } catch (err) {
@@ -1277,45 +1277,36 @@ export class WeeklyTestReportService {
         ...dateWeeklyTests.map(wt => wt.subject_id)
       ]);
 
-      // If no date-specific submission found for this class, check if any submission in this term exists
+      // Fallback: If no submission/weekly_tests found for this test date, check if legacy marks exist
       if (testedSubjectIdSet.size === 0) {
-        const classSubs = (submissions || []).filter(s => s.class_id === clsProg.classId);
-        classSubs.forEach(s => testedSubjectIdSet.add(s.subject_id));
-      }
-
-      // If still none, check weekly_tests
-      if (testedSubjectIdSet.size === 0) {
-        const classWTs = (weeklyTests || []).filter(wt => wt.class_id === clsProg.classId);
-        classWTs.forEach(wt => testedSubjectIdSet.add(wt.subject_id));
+        clsProg.subjects.forEach(sub => {
+          const hasLegacy = clsStudents.some(st => {
+            const legScore = legacyMarksByStudentSub.get(`${st.id}_${sub.subjectId}`);
+            return legScore !== undefined && legScore !== null && legScore !== '';
+          });
+          if (hasLegacy) {
+            testedSubjectIdSet.add(sub.subjectId);
+          }
+        });
       }
 
       // Determine subjects to evaluate for this weekly test:
-      // In weekly tests, each class writes a test for a single designated subject (e.g. Computer Application).
+      // In weekly tests, each class writes a test for a designated subject (e.g. Computer Application).
       // We evaluate ONLY the tested subject to prevent multi-subject aggregation (which corrupts /25 to /150).
       let subjectsToProcess = [];
       if (testedSubjectIdSet.size > 0) {
         subjectsToProcess = clsProg.subjects.filter(s => testedSubjectIdSet.has(s.subjectId));
       }
 
-      // Fallback: If no submission/weekly_tests found, check if legacy marks exist
-      if (subjectsToProcess.length === 0) {
-        const subjectsWithLegacy = clsProg.subjects.filter(sub => {
-          return clsStudents.some(st => {
-            const legScore = legacyMarksByStudentSub.get(`${st.id}_${sub.subjectId}`);
-            return legScore !== undefined && legScore !== null && legScore !== '';
-          });
-        });
-        if (subjectsWithLegacy.length > 0) {
-          // Strictly evaluate only ONE subject to prevent multi-subject 150-mark corruption
-          subjectsToProcess = [subjectsWithLegacy[0]];
-        }
-      }
-
-      const testedSubjectName = subjectsToProcess.map(s => s.subjectName.trim()).join(', ') || null;
-      const testedTeacherName = subjectsToProcess.map(s => s.teacherName).filter(Boolean).join(', ') || null;
+      const testedSubjectName = subjectsToProcess.length > 0
+        ? subjectsToProcess.map(s => s.subjectName.trim()).join(', ')
+        : null;
+      const testedTeacherName = subjectsToProcess.length > 0
+        ? subjectsToProcess.map(s => s.teacherName).filter(Boolean).join(', ') || null
+        : null;
 
       // Process each assigned subject
-      for (const sub of (subjectsToProcess.length > 0 ? subjectsToProcess : clsProg.subjects)) {
+      for (const sub of subjectsToProcess) {
         const classSubKey = `${clsProg.classId}_${sub.subjectId}`;
         const submission = subMap.get(classSubKey);
         const weeklyTest = wtByClassSub.get(classSubKey);
@@ -1394,7 +1385,7 @@ export class WeeklyTestReportService {
       }
 
       // Generate subject-wise honours (Tuesday Assembly subject slips)
-      for (const sub of (subjectsToProcess.length > 0 ? subjectsToProcess : clsProg.subjects)) {
+      for (const sub of subjectsToProcess) {
         const subjectStudents = [];
         clsStudents.forEach(st => {
           const stRec = classStudentMap.get(st.id);
@@ -1448,8 +1439,8 @@ export class WeeklyTestReportService {
             section: clsProg.section || '',
             fullClassName,
             subjectId: sub.subjectId,
-            subject: sub.subjectName,
-            subjectName: sub.subjectName,
+            subject: sub.subjectName?.trim() || sub.subjectName,
+            subjectName: sub.subjectName?.trim() || sub.subjectName,
             teacherId: sub.teacherId,
             teacher: sub.teacherName || 'Subject Teacher',
             teacherName: sub.teacherName || 'Subject Teacher',
@@ -1645,8 +1636,8 @@ export class WeeklyTestReportService {
           className: clsProg.className,
           section: clsProg.section,
           fullClassName,
-          testedSubject: testedSubjectName,
-          testedTeacher: testedTeacherName,
+          testedSubject: null,
+          testedTeacher: null,
           maxMarks: classMaxMarks,
           topScorers: []
         });
@@ -1654,8 +1645,8 @@ export class WeeklyTestReportService {
         classDetailsData.push({
           classId: clsProg.classId,
           fullClassName,
-          testedSubject: testedSubjectName,
-          testedTeacher: testedTeacherName,
+          testedSubject: null,
+          testedTeacher: null,
           maxMarks: classMaxMarks,
           roster: []
         });
