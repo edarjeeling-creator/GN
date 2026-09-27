@@ -4,10 +4,10 @@ import { useAuth } from '../context/AuthContext';
 import { 
   Trophy, Download, RefreshCw, AlertTriangle, 
   Send, Calendar, ShieldAlert, BookOpen, FileText, 
-  Printer, Search, X
+  Printer, Search, X, Trash2
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
-import { WeeklyTestReportService } from '../services/WeeklyTestReportService';
+import { WeeklyTestReportService, formatConductedDate, getMostRecentTuesdayDate, getRecentTuesdayDates } from '../services/WeeklyTestReportService';
 import WeeklyTestConsolidatedPDF from './WeeklyTestConsolidatedPDF';
 import { getStudentHouse } from '../utils/houseData';
 import { formatStudentDisplayName } from '../utils/studentUtils';
@@ -145,6 +145,41 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
       await loadReports(selectedReportId, selectedTerm);
     } catch (err) {
       console.error('Error recompiling report:', err);
+    } finally {
+      setIsRefreshing(false);
+      setIsCompiling(false);
+    }
+  };
+
+  // Clear old / legacy marks
+  const handleClearOldMarks = async () => {
+    const confirmed = window.confirm(
+      `Clear old/previous test marks for ${selectedTerm} ${academicYear}?\n\nThis will remove previous test marks and report caches, allowing only recent test entries (such as Class 7A Computer Application for 22/09/2026) to be evaluated.`
+    );
+    if (!confirmed) return;
+
+    setIsRefreshing(true);
+    setIsCompiling(true);
+    try {
+      const res = await WeeklyTestReportService.clearOldMarks({
+        academicYear,
+        term: selectedTerm,
+        testDate: report?.test_date
+      });
+      alert(`Cleared ${res.clearedMarksCount} old mark records and ${res.clearedReportsCount} cached reports. Recompiling report now...`);
+      const compiled = await WeeklyTestReportService.generateConsolidatedReport({
+        academicYear,
+        term: selectedTerm,
+        isMondaySchedule: false,
+        generatedBy: profile?.id
+      });
+      setReport(compiled);
+      const arch = await WeeklyTestReportService.getReportArchive(academicYear);
+      setArchive(arch);
+      setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    } catch (err) {
+      console.error('Error clearing old marks:', err);
+      alert('Failed to clear old marks: ' + err.message);
     } finally {
       setIsRefreshing(false);
       setIsCompiling(false);
@@ -418,7 +453,7 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
             <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
               <span>{report?.week_identifier || 'Weekly Test'}</span>
               <span>•</span>
-              <span>Test Date: <strong className="text-slate-200">{report?.test_date}</strong></span>
+              <span>Test Date: <strong className="text-amber-300 font-bold">{formatConductedDate(report?.test_date)}</strong></span>
               <span>•</span>
               <span>Classes 5–12</span>
               {lastUpdated && (
@@ -457,6 +492,20 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
                 Mid-Term
               </button>
             </div>
+
+            {/* Clear Old Marks */}
+            {isPrincipalOrAdmin && (
+              <button
+                type="button"
+                onClick={handleClearOldMarks}
+                disabled={isRefreshing || isCompiling}
+                title="Clear legacy/old test marks so report only reflects current tests"
+                className="px-3 py-2 bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 hover:text-white rounded-xl border border-rose-800/80 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 size={14} />
+                <span className="hidden sm:inline">Clear Old Marks</span>
+              </button>
+            )}
 
             {/* Recompile / Refresh */}
             {isPrincipalOrAdmin && (
@@ -498,24 +547,61 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
 
         {/* Report Archive & Selector Bar */}
         <div className="mt-3 pt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
-          <div className="flex items-center gap-2">
-            <Calendar size={14} className="text-slate-400" />
-            <span className="font-semibold">Archive:</span>
-            {archive.length > 0 ? (
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Calendar size={14} className="text-amber-400" />
+              <span className="font-semibold text-slate-300">Conducted Date:</span>
               <select
-                value={selectedReportId || ''}
-                onChange={e => handleSelectReport(e.target.value)}
-                className="bg-slate-950 text-white font-medium px-3 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 text-xs"
+                value={report?.test_date || getMostRecentTuesdayDate()}
+                onChange={async (e) => {
+                  const targetDate = e.target.value;
+                  setIsRefreshing(true);
+                  setIsCompiling(true);
+                  try {
+                    const compiled = await WeeklyTestReportService.generateConsolidatedReport({
+                      academicYear,
+                      term: selectedTerm,
+                      testDate: targetDate,
+                      isMondaySchedule: false,
+                      generatedBy: profile?.id
+                    });
+                    setReport(compiled);
+                    setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+                  } catch (err) {
+                    console.error('Failed to change date:', err);
+                  } finally {
+                    setIsRefreshing(false);
+                    setIsCompiling(false);
+                  }
+                }}
+                className="bg-slate-950 text-white font-medium px-2.5 py-1.5 rounded-lg border border-slate-700 text-xs focus:outline-none focus:border-amber-400"
               >
-                {archive.map(a => (
-                  <option key={a.id} value={a.id}>
-                    {a.week_identifier} ({a.test_date}) — V{a.version} [{a.status}]
+                {getRecentTuesdayDates(6).map(d => (
+                  <option key={d.date} value={d.date}>
+                    {d.label} {d.isCurrentWeek ? '(Latest)' : ''}
                   </option>
                 ))}
               </select>
-            ) : (
-              <span className="text-slate-500 italic">Live In-Memory Compilation (Active)</span>
-            )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-slate-300">Archive:</span>
+              {archive.length > 0 ? (
+                <select
+                  value={selectedReportId || ''}
+                  onChange={e => handleSelectReport(e.target.value)}
+                  className="bg-slate-950 text-white font-medium px-3 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 text-xs"
+                >
+                  {archive.map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.week_identifier} ({formatConductedDate(a.test_date)}) — V{a.version} [{a.status}]
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="text-slate-500 italic">Live In-Memory Compilation (Active)</span>
+              )}
+            </div>
           </div>
 
           {/* Secondary WhatsApp action */}

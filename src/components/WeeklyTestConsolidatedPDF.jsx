@@ -6,7 +6,7 @@
  * Renders ONLY the immutable server-provided snapshot data.
  * Does NOT perform independent client-side ranking or calculations.
  */
-import { getClassWeeklyTestMaxMarks } from '../services/WeeklyTestReportService';
+import { getClassWeeklyTestMaxMarks, formatConductedDate } from '../services/WeeklyTestReportService';
 
 export default function WeeklyTestConsolidatedPDF({ report, branding = null, innerRef = null }) {
   if (!report) return null;
@@ -50,7 +50,7 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
               </div>
               <div>
                 <span className="text-slate-400 block uppercase text-[9px] font-bold">Test Date</span>
-                <strong className="text-slate-900">{report.test_date}</strong>
+                <strong className="text-slate-900">{formatConductedDate(report.test_date)}</strong>
               </div>
               <div>
                 <span className="text-slate-400 block uppercase text-[9px] font-bold">Report Version</span>
@@ -236,7 +236,7 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
                   Tuesday Morning Assembly — Subject Slips Dossier
                 </h3>
                 <span className="text-xs text-slate-600 font-medium">
-                  {schoolName} • {report.week_identifier} ({report.test_date})
+                  {schoolName} • {report.week_identifier} ({formatConductedDate(report.test_date)})
                 </span>
               </div>
               <span className="text-[10px] font-bold uppercase bg-amber-100 text-amber-900 px-2 py-1 rounded border border-amber-300">
@@ -311,7 +311,7 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
                   {cls.fullClassName} — Detailed Marksheet
                 </h3>
                 <span className="text-xs text-slate-600 font-medium">
-                  {schoolName} • {report.week_identifier} ({report.test_date})
+                  {schoolName} • {report.week_identifier} ({formatConductedDate(report.test_date)})
                 </span>
               </div>
               <span className="text-[10px] font-bold uppercase bg-slate-100 text-slate-700 px-2 py-1 rounded border">

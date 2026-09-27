@@ -37,6 +37,72 @@ export function getUpcomingTuesdayDate(date = new Date()) {
 }
 
 /**
+ * Returns ISO YYYY-MM-DD date string of the most recent conducted Tuesday test
+ * (e.g., if today is Sunday 27/09/2026, the conducted test was last Tuesday 22/09/2026)
+ */
+export function getMostRecentTuesdayDate(date = new Date()) {
+  try {
+    const ist = getISTDateParts(date);
+    let daysSinceTuesday = 0;
+    if (ist.dayOfWeek === 2) {
+      daysSinceTuesday = 0; // Today is Tuesday
+    } else if (ist.dayOfWeek > 2) {
+      daysSinceTuesday = ist.dayOfWeek - 2; // Wed=1, Thu=2, Fri=3, Sat=4
+    } else {
+      // Sunday (0) -> 5 days ago; Monday (1) -> 6 days ago
+      daysSinceTuesday = ist.dayOfWeek === 0 ? 5 : 6;
+    }
+    const d = new Date(date);
+    d.setDate(d.getDate() - daysSinceTuesday);
+    const resultParts = getISTDateParts(d);
+    return `${resultParts.year}-${String(resultParts.month + 1).padStart(2, '0')}-${String(resultParts.dayOfMonth).padStart(2, '0')}`;
+  } catch (e) {
+    return '2026-09-22';
+  }
+}
+
+/**
+ * Formats ISO YYYY-MM-DD into authentic school format: "22/09/2026 (Tuesday)"
+ */
+export function formatConductedDate(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const cleanStr = String(dateStr).split('T')[0].trim();
+    const [y, m, d] = cleanStr.split('-');
+    if (!y || !m || !d) return dateStr;
+    const dt = new Date(Number(y), Number(m) - 1, Number(d));
+    const dayName = dt.toLocaleDateString('en-US', { weekday: 'long' });
+    const formattedDate = `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+    return `${formattedDate} (${dayName})`;
+  } catch (e) {
+    return dateStr;
+  }
+}
+
+/**
+ * Returns a list of recent Tuesday test dates for UI dropdowns
+ */
+export function getRecentTuesdayDates(count = 6) {
+  const dates = [];
+  const mostRecent = getMostRecentTuesdayDate();
+  const [y, m, d] = mostRecent.split('-').map(Number);
+  const cur = new Date(y, m - 1, d);
+
+  for (let i = 0; i < count; i++) {
+    const dt = new Date(cur);
+    dt.setDate(cur.getDate() - (i * 7));
+    const parts = getISTDateParts(dt);
+    const iso = `${parts.year}-${String(parts.month + 1).padStart(2, '0')}-${String(parts.dayOfMonth).padStart(2, '0')}`;
+    dates.push({
+      date: iso,
+      formatted: formatConductedDate(iso),
+      isLatest: i === 0
+    });
+  }
+  return dates;
+}
+
+/**
  * Check if a PostgreSQL error indicates that an optional table is not yet deployed
  */
 function isTableMissingError(error) {
@@ -79,6 +145,116 @@ export const DEFAULT_WEEKLY_TEST_CONFIG = {
 
 export class WeeklyTestReportService {
   static getClassWeeklyTestMaxMarks = getClassWeeklyTestMaxMarks;
+  static getMostRecentTuesdayDate = getMostRecentTuesdayDate;
+  static formatConductedDate = formatConductedDate;
+  static getRecentTuesdayDates = getRecentTuesdayDates;
+
+  /**
+   * Discovers the latest test conducted date from actual teacher submissions / weekly_tests.
+   * If none found, defaults to the most recent Tuesday (e.g. 2026-09-22).
+   */
+  static async getLatestConductedTestDate(academicYear = '2026', term = 'Finalterm') {
+    try {
+      // 1. Check weekly_tests table for latest test_date with marks
+      const { data: wtData } = await supabase
+        .from('weekly_tests')
+        .select('test_date')
+        .order('test_date', { ascending: false })
+        .limit(10);
+      if (wtData && wtData.length > 0) {
+        const dates = wtData.map(w => w.test_date).filter(Boolean);
+        if (dates.length > 0) return dates[0];
+      }
+
+      // 2. Check class_subject_mark_submissions for test_date or submission_notes
+      const { data: subData } = await supabase
+        .from('class_subject_mark_submissions')
+        .select('test_date, submission_notes, updated_at')
+        .eq('academic_year', academicYear)
+        .order('updated_at', { ascending: false })
+        .limit(20);
+      if (subData && subData.length > 0) {
+        for (const s of subData) {
+          if (s.test_date) return s.test_date;
+          if (s.submission_notes && s.submission_notes.includes('[TestDate:')) {
+            const match = s.submission_notes.match(/\[TestDate:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\]/);
+            if (match && match[1]) return match[1];
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Notice resolving latest conducted test date:', err);
+    }
+
+    // 3. Check localStorage for any recently saved test date
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('gn_conducted_date_')) {
+            const val = localStorage.getItem(k);
+            if (val && /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(val)) {
+              return val;
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 4. Default to the most recent Tuesday
+    return getMostRecentTuesdayDate();
+  }
+
+  /**
+   * Clear old / legacy test marks from public.marks and cached reports
+   * so the current weekly test report starts completely clean.
+   */
+  static async clearOldMarks({ academicYear = '2026', term = 'Finalterm', testDate = null }) {
+    try {
+      // 1. Delete legacy public.marks for weekly test
+      const legacyTerms = [
+        `${academicYear}_${term}_Test`,
+        `${academicYear}_${term === 'Finalterm' ? 'Final-Term' : 'Mid-Term'}_Test`,
+        `${academicYear}_${term === 'Finalterm' ? 'Final Term' : 'Mid Term'}_Test`
+      ];
+      try {
+        await supabase
+          .from('marks')
+          .delete()
+          .in('term', legacyTerms);
+      } catch (e) {
+        console.warn('Notice deleting legacy marks:', e);
+      }
+
+      // 2. Delete any weekly_test_reports snapshots for this term so report regenerates clean
+      try {
+        await supabase
+          .from('weekly_test_reports')
+          .delete()
+          .eq('academic_year', academicYear)
+          .eq('term', term);
+      } catch (e) {
+        console.warn('Notice deleting weekly_test_reports:', e);
+      }
+
+      // 3. Clear localStorage report caches
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('gn_weekly_test_') || k.startsWith('gn_report_') || k.startsWith('weekly_test_report_'))) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+      }
+
+      return { success: true };
+    } catch (err) {
+      console.error('Error clearing old marks:', err);
+      return { success: false, error: err.message };
+    }
+  }
 
   /**
    * Fetch current system configuration from app_settings
@@ -339,9 +515,10 @@ export class WeeklyTestReportService {
       }
     }
 
+    const resolvedTestDate = testDate || (await this.getLatestConductedTestDate(academicYear, term));
     if (!cycle) {
       cycle = await this.getOrCreateCycle({
-        testDate: testDate || getUpcomingTuesdayDate(),
+        testDate: resolvedTestDate,
         academicYear
       });
     }
@@ -439,14 +616,32 @@ export class WeeklyTestReportService {
     try {
       const { data: subData, error: subErr } = await supabase
         .from('class_subject_mark_submissions')
-        .select('id, class_id, subject_id, teacher_id, term, status, pattern_id')
+        .select('id, class_id, subject_id, teacher_id, term, status, pattern_id, test_date, submission_notes')
         .eq('academic_year', academicYear)
         .in('term', termVariants)
         .in('class_id', safeClassIds);
       if (subErr) {
-        console.warn('Notice loading submissions:', subErr.message || subErr);
+        // Fallback without test_date if column is not yet present
+        const { data: subFallback } = await supabase
+          .from('class_subject_mark_submissions')
+          .select('id, class_id, subject_id, teacher_id, term, status, pattern_id, submission_notes')
+          .eq('academic_year', academicYear)
+          .in('term', termVariants)
+          .in('class_id', safeClassIds);
+        submissions = (subFallback || []).filter(s => {
+          if (s.submission_notes && s.submission_notes.includes('[TestDate:')) {
+            return s.submission_notes.includes(resolvedTestDate);
+          }
+          return true;
+        });
       } else {
-        submissions = subData || [];
+        submissions = (subData || []).filter(s => {
+          if (s.test_date) return s.test_date === resolvedTestDate;
+          if (s.submission_notes && s.submission_notes.includes('[TestDate:')) {
+            return s.submission_notes.includes(resolvedTestDate);
+          }
+          return true;
+        });
       }
     } catch (err) {
       console.warn('Notice loading submissions:', err?.message || err);
@@ -493,10 +688,14 @@ export class WeeklyTestReportService {
     let weeklyTests = [];
     let weeklyTestMarks = [];
     try {
-      const { data: wtData, error: wtErr } = await supabase
+      let wtQuery = supabase
         .from('weekly_tests')
         .select('*')
         .in('class_id', safeClassIds);
+      if (resolvedTestDate) {
+        wtQuery = wtQuery.eq('test_date', resolvedTestDate);
+      }
+      const { data: wtData, error: wtErr } = await wtQuery;
       if (wtErr) {
         console.warn('Notice loading weekly_tests:', wtErr.message || wtErr);
       } else {
@@ -764,7 +963,7 @@ export class WeeklyTestReportService {
     generatedBy = null,
     isMondaySchedule = false
   } = {}) {
-    const resolvedTestDate = testDate || getUpcomingTuesdayDate();
+    const resolvedTestDate = testDate || (await this.getLatestConductedTestDate(academicYear, term));
     // 1. Audit completion state
     const completion = await this.checkMarksCompletion({ cycleId, academicYear, testDate: resolvedTestDate, term });
     const { cycle, config, isDataComplete, missingSubmissions, classProgress } = completion;
@@ -855,14 +1054,32 @@ export class WeeklyTestReportService {
     try {
       const { data: subData, error: subErr } = await supabase
         .from('class_subject_mark_submissions')
-        .select('id, class_id, subject_id, teacher_id, term, status, pattern_id')
+        .select('id, class_id, subject_id, teacher_id, term, status, pattern_id, test_date, submission_notes')
         .eq('academic_year', academicYear)
         .in('term', termVariants)
         .in('class_id', safeClassIds);
       if (subErr) {
-        console.warn('Notice loading submissions:', subErr.message || subErr);
+        // Fallback without test_date if column is not yet present
+        const { data: subFallback } = await supabase
+          .from('class_subject_mark_submissions')
+          .select('id, class_id, subject_id, teacher_id, term, status, pattern_id, submission_notes')
+          .eq('academic_year', academicYear)
+          .in('term', termVariants)
+          .in('class_id', safeClassIds);
+        submissions = (subFallback || []).filter(s => {
+          if (s.submission_notes && s.submission_notes.includes('[TestDate:')) {
+            return s.submission_notes.includes(resolvedTestDate);
+          }
+          return true;
+        });
       } else {
-        submissions = subData || [];
+        submissions = (subData || []).filter(s => {
+          if (s.test_date) return s.test_date === resolvedTestDate;
+          if (s.submission_notes && s.submission_notes.includes('[TestDate:')) {
+            return s.submission_notes.includes(resolvedTestDate);
+          }
+          return true;
+        });
       }
     } catch (err) {
       console.warn('Notice loading submissions:', err?.message || err);
@@ -912,10 +1129,14 @@ export class WeeklyTestReportService {
     let weeklyTests = [];
     let weeklyTestMarks = [];
     try {
-      const { data: wtData, error: wtErr } = await supabase
+      let wtQuery = supabase
         .from('weekly_tests')
         .select('*')
         .in('class_id', safeClassIds);
+      if (resolvedTestDate) {
+        wtQuery = wtQuery.eq('test_date', resolvedTestDate);
+      }
+      const { data: wtData, error: wtErr } = await wtQuery;
       if (wtErr) {
         console.warn('Notice loading weekly_tests:', wtErr.message || wtErr);
       } else {

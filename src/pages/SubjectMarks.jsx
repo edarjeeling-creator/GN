@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { 
   ArrowLeft, Save, AlertCircle, CheckCircle2, Upload, Search, 
   Send, Lock, RefreshCw, AlertTriangle, ShieldCheck, Check, Info, FileText,
-  Trophy, Copy, Printer, Frown, Sparkles, MessageCircle, CheckCheck, Calendar
+  Trophy, Copy, Printer, Frown, Sparkles, MessageCircle, CheckCheck, Calendar, Trash2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { motion } from 'framer-motion';
@@ -17,6 +17,7 @@ import { MarksCalculationEngine } from '../services/MarksCalculationEngine';
 import { MarksWorkflowService } from '../services/MarksWorkflowService';
 import { getStudentHouse, getHouseBadgeColor } from '../utils/houseData';
 import { formatAssemblyDate, getTuesdayAssemblyReleaseDate } from '../utils/tuesdayAssemblySchedule';
+import { getMostRecentTuesdayDate, formatConductedDate } from '../services/WeeklyTestReportService';
 
 // Backward compatibility helper for legacy views, flowsheets, and reports
 export const getConversionConstants = (className) => {
@@ -40,6 +41,7 @@ const SubjectMarks = () => {
   [students, classId]);
 
   const [selectedTerm, setSelectedTerm] = useState('Midterm');
+  const [conductedDate, setConductedDate] = useState(() => getMostRecentTuesdayDate());
   const [patterns, setPatterns] = useState([]);
   const [activePattern, setActivePattern] = useState(null);
   const [submission, setSubmission] = useState(null);
@@ -87,6 +89,15 @@ const SubjectMarks = () => {
         patternId: activePattern?.id
       });
       setSubmission(sub);
+
+      if (sub?.test_date) {
+        setConductedDate(sub.test_date);
+      } else if (sub?.submission_notes) {
+        const match = sub.submission_notes.match(/\[TestDate:\s*([0-9-]+)\]/);
+        if (match) {
+          setConductedDate(match[1]);
+        }
+      }
 
       if (sub?.id) {
         const details = await MarksWorkflowService.getSubmissionDetailedMarks(sub.id);
@@ -398,6 +409,7 @@ _Sent via Gyanoday Niketan ERP_`;
         subjectId,
         academicYear,
         term: selectedTerm,
+        testDate: conductedDate,
         detailedMarksList: detailedPayload,
         legacyMarksPayload: legacyPayload
       });
@@ -409,6 +421,29 @@ _Sent via Gyanoday Niketan ERP_`;
       setSaveStatus('error');
       alert('Failed to save draft: ' + err.message);
     }
+  };
+
+  // Clear entered marks
+  const handleClearMarks = () => {
+    if (isReadOnly) return;
+    const confirmClear = window.confirm(
+      `Are you sure you want to clear all entered marks for ${cls?.name || 'Class'} - ${subject?.name || 'Subject'}?\n\nThis will reset all mark inputs so you can enter fresh scores.`
+    );
+    if (!confirmClear) return;
+
+    const clearedScores = {};
+    const clearedStatuses = {};
+    classStudents.forEach(st => {
+      components.forEach(comp => {
+        const key = `${st.id}_${comp.component_code}`;
+        clearedScores[key] = '';
+        clearedStatuses[key] = 'MARKED';
+      });
+    });
+
+    setRawScores(clearedScores);
+    setStatuses(clearedStatuses);
+    setSaveStatus('pending');
   };
 
   // Export Marks to Excel
@@ -607,7 +642,7 @@ _Sent via Gyanoday Niketan ERP_`;
       // 2. Call server RPC
       await MarksWorkflowService.submitForReview({
         submissionId: submission.id,
-        notes: `Submitted by ${profile?.name || 'Teacher'} on ${new Date().toLocaleDateString()}`
+        notes: `[TestDate: ${conductedDate}] Submitted by ${profile?.name || 'Teacher'} on ${new Date().toLocaleDateString()}`
       });
 
       alert('Marks submitted successfully to Coordinator Sir for verification.');
@@ -659,6 +694,52 @@ _Sent via Gyanoday Niketan ERP_`;
               {t === 'Midterm' ? 'Mid-Term Exam' : 'Final-Term Exam'}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Test Conducted Date Banner */}
+      <div className="p-3.5 rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-950/60 via-slate-900/90 to-slate-900 text-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex-shrink-0">
+            <Calendar size={20} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold text-white tracking-wide">Test Conducted Date:</span>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono">
+                {formatConductedDate(conductedDate)}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
+              Assessment date for this weekly test. Whichever test conducted date is latest displays on the Senior School Weekly Report.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          <input
+            type="date"
+            value={conductedDate}
+            disabled={isReadOnly}
+            onChange={e => {
+              setConductedDate(e.target.value);
+              setSaveStatus('pending');
+            }}
+            className="bg-slate-950 text-white font-medium px-3 py-1.5 rounded-xl border border-slate-700 text-xs focus:outline-none focus:border-amber-400 cursor-pointer disabled:opacity-50"
+          />
+          <button
+            type="button"
+            disabled={isReadOnly}
+            onClick={() => {
+              const lastTue = getMostRecentTuesdayDate();
+              setConductedDate(lastTue);
+              setSaveStatus('pending');
+            }}
+            title="Snap to last Tuesday (22/09/2026)"
+            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
+          >
+            Last Tue (22/09)
+          </button>
         </div>
       </div>
 
@@ -737,6 +818,16 @@ _Sent via Gyanoday Niketan ERP_`;
           <div className="flex items-center gap-2">
             {!isReadOnly && (
               <>
+                <button 
+                  type="button"
+                  onClick={handleClearMarks}
+                  disabled={isReadOnly}
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800/80 flex items-center gap-1.5 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+                  title="Clear all student marks in this marksheet"
+                >
+                  <Trash2 size={14} />
+                  <span>Clear Marks</span>
+                </button>
                 <button 
                   type="button"
                   onClick={handleSaveDraft}
@@ -859,6 +950,16 @@ _Sent via Gyanoday Niketan ERP_`;
                   accept=".xlsx, .xls"
                   className="hidden"
                 />
+
+                <button
+                  type="button"
+                  onClick={handleClearMarks}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800/80 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                  title="Clear all student marks in this marksheet"
+                >
+                  <Trash2 size={14} />
+                  <span>Clear</span>
+                </button>
               </>
             )}
           </div>

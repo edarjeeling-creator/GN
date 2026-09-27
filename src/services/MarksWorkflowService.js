@@ -122,6 +122,7 @@ export class MarksWorkflowService {
     subjectId,
     academicYear,
     term,
+    testDate = null,
     detailedMarksList = [], // array of { studentId, componentId, rawScore, convertedScore, status }
     legacyMarksPayload = []  // array of { student_id, subject_id, term, score }
   }) {
@@ -153,11 +154,70 @@ export class MarksWorkflowService {
       if (legErr) console.warn('Legacy marks sync notice:', legErr.message);
     }
 
-    // 3. Update submission timestamp
-    await supabase
-      .from('class_subject_mark_submissions')
-      .update({ updated_at: new Date().toISOString() })
-      .eq('id', submissionId);
+    // 3. Update submission timestamp & conducted test_date
+    const updatePayload = { 
+      updated_at: new Date().toISOString() 
+    };
+    if (testDate) {
+      updatePayload.test_date = testDate;
+      updatePayload.submission_notes = `[TestDate: ${testDate}]`;
+    }
+
+    try {
+      const { error: subErr } = await supabase
+        .from('class_subject_mark_submissions')
+        .update(updatePayload)
+        .eq('id', submissionId);
+
+      if (subErr) {
+        // If column test_date is pending in database schema, persist via submission_notes
+        await supabase
+          .from('class_subject_mark_submissions')
+          .update({ 
+            updated_at: new Date().toISOString(),
+            submission_notes: testDate ? `[TestDate: ${testDate}]` : undefined
+          })
+          .eq('id', submissionId);
+      }
+    } catch (e) {
+      console.warn('Submission update notice:', e);
+    }
+
+    // 4. Synchronize into weekly_tests & weekly_test_marks when testDate is provided
+    if (testDate && classId && subjectId) {
+      try {
+        const { data: wtData, error: wtErr } = await supabase
+          .from('weekly_tests')
+          .upsert([{
+            class_id: classId,
+            subject_id: subjectId,
+            test_date: testDate,
+            max_marks: 25,
+            status: 'Draft',
+            updated_at: new Date().toISOString()
+          }], { onConflict: 'class_id,subject_id,test_date' })
+          .select('id')
+          .maybeSingle();
+
+        if (!wtErr && wtData?.id) {
+          const testMarksToUpsert = detailedMarksList.map(m => ({
+            test_id: wtData.id,
+            student_id: m.studentId,
+            score: m.status === 'ABSENT' ? 0 : (m.rawScore !== null && m.rawScore !== undefined && m.rawScore !== '' ? Number(m.rawScore) : null),
+            is_absent: m.status === 'ABSENT',
+            updated_at: new Date().toISOString()
+          }));
+
+          if (testMarksToUpsert.length > 0) {
+            await supabase
+              .from('weekly_test_marks')
+              .upsert(testMarksToUpsert, { onConflict: 'test_id,student_id' });
+          }
+        }
+      } catch (err) {
+        console.warn('weekly_tests synchronization notice:', err);
+      }
+    }
 
     return { success: true };
   }
