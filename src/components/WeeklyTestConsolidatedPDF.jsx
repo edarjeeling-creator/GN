@@ -127,8 +127,15 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
                     key={clsHonour.classId} 
                     className="border border-slate-200 rounded-md p-2.5 bg-slate-50/60 break-inside-avoid"
                   >
-                    <div className="font-extrabold text-xs text-slate-900 border-b border-slate-200 pb-1 mb-1.5 flex justify-between">
-                      <span>{clsHonour.fullClassName}</span>
+                    <div className="font-extrabold text-xs text-slate-900 border-b border-slate-200 pb-1 mb-1.5 flex justify-between items-center">
+                      <div className="flex items-center gap-1.5">
+                        <span>{clsHonour.fullClassName}</span>
+                        {clsHonour.testedSubject && (
+                          <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                            {clsHonour.testedSubject}
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[10px] text-slate-500 font-semibold">Scale: Max {clsHonour.maxMarks || 25} Marks</span>
                     </div>
 
@@ -187,7 +194,7 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
                       return (
                         <div key={`${c.classId}_${s.studentId}`} className="flex justify-between border-b border-rose-100 py-0.5">
                           <span className="text-slate-800">
-                            <strong>{c.fullClassName}:</strong> {s.name} {s.house && `(${s.house})`}
+                            <strong>{c.fullClassName}{c.testedSubject ? ` (${c.testedSubject})` : ''}:</strong> {s.name} {s.house && `(${s.house})`}
                           </span>
                           <span className="font-mono font-bold text-rose-700 text-right">
                             <span>{s.total} / {studentMax} ({s.percentage}%)</span>
@@ -308,10 +315,10 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
             <div className="flex justify-between items-center border-b-2 border-slate-900 pb-2 mb-4">
               <div>
                 <h3 className="text-base font-black uppercase text-slate-950">
-                  {cls.fullClassName} — Detailed Marksheet
+                  {cls.fullClassName} {cls.testedSubject ? `— ${cls.testedSubject}` : '— Detailed Marksheet'}
                 </h3>
                 <span className="text-xs text-slate-600 font-medium">
-                  {schoolName} • {report.week_identifier} ({formatConductedDate(report.test_date)})
+                  {schoolName} • {report.week_identifier} ({formatConductedDate(report.test_date)}){cls.testedTeacher ? ` • Tr. ${cls.testedTeacher}` : ''}
                 </span>
               </div>
               <span className="text-[10px] font-bold uppercase bg-slate-100 text-slate-700 px-2 py-1 rounded border">

@@ -835,14 +835,28 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
                   key={clsH.classId}
                   className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3.5 hover:border-slate-700 transition"
                 >
-                  <div className="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
+                  <div className="flex justify-between items-start border-b border-slate-800 pb-2 mb-2">
                     <div>
-                      <h4 className="font-black text-sm text-white">{clsH.fullClassName}</h4>
-                      <span className="text-[10px] text-amber-400/90 font-semibold block">
-                        Scale: Max {clsH.maxMarks || 25} Marks
-                      </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-black text-sm text-white">{clsH.fullClassName}</h4>
+                        {clsH.testedSubject && (
+                          <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-bold tracking-wide">
+                            {clsH.testedSubject}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 text-[10px]">
+                        <span className="text-amber-400/90 font-semibold">
+                          Scale: Max {clsH.maxMarks || 25} Marks
+                        </span>
+                        {clsH.testedTeacher && (
+                          <span className="text-slate-400">
+                            • Tr. {clsH.testedTeacher}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <span className="text-[10px] text-slate-400 uppercase font-bold">Top 3 Rankers</span>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold shrink-0">Top 3 Rankers</span>
                   </div>
 
                   {clsH.topScorers.length === 0 ? (
@@ -1052,15 +1066,23 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
                   <div key={cls.classId} className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2.5 border-b border-slate-800 gap-2">
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-black text-sm text-white">{cls.fullClassName}</h4>
+                          {cls.testedSubject && (
+                            <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-bold tracking-wide">
+                              {cls.testedSubject}
+                            </span>
+                          )}
                           <span className="text-[10px] font-bold text-amber-400 uppercase bg-amber-950/50 px-2 py-0.5 rounded border border-amber-800/40">
                             Scale: Max {cls.maxMarks || 25}
                           </span>
                         </div>
-                        <span className="text-[10px] text-slate-400 mt-0.5 block">
-                          {cls.roster?.length || 0} Students Evaluated
-                        </span>
+                        <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
+                          <span>{cls.roster?.length || 0} Students Evaluated</span>
+                          {cls.testedTeacher && (
+                            <span>• Teacher: {cls.testedTeacher}</span>
+                          )}
+                        </div>
                       </div>
 
                       <button
@@ -1157,8 +1179,10 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
                     className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-rose-950 text-xs"
                   >
                     <div>
-                      <strong className="text-rose-200">{c.fullClassName}:</strong>
-                      <span className="text-slate-200 ml-1.5 font-medium">{st.name}</span>
+                      <strong className="text-rose-200">{c.fullClassName}</strong>
+                      {c.testedSubject && <span className="text-[10px] text-rose-300/80 ml-1 font-semibold">({c.testedSubject})</span>}
+                      <span className="text-rose-400 mr-1.5">:</span>
+                      <span className="text-slate-200 font-medium">{st.name}</span>
                       {st.house && <span className="text-slate-400 text-[10px] ml-1">({st.house})</span>}
                     </div>
                     <div className="font-mono text-right">
