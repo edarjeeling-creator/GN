@@ -98,6 +98,7 @@ const Dashboard = () => {
 
   // Routine System States
   const [activeRoutineVersion, setActiveRoutineVersion] = useState(null);
+  const [currentPeriods, setCurrentPeriods] = useState(() => RoutineService.getPeriods());
   const [myRoutineData, setMyRoutineData] = useState(null);
   const [myTodayRoutine, setMyTodayRoutine] = useState(null);
   const [myAckStatus, setMyAckStatus] = useState(null);
@@ -182,6 +183,10 @@ const Dashboard = () => {
     let isMounted = true;
     const fetchRoutine = async () => {
       try {
+        const cloudPeriods = await RoutineService.fetchPeriods();
+        if (isMounted && cloudPeriods) {
+          setCurrentPeriods(cloudPeriods);
+        }
         const activeVer = await RoutineService.getActiveVersion();
         if (!isMounted) return;
         setActiveRoutineVersion(activeVer);
@@ -1039,7 +1044,7 @@ const Dashboard = () => {
                     <thead>
                       <tr className="bg-slate-100 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
                         <th className="p-3 font-extrabold w-24 text-left border-r border-slate-200 dark:border-slate-800">Days</th>
-                        {RoutineService.getPeriods().map(p => (
+                        {currentPeriods.map(p => (
                           <th key={p.period_num} className="p-2 font-bold border-r border-slate-200 dark:border-slate-800 min-w-[95px]">
                             <div>{p.period_name}</div>
                             <div className="text-[9px] font-normal text-slate-400">{p.start_time}–{p.end_time}</div>
@@ -1055,7 +1060,7 @@ const Dashboard = () => {
                             <td className="p-3 font-extrabold text-left bg-slate-50/80 dark:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200">
                               {day.name}
                             </td>
-                            {RoutineService.getPeriods().map(p => {
+                            {currentPeriods.map(p => {
                               const periodCell = daySchedule?.periods?.find(pr => pr.period_num === p.period_num);
                               const entry = periodCell?.entry;
                               return (
@@ -1284,7 +1289,7 @@ const Dashboard = () => {
               <RoutinePrintablePDF
                 type="teacher"
                 data={myRoutineData}
-                periods={RoutineService.getPeriods()}
+                periods={currentPeriods}
               />
             </div>
           </div>

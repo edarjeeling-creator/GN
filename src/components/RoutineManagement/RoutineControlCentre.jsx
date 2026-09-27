@@ -327,7 +327,7 @@ export default function RoutineControlCentre({ currentUser }) {
       setSubjectsList(loadedSubjects);
 
       // 4. Fetch Periods
-      const curPeriods = RoutineService.getPeriods();
+      const curPeriods = await RoutineService.fetchPeriods();
       setPeriods(curPeriods);
       setEditingPeriods(JSON.parse(JSON.stringify(curPeriods)));
 

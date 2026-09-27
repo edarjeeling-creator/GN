@@ -397,12 +397,12 @@ export const SENIOR_PERIOD_TIMINGS = [
   { period_num: 1, period_name: '1st Period', start_time: '08:15', end_time: '08:55', is_break: false, is_special: false },
   { period_num: 2, period_name: '2nd Period', start_time: '08:55', end_time: '09:35', is_break: false, is_special: false },
   { period_num: 3, period_name: '3rd Period', start_time: '09:35', end_time: '10:15', is_break: false, is_special: false },
-  { period_num: 4, period_name: '4th Period', start_time: '10:15', end_time: '10:55', is_break: false, is_special: false },
-  { period_num: 5, period_name: '5th Period', start_time: '10:55', end_time: '11:35', is_break: false, is_special: false },
-  { period_num: 6, period_name: '6th Period', start_time: '11:35', end_time: '12:15', is_break: false, is_special: false },
-  { period_num: 7, period_name: '7th Period', start_time: '12:15', end_time: '12:55', is_break: false, is_special: false },
-  { period_num: 8, period_name: '8th Period', start_time: '12:55', end_time: '13:35', is_break: false, is_special: false },
-  { period_num: 9, period_name: '9th Period (Test / Activity)', start_time: '13:35', end_time: '14:15', is_break: false, is_special: true }
+  { period_num: 4, period_name: '4th Period', start_time: '10:30', end_time: '11:10', is_break: false, is_special: false },
+  { period_num: 5, period_name: '5th Period', start_time: '11:10', end_time: '11:50', is_break: false, is_special: false },
+  { period_num: 6, period_name: '6th Period', start_time: '12:30', end_time: '13:10', is_break: false, is_special: false },
+  { period_num: 7, period_name: '7th Period', start_time: '13:10', end_time: '13:50', is_break: false, is_special: false },
+  { period_num: 8, period_name: '8th Period', start_time: '13:50', end_time: '14:30', is_break: false, is_special: false },
+  { period_num: 9, period_name: '9th Period', start_time: '14:30', end_time: '15:10', is_break: false, is_special: true } // Weekly Test Slot
 ];
 
 export const JUNIOR_PERIOD_TIMINGS = [
@@ -425,15 +425,15 @@ export const WORKING_DAYS = [
 ];
 
 export const DEFAULT_PERIODS = [
-  { period_num: 1, period_name: '1st Period', start_time: '08:00', end_time: '08:40', is_break: false, is_special: false },
-  { period_num: 2, period_name: '2nd Period', start_time: '08:40', end_time: '09:20', is_break: false, is_special: false },
-  { period_num: 3, period_name: '3rd Period', start_time: '09:20', end_time: '10:00', is_break: false, is_special: false },
-  { period_num: 4, period_name: '4th Period', start_time: '10:00', end_time: '10:40', is_break: false, is_special: false },
-  { period_num: 5, period_name: '5th Period', start_time: '10:40', end_time: '11:20', is_break: false, is_special: false },
-  { period_num: 6, period_name: '6th Period', start_time: '11:20', end_time: '12:00', is_break: false, is_special: false },
-  { period_num: 7, period_name: '7th Period', start_time: '12:00', end_time: '12:40', is_break: false, is_special: false },
-  { period_num: 8, period_name: '8th Period', start_time: '12:40', end_time: '13:20', is_break: false, is_special: false },
-  { period_num: 9, period_name: '9th Period', start_time: '13:20', end_time: '14:00', is_break: false, is_special: true } // Weekly Test Slot
+  { period_num: 1, period_name: '1st Period', start_time: '08:15', end_time: '08:55', is_break: false, is_special: false },
+  { period_num: 2, period_name: '2nd Period', start_time: '08:55', end_time: '09:35', is_break: false, is_special: false },
+  { period_num: 3, period_name: '3rd Period', start_time: '09:35', end_time: '10:15', is_break: false, is_special: false },
+  { period_num: 4, period_name: '4th Period', start_time: '10:30', end_time: '11:10', is_break: false, is_special: false },
+  { period_num: 5, period_name: '5th Period', start_time: '11:10', end_time: '11:50', is_break: false, is_special: false },
+  { period_num: 6, period_name: '6th Period', start_time: '12:30', end_time: '13:10', is_break: false, is_special: false },
+  { period_num: 7, period_name: '7th Period', start_time: '13:10', end_time: '13:50', is_break: false, is_special: false },
+  { period_num: 8, period_name: '8th Period', start_time: '13:50', end_time: '14:30', is_break: false, is_special: false },
+  { period_num: 9, period_name: '9th Period', start_time: '14:30', end_time: '15:10', is_break: false, is_special: true } // Weekly Test Slot
 ];
 
 export const ROUTINE_ENTRY_TYPES = [
@@ -1473,6 +1473,18 @@ class RoutineStore {
           this.periods = JSON.parse(localStorage.getItem(KEY_PERIODS) || JSON.stringify(DEFAULT_PERIODS));
           this.dailySubstitutions = JSON.parse(localStorage.getItem(KEY_SUBS) || '{}');
 
+          // Auto-upgrade periods if cache contains the obsolete 08:00 timing:
+          const isStaleTiming = !this.periods || 
+            this.periods.length === 0 || 
+            this.periods[0]?.start_time === '08:00' || 
+            this.periods[0]?.start_time === '8:00' ||
+            this.periods[0]?.start_time?.startsWith('08:00') ||
+            this.periods[0]?.start_time?.startsWith('8:00');
+          if (isStaleTiming) {
+            this.periods = JSON.parse(JSON.stringify(DEFAULT_PERIODS));
+            this.persist();
+          }
+
           // Ensure authentic master routine is fully present
           // Seed has 811 authentic entries covering all 34 teachers from Principal's handwritten timetable
           const existingIds = new Set(this.entries.map(e => e.id));
@@ -1610,11 +1622,128 @@ export class RoutineService {
   }
 
   /**
-   * Updates Period Configuration
+   * Fetches authoritative Period Configuration from Supabase period_configurations table
+   * with local storage / in-memory cache resilience.
+   */
+  static async fetchPeriods() {
+    try {
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('period_configurations')
+          .select('*')
+          .order('period_num', { ascending: true });
+
+        if (!error && data && data.length > 0) {
+          const mapped = data.map(d => ({
+            period_num: Number(d.period_num),
+            period_name: d.period_name || `${d.period_num}th Period`,
+            start_time: d.start_time,
+            end_time: d.end_time,
+            is_break: Boolean(d.is_break),
+            is_special: Boolean(d.is_special)
+          }));
+          memoryStore.periods = mapped;
+
+          // Synchronize cached master entries with fetched period timings
+          const pMap = new Map();
+          mapped.forEach(p => pMap.set(Number(p.period_num), p));
+          memoryStore.entries.forEach(e => {
+            const p = pMap.get(Number(e.period_num));
+            if (p) {
+              e.start_time = p.start_time;
+              e.end_time = p.end_time;
+              e.period_name = p.period_name;
+            }
+          });
+
+          memoryStore.persist();
+          return mapped;
+        } else if (!error && data && data.length === 0) {
+          // Table exists but is empty. Auto-seed with DEFAULT_PERIODS (8:15 start)
+          try {
+            const records = DEFAULT_PERIODS.map(p => ({
+              period_num: Number(p.period_num),
+              period_name: p.period_name,
+              start_time: p.start_time,
+              end_time: p.end_time,
+              is_break: Boolean(p.is_break),
+              is_special: Boolean(p.is_special),
+              is_active: true
+            }));
+            const { data: inserted, error: insertErr } = await supabase
+              .from('period_configurations')
+              .upsert(records, { onConflict: 'period_num' })
+              .select();
+            if (!insertErr && inserted && inserted.length > 0) {
+              const mapped = inserted.map(d => ({
+                period_num: Number(d.period_num),
+                period_name: d.period_name,
+                start_time: d.start_time,
+                end_time: d.end_time,
+                is_break: Boolean(d.is_break),
+                is_special: Boolean(d.is_special)
+              }));
+              memoryStore.periods = mapped;
+              memoryStore.persist();
+              return mapped;
+            }
+          } catch (seedErr) {
+            console.warn('Could not auto-seed period_configurations to Supabase:', seedErr);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Error fetching periods from Supabase:', err);
+    }
+    return memoryStore.periods;
+  }
+
+  /**
+   * Updates Period Configuration in memory, local storage, and Supabase cloud table
    */
   static async updatePeriods(newPeriods) {
     memoryStore.periods = newPeriods;
+
+    // Synchronize start_time and end_time on any existing master entries
+    const periodMap = new Map();
+    newPeriods.forEach(p => {
+      periodMap.set(Number(p.period_num), p);
+    });
+
+    memoryStore.entries.forEach(e => {
+      const p = periodMap.get(Number(e.period_num));
+      if (p) {
+        e.start_time = p.start_time;
+        e.end_time = p.end_time;
+        e.period_name = p.period_name;
+      }
+    });
+
     memoryStore.persist();
+
+    // Persist to Supabase period_configurations table
+    try {
+      if (supabase) {
+        const records = newPeriods.map(p => ({
+          period_num: Number(p.period_num),
+          period_name: p.period_name || `${p.period_num}th Period`,
+          start_time: p.start_time,
+          end_time: p.end_time,
+          is_break: Boolean(p.is_break),
+          is_special: Boolean(p.is_special),
+          is_active: true
+        }));
+        const { error } = await supabase
+          .from('period_configurations')
+          .upsert(records, { onConflict: 'period_num' });
+        if (error) {
+          console.warn('Failed to upsert to period_configurations:', error);
+        }
+      }
+    } catch (err) {
+      console.warn('Error saving periods to Supabase:', err);
+    }
+
     return { success: true, periods: memoryStore.periods };
   }
 
@@ -2243,7 +2372,7 @@ export class RoutineService {
 
       if (teacherMatch) {
         const wing = this.getClassWing(e.class_name);
-        const timingList = wing === 'JUNIOR' ? JUNIOR_PERIOD_TIMINGS : SENIOR_PERIOD_TIMINGS;
+        const timingList = wing === 'JUNIOR' ? JUNIOR_PERIOD_TIMINGS : (this.getPeriods()?.length > 0 ? this.getPeriods() : SENIOR_PERIOD_TIMINGS);
         const timingObj = timingList.find(p => p.period_num === e.period_num) || {};
         const timeDisplay = timingObj.start_time ? `${timingObj.start_time}–${timingObj.end_time}` : '';
 
