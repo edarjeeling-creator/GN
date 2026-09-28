@@ -18,6 +18,17 @@ import { MarksWorkflowService } from '../services/MarksWorkflowService';
 import { getStudentHouse, getHouseBadgeColor } from '../utils/houseData';
 import { formatAssemblyDate, getTuesdayAssemblyReleaseDate } from '../utils/tuesdayAssemblySchedule';
 import { getMostRecentTuesdayDate, formatConductedDate } from '../services/WeeklyTestReportService';
+import { supabase } from '../lib/supabase';
+
+// Normalize grade/standard name (e.g. "7", "Class 7", "Class 7A" -> "7")
+export const getStandardKey = (clsObj) => {
+  if (!clsObj) return '';
+  let name = String(clsObj.name || '').trim().replace(/^class\s*/i, '').trim();
+  if (clsObj.section && name.toLowerCase().endsWith(clsObj.section.toLowerCase())) {
+    name = name.slice(0, -clsObj.section.length).trim();
+  }
+  return name.toLowerCase();
+};
 
 // Backward compatibility helper for legacy views, flowsheets, and reports
 export const getConversionConstants = (className) => {
@@ -308,23 +319,39 @@ const SubjectMarks = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [saveStatus]);
 
-  // Live calculation of 1st, 2nd, 3rd Rankers and Requires Attention for Tuesday Assembly
-  const assemblySummary = useMemo(() => {
-    if (!filteredStudents.length || !components.length) {
+  // Sibling classes in the same grade (e.g., 7 A and 7 B)
+  const siblingClasses = useMemo(() => {
+    if (!cls || !classes?.length) return [];
+    const stdKey = getStandardKey(cls);
+    const matched = classes.filter(c => {
+      const cKey = getStandardKey(c);
+      return cKey === stdKey;
+    }).sort((a, b) => (a.section || '').localeCompare(b.section || ''));
+    return matched.length > 0 ? matched : [cls];
+  }, [classes, cls]);
+
+  const combinedSectionsLabel = useMemo(() => {
+    if (!siblingClasses.length) return '';
+    return siblingClasses.map(c => `${c.name} ${c.section}`.trim()).join(' & ');
+  }, [siblingClasses]);
+
+  // Generic authoritative calculator for any class section
+  const computeSectionAssemblySummary = (targetCls, targetStudents, targetRawScores, targetStatuses, targetComponents, targetPattern) => {
+    if (!targetCls || !targetStudents?.length || !targetComponents?.length) {
       return { topScorers: [], requiresAttention: [], totalEvaluated: 0 };
     }
 
-    const currentClassName = cls ? `${cls.name || ''} ${cls.section || ''}`.trim() : '';
+    const currentClassName = `${targetCls.name || ''} ${targetCls.section || ''}`.trim();
 
-    const scoredStudents = filteredStudents.map(student => {
+    const scoredStudents = targetStudents.map(student => {
       const studentScores = {};
       const studentStatuses = {};
       let hasAnyAbsent = false;
 
-      components.forEach(comp => {
+      targetComponents.forEach(comp => {
         const key = `${student.id}_${comp.component_code}`;
-        const rawVal = rawScores[key];
-        const stStatus = statuses[key] || 'MARKED';
+        const rawVal = targetRawScores[key];
+        const stStatus = targetStatuses[key] || 'MARKED';
         studentScores[comp.component_code] = rawVal;
         studentStatuses[comp.component_code] = stStatus;
         if (comp.contributes_to_total !== false) {
@@ -335,11 +362,11 @@ const SubjectMarks = () => {
       });
 
       const result = MarksCalculationEngine.calculateStudentResult({
-        components,
+        components: targetComponents,
         rawScores: studentScores,
         statuses: studentStatuses,
-        gradeBoundaries: activePattern?.grade_boundaries || [],
-        roundingRule: activePattern?.rounding_rule || 'ROUND_2_DECIMALS'
+        gradeBoundaries: targetPattern?.grade_boundaries || [],
+        roundingRule: targetPattern?.rounding_rule || 'ROUND_2_DECIMALS'
       });
 
       const isAbsent = hasAnyAbsent || result.isAllAbsent;
@@ -368,29 +395,222 @@ const SubjectMarks = () => {
       thresholdType: 'SCORE',
       excludeAbsentFromRanking: true
     });
+  };
+
+  // Live calculation of 1st, 2nd, 3rd Rankers and Requires Attention for Current Section
+  const assemblySummary = useMemo(() => {
+    return computeSectionAssemblySummary(cls, filteredStudents, rawScores, statuses, components, activePattern);
   }, [filteredStudents, components, rawScores, statuses, activePattern, cls]);
 
+  // State for sibling sections marks: { [classId]: { rawScores, statuses, pattern, components } }
+  const [siblingMarksData, setSiblingMarksData] = useState({});
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadSiblingMarks = async () => {
+      const otherClasses = siblingClasses.filter(c => c.id !== classId);
+      if (!otherClasses.length || !subjectId) return;
+
+      for (const sCls of otherClasses) {
+        try {
+          const sStudents = students.filter(s => s.class_id === sCls.id || s.classId === sCls.id);
+          const sPattern = MarksCalculationEngine.resolvePattern(sCls.name, academicYear, patterns, subject?.name, sCls.section) || activePattern;
+          const sComponents = (sPattern?.components && sPattern.components.length > 0)
+            ? [...sPattern.components].sort((a, b) => a.display_order - b.display_order)
+            : components;
+
+          // 1. Try fetching from class_subject_mark_submissions & student_marks_detailed
+          const { data: sub } = await supabase
+            .from('class_subject_mark_submissions')
+            .select('*')
+            .eq('class_id', sCls.id)
+            .eq('subject_id', subjectId)
+            .eq('academic_year', academicYear)
+            .eq('term', selectedTerm)
+            .maybeSingle();
+
+          const sRawScores = {};
+          const sStatuses = {};
+
+          if (sub?.id) {
+            const details = await MarksWorkflowService.getSubmissionDetailedMarks(sub.id);
+            details.forEach(d => {
+              const comp = sComponents.find(c => c.id === d.component_id);
+              const code = comp ? comp.component_code : 'EXAM';
+              const key = `${d.student_id}_${code}`;
+              sRawScores[key] = d.raw_score !== null && d.raw_score !== undefined ? String(d.raw_score) : '';
+              sStatuses[key] = d.status || 'MARKED';
+            });
+          }
+
+          // 2. Fallback to DataContext legacy marks
+          sStudents.forEach(st => {
+            ['EXAM', 'TEST'].forEach(code => {
+              const key = `${st.id}_${code}`;
+              if (sRawScores[key] === undefined || sRawScores[key] === '') {
+                const termCode = code === 'EXAM' ? 'Exam' : 'Test';
+                const legacyKey1 = `${st.id}_${subjectId}_${academicYear}_${selectedTerm}_${termCode}`;
+                const legacyKey2 = `${st.id}_${subjectId}_${selectedTerm}_${termCode}`;
+                const legacyScore = marks[legacyKey1] ?? marks[legacyKey2];
+                if (legacyScore !== undefined && legacyScore !== null) {
+                  sRawScores[key] = String(legacyScore);
+                  sStatuses[key] = 'MARKED';
+                }
+              }
+            });
+          });
+
+          // 3. Check localStorage draft for sibling section
+          try {
+            const draftKey = `gn_draft_marks_${sCls.id}_${subjectId}_${academicYear}_${selectedTerm}`;
+            const cachedStr = localStorage.getItem(draftKey);
+            if (cachedStr) {
+              const cached = JSON.parse(cachedStr);
+              if (cached?.rawScores) {
+                Object.keys(cached.rawScores).forEach(k => {
+                  const val = cached.rawScores[k];
+                  if (val !== undefined && val !== '') {
+                    sRawScores[k] = val;
+                    if (cached.statuses?.[k]) sStatuses[k] = cached.statuses[k];
+                  }
+                });
+              }
+            }
+          } catch (e) {}
+
+          if (isMounted) {
+            setSiblingMarksData(prev => ({
+              ...prev,
+              [sCls.id]: {
+                rawScores: sRawScores,
+                statuses: sStatuses,
+                pattern: sPattern,
+                components: sComponents
+              }
+            }));
+          }
+        } catch (err) {
+          console.error(`Failed to load marks for sibling section ${sCls.name} ${sCls.section}:`, err);
+        }
+      }
+    };
+
+    loadSiblingMarks();
+    return () => { isMounted = false; };
+  }, [siblingClasses, classId, subjectId, selectedTerm, academicYear, patterns, activePattern, components, marks, students]);
+
+  // Combined summaries across all sections of this standard (e.g. 7 A and 7 B)
+  const allSectionSummaries = useMemo(() => {
+    return siblingClasses.map(sCls => {
+      const isCurrent = sCls.id === classId;
+      if (isCurrent) {
+        return {
+          cls: sCls,
+          isCurrent: true,
+          summary: assemblySummary,
+          studentCount: filteredStudents.length
+        };
+      }
+
+      const sData = siblingMarksData[sCls.id];
+      const sStudents = students.filter(s => s.class_id === sCls.id || s.classId === sCls.id)
+        .sort((a, b) => a.roll_no - b.roll_no);
+      const filteredSecStudents = sStudents.filter(student => {
+        const subName = subject?.name?.toLowerCase() || '';
+        if (subName.includes('2nd') || subName.includes('second')) return student.second_language ? subName.includes(student.second_language.toLowerCase()) : true;
+        if (subName.includes('3rd') || subName.includes('third')) return student.third_language ? subName.includes(student.third_language.toLowerCase()) : true;
+        if (subName.includes('elective') || subName.includes('evs/math') || subName.includes('maths/evs') || subName.includes('math/evs')) return student.elective_subject ? subName.includes(student.elective_subject.toLowerCase()) : true;
+        if (subName.includes('6th') || subName.includes('sixth')) return student.sixth_subject ? subName.includes(student.sixth_subject.toLowerCase()) : true;
+        return true;
+      });
+
+      const sPattern = sData?.pattern || MarksCalculationEngine.resolvePattern(sCls.name, academicYear, patterns, subject?.name, sCls.section) || activePattern;
+      const sComponents = sData?.components || components;
+      const sRawScores = sData?.rawScores || {};
+      const sStatuses = sData?.statuses || {};
+
+      const summary = computeSectionAssemblySummary(sCls, filteredSecStudents, sRawScores, sStatuses, sComponents, sPattern);
+
+      return {
+        cls: sCls,
+        isCurrent: false,
+        summary,
+        studentCount: filteredSecStudents.length
+      };
+    });
+  }, [siblingClasses, classId, assemblySummary, filteredStudents, siblingMarksData, students, subject, academicYear, patterns, activePattern, components]);
+
+  const [activePreviewTab, setActivePreviewTab] = useState('both');
+  const [printSlipMode, setPrintSlipMode] = useState('both'); // 'single' | 'both'
   const [copiedAssembly, setCopiedAssembly] = useState(false);
 
   // Standardized text for WhatsApp and Clipboard
-  const generateAssemblyText = () => {
-    const className = cls ? `${cls.name || ''} ${cls.section || ''}`.trim() : 'Class';
-    const subjectName = subject?.name || 'Subject';
+  const generateAssemblyText = (mode = activePreviewTab) => {
     const termLabel = selectedTerm === 'Midterm' ? 'Mid-Term Exam' : 'Final-Term Exam';
     const teacherName = profile?.name || 'Subject Teacher';
+    const subjectName = subject?.name || 'Subject';
 
-    const topText = assemblySummary.topScorers.length === 0
+    if (mode === 'both' && allSectionSummaries.length > 1) {
+      let text = `🏫 *GYANODAY NIKETAN — TUESDAY ASSEMBLY HONOURS*
+━━━━━━━━━━━━━━━━━━━━━━━━━
+📅 *Term:* ${termLabel} ${academicYear}
+🏫 *Classes:* ${combinedSectionsLabel}
+📖 *Subject:* ${subjectName}
+👨‍🏫 *Teacher:* ${teacherName}
+━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+
+      allSectionSummaries.forEach(({ cls: sCls, summary: sSummary }) => {
+        const secLabel = `${sCls.name} ${sCls.section}`.trim();
+        const topText = sSummary.topScorers.length === 0
+          ? '  _(No marks entered yet)_'
+          : sSummary.topScorers.map(s => {
+              const medal = s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : '🥉';
+              const rankSuffix = s.rank === 1 ? '1st' : s.rank === 2 ? '2nd' : '3rd';
+              const houseStr = s.house ? ` (${s.house})` : '';
+              return `  ${medal} *${rankSuffix} Rank:* ${formatStudentDisplayName(s.student.name)}${houseStr} — *${s.total}*`;
+            }).join('\n');
+
+        const attText = sSummary.requiresAttention.length === 0
+          ? '  • _None — All evaluated students scored ≥ 10._'
+          : sSummary.requiresAttention.map(s => {
+              const houseStr = s.house ? ` (${s.house})` : '';
+              return `  • ${formatStudentDisplayName(s.student.name)}${houseStr} — *${s.total}* (Below 10)`;
+            }).join('\n');
+
+        text += `\n📌 *CLASS ${secLabel}*:
+🏆 *TOP SCORERS*:
+${topText}
+
+⚠️ *REQUIRES ATTENTION*:
+${attText}
+`;
+      });
+
+      text += `\n━━━━━━━━━━━━━━━━━━━━━━━━━\n_Sent via Gyanoday Niketan ERP_`;
+      return text;
+    }
+
+    // Single section format
+    const targetSummary = (mode !== 'both' && mode !== classId)
+      ? (allSectionSummaries.find(s => s.cls.id === mode)?.summary || assemblySummary)
+      : assemblySummary;
+    const targetCls = (mode !== 'both' && mode !== classId)
+      ? (siblingClasses.find(c => c.id === mode) || cls)
+      : cls;
+    const className = targetCls ? `${targetCls.name || ''} ${targetCls.section || ''}`.trim() : 'Class';
+
+    const topText = targetSummary.topScorers.length === 0
       ? '_(No marks entered yet)_'
-      : assemblySummary.topScorers.map(s => {
+      : targetSummary.topScorers.map(s => {
           const medal = s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : '🥉';
           const rankSuffix = s.rank === 1 ? '1st' : s.rank === 2 ? '2nd' : '3rd';
           const houseStr = s.house ? ` (${s.house})` : '';
           return `${medal} *${rankSuffix} Rank:* ${formatStudentDisplayName(s.student.name)}${houseStr} — *${s.total}*`;
         }).join('\n');
 
-    const attText = assemblySummary.requiresAttention.length === 0
+    const attText = targetSummary.requiresAttention.length === 0
       ? '• _None — All evaluated students scored ≥ 10._'
-      : assemblySummary.requiresAttention.map(s => {
+      : targetSummary.requiresAttention.map(s => {
           const houseStr = s.house ? ` (${s.house})` : '';
           return `• ${formatStudentDisplayName(s.student.name)}${houseStr} — *${s.total}* (Below 10)`;
         }).join('\n');
@@ -414,20 +634,32 @@ _Sent via Gyanoday Niketan ERP_`;
   };
 
   const handleCopyAssembly = () => {
-    const text = generateAssemblyText();
+    const text = generateAssemblyText(activePreviewTab);
     navigator.clipboard.writeText(text);
     setCopiedAssembly(true);
     setTimeout(() => setCopiedAssembly(false), 2500);
   };
 
   const handleWhatsAppToPrincipal = () => {
-    const text = generateAssemblyText();
+    const text = generateAssemblyText(activePreviewTab);
     const encoded = encodeURIComponent(text);
     window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
   };
 
+  // Print single current section podium slip
   const handlePrintAssemblySlip = () => {
-    window.print();
+    setPrintSlipMode('single');
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
+
+  // Print both sections on ONE single page for Principal
+  const handlePrintBothSections = () => {
+    setPrintSlipMode('both');
+    setTimeout(() => {
+      window.print();
+    }, 150);
   };
 
   // Save Draft (Supports manual button click and automatic background auto-save)
@@ -768,8 +1000,9 @@ _Sent via Gyanoday Niketan ERP_`;
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      {/* Top Navigation */}
+    <div className="max-w-7xl mx-auto pb-12">
+      <div className="no-print space-y-6">
+        {/* Top Navigation */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
           <Button 
@@ -1348,13 +1581,18 @@ _Sent via Gyanoday Niketan ERP_`;
               <Trophy size={22} className="animate-pulse" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-lg font-black text-white tracking-tight">
                   Tuesday Assembly Honours & Attention Summary
                 </h3>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
                   Live Preview
                 </span>
+                {siblingClasses.length > 1 && (
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    {combinedSectionsLabel} Available
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
                 Automatically calculated for Principal's Tuesday morning assembly announcements & monitoring.
@@ -1388,227 +1626,533 @@ _Sent via Gyanoday Niketan ERP_`;
               <span>{copiedAssembly ? 'Copied to Clipboard!' : 'Copy Briefing'}</span>
             </button>
 
+            {/* Print Slip for Current Section */}
             <button
               type="button"
               onClick={handlePrintAssemblySlip}
               className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
-              title="Print podium slip for assembly"
+              title={`Print podium slip for ${cls?.name} ${cls?.section || ''}`}
             >
               <Printer size={15} />
-              <span>Print Slip</span>
+              <span>Print Slip ({cls?.section || cls?.name})</span>
             </button>
+
+            {/* Print Slip for BOTH Sections on ONE Page */}
+            {siblingClasses.length > 1 && (
+              <button
+                type="button"
+                onClick={handlePrintBothSections}
+                className="px-3.5 py-2 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 transition-all shadow-md shadow-indigo-950/40 border border-indigo-400/40 active:scale-95 cursor-pointer"
+                title={`Print combined 1-page slip for both ${combinedSectionsLabel} in one go to save paper`}
+              >
+                <Printer size={15} />
+                <span>Print Both ({combinedSectionsLabel}) — 1 Page</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* 2-Column Grid: Top Scorers & Requires Attention */}
-        <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-6 bg-slate-950/40">
-          {/* Top Scorers (1st, 2nd, 3rd) */}
-          <div className="rounded-xl border border-emerald-500/30 bg-slate-900/90 overflow-hidden shadow-sm">
-            <div className="px-4 py-3 bg-emerald-950/40 border-b border-emerald-500/20 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
-                <Trophy size={17} className="text-emerald-400" />
-                <span>Top Scorers (Assembly Honours)</span>
+        {/* Section View Tabs for Live Preview (When multiple sections exist) */}
+        {siblingClasses.length > 1 && (
+          <div className="px-5 py-2.5 bg-slate-950/60 border-b border-slate-800 flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold text-slate-400">Preview Mode:</span>
+              <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setActivePreviewTab('both')}
+                  className={`px-3 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    activePreviewTab === 'both'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <Sparkles size={12} />
+                  <span>Both ({combinedSectionsLabel}) [Combined]</span>
+                </button>
+                {siblingClasses.map(sCls => (
+                  <button
+                    key={sCls.id}
+                    type="button"
+                    onClick={() => setActivePreviewTab(sCls.id)}
+                    className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
+                      activePreviewTab === sCls.id
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    Class {sCls.name} {sCls.section} {sCls.id === classId ? '(Current)' : ''}
+                  </button>
+                ))}
               </div>
-              <span className="text-[11px] font-mono font-bold text-emerald-300/80 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                {assemblySummary.topScorers.length} Student{assemblySummary.topScorers.length === 1 ? '' : 's'}
-              </span>
             </div>
-
-            <div className="p-0 divide-y divide-slate-800">
-              {assemblySummary.topScorers.length === 0 ? (
-                <div className="p-6 text-center text-xs text-slate-400 font-medium">
-                  No marks entered yet. Marks entered in the roster above will automatically populate top 1st, 2nd, and 3rd rankers here.
-                </div>
-              ) : (
-                assemblySummary.topScorers.map(s => (
-                  <div key={s.student.id} className="p-3.5 px-4 flex items-center justify-between gap-3 hover:bg-slate-850/60 transition-colors">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-xs text-white shadow-sm shrink-0 ${
-                        s.rank === 1 ? 'bg-yellow-500 ring-2 ring-yellow-400/30' :
-                        s.rank === 2 ? 'bg-slate-400 ring-2 ring-slate-300/30' :
-                        'bg-amber-600 ring-2 ring-amber-500/30'
-                      }`}>
-                        {s.rank}
-                      </div>
-                      <div className="flex items-center gap-2 flex-wrap min-w-0">
-                        <span className="font-bold text-sm text-white truncate">
-                          {formatStudentDisplayName(s.student.name)}
-                        </span>
-                        {s.house && (
-                          <span className={`text-[11px] px-2 py-0.5 rounded-md font-semibold border ${getHouseBadgeColor(s.house)}`}>
-                            {s.house}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      {s.grade && (
-                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                          {s.grade}
-                        </span>
-                      )}
-                      <div className="font-mono font-black text-lg text-emerald-400">
-                        {s.total}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
+            <div className="text-[11px] text-slate-400 flex items-center gap-1">
+              <span>💡 Paper Saving: Use <strong>"Print Both"</strong> to fit both {combinedSectionsLabel} on 1 sheet for Principal.</span>
             </div>
           </div>
+        )}
 
-          {/* Requires Attention (Below 10) */}
-          <div className="rounded-xl border border-rose-500/30 bg-slate-900/90 overflow-hidden shadow-sm">
-            <div className="px-4 py-3 bg-rose-950/40 border-b border-rose-500/20 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-rose-300 font-bold text-sm">
-                <AlertCircle size={17} className="text-rose-400" />
-                <span>Requires Attention (Below 10)</span>
-              </div>
-              <span className="text-[11px] font-mono font-bold text-rose-300/80 bg-rose-950/80 px-2 py-0.5 rounded-full border border-rose-500/30">
-                {assemblySummary.requiresAttention.length} Student{assemblySummary.requiresAttention.length === 1 ? '' : 's'}
-              </span>
-            </div>
-
-            <div className="p-0 divide-y divide-slate-800">
-              {assemblySummary.requiresAttention.length === 0 ? (
-                <div className="p-6 text-center text-xs text-emerald-400/90 font-medium">
-                  ✓ All evaluated students scored ≥ 10.
+        {/* Preview Content: Combined Both Sections OR Single Selected Section */}
+        {activePreviewTab === 'both' && siblingClasses.length > 1 ? (
+          <div className="p-5 space-y-6 bg-slate-950/40">
+            {allSectionSummaries.map(({ cls: secCls, summary: secSummary }) => (
+              <div key={secCls.id} className="space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800 flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-lg text-xs font-black uppercase bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                      Class: {secCls.name} {secCls.section}
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium">
+                      {secCls.id === classId ? '(Current Roster)' : '(Sibling Section)'}
+                    </span>
+                  </div>
+                  <span className="text-xs text-slate-400 font-mono">
+                    {secSummary.topScorers.length} Honours • {secSummary.requiresAttention.length} Requires Attention
+                  </span>
                 </div>
-              ) : (
-                assemblySummary.requiresAttention.map(s => (
-                  <div key={s.student.id} className="p-3.5 px-4 flex items-center justify-between gap-3 hover:bg-slate-850/60 transition-colors">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Frown size={18} className="text-slate-400 shrink-0" />
-                      <div className="flex items-center gap-2 flex-wrap min-w-0">
-                        <span className="font-bold text-sm text-slate-200 truncate">
-                          {formatStudentDisplayName(s.student.name)}
-                        </span>
-                        {s.house && (
-                          <span className={`text-[11px] px-2 py-0.5 rounded-md font-semibold border ${getHouseBadgeColor(s.house)}`}>
-                            {s.house}
-                          </span>
-                        )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Top Scorers Column */}
+                  <div className="rounded-xl border border-emerald-500/30 bg-slate-900/90 overflow-hidden shadow-sm">
+                    <div className="px-4 py-2.5 bg-emerald-950/40 border-b border-emerald-500/20 flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wide">
+                        <Trophy size={15} className="text-emerald-400" />
+                        <span>Top Scorers (Assembly Honours)</span>
                       </div>
-                    </div>
-                    <div>
-                      <span className="font-mono font-black text-base text-rose-400">
-                        {s.total}
+                      <span className="text-[10px] font-mono font-bold text-emerald-300/80 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                        {secSummary.topScorers.length} Student{secSummary.topScorers.length === 1 ? '' : 's'}
                       </span>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Print-Only Tuesday Assembly Podium Slip */}
-      <div className="hidden print:block font-sans text-black p-4">
+                    <div className="p-0 divide-y divide-slate-800 max-h-64 overflow-y-auto">
+                      {secSummary.topScorers.length === 0 ? (
+                        <div className="p-4 text-center text-xs text-slate-400 font-medium">
+                          No marks entered yet for this section.
+                        </div>
+                      ) : (
+                        secSummary.topScorers.map(s => (
+                          <div key={s.student.id} className="p-2.5 px-3 flex items-center justify-between gap-2 hover:bg-slate-850/60 transition-colors">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-[11px] text-white shrink-0 ${
+                                s.rank === 1 ? 'bg-yellow-500' : s.rank === 2 ? 'bg-slate-400' : 'bg-amber-600'
+                              }`}>
+                                {s.rank}
+                              </div>
+                              <span className="font-bold text-xs text-white truncate max-w-[150px]">
+                                {formatStudentDisplayName(s.student.name)}
+                              </span>
+                              {s.house && (
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold border ${getHouseBadgeColor(s.house)}`}>
+                                  {s.house}
+                                </span>
+                              )}
+                            </div>
+                            <div className="font-mono font-black text-sm text-emerald-400 shrink-0">
+                              {s.total}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Requires Attention Column */}
+                  <div className="rounded-xl border border-rose-500/30 bg-slate-900/90 overflow-hidden shadow-sm">
+                    <div className="px-4 py-2.5 bg-rose-950/40 border-b border-rose-500/20 flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-rose-300 font-bold text-xs uppercase tracking-wide">
+                        <AlertCircle size={15} className="text-rose-400" />
+                        <span>Requires Attention (Below 10)</span>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold text-rose-300/80 bg-rose-950/80 px-2 py-0.5 rounded-full border border-rose-500/30">
+                        {secSummary.requiresAttention.length} Student{secSummary.requiresAttention.length === 1 ? '' : 's'}
+                      </span>
+                    </div>
+
+                    <div className="p-0 divide-y divide-slate-800 max-h-64 overflow-y-auto">
+                      {secSummary.requiresAttention.length === 0 ? (
+                        <div className="p-4 text-center text-xs text-emerald-400/90 font-medium">
+                          ✓ All evaluated students scored ≥ 10.
+                        </div>
+                      ) : (
+                        secSummary.requiresAttention.map(s => (
+                          <div key={s.student.id} className="p-2.5 px-3 flex items-center justify-between gap-2 hover:bg-slate-850/60 transition-colors">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Frown size={15} className="text-slate-400 shrink-0" />
+                              <span className="font-bold text-xs text-slate-200 truncate max-w-[150px]">
+                                {formatStudentDisplayName(s.student.name)}
+                              </span>
+                              {s.house && (
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold border ${getHouseBadgeColor(s.house)}`}>
+                                  {s.house}
+                                </span>
+                              )}
+                            </div>
+                            <div className="font-mono font-black text-sm text-rose-400 shrink-0">
+                              {s.total}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* Single section preview (current or selected) */
+          (() => {
+            const activeSummary = (activePreviewTab !== 'both' && activePreviewTab !== classId)
+              ? (allSectionSummaries.find(s => s.cls.id === activePreviewTab)?.summary || assemblySummary)
+              : assemblySummary;
+
+            return (
+              <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-6 bg-slate-950/40">
+                {/* Top Scorers (1st, 2nd, 3rd) */}
+                <div className="rounded-xl border border-emerald-500/30 bg-slate-900/90 overflow-hidden shadow-sm">
+                  <div className="px-4 py-3 bg-emerald-950/40 border-b border-emerald-500/20 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+                      <Trophy size={17} className="text-emerald-400" />
+                      <span>Top Scorers (Assembly Honours)</span>
+                    </div>
+                    <span className="text-[11px] font-mono font-bold text-emerald-300/80 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                      {activeSummary.topScorers.length} Student{activeSummary.topScorers.length === 1 ? '' : 's'}
+                    </span>
+                  </div>
+
+                  <div className="p-0 divide-y divide-slate-800">
+                    {activeSummary.topScorers.length === 0 ? (
+                      <div className="p-6 text-center text-xs text-slate-400 font-medium">
+                        No marks entered yet. Marks entered in the roster above will automatically populate top 1st, 2nd, and 3rd rankers here.
+                      </div>
+                    ) : (
+                      activeSummary.topScorers.map(s => (
+                        <div key={s.student.id} className="p-3.5 px-4 flex items-center justify-between gap-3 hover:bg-slate-850/60 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-xs text-white shadow-sm shrink-0 ${
+                              s.rank === 1 ? 'bg-yellow-500 ring-2 ring-yellow-400/30' :
+                              s.rank === 2 ? 'bg-slate-400 ring-2 ring-slate-300/30' :
+                              'bg-amber-600 ring-2 ring-amber-500/30'
+                            }`}>
+                              {s.rank}
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap min-w-0">
+                              <span className="font-bold text-sm text-white truncate">
+                                {formatStudentDisplayName(s.student.name)}
+                              </span>
+                              {s.house && (
+                                <span className={`text-[11px] px-2 py-0.5 rounded-md font-semibold border ${getHouseBadgeColor(s.house)}`}>
+                                  {s.house}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            {s.grade && (
+                              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                                {s.grade}
+                              </span>
+                            )}
+                            <div className="font-mono font-black text-lg text-emerald-400">
+                              {s.total}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Requires Attention (Below 10) */}
+                <div className="rounded-xl border border-rose-500/30 bg-slate-900/90 overflow-hidden shadow-sm">
+                  <div className="px-4 py-3 bg-rose-950/40 border-b border-rose-500/20 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-rose-300 font-bold text-sm">
+                      <AlertCircle size={17} className="text-rose-400" />
+                      <span>Requires Attention (Below 10)</span>
+                    </div>
+                    <span className="text-[11px] font-mono font-bold text-rose-300/80 bg-rose-950/80 px-2 py-0.5 rounded-full border border-rose-500/30">
+                      {activeSummary.requiresAttention.length} Student{activeSummary.requiresAttention.length === 1 ? '' : 's'}
+                    </span>
+                  </div>
+
+                  <div className="p-0 divide-y divide-slate-800">
+                    {activeSummary.requiresAttention.length === 0 ? (
+                      <div className="p-6 text-center text-xs text-emerald-400/90 font-medium">
+                        ✓ All evaluated students scored ≥ 10.
+                      </div>
+                    ) : (
+                      activeSummary.requiresAttention.map(s => (
+                        <div key={s.student.id} className="p-3.5 px-4 flex items-center justify-between gap-3 hover:bg-slate-850/60 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Frown size={18} className="text-slate-400 shrink-0" />
+                            <div className="flex items-center gap-2 flex-wrap min-w-0">
+                              <span className="font-bold text-sm text-slate-200 truncate">
+                                {formatStudentDisplayName(s.student.name)}
+                              </span>
+                              {s.house && (
+                                <span className={`text-[11px] px-2 py-0.5 rounded-md font-semibold border ${getHouseBadgeColor(s.house)}`}>
+                                  {s.house}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div>
+                            <span className="font-mono font-black text-base text-rose-400">
+                              {s.total}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()
+        )}
+      </div>
+      </div> {/* End screen interactive UI (no-print) */}
+
+      {/* Print-Only Tuesday Assembly Podium Slip (Guaranteed 1 Single Page) */}
+      <div id="print-assembly-slip" className="hidden print:block font-sans text-black">
         <style>{`
+          @page {
+            margin: 6mm 8mm 6mm 8mm !important;
+            size: portrait;
+          }
           @media print {
-            @page {
-              margin: 10mm;
-              size: portrait;
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
             .no-print {
               display: none !important;
             }
+            .print-page-boundary {
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+              width: 100% !important;
+              max-height: 282mm !important;
+              overflow: hidden !important;
+              box-sizing: border-box !important;
+            }
           }
         `}</style>
-        <div className="text-center border-b-2 border-black pb-3 mb-4">
-          <h1 className="text-xl font-black uppercase tracking-wider">Gyanoday Niketan</h1>
-          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-800 mt-0.5">
-            Tuesday Morning Assembly Honours & Attention Slip
-          </h2>
-          <div className="flex justify-center items-center gap-4 text-xs font-semibold mt-2 text-slate-700 flex-wrap">
-            <span><strong>Class:</strong> {cls?.name} {cls?.section}</span>
-            <span>•</span>
-            <span><strong>Subject:</strong> {subject?.name}</span>
-            <span>•</span>
-            <span><strong>Term:</strong> {selectedTerm === 'Midterm' ? 'Mid-Term Exam' : 'Final-Term Exam'} {academicYear}</span>
-            <span>•</span>
-            <span><strong>Teacher:</strong> {profile?.name || 'Faculty Member'}</span>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-6">
-          {/* Top Scorers Column */}
-          <div className="border border-slate-400 rounded p-3">
-            <h3 className="font-black text-xs uppercase tracking-wider pb-1.5 border-b border-slate-300 text-slate-900 mb-2">
-              🏆 Top Scorers (Assembly Honours)
-            </h3>
-            {assemblySummary.topScorers.length === 0 ? (
-              <p className="text-xs italic text-slate-500">No marks entered yet</p>
-            ) : (
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b text-slate-600 text-left">
-                    <th className="pb-1 w-12">Rank</th>
-                    <th className="pb-1">Student Name</th>
-                    <th className="pb-1 w-20">House</th>
-                    <th className="pb-1 text-right w-12">Marks</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {assemblySummary.topScorers.map((s, i) => (
-                    <tr key={i} className="py-1">
-                      <td className="py-1 font-bold">
-                        {s.rank === 1 ? '1st' : s.rank === 2 ? '2nd' : '3rd'}
-                      </td>
-                      <td className="py-1 font-semibold">{s.student.name}</td>
-                      <td className="py-1 text-slate-700">{s.house || '—'}</td>
-                      <td className="py-1 text-right font-black">{s.total}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+        {printSlipMode === 'both' && siblingClasses.length > 1 ? (
+          /* COMBINED 1-PAGE REPORT FOR BOTH SECTIONS (e.g. 7A & 7B) */
+          <div className="print-page-boundary p-1">
+            {/* Header */}
+            <div className="text-center border-b-2 border-black pb-1.5 mb-2">
+              <h1 className="text-lg font-black uppercase tracking-wider font-serif">GYANODAY NIKETAN</h1>
+              <h2 className="text-xs font-black uppercase tracking-wide text-slate-800 mt-0.5">
+                Tuesday Morning Assembly Honours & Attention Slip
+              </h2>
+              <div className="flex justify-center items-center gap-3 text-[10.5px] font-semibold mt-1 text-slate-700 flex-wrap">
+                <span><strong>Classes:</strong> {combinedSectionsLabel}</span>
+                <span>•</span>
+                <span><strong>Subject:</strong> {subject?.name}</span>
+                <span>•</span>
+                <span><strong>Term:</strong> {selectedTerm === 'Midterm' ? 'Mid-Term Exam' : 'Final-Term Exam'} {academicYear}</span>
+                <span>•</span>
+                <span><strong>Teacher:</strong> {profile?.name || 'Faculty Member'}</span>
+              </div>
+            </div>
 
-          {/* Requires Attention Column */}
-          <div className="border border-slate-400 rounded p-3">
-            <h3 className="font-black text-xs uppercase tracking-wider pb-1.5 border-b border-slate-300 text-slate-900 mb-2">
-              ⚠️ Requires Attention (Below 10)
-            </h3>
-            {assemblySummary.requiresAttention.length === 0 ? (
-              <p className="text-xs italic text-slate-500">All evaluated students scored ≥ 10</p>
-            ) : (
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b text-slate-600 text-left">
-                    <th className="pb-1">Student Name</th>
-                    <th className="pb-1 w-20">House</th>
-                    <th className="pb-1 text-right w-16">Marks</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {assemblySummary.requiresAttention.map((s, i) => (
-                    <tr key={i} className="py-1">
-                      <td className="py-1 font-semibold">{s.student.name}</td>
-                      <td className="py-1 text-slate-700">{s.house || '—'}</td>
-                      <td className="py-1 text-right font-bold">
-                        {s.total}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
+            {/* Sections List */}
+            <div className="space-y-2">
+              {allSectionSummaries.map(({ cls: secCls, summary: secSummary }) => (
+                <div key={secCls.id} className="border border-slate-300 rounded p-1.5 bg-white">
+                  {/* Section Sub-header */}
+                  <div className="flex items-center justify-between pb-1 mb-1 border-b border-slate-200">
+                    <span className="font-black text-[11px] uppercase tracking-wider text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
+                      Class: {secCls.name} {secCls.section}
+                    </span>
+                    <span className="text-[9.5px] font-semibold text-slate-600">
+                      {secSummary.topScorers.length} Honours Rankers • {secSummary.requiresAttention.length} Below 10
+                    </span>
+                  </div>
 
-        <div className="mt-8 pt-4 border-t border-slate-300 flex justify-between text-xs text-slate-700">
-          <div>
-            <span>Date: {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  {/* 2-Column Grid */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {/* Left Column: Top Scorers */}
+                    <div className="border border-slate-300 rounded p-1.5 bg-white">
+                      <h3 className="font-black text-[10px] uppercase tracking-wider pb-0.5 border-b border-slate-200 text-slate-900 mb-1 flex items-center justify-between">
+                        <span>🏆 Top Scorers (Assembly Honours)</span>
+                      </h3>
+                      {secSummary.topScorers.length === 0 ? (
+                        <p className="text-[9.5px] italic text-slate-500 py-0.5">No marks entered yet</p>
+                      ) : (
+                        <table className="w-full text-[9.5px] leading-tight">
+                          <thead>
+                            <tr className="border-b border-slate-200 text-slate-600 text-left">
+                              <th className="pb-0.5 w-9">Rank</th>
+                              <th className="pb-0.5">Student Name</th>
+                              <th className="pb-0.5 w-16">House</th>
+                              <th className="pb-0.5 text-right w-10">Marks</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {secSummary.topScorers.map((s, idx) => (
+                              <tr key={idx}>
+                                <td className="py-0.5 font-bold">{s.rank === 1 ? '1st' : s.rank === 2 ? '2nd' : '3rd'}</td>
+                                <td className="py-0.5 font-semibold truncate max-w-[130px]">{formatStudentDisplayName(s.student.name)}</td>
+                                <td className="py-0.5 text-slate-700">{s.house || '—'}</td>
+                                <td className="py-0.5 text-right font-black">{s.total}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+
+                    {/* Right Column: Requires Attention */}
+                    <div className="border border-slate-300 rounded p-1.5 bg-white">
+                      <h3 className="font-black text-[10px] uppercase tracking-wider pb-0.5 border-b border-slate-200 text-slate-900 mb-1 flex items-center justify-between">
+                        <span>⚠️ Requires Attention (Below 10)</span>
+                      </h3>
+                      {secSummary.requiresAttention.length === 0 ? (
+                        <p className="text-[9.5px] italic text-slate-600 py-0.5">All evaluated students scored ≥ 10</p>
+                      ) : (
+                        <table className="w-full text-[9.5px] leading-tight">
+                          <thead>
+                            <tr className="border-b border-slate-200 text-slate-600 text-left">
+                              <th className="pb-0.5">Student Name</th>
+                              <th className="pb-0.5 w-16">House</th>
+                              <th className="pb-0.5 text-right w-12">Marks</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {secSummary.requiresAttention.map((s, idx) => (
+                              <tr key={idx}>
+                                <td className="py-0.5 font-semibold truncate max-w-[130px]">{formatStudentDisplayName(s.student.name)}</td>
+                                <td className="py-0.5 text-slate-700">{s.house || '—'}</td>
+                                <td className="py-0.5 text-right font-bold text-slate-900">{s.total}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Signatures */}
+            <div className="mt-2 pt-2 border-t border-slate-300 flex justify-between text-[10px] text-slate-800">
+              <div>
+                <span>Date: {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+              </div>
+              <div>
+                <span>Teacher Signature: _______________________</span>
+              </div>
+              <div>
+                <span>Principal Initials: __________</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <span>Teacher Signature: _______________________</span>
+        ) : (
+          /* SINGLE SECTION 1-PAGE PODIUM SLIP */
+          <div className="print-page-boundary p-2">
+            <div className="text-center border-b-2 border-black pb-3 mb-4">
+              <h1 className="text-xl font-black uppercase tracking-wider font-serif">GYANODAY NIKETAN</h1>
+              <h2 className="text-sm font-bold uppercase tracking-wide text-slate-800 mt-0.5">
+                Tuesday Morning Assembly Honours & Attention Slip
+              </h2>
+              <div className="flex justify-center items-center gap-4 text-xs font-semibold mt-2 text-slate-700 flex-wrap">
+                <span><strong>Class:</strong> {cls?.name} {cls?.section}</span>
+                <span>•</span>
+                <span><strong>Subject:</strong> {subject?.name}</span>
+                <span>•</span>
+                <span><strong>Term:</strong> {selectedTerm === 'Midterm' ? 'Mid-Term Exam' : 'Final-Term Exam'} {academicYear}</span>
+                <span>•</span>
+                <span><strong>Teacher:</strong> {profile?.name || 'Faculty Member'}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* Top Scorers Column */}
+              <div className="border border-slate-400 rounded p-2.5">
+                <h3 className="font-black text-xs uppercase tracking-wider pb-1.5 border-b border-slate-300 text-slate-900 mb-2">
+                  🏆 Top Scorers (Assembly Honours)
+                </h3>
+                {assemblySummary.topScorers.length === 0 ? (
+                  <p className="text-xs italic text-slate-500">No marks entered yet</p>
+                ) : (
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b text-slate-600 text-left">
+                        <th className="pb-1 w-12">Rank</th>
+                        <th className="pb-1">Student Name</th>
+                        <th className="pb-1 w-20">House</th>
+                        <th className="pb-1 text-right w-12">Marks</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {assemblySummary.topScorers.map((s, i) => (
+                        <tr key={i} className="py-1">
+                          <td className="py-1 font-bold">
+                            {s.rank === 1 ? '1st' : s.rank === 2 ? '2nd' : '3rd'}
+                          </td>
+                          <td className="py-1 font-semibold">{formatStudentDisplayName(s.student.name)}</td>
+                          <td className="py-1 text-slate-700">{s.house || '—'}</td>
+                          <td className="py-1 text-right font-black">{s.total}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {/* Requires Attention Column */}
+              <div className="border border-slate-400 rounded p-2.5">
+                <h3 className="font-black text-xs uppercase tracking-wider pb-1.5 border-b border-slate-300 text-slate-900 mb-2">
+                  ⚠️ Requires Attention (Below 10)
+                </h3>
+                {assemblySummary.requiresAttention.length === 0 ? (
+                  <p className="text-xs italic text-slate-500">All evaluated students scored ≥ 10</p>
+                ) : (
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b text-slate-600 text-left">
+                        <th className="pb-1">Student Name</th>
+                        <th className="pb-1 w-20">House</th>
+                        <th className="pb-1 text-right w-16">Marks</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {assemblySummary.requiresAttention.map((s, i) => (
+                        <tr key={i} className="py-1">
+                          <td className="py-1 font-semibold">{formatStudentDisplayName(s.student.name)}</td>
+                          <td className="py-1 text-slate-700">{s.house || '—'}</td>
+                          <td className="py-1 text-right font-bold">
+                            {s.total}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-300 flex justify-between text-xs text-slate-700">
+              <div>
+                <span>Date: {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+              </div>
+              <div>
+                <span>Teacher Signature: _______________________</span>
+              </div>
+              <div>
+                <span>Principal Initials: __________</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <span>Principal Initials: __________</span>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
