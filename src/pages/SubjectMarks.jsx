@@ -44,15 +44,22 @@ const SubjectMarks = () => {
   const [conductedDate, setConductedDate] = useState(() => getMostRecentTuesdayDate());
   const [patterns, setPatterns] = useState([]);
   const [activePattern, setActivePattern] = useState(null);
+  const [patternsLoaded, setPatternsLoaded] = useState(false);
   const [submission, setSubmission] = useState(null);
   const [loadingWorkflow, setLoadingWorkflow] = useState(true);
+
+  const localDraftKey = useMemo(() => 
+    `gn_draft_marks_${classId}_${subjectId}_${academicYear}_${selectedTerm}`,
+    [classId, subjectId, academicYear, selectedTerm]
+  );
+  const autoSaveTimerRef = useRef(null);
 
   // Local state for raw inputs and statuses:
   // rawScores: { `${studentId}_${componentCode}`: stringNumber }
   // statuses:  { `${studentId}_${componentCode}`: 'MARKED' | 'ABSENT' | 'NOT_APPLICABLE' }
   const [rawScores, setRawScores] = useState({});
   const [statuses, setStatuses] = useState({});
-  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'error'
+  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'pending' | 'saving' | 'saved' | 'error'
   const [submitError, setSubmitError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [globalFilter, setGlobalFilter] = useState('');
@@ -60,9 +67,11 @@ const SubjectMarks = () => {
 
   // 1. Load assessment patterns and resolve active pattern
   useEffect(() => {
+    let isMounted = true;
     const fetchPatterns = async () => {
       try {
         const list = await MarksWorkflowService.getAssessmentPatterns(academicYear);
+        if (!isMounted) return;
         setPatterns(list);
         if (cls) {
           const matched = MarksCalculationEngine.resolvePattern(cls.name, academicYear, list, subject?.name, cls.section);
@@ -70,9 +79,12 @@ const SubjectMarks = () => {
         }
       } catch (err) {
         console.error('Error fetching patterns:', err);
+      } finally {
+        if (isMounted) setPatternsLoaded(true);
       }
     };
     fetchPatterns();
+    return () => { isMounted = false; };
   }, [cls?.name, cls?.section, subject?.name, academicYear]);
 
   // 2. Load submission status & detailed marks
@@ -126,6 +138,33 @@ const SubjectMarks = () => {
           });
         });
 
+        // Check local storage for any unsaved changes that were entered before page refresh/exit
+        try {
+          const cachedStr = localStorage.getItem(localDraftKey);
+          if (cachedStr) {
+            const cached = JSON.parse(cachedStr);
+            if (cached && cached.rawScores) {
+              let hasUnsavedLocal = false;
+              Object.keys(cached.rawScores).forEach(k => {
+                const val = cached.rawScores[k];
+                if (val !== undefined && val !== '' && val !== scoresMap[k]) {
+                  scoresMap[k] = val;
+                  if (cached.statuses?.[k]) {
+                    statusMap[k] = cached.statuses[k];
+                  }
+                  hasUnsavedLocal = true;
+                }
+              });
+              if (hasUnsavedLocal) {
+                console.log('Restored unsaved draft marks from device storage.');
+                setSaveStatus('pending');
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Local draft restore notice:', e);
+        }
+
         setRawScores(scoresMap);
         setStatuses(statusMap);
       }
@@ -137,8 +176,9 @@ const SubjectMarks = () => {
   };
 
   useEffect(() => {
+    if (!patternsLoaded) return;
     loadSubmissionData();
-  }, [classId, subjectId, selectedTerm, academicYear, activePattern?.id]);
+  }, [classId, subjectId, selectedTerm, academicYear, activePattern?.id, patternsLoaded]);
 
   // Read-only conditions: cannot edit when submitted, under review, approved, or locked
   const isReadOnly = useMemo(() => {
@@ -198,21 +238,75 @@ const SubjectMarks = () => {
     }
 
     const key = `${studentId}_${componentCode}`;
-    setRawScores(prev => ({ ...prev, [key]: rawVal }));
-    setStatuses(prev => ({ ...prev, [key]: 'MARKED' }));
+    const nextScores = { ...rawScores, [key]: rawVal };
+    const nextStatuses = { ...statuses, [key]: 'MARKED' };
+    setRawScores(nextScores);
+    setStatuses(nextStatuses);
     setSaveStatus('pending');
+
+    // Immediately persist to local device storage as emergency backup
+    try {
+      localStorage.setItem(localDraftKey, JSON.stringify({
+        rawScores: nextScores,
+        statuses: nextStatuses,
+        timestamp: Date.now()
+      }));
+    } catch (e) {}
   };
 
   // Handle Status Toggle (Marked / Absent / N/A)
   const handleStatusChange = (studentId, componentCode, newStatus) => {
     if (isReadOnly) return;
     const key = `${studentId}_${componentCode}`;
-    setStatuses(prev => ({ ...prev, [key]: newStatus }));
+    const nextStatuses = { ...statuses, [key]: newStatus };
+    const nextScores = { ...rawScores };
     if (newStatus !== 'MARKED') {
-      setRawScores(prev => ({ ...prev, [key]: '' }));
+      nextScores[key] = '';
     }
+    setStatuses(nextStatuses);
+    setRawScores(nextScores);
     setSaveStatus('pending');
+
+    try {
+      localStorage.setItem(localDraftKey, JSON.stringify({
+        rawScores: nextScores,
+        statuses: nextStatuses,
+        timestamp: Date.now()
+      }));
+    } catch (e) {}
   };
+
+  // Debounced Auto-Save Draft: triggers automatically 2.5 seconds after user stops typing
+  useEffect(() => {
+    if (saveStatus !== 'pending' || isReadOnly || !submission?.id) return;
+
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+
+    autoSaveTimerRef.current = setTimeout(() => {
+      handleSaveDraft(true);
+    }, 2500);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [rawScores, statuses, conductedDate, saveStatus, isReadOnly, submission?.id]);
+
+  // Warn user if attempting to leave window/tab with unsaved marks
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (saveStatus === 'pending') {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved entered marks! Please wait for auto-save or click Save Draft.';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [saveStatus]);
 
   // Live calculation of 1st, 2nd, 3rd Rankers and Requires Attention for Tuesday Assembly
   const assemblySummary = useMemo(() => {
@@ -336,9 +430,12 @@ _Sent via Gyanoday Niketan ERP_`;
     window.print();
   };
 
-  // Save Draft
-  const handleSaveDraft = async () => {
-    if (!submission?.id) return;
+  // Save Draft (Supports manual button click and automatic background auto-save)
+  const handleSaveDraft = async (isAutoSave = false) => {
+    if (!submission?.id || isReadOnly) return;
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
     setSaveStatus('saving');
     try {
       const detailedPayload = [];
@@ -374,6 +471,8 @@ _Sent via Gyanoday Niketan ERP_`;
           detailedPayload.push({
             studentId: st.id,
             componentId: comp.id,
+            componentCode: comp.component_code,
+            rawMaxMarks: comp.raw_max_marks,
             rawScore: rawVal !== '' && rawVal !== null && rawVal !== undefined ? Number(rawVal) : null,
             convertedScore: converted !== null && converted !== undefined ? Number(converted) : null,
             status: stStatus || 'MARKED'
@@ -416,12 +515,19 @@ _Sent via Gyanoday Niketan ERP_`;
         legacyMarksPayload: legacyPayload
       });
 
+      // Clear emergency device backup once synced to server
+      try {
+        localStorage.removeItem(localDraftKey);
+      } catch (e) {}
+
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2500);
     } catch (err) {
       console.error('Error saving draft:', err);
       setSaveStatus('error');
-      alert('Failed to save draft: ' + err.message);
+      if (!isAutoSave) {
+        alert('Failed to save draft: ' + err.message);
+      }
     }
   };
 
@@ -446,6 +552,9 @@ _Sent via Gyanoday Niketan ERP_`;
     setRawScores(clearedScores);
     setStatuses(clearedStatuses);
     setSaveStatus('pending');
+    try {
+      localStorage.removeItem(localDraftKey);
+    } catch (e) {}
   };
 
   // Export Marks to Excel
@@ -801,11 +910,29 @@ _Sent via Gyanoday Niketan ERP_`;
                  <ShieldCheck size={20} />}
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs uppercase tracking-wider font-bold text-slate-300 whitespace-nowrap">Workflow State:</span>
                   <span className="font-mono font-black text-xs px-2.5 py-1 rounded-md bg-slate-800 text-white border border-slate-700 whitespace-nowrap">
                     {submission.status}
                   </span>
+                  {!isReadOnly && (
+                    saveStatus === 'pending' ? (
+                      <span className="text-[11px] font-medium text-amber-300 flex items-center gap-1.5 bg-amber-950/70 border border-amber-500/40 px-2 py-0.5 rounded-md whitespace-nowrap">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span>
+                        Unsaved (Auto-saving...)
+                      </span>
+                    ) : saveStatus === 'saving' ? (
+                      <span className="text-[11px] font-medium text-blue-300 flex items-center gap-1.5 bg-blue-950/70 border border-blue-500/40 px-2 py-0.5 rounded-md whitespace-nowrap">
+                        <RefreshCw size={11} className="animate-spin text-blue-400" />
+                        Saving draft...
+                      </span>
+                    ) : saveStatus === 'saved' ? (
+                      <span className="text-[11px] font-medium text-emerald-300 flex items-center gap-1.5 bg-emerald-950/70 border border-emerald-500/40 px-2 py-0.5 rounded-md whitespace-nowrap">
+                        <Check size={12} className="text-emerald-400" />
+                        Draft Saved
+                      </span>
+                    ) : null
+                  )}
                 </div>
                 <p className="text-xs mt-1 text-slate-300 max-w-[320px] sm:max-w-md">
                   {submission.status === 'DRAFT' && 'You can enter raw marks and save drafts. When ready, submit to Coordinator Sir.'}
@@ -833,12 +960,32 @@ _Sent via Gyanoday Niketan ERP_`;
                   </button>
                   <button 
                     type="button"
-                    onClick={handleSaveDraft}
+                    onClick={() => handleSaveDraft(false)}
                     disabled={saveStatus === 'saving'}
-                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 flex items-center gap-1.5 transition-all shadow-sm disabled:opacity-50 cursor-pointer whitespace-nowrap shrink-0"
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition-all shadow-sm disabled:opacity-50 cursor-pointer whitespace-nowrap shrink-0 ${
+                      saveStatus === 'pending'
+                        ? 'bg-amber-600 hover:bg-amber-500 text-white border-amber-400 shadow-amber-500/20 shadow-md'
+                        : saveStatus === 'saved'
+                        ? 'bg-emerald-800 text-emerald-100 border-emerald-600'
+                        : 'bg-slate-800 hover:bg-slate-700 text-white border-slate-600'
+                    }`}
                   >
-                    <Save size={14} />
-                    <span>{saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Draft Saved' : 'Save Draft'}</span>
+                    {saveStatus === 'saving' ? (
+                      <>
+                        <RefreshCw size={14} className="animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : saveStatus === 'saved' ? (
+                      <>
+                        <Check size={14} className="text-emerald-300" />
+                        <span>Draft Saved</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save size={14} className={saveStatus === 'pending' ? 'text-amber-200' : ''} />
+                        <span>{saveStatus === 'pending' ? 'Save Draft *' : 'Save Draft'}</span>
+                      </>
+                    )}
                   </button>
                   <button 
                     type="button"

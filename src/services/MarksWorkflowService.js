@@ -186,13 +186,16 @@ export class MarksWorkflowService {
     // 4. Synchronize into weekly_tests & weekly_test_marks when testDate is provided
     if (testDate && classId && subjectId) {
       try {
+        const testCompItem = detailedMarksList.find(m => m.componentCode === 'TEST' || m.component_code === 'TEST');
+        const weeklyMaxMarks = testCompItem?.rawMaxMarks || 20;
+
         const { data: wtData, error: wtErr } = await supabase
           .from('weekly_tests')
           .upsert([{
             class_id: classId,
             subject_id: subjectId,
             test_date: testDate,
-            max_marks: 25,
+            max_marks: weeklyMaxMarks,
             status: 'Draft',
             updated_at: new Date().toISOString()
           }], { onConflict: 'class_id,subject_id,test_date' })
@@ -200,7 +203,10 @@ export class MarksWorkflowService {
           .maybeSingle();
 
         if (!wtErr && wtData?.id) {
-          const testMarksToUpsert = detailedMarksList.map(m => ({
+          const testMarksOnly = detailedMarksList.filter(m => m.componentCode === 'TEST' || m.component_code === 'TEST');
+          const listToSync = testMarksOnly.length > 0 ? testMarksOnly : detailedMarksList;
+
+          const testMarksToUpsert = listToSync.map(m => ({
             test_id: wtData.id,
             student_id: m.studentId,
             score: m.status === 'ABSENT' ? 0 : (m.rawScore !== null && m.rawScore !== undefined && m.rawScore !== '' ? Number(m.rawScore) : null),
