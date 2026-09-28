@@ -411,11 +411,18 @@ export default function ReportPrintingControl({ defaultTab = 'weekly_tests' }) {
   // Safe print trigger that temporarily removes dark mode to guarantee pure white background
   const triggerSafePrint = () => {
     const wasDark = document.documentElement.classList.contains('dark');
+    const prevBg = document.documentElement.style.getPropertyValue('--bg-color');
+    document.documentElement.style.setProperty('--bg-color', '#ffffff');
+    document.documentElement.style.backgroundColor = '#ffffff';
+    document.body.style.backgroundColor = '#ffffff';
     if (wasDark) {
       document.documentElement.classList.remove('dark');
     }
 
     const restoreDark = () => {
+      document.documentElement.style.setProperty('--bg-color', prevBg || '');
+      document.documentElement.style.backgroundColor = '';
+      document.body.style.backgroundColor = '';
       if (wasDark && !document.documentElement.classList.contains('dark')) {
         document.documentElement.classList.add('dark');
       }
@@ -914,12 +921,24 @@ export default function ReportPrintingControl({ defaultTab = 'weekly_tests' }) {
                 size: portrait;
               }
               @media print {
-                html, html.dark, body, body.dark, #root, .app {
+                :root, :root.dark {
+                  --bg-color: #ffffff !important;
+                }
+                *, *::before, *::after {
+                  color-scheme: light !important;
+                  box-shadow: none !important;
+                  text-shadow: none !important;
+                }
+                html, html.dark, body, body.dark, #root, .app, .app-layout, .main-content, .layout-content-container, .max-w-7xl, #print-weekly-test-slip, .print-page-boundary {
                   margin: 0 !important;
                   padding: 0 !important;
                   background: #ffffff !important;
                   background-color: #ffffff !important;
                   color: #000000 !important;
+                  border: none !important;
+                  box-shadow: none !important;
+                  width: 100% !important;
+                  max-width: 100% !important;
                   -webkit-print-color-adjust: exact !important;
                   print-color-adjust: exact !important;
                 }
@@ -930,8 +949,7 @@ export default function ReportPrintingControl({ defaultTab = 'weekly_tests' }) {
                   page-break-inside: avoid !important;
                   break-inside: avoid !important;
                   width: 100% !important;
-                  max-height: 282mm !important;
-                  overflow: hidden !important;
+                  min-height: 280mm !important;
                   box-sizing: border-box !important;
                   background: #ffffff !important;
                   background-color: #ffffff !important;
@@ -953,7 +971,7 @@ export default function ReportPrintingControl({ defaultTab = 'weekly_tests' }) {
                 <div className="flex justify-center items-center gap-3 text-[10px] font-bold mt-1 text-black flex-wrap">
                   <span><strong>Class:</strong> {selectedClassOption?.label}</span>
                   <span>•</span>
-                  <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-black"><strong>Subject:</strong> {subjectDisplayName}</span>
+                  <span className="bg-white px-1.5 py-0.5 rounded border border-black text-black"><strong>Subject:</strong> {subjectDisplayName}</span>
                   <span>•</span>
                   <span><strong>Term:</strong> {selectedTerm === 'Midterm' ? 'Mid-Term Exam' : 'Final-Term Exam'} {selectedYear}</span>
                   <span>•</span>
@@ -968,10 +986,10 @@ export default function ReportPrintingControl({ defaultTab = 'weekly_tests' }) {
                     {/* Section Sub-header */}
                     <div className="flex items-center justify-between pb-1 mb-1 border-b border-black">
                       <div className="flex items-center gap-2">
-                        <span className="font-black text-[11px] uppercase tracking-wider text-black bg-slate-100 px-2 py-0.5 rounded border border-black">
+                        <span className="font-black text-[11px] uppercase tracking-wider text-black bg-white px-2 py-0.5 rounded border border-black">
                           Class: {secCls.name} {secCls.section}
                         </span>
-                        <span className="font-bold text-[10px] uppercase tracking-wide text-black bg-slate-100 px-2 py-0.5 rounded border border-black">
+                        <span className="font-bold text-[10px] uppercase tracking-wide text-black bg-white px-2 py-0.5 rounded border border-black">
                           Subject: {subjectDisplayName}
                         </span>
                       </div>

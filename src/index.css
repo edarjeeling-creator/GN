@@ -257,15 +257,29 @@
   }
 
   @media print {
+    :root, :root.dark, html, body {
+      --bg-color: #ffffff !important;
+      background: #ffffff !important;
+      background-color: #ffffff !important;
+    }
+
     *, *::before, *::after {
       color-scheme: light !important;
+      box-shadow: none !important;
+      text-shadow: none !important;
     }
-    html, html.dark, body, body.dark, #root, .app, #print-assembly-slip, #print-weekly-test-slip, .print-page-boundary {
+
+    html, html.dark, body, body.dark, #root, .app, .app-layout, .main-content, 
+    .layout-content-container, .max-w-7xl, #print-assembly-slip, #print-weekly-test-slip, .print-page-boundary {
       background: #ffffff !important;
       background-color: #ffffff !important;
       color: #000000 !important;
       margin: 0 !important;
       padding: 0 !important;
+      border: none !important;
+      box-shadow: none !important;
+      width: 100% !important;
+      max-width: 100% !important;
       display: block !important;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;

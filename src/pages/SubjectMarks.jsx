@@ -677,9 +677,16 @@ _Sent via Gyanoday Niketan ERP_`;
   // Safe print trigger that temporarily removes dark mode during print preview so background is pure white
   const triggerSafePrint = () => {
     const wasDark = document.documentElement.classList.contains('dark');
+    const prevBg = document.documentElement.style.getPropertyValue('--bg-color');
+    document.documentElement.style.setProperty('--bg-color', '#ffffff');
+    document.documentElement.style.backgroundColor = '#ffffff';
+    document.body.style.backgroundColor = '#ffffff';
     if (wasDark) document.documentElement.classList.remove('dark');
 
     const restoreDark = () => {
+      document.documentElement.style.setProperty('--bg-color', prevBg || '');
+      document.documentElement.style.backgroundColor = '';
+      document.body.style.backgroundColor = '';
       if (wasDark && !document.documentElement.classList.contains('dark')) {
         document.documentElement.classList.add('dark');
       }
@@ -1996,15 +2003,24 @@ _Sent via Gyanoday Niketan ERP_`;
             size: portrait;
           }
           @media print {
+            :root, :root.dark {
+              --bg-color: #ffffff !important;
+            }
             *, *::before, *::after {
               color-scheme: light !important;
+              box-shadow: none !important;
+              text-shadow: none !important;
             }
-            html, html.dark, body, body.dark, #root, #print-assembly-slip, .print-page-boundary {
+            html, html.dark, body, body.dark, #root, .app, .app-layout, .main-content, .layout-content-container, .max-w-7xl, #print-assembly-slip, .print-page-boundary {
               margin: 0 !important;
               padding: 0 !important;
               background: #ffffff !important;
               background-color: #ffffff !important;
               color: #000000 !important;
+              border: none !important;
+              box-shadow: none !important;
+              width: 100% !important;
+              max-width: 100% !important;
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
             }
@@ -2015,8 +2031,7 @@ _Sent via Gyanoday Niketan ERP_`;
               page-break-inside: avoid !important;
               break-inside: avoid !important;
               width: 100% !important;
-              max-height: 282mm !important;
-              overflow: hidden !important;
+              min-height: 280mm !important;
               box-sizing: border-box !important;
               background: #ffffff !important;
               background-color: #ffffff !important;
@@ -2040,7 +2055,7 @@ _Sent via Gyanoday Niketan ERP_`;
               <div className="flex justify-center items-center gap-3 text-[10.5px] font-bold mt-1 text-black flex-wrap">
                 <span><strong>Classes:</strong> {combinedSectionsLabel}</span>
                 <span>•</span>
-                <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-black"><strong>Subject:</strong> {subjectDisplayName}</span>
+                <span className="bg-white px-1.5 py-0.5 rounded border border-black text-black"><strong>Subject:</strong> {subjectDisplayName}</span>
                 <span>•</span>
                 <span><strong>Term:</strong> {selectedTerm === 'Midterm' ? 'Mid-Term Exam' : 'Final-Term Exam'} {academicYear}</span>
                 <span>•</span>
@@ -2051,18 +2066,18 @@ _Sent via Gyanoday Niketan ERP_`;
             {/* Sections List */}
             <div className="space-y-2">
               {allSectionSummaries.map(({ cls: secCls, summary: secSummary }) => (
-                <div key={secCls.id} className="border border-slate-300 rounded p-1.5 bg-white">
+                <div key={secCls.id} className="border border-black rounded p-1.5 bg-white" style={{ background: '#ffffff', backgroundColor: '#ffffff', color: '#000000' }}>
                   {/* Section Sub-header */}
-                  <div className="flex items-center justify-between pb-1 mb-1 border-b border-slate-200">
+                  <div className="flex items-center justify-between pb-1 mb-1 border-b border-black">
                     <div className="flex items-center gap-2">
-                      <span className="font-black text-[11px] uppercase tracking-wider text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
+                      <span className="font-black text-[11px] uppercase tracking-wider text-black bg-white px-2 py-0.5 rounded border border-black">
                         Class: {secCls.name} {secCls.section}
                       </span>
-                      <span className="font-bold text-[10.5px] uppercase tracking-wide text-slate-800 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                      <span className="font-bold text-[10.5px] uppercase tracking-wide text-black bg-white px-2 py-0.5 rounded border border-black">
                         Subject: {subjectDisplayName}
                       </span>
                     </div>
-                    <span className="text-[9.5px] font-semibold text-slate-600">
+                    <span className="text-[9.5px] font-bold text-black">
                       {secSummary.topScorers.length} Honours Rankers • {secSummary.requiresAttention.length} Below 10
                     </span>
                   </div>
@@ -2070,29 +2085,29 @@ _Sent via Gyanoday Niketan ERP_`;
                   {/* 2-Column Grid */}
                   <div className="grid grid-cols-2 gap-2.5">
                     {/* Left Column: Top Scorers */}
-                    <div className="border border-slate-300 rounded p-1.5 bg-white">
-                      <h3 className="font-black text-[10px] uppercase tracking-wider pb-0.5 border-b border-slate-200 text-slate-900 mb-1 flex items-center justify-between">
+                    <div className="border border-black rounded p-1.5 bg-white" style={{ background: '#ffffff', backgroundColor: '#ffffff', color: '#000000' }}>
+                      <h3 className="font-black text-[10px] uppercase tracking-wider pb-0.5 border-b border-black text-black mb-1 flex items-center justify-between">
                         <span>🏆 Top Scorers (Assembly Honours)</span>
                       </h3>
                       {secSummary.topScorers.length === 0 ? (
-                        <p className="text-[9.5px] italic text-slate-500 py-0.5">No marks entered yet</p>
+                        <p className="text-[9.5px] italic text-slate-600 py-0.5">No marks entered yet</p>
                       ) : (
                         <table className="w-full text-[9.5px] leading-tight">
                           <thead>
-                            <tr className="border-b border-slate-200 text-slate-600 text-left">
+                            <tr className="border-b border-black text-black font-bold text-left">
                               <th className="pb-0.5 w-9">Rank</th>
                               <th className="pb-0.5">Student Name</th>
                               <th className="pb-0.5 w-16">House</th>
                               <th className="pb-0.5 text-right w-10">Marks</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100">
+                          <tbody className="divide-y divide-slate-200">
                             {secSummary.topScorers.map((s, idx) => (
-                              <tr key={idx}>
-                                <td className="py-0.5 font-bold">{s.rank === 1 ? '1st' : s.rank === 2 ? '2nd' : '3rd'}</td>
-                                <td className="py-0.5 font-semibold truncate max-w-[130px]">{formatStudentDisplayName(s.student.name)}</td>
-                                <td className="py-0.5 text-slate-700">{s.house || '—'}</td>
-                                <td className="py-0.5 text-right font-black">{s.total}</td>
+                              <tr key={idx} className="bg-white">
+                                <td className="py-0.5 font-bold text-black">{s.rank === 1 ? '1st' : s.rank === 2 ? '2nd' : '3rd'}</td>
+                                <td className="py-0.5 font-semibold text-black truncate max-w-[130px]">{formatStudentDisplayName(s.student.name)}</td>
+                                <td className="py-0.5 text-black">{s.house || '—'}</td>
+                                <td className="py-0.5 text-right font-black text-black">{s.total}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -2101,27 +2116,27 @@ _Sent via Gyanoday Niketan ERP_`;
                     </div>
 
                     {/* Right Column: Requires Attention */}
-                    <div className="border border-slate-300 rounded p-1.5 bg-white">
-                      <h3 className="font-black text-[10px] uppercase tracking-wider pb-0.5 border-b border-slate-200 text-slate-900 mb-1 flex items-center justify-between">
+                    <div className="border border-black rounded p-1.5 bg-white" style={{ background: '#ffffff', backgroundColor: '#ffffff', color: '#000000' }}>
+                      <h3 className="font-black text-[10px] uppercase tracking-wider pb-0.5 border-b border-black text-black mb-1 flex items-center justify-between">
                         <span>⚠️ Requires Attention (Below 10)</span>
                       </h3>
                       {secSummary.requiresAttention.length === 0 ? (
-                        <p className="text-[9.5px] italic text-slate-600 py-0.5">All evaluated students scored ≥ 10</p>
+                        <p className="text-[9.5px] italic text-emerald-800 font-medium py-0.5">All evaluated students scored ≥ 10</p>
                       ) : (
                         <table className="w-full text-[9.5px] leading-tight">
                           <thead>
-                            <tr className="border-b border-slate-200 text-slate-600 text-left">
+                            <tr className="border-b border-black text-black font-bold text-left">
                               <th className="pb-0.5">Student Name</th>
                               <th className="pb-0.5 w-16">House</th>
                               <th className="pb-0.5 text-right w-12">Marks</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100">
+                          <tbody className="divide-y divide-slate-200">
                             {secSummary.requiresAttention.map((s, idx) => (
-                              <tr key={idx}>
-                                <td className="py-0.5 font-semibold truncate max-w-[130px]">{formatStudentDisplayName(s.student.name)}</td>
-                                <td className="py-0.5 text-slate-700">{s.house || '—'}</td>
-                                <td className="py-0.5 text-right font-bold text-slate-900">{s.total}</td>
+                              <tr key={idx} className="bg-white">
+                                <td className="py-0.5 font-semibold text-black truncate max-w-[130px]">{formatStudentDisplayName(s.student.name)}</td>
+                                <td className="py-0.5 text-black">{s.house || '—'}</td>
+                                <td className="py-0.5 text-right font-bold text-rose-800">{s.total}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -2160,7 +2175,7 @@ _Sent via Gyanoday Niketan ERP_`;
               <div className="flex justify-center items-center gap-4 text-xs font-bold mt-2 text-black flex-wrap">
                 <span><strong>Class:</strong> {cls?.name} {cls?.section}</span>
                 <span>•</span>
-                <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-black"><strong>Subject:</strong> {subjectDisplayName}</span>
+                <span className="bg-white px-1.5 py-0.5 rounded border border-black text-black"><strong>Subject:</strong> {subjectDisplayName}</span>
                 <span>•</span>
                 <span><strong>Term:</strong> {selectedTerm === 'Midterm' ? 'Mid-Term Exam' : 'Final-Term Exam'} {academicYear}</span>
                 <span>•</span>
@@ -2170,8 +2185,8 @@ _Sent via Gyanoday Niketan ERP_`;
 
             <div className="grid grid-cols-2 gap-4">
               {/* Top Scorers Column */}
-              <div className="border border-slate-400 rounded p-2.5 bg-white">
-                <h3 className="font-black text-xs uppercase tracking-wider pb-1.5 border-b border-slate-300 text-black mb-2">
+              <div className="border border-black rounded p-2.5 bg-white" style={{ background: '#ffffff', backgroundColor: '#ffffff', color: '#000000' }}>
+                <h3 className="font-black text-xs uppercase tracking-wider pb-1.5 border-b border-black text-black mb-2">
                   🏆 Top Scorers (Assembly Honours)
                 </h3>
                 {assemblySummary.topScorers.length === 0 ? (
@@ -2179,7 +2194,7 @@ _Sent via Gyanoday Niketan ERP_`;
                 ) : (
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className="border-b border-slate-300 text-slate-800 font-bold text-left">
+                      <tr className="border-b border-black text-black font-bold text-left">
                         <th className="pb-1 w-12">Rank</th>
                         <th className="pb-1">Student Name</th>
                         <th className="pb-1 w-20">House</th>
@@ -2188,12 +2203,12 @@ _Sent via Gyanoday Niketan ERP_`;
                     </thead>
                     <tbody className="divide-y divide-slate-200">
                       {assemblySummary.topScorers.map((s, i) => (
-                        <tr key={i} className="py-1">
+                        <tr key={i} className="py-1 bg-white">
                           <td className="py-1 font-bold text-black">
                             {s.rank === 1 ? '1st' : s.rank === 2 ? '2nd' : '3rd'}
                           </td>
                           <td className="py-1 font-semibold text-black">{formatStudentDisplayName(s.student.name)}</td>
-                          <td className="py-1 text-slate-800">{s.house || '—'}</td>
+                          <td className="py-1 text-black">{s.house || '—'}</td>
                           <td className="py-1 text-right font-black text-black">{s.total}</td>
                         </tr>
                       ))}
@@ -2203,8 +2218,8 @@ _Sent via Gyanoday Niketan ERP_`;
               </div>
 
               {/* Requires Attention Column */}
-              <div className="border border-slate-400 rounded p-2.5 bg-white">
-                <h3 className="font-black text-xs uppercase tracking-wider pb-1.5 border-b border-slate-300 text-black mb-2">
+              <div className="border border-black rounded p-2.5 bg-white" style={{ background: '#ffffff', backgroundColor: '#ffffff', color: '#000000' }}>
+                <h3 className="font-black text-xs uppercase tracking-wider pb-1.5 border-b border-black text-black mb-2">
                   ⚠️ Requires Attention (Below 10)
                 </h3>
                 {assemblySummary.requiresAttention.length === 0 ? (
@@ -2212,7 +2227,7 @@ _Sent via Gyanoday Niketan ERP_`;
                 ) : (
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className="border-b border-slate-300 text-slate-800 font-bold text-left">
+                      <tr className="border-b border-black text-black font-bold text-left">
                         <th className="pb-1">Student Name</th>
                         <th className="pb-1 w-20">House</th>
                         <th className="pb-1 text-right w-16">Marks</th>
@@ -2220,9 +2235,9 @@ _Sent via Gyanoday Niketan ERP_`;
                     </thead>
                     <tbody className="divide-y divide-slate-200">
                       {assemblySummary.requiresAttention.map((s, i) => (
-                        <tr key={i} className="py-1">
+                        <tr key={i} className="py-1 bg-white">
                           <td className="py-1 font-semibold text-black">{formatStudentDisplayName(s.student.name)}</td>
-                          <td className="py-1 text-slate-800">{s.house || '—'}</td>
+                          <td className="py-1 text-black">{s.house || '—'}</td>
                           <td className="py-1 text-right font-bold text-rose-800">
                             {s.total}
                           </td>

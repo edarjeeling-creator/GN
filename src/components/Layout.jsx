@@ -675,7 +675,7 @@ const Layout = ({ children }) => {
           </div>
         )}
 
-        <div style={{ padding: '2rem 1.5rem', flex: 1 }}>
+        <div className="layout-content-container" style={{ padding: '2rem 1.5rem', flex: 1 }}>
           {children}
         </div>
       </main>
