@@ -257,10 +257,18 @@
   }
 
   @media print {
-    body {
-      background-color: transparent !important;
-      margin: 0;
-      display: block;
+    *, *::before, *::after {
+      color-scheme: light !important;
+    }
+    html, html.dark, body, body.dark, #root, .app, #print-assembly-slip, #print-weekly-test-slip, .print-page-boundary {
+      background: #ffffff !important;
+      background-color: #ffffff !important;
+      color: #000000 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      display: block !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
     .no-print {
       display: none !important;

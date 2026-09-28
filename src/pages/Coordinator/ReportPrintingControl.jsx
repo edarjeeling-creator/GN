@@ -408,6 +408,27 @@ export default function ReportPrintingControl({ defaultTab = 'weekly_tests' }) {
     window.open(`https://wa.me/?text=${text}`, '_blank');
   };
 
+  // Safe print trigger that temporarily removes dark mode to guarantee pure white background
+  const triggerSafePrint = () => {
+    const wasDark = document.documentElement.classList.contains('dark');
+    if (wasDark) {
+      document.documentElement.classList.remove('dark');
+    }
+
+    const restoreDark = () => {
+      if (wasDark && !document.documentElement.classList.contains('dark')) {
+        document.documentElement.classList.add('dark');
+      }
+    };
+
+    window.addEventListener('afterprint', restoreDark, { once: true });
+
+    setTimeout(() => {
+      window.print();
+      setTimeout(restoreDark, 1000);
+    }, 150);
+  };
+
   // -------------------------------------------------------------
   // REPORT CARDS GATEKEEPER STATE & LOGIC
   // -------------------------------------------------------------
@@ -648,7 +669,7 @@ export default function ReportPrintingControl({ defaultTab = 'weekly_tests' }) {
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
-                  onClick={() => window.print()}
+                  onClick={triggerSafePrint}
                   className="px-4 py-2 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-2 shadow-md shadow-indigo-950/40 border border-indigo-400/40 active:scale-95 cursor-pointer"
                   title="Print paper-saver slip directly on 1 page for Principal"
                 >
@@ -882,17 +903,23 @@ export default function ReportPrintingControl({ defaultTab = 'weekly_tests' }) {
           {/* ========================================================= */}
           {/* PRINT-ONLY PODIUM SLIP (Guaranteed 100% 1-Page on Paper) */}
           {/* ========================================================= */}
-          <div id="print-weekly-test-slip" className="hidden print:block font-sans text-black">
+          <div 
+            id="print-weekly-test-slip" 
+            className="hidden print:block font-sans text-black bg-white"
+            style={{ background: '#ffffff', backgroundColor: '#ffffff', color: '#000000' }}
+          >
             <style>{`
               @page {
                 margin: 6mm 8mm 6mm 8mm !important;
                 size: portrait;
               }
               @media print {
-                html, body {
+                html, html.dark, body, body.dark, #root, .app {
                   margin: 0 !important;
                   padding: 0 !important;
                   background: #ffffff !important;
+                  background-color: #ffffff !important;
+                  color: #000000 !important;
                   -webkit-print-color-adjust: exact !important;
                   print-color-adjust: exact !important;
                 }
@@ -906,21 +933,27 @@ export default function ReportPrintingControl({ defaultTab = 'weekly_tests' }) {
                   max-height: 282mm !important;
                   overflow: hidden !important;
                   box-sizing: border-box !important;
+                  background: #ffffff !important;
+                  background-color: #ffffff !important;
+                  color: #000000 !important;
                 }
               }
             `}</style>
 
-            <div className="print-page-boundary p-1">
+            <div 
+              className="print-page-boundary p-1 bg-white"
+              style={{ background: '#ffffff', backgroundColor: '#ffffff', color: '#000000' }}
+            >
               {/* Header */}
               <div className="text-center border-b-2 border-black pb-1 mb-1.5">
-                <h1 className="text-lg font-black uppercase tracking-wider font-serif">GYANODAY NIKETAN</h1>
-                <h2 className="text-xs font-black uppercase tracking-wide text-slate-800 mt-0.5">
+                <h1 className="text-lg font-black uppercase tracking-wider font-serif text-black">GYANODAY NIKETAN</h1>
+                <h2 className="text-xs font-black uppercase tracking-wide text-black mt-0.5">
                   Tuesday Morning Assembly Honours & Attention Slip
                 </h2>
-                <div className="flex justify-center items-center gap-3 text-[10px] font-semibold mt-1 text-slate-700 flex-wrap">
+                <div className="flex justify-center items-center gap-3 text-[10px] font-bold mt-1 text-black flex-wrap">
                   <span><strong>Class:</strong> {selectedClassOption?.label}</span>
                   <span>•</span>
-                  <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300"><strong>Subject:</strong> {subjectDisplayName}</span>
+                  <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-black"><strong>Subject:</strong> {subjectDisplayName}</span>
                   <span>•</span>
                   <span><strong>Term:</strong> {selectedTerm === 'Midterm' ? 'Mid-Term Exam' : 'Final-Term Exam'} {selectedYear}</span>
                   <span>•</span>
@@ -931,18 +964,18 @@ export default function ReportPrintingControl({ defaultTab = 'weekly_tests' }) {
               {/* Sections List */}
               <div className="space-y-2">
                 {sectionDataList.map(({ cls: secCls, summary: secSummary }) => (
-                  <div key={secCls.id} className="border border-slate-300 rounded p-1.5 bg-white">
+                  <div key={secCls.id} className="border border-black rounded p-1.5 bg-white" style={{ background: '#ffffff', backgroundColor: '#ffffff', color: '#000000' }}>
                     {/* Section Sub-header */}
-                    <div className="flex items-center justify-between pb-1 mb-1 border-b border-slate-200">
+                    <div className="flex items-center justify-between pb-1 mb-1 border-b border-black">
                       <div className="flex items-center gap-2">
-                        <span className="font-black text-[11px] uppercase tracking-wider text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
+                        <span className="font-black text-[11px] uppercase tracking-wider text-black bg-slate-100 px-2 py-0.5 rounded border border-black">
                           Class: {secCls.name} {secCls.section}
                         </span>
-                        <span className="font-bold text-[10px] uppercase tracking-wide text-slate-800 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                        <span className="font-bold text-[10px] uppercase tracking-wide text-black bg-slate-100 px-2 py-0.5 rounded border border-black">
                           Subject: {subjectDisplayName}
                         </span>
                       </div>
-                      <span className="text-[9px] font-semibold text-slate-600">
+                      <span className="text-[9px] font-bold text-black">
                         {secSummary.topScorers.length} Honours Rankers • {secSummary.requiresAttention.length} Below 10
                       </span>
                     </div>
@@ -950,16 +983,16 @@ export default function ReportPrintingControl({ defaultTab = 'weekly_tests' }) {
                     {/* 2-Column Grid: Top Scorers & Requires Attention */}
                     <div className="grid grid-cols-2 gap-2.5">
                       {/* Left: Top Scorers */}
-                      <div className="border border-slate-300 rounded p-1.5 bg-white">
-                        <h3 className="font-black text-[10px] uppercase tracking-wider pb-0.5 border-b border-slate-200 text-slate-900 mb-1 flex items-center justify-between">
+                      <div className="border border-black rounded p-1.5 bg-white" style={{ background: '#ffffff', backgroundColor: '#ffffff', color: '#000000' }}>
+                        <h3 className="font-black text-[10px] uppercase tracking-wider pb-0.5 border-b border-black text-black mb-1 flex items-center justify-between">
                           <span>🏆 Top Scorers (Assembly Honours)</span>
                         </h3>
                         {secSummary.topScorers.length === 0 ? (
-                          <p className="text-[9px] italic text-slate-500 py-0.5">No marks entered yet</p>
+                          <p className="text-[9px] italic text-slate-600 py-0.5">No marks entered yet</p>
                         ) : (
                           <table className="w-full text-[9px] leading-tight">
                             <thead>
-                              <tr className="border-b border-slate-200 text-slate-600 font-bold text-[8.5px]">
+                              <tr className="border-b border-black text-black font-bold text-[8.5px]">
                                 <th className="py-0.5 text-left w-6">Rank</th>
                                 <th className="py-0.5 text-left">Student Name</th>
                                 <th className="py-0.5 text-left w-16">House</th>
@@ -967,10 +1000,10 @@ export default function ReportPrintingControl({ defaultTab = 'weekly_tests' }) {
                                 <th className="py-0.5 text-right w-10">Score</th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <tbody className="divide-y divide-slate-200">
                               {secSummary.topScorers.map((s, idx) => (
                                 <tr key={idx} className="hover:bg-slate-50">
-                                  <td className="py-0.5 font-black text-slate-900">
+                                  <td className="py-0.5 font-black text-black">
                                     <span className={`inline-block px-1 py-0.2 rounded text-[8px] font-black ${
                                       s.rank === 1 ? 'bg-amber-100 text-amber-900 border border-amber-300' :
                                       s.rank === 2 ? 'bg-slate-100 text-slate-800 border border-slate-300' :
@@ -979,7 +1012,7 @@ export default function ReportPrintingControl({ defaultTab = 'weekly_tests' }) {
                                       {s.rankDisplay}
                                     </span>
                                   </td>
-                                  <td className="py-0.5 font-bold text-slate-900 truncate max-w-[130px]">
+                                  <td className="py-0.5 font-bold text-black truncate max-w-[130px]">
                                     {formatStudentDisplayName(s.student.name)}
                                   </td>
                                   <td className="py-0.5">
@@ -994,7 +1027,7 @@ export default function ReportPrintingControl({ defaultTab = 'weekly_tests' }) {
                                       {s.subjectDetail || '-'}
                                     </td>
                                   )}
-                                  <td className="py-0.5 font-mono font-black text-right text-slate-950">
+                                  <td className="py-0.5 font-mono font-black text-right text-black">
                                     {s.total}
                                   </td>
                                 </tr>
@@ -1005,26 +1038,26 @@ export default function ReportPrintingControl({ defaultTab = 'weekly_tests' }) {
                       </div>
 
                       {/* Right: Requires Attention */}
-                      <div className="border border-slate-300 rounded p-1.5 bg-white">
-                        <h3 className="font-black text-[10px] uppercase tracking-wider pb-0.5 border-b border-slate-200 text-slate-900 mb-1 flex items-center justify-between">
+                      <div className="border border-black rounded p-1.5 bg-white" style={{ background: '#ffffff', backgroundColor: '#ffffff', color: '#000000' }}>
+                        <h3 className="font-black text-[10px] uppercase tracking-wider pb-0.5 border-b border-black text-black mb-1 flex items-center justify-between">
                           <span>⚠️ Requires Attention (Below 10)</span>
                         </h3>
                         {secSummary.requiresAttention.length === 0 ? (
-                          <p className="text-[9px] font-medium text-emerald-700 py-0.5">✓ All evaluated students scored ≥ 10.</p>
+                          <p className="text-[9px] font-medium text-emerald-800 py-0.5">✓ All evaluated students scored ≥ 10.</p>
                         ) : (
                           <table className="w-full text-[9px] leading-tight">
                             <thead>
-                              <tr className="border-b border-slate-200 text-slate-600 font-bold text-[8.5px]">
+                              <tr className="border-b border-black text-black font-bold text-[8.5px]">
                                 <th className="py-0.5 text-left">Student Name</th>
                                 <th className="py-0.5 text-left w-16">House</th>
                                 {selectedSubjectKey === 'group_sixth' && <th className="py-0.5 text-left w-20">Elective</th>}
                                 <th className="py-0.5 text-right w-10">Score</th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <tbody className="divide-y divide-slate-200">
                               {secSummary.requiresAttention.map((s, idx) => (
                                 <tr key={idx} className="hover:bg-slate-50">
-                                  <td className="py-0.5 font-bold text-slate-900 truncate max-w-[140px]">
+                                  <td className="py-0.5 font-bold text-black truncate max-w-[140px]">
                                     {formatStudentDisplayName(s.student.name)}
                                   </td>
                                   <td className="py-0.5">
@@ -1039,7 +1072,7 @@ export default function ReportPrintingControl({ defaultTab = 'weekly_tests' }) {
                                       {s.subjectDetail || '-'}
                                     </td>
                                   )}
-                                  <td className="py-0.5 font-mono font-black text-right text-rose-700">
+                                  <td className="py-0.5 font-mono font-black text-right text-rose-800">
                                     {s.total}
                                   </td>
                                 </tr>
@@ -1054,21 +1087,21 @@ export default function ReportPrintingControl({ defaultTab = 'weekly_tests' }) {
               </div>
 
               {/* Compact Footer with Signatures */}
-              <div className="mt-2 pt-1 border-t border-slate-400 flex justify-between items-end text-[9px] text-slate-700">
+              <div className="mt-2 pt-1 border-t border-black flex justify-between items-end text-[9px] text-black">
                 <div className="space-y-0.5">
-                  <p>Printed from Gyanoday Niketan Download & Print Center</p>
-                  <p className="text-[8px] text-slate-500 font-mono">
+                  <p className="text-black font-medium">Printed from Gyanoday Niketan Download & Print Center</p>
+                  <p className="text-[8px] text-slate-600 font-mono">
                     Official Academic Briefing • Generated on {new Date().toLocaleDateString('en-GB')}
                   </p>
                 </div>
                 <div className="flex gap-10 text-center">
                   <div>
                     <div className="w-24 border-b border-black mb-1"></div>
-                    <span className="font-bold text-[8.5px] uppercase">Subject Teacher</span>
+                    <span className="font-bold text-[8.5px] uppercase text-black">Subject Teacher</span>
                   </div>
                   <div>
                     <div className="w-24 border-b border-black mb-1"></div>
-                    <span className="font-bold text-[8.5px] uppercase">Principal / Coordinator</span>
+                    <span className="font-bold text-[8.5px] uppercase text-black">Principal / Coordinator</span>
                   </div>
                 </div>
               </div>

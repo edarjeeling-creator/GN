@@ -674,20 +674,35 @@ _Sent via Gyanoday Niketan ERP_`;
     window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
   };
 
+  // Safe print trigger that temporarily removes dark mode during print preview so background is pure white
+  const triggerSafePrint = () => {
+    const wasDark = document.documentElement.classList.contains('dark');
+    if (wasDark) document.documentElement.classList.remove('dark');
+
+    const restoreDark = () => {
+      if (wasDark && !document.documentElement.classList.contains('dark')) {
+        document.documentElement.classList.add('dark');
+      }
+    };
+
+    window.addEventListener('afterprint', restoreDark, { once: true });
+
+    setTimeout(() => {
+      window.print();
+      setTimeout(restoreDark, 1000);
+    }, 150);
+  };
+
   // Print single current section podium slip
   const handlePrintAssemblySlip = () => {
     setPrintSlipMode('single');
-    setTimeout(() => {
-      window.print();
-    }, 150);
+    triggerSafePrint();
   };
 
   // Print both sections on ONE single page for Principal
   const handlePrintBothSections = () => {
     setPrintSlipMode('both');
-    setTimeout(() => {
-      window.print();
-    }, 150);
+    triggerSafePrint();
   };
 
   // Save Draft (Supports manual button click and automatic background auto-save)
@@ -1970,17 +1985,26 @@ _Sent via Gyanoday Niketan ERP_`;
       </div> {/* End screen interactive UI (no-print) */}
 
       {/* Print-Only Tuesday Assembly Podium Slip (Guaranteed 1 Single Page) */}
-      <div id="print-assembly-slip" className="hidden print:block font-sans text-black">
+      <div 
+        id="print-assembly-slip" 
+        className="hidden print:block font-sans text-black bg-white" 
+        style={{ background: '#ffffff', backgroundColor: '#ffffff', color: '#000000' }}
+      >
         <style>{`
           @page {
             margin: 6mm 8mm 6mm 8mm !important;
             size: portrait;
           }
           @media print {
-            html, body {
+            *, *::before, *::after {
+              color-scheme: light !important;
+            }
+            html, html.dark, body, body.dark, #root, #print-assembly-slip, .print-page-boundary {
               margin: 0 !important;
               padding: 0 !important;
               background: #ffffff !important;
+              background-color: #ffffff !important;
+              color: #000000 !important;
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
             }
@@ -1994,23 +2018,29 @@ _Sent via Gyanoday Niketan ERP_`;
               max-height: 282mm !important;
               overflow: hidden !important;
               box-sizing: border-box !important;
+              background: #ffffff !important;
+              background-color: #ffffff !important;
+              color: #000000 !important;
             }
           }
         `}</style>
 
         {printSlipMode === 'both' && siblingClasses.length > 1 ? (
           /* COMBINED 1-PAGE REPORT FOR BOTH SECTIONS (e.g. 7A & 7B) */
-          <div className="print-page-boundary p-1">
+          <div 
+            className="print-page-boundary p-1 bg-white" 
+            style={{ background: '#ffffff', backgroundColor: '#ffffff', color: '#000000' }}
+          >
             {/* Header */}
             <div className="text-center border-b-2 border-black pb-1.5 mb-2">
-              <h1 className="text-lg font-black uppercase tracking-wider font-serif">GYANODAY NIKETAN</h1>
-              <h2 className="text-xs font-black uppercase tracking-wide text-slate-800 mt-0.5">
+              <h1 className="text-lg font-black uppercase tracking-wider font-serif text-black">GYANODAY NIKETAN</h1>
+              <h2 className="text-xs font-black uppercase tracking-wide text-black mt-0.5">
                 Tuesday Morning Assembly Honours & Attention Slip
               </h2>
-              <div className="flex justify-center items-center gap-3 text-[10.5px] font-semibold mt-1 text-slate-700 flex-wrap">
+              <div className="flex justify-center items-center gap-3 text-[10.5px] font-bold mt-1 text-black flex-wrap">
                 <span><strong>Classes:</strong> {combinedSectionsLabel}</span>
                 <span>•</span>
-                <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300"><strong>Subject:</strong> {subjectDisplayName}</span>
+                <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-black"><strong>Subject:</strong> {subjectDisplayName}</span>
                 <span>•</span>
                 <span><strong>Term:</strong> {selectedTerm === 'Midterm' ? 'Mid-Term Exam' : 'Final-Term Exam'} {academicYear}</span>
                 <span>•</span>
@@ -2104,7 +2134,7 @@ _Sent via Gyanoday Niketan ERP_`;
             </div>
 
             {/* Signatures */}
-            <div className="mt-2 pt-2 border-t border-slate-300 flex justify-between text-[10px] text-slate-800">
+            <div className="mt-2 pt-2 border-t border-black flex justify-between text-[10px] text-black font-semibold">
               <div>
                 <span>Date: {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
               </div>
@@ -2118,16 +2148,19 @@ _Sent via Gyanoday Niketan ERP_`;
           </div>
         ) : (
           /* SINGLE SECTION 1-PAGE PODIUM SLIP */
-          <div className="print-page-boundary p-2">
+          <div 
+            className="print-page-boundary p-2 bg-white" 
+            style={{ background: '#ffffff', backgroundColor: '#ffffff', color: '#000000' }}
+          >
             <div className="text-center border-b-2 border-black pb-3 mb-4">
-              <h1 className="text-xl font-black uppercase tracking-wider font-serif">GYANODAY NIKETAN</h1>
-              <h2 className="text-sm font-bold uppercase tracking-wide text-slate-800 mt-0.5">
+              <h1 className="text-xl font-black uppercase tracking-wider font-serif text-black">GYANODAY NIKETAN</h1>
+              <h2 className="text-sm font-bold uppercase tracking-wide text-black mt-0.5">
                 Tuesday Morning Assembly Honours & Attention Slip
               </h2>
-              <div className="flex justify-center items-center gap-4 text-xs font-semibold mt-2 text-slate-700 flex-wrap">
+              <div className="flex justify-center items-center gap-4 text-xs font-bold mt-2 text-black flex-wrap">
                 <span><strong>Class:</strong> {cls?.name} {cls?.section}</span>
                 <span>•</span>
-                <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300"><strong>Subject:</strong> {subjectDisplayName}</span>
+                <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-black"><strong>Subject:</strong> {subjectDisplayName}</span>
                 <span>•</span>
                 <span><strong>Term:</strong> {selectedTerm === 'Midterm' ? 'Mid-Term Exam' : 'Final-Term Exam'} {academicYear}</span>
                 <span>•</span>
@@ -2137,16 +2170,16 @@ _Sent via Gyanoday Niketan ERP_`;
 
             <div className="grid grid-cols-2 gap-4">
               {/* Top Scorers Column */}
-              <div className="border border-slate-400 rounded p-2.5">
-                <h3 className="font-black text-xs uppercase tracking-wider pb-1.5 border-b border-slate-300 text-slate-900 mb-2">
+              <div className="border border-slate-400 rounded p-2.5 bg-white">
+                <h3 className="font-black text-xs uppercase tracking-wider pb-1.5 border-b border-slate-300 text-black mb-2">
                   🏆 Top Scorers (Assembly Honours)
                 </h3>
                 {assemblySummary.topScorers.length === 0 ? (
-                  <p className="text-xs italic text-slate-500">No marks entered yet</p>
+                  <p className="text-xs italic text-slate-600">No marks entered yet</p>
                 ) : (
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className="border-b text-slate-600 text-left">
+                      <tr className="border-b border-slate-300 text-slate-800 font-bold text-left">
                         <th className="pb-1 w-12">Rank</th>
                         <th className="pb-1">Student Name</th>
                         <th className="pb-1 w-20">House</th>
@@ -2156,12 +2189,12 @@ _Sent via Gyanoday Niketan ERP_`;
                     <tbody className="divide-y divide-slate-200">
                       {assemblySummary.topScorers.map((s, i) => (
                         <tr key={i} className="py-1">
-                          <td className="py-1 font-bold">
+                          <td className="py-1 font-bold text-black">
                             {s.rank === 1 ? '1st' : s.rank === 2 ? '2nd' : '3rd'}
                           </td>
-                          <td className="py-1 font-semibold">{formatStudentDisplayName(s.student.name)}</td>
-                          <td className="py-1 text-slate-700">{s.house || '—'}</td>
-                          <td className="py-1 text-right font-black">{s.total}</td>
+                          <td className="py-1 font-semibold text-black">{formatStudentDisplayName(s.student.name)}</td>
+                          <td className="py-1 text-slate-800">{s.house || '—'}</td>
+                          <td className="py-1 text-right font-black text-black">{s.total}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -2170,16 +2203,16 @@ _Sent via Gyanoday Niketan ERP_`;
               </div>
 
               {/* Requires Attention Column */}
-              <div className="border border-slate-400 rounded p-2.5">
-                <h3 className="font-black text-xs uppercase tracking-wider pb-1.5 border-b border-slate-300 text-slate-900 mb-2">
+              <div className="border border-slate-400 rounded p-2.5 bg-white">
+                <h3 className="font-black text-xs uppercase tracking-wider pb-1.5 border-b border-slate-300 text-black mb-2">
                   ⚠️ Requires Attention (Below 10)
                 </h3>
                 {assemblySummary.requiresAttention.length === 0 ? (
-                  <p className="text-xs italic text-slate-500">All evaluated students scored ≥ 10</p>
+                  <p className="text-xs italic text-emerald-700 font-medium">All evaluated students scored ≥ 10</p>
                 ) : (
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className="border-b text-slate-600 text-left">
+                      <tr className="border-b border-slate-300 text-slate-800 font-bold text-left">
                         <th className="pb-1">Student Name</th>
                         <th className="pb-1 w-20">House</th>
                         <th className="pb-1 text-right w-16">Marks</th>
@@ -2188,9 +2221,9 @@ _Sent via Gyanoday Niketan ERP_`;
                     <tbody className="divide-y divide-slate-200">
                       {assemblySummary.requiresAttention.map((s, i) => (
                         <tr key={i} className="py-1">
-                          <td className="py-1 font-semibold">{formatStudentDisplayName(s.student.name)}</td>
-                          <td className="py-1 text-slate-700">{s.house || '—'}</td>
-                          <td className="py-1 text-right font-bold">
+                          <td className="py-1 font-semibold text-black">{formatStudentDisplayName(s.student.name)}</td>
+                          <td className="py-1 text-slate-800">{s.house || '—'}</td>
+                          <td className="py-1 text-right font-bold text-rose-800">
                             {s.total}
                           </td>
                         </tr>
@@ -2201,7 +2234,7 @@ _Sent via Gyanoday Niketan ERP_`;
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-slate-300 flex justify-between text-xs text-slate-700">
+            <div className="mt-4 pt-3 border-t border-black flex justify-between text-xs text-black font-semibold">
               <div>
                 <span>Date: {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
               </div>
