@@ -775,7 +775,7 @@ _Sent via Gyanoday Niketan ERP_`;
 
       {/* Workflow Status Banner */}
       {submission && (
-        <div className={`p-4 rounded-2xl border flex items-center justify-between gap-4 transition-all ${
+        <div className={`p-4 pb-3.5 rounded-2xl border transition-all workflow-scrollbar ${
           submission.status === 'LOCKED'
             ? 'bg-slate-900 border-slate-700 text-white'
             : submission.status === 'APPROVED'
@@ -786,70 +786,72 @@ _Sent via Gyanoday Niketan ERP_`;
             ? 'bg-amber-950/50 border-amber-500/50 text-amber-100'
             : 'bg-blue-950/50 border-blue-500/50 text-blue-100'
         }`}>
-          <div className="flex items-center gap-3">
-            <div className={`p-2.5 rounded-xl ${
-              submission.status === 'LOCKED' ? 'bg-slate-800 text-amber-400 border border-slate-700' :
-              submission.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-              submission.status === 'RETURNED_FOR_CORRECTION' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
-              submission.status === 'SUBMITTED' || submission.status === 'RESUBMITTED' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-              'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-            }`}>
-              {submission.status === 'LOCKED' ? <Lock size={20} /> :
-               submission.status === 'APPROVED' ? <CheckCircle2 size={20} /> :
-               submission.status === 'RETURNED_FOR_CORRECTION' ? <AlertTriangle size={20} /> :
-               <ShieldCheck size={20} />}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs uppercase tracking-wider font-bold text-slate-300">Workflow State:</span>
-                <span className="font-mono font-black text-xs px-2.5 py-1 rounded-md bg-slate-800 text-white border border-slate-700">
-                  {submission.status}
-                </span>
+          <div className="w-full flex items-center justify-between gap-4 min-w-max">
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-xl shrink-0 ${
+                submission.status === 'LOCKED' ? 'bg-slate-800 text-amber-400 border border-slate-700' :
+                submission.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                submission.status === 'RETURNED_FOR_CORRECTION' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
+                submission.status === 'SUBMITTED' || submission.status === 'RESUBMITTED' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+              }`}>
+                {submission.status === 'LOCKED' ? <Lock size={20} /> :
+                 submission.status === 'APPROVED' ? <CheckCircle2 size={20} /> :
+                 submission.status === 'RETURNED_FOR_CORRECTION' ? <AlertTriangle size={20} /> :
+                 <ShieldCheck size={20} />}
               </div>
-              <p className="text-xs mt-1 text-slate-300">
-                {submission.status === 'DRAFT' && 'You can enter raw marks and save drafts. When ready, submit to Coordinator Sir.'}
-                {(submission.status === 'SUBMITTED' || submission.status === 'RESUBMITTED') && 'Marks submitted. Awaiting Coordinator verification and approval.'}
-                {submission.status === 'APPROVED' && 'Approved by Coordinator. Awaiting formal locking for report card printing.'}
-                {submission.status === 'LOCKED' && 'Marks locked by Coordinator. Official report card printing is enabled.'}
-                {submission.status === 'RETURNED_FOR_CORRECTION' && 'Returned for correction. Please review the Coordinator note below, make changes, and resubmit.'}
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs uppercase tracking-wider font-bold text-slate-300 whitespace-nowrap">Workflow State:</span>
+                  <span className="font-mono font-black text-xs px-2.5 py-1 rounded-md bg-slate-800 text-white border border-slate-700 whitespace-nowrap">
+                    {submission.status}
+                  </span>
+                </div>
+                <p className="text-xs mt-1 text-slate-300 max-w-[320px] sm:max-w-md">
+                  {submission.status === 'DRAFT' && 'You can enter raw marks and save drafts. When ready, submit to Coordinator Sir.'}
+                  {(submission.status === 'SUBMITTED' || submission.status === 'RESUBMITTED') && 'Marks submitted. Awaiting Coordinator verification and approval.'}
+                  {submission.status === 'APPROVED' && 'Approved by Coordinator. Awaiting formal locking for report card printing.'}
+                  {submission.status === 'LOCKED' && 'Marks locked by Coordinator. Official report card printing is enabled.'}
+                  {submission.status === 'RETURNED_FOR_CORRECTION' && 'Returned for correction. Please review the Coordinator note below, make changes, and resubmit.'}
+                </p>
+              </div>
             </div>
-          </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-            {!isReadOnly && (
-              <>
-                <button 
-                  type="button"
-                  onClick={handleClearMarks}
-                  disabled={isReadOnly}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800/80 flex items-center gap-1.5 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
-                  title="Clear all student marks in this marksheet"
-                >
-                  <Trash2 size={14} />
-                  <span>Clear Marks</span>
-                </button>
-                <button 
-                  type="button"
-                  onClick={handleSaveDraft}
-                  disabled={saveStatus === 'saving'}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 flex items-center gap-1.5 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
-                >
-                  <Save size={14} />
-                  {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Draft Saved' : 'Save Draft'}
-                </button>
-                <button 
-                  type="button"
-                  onClick={handleSubmitForReview}
-                  disabled={isSubmitting}
-                  className="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 transition-all shadow-md disabled:opacity-50 cursor-pointer"
-                >
-                  <Send size={14} />
-                  {isSubmitting ? 'Submitting...' : 'Submit to Coordinator'}
-                </button>
-              </>
-            )}
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 shrink-0">
+              {!isReadOnly && (
+                <>
+                  <button 
+                    type="button"
+                    onClick={handleClearMarks}
+                    disabled={isReadOnly}
+                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800/80 flex items-center gap-1.5 transition-all shadow-sm disabled:opacity-50 cursor-pointer whitespace-nowrap shrink-0"
+                    title="Clear all student marks in this marksheet"
+                  >
+                    <Trash2 size={14} />
+                    <span>Clear Marks</span>
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={handleSaveDraft}
+                    disabled={saveStatus === 'saving'}
+                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 flex items-center gap-1.5 transition-all shadow-sm disabled:opacity-50 cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <Save size={14} />
+                    <span>{saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Draft Saved' : 'Save Draft'}</span>
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={handleSubmitForReview}
+                    disabled={isSubmitting}
+                    className="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 transition-all shadow-md disabled:opacity-50 cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <Send size={14} />
+                    <span>{isSubmitting ? 'Submitting...' : 'Submit to Coordinator'}</span>
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}

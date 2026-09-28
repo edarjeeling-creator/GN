@@ -193,6 +193,42 @@
     background-color: #60a5fa;
   }
 
+  /* Workflow banner horizontal scrollbar with high visibility track & thumb */
+  .workflow-scrollbar {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(59, 130, 246, 0.75) rgba(148, 163, 184, 0.2);
+  }
+  .workflow-scrollbar::-webkit-scrollbar {
+    height: 6px;
+  }
+  .workflow-scrollbar::-webkit-scrollbar-track {
+    background: rgba(148, 163, 184, 0.2);
+    border-radius: 9999px;
+  }
+  .workflow-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(59, 130, 246, 0.75);
+    border-radius: 9999px;
+    transition: background-color 0.2s;
+  }
+  .workflow-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: #2563eb;
+  }
+  .dark .workflow-scrollbar {
+    scrollbar-color: rgba(96, 165, 250, 0.8) rgba(255, 255, 255, 0.12);
+  }
+  .dark .workflow-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.12);
+  }
+  .dark .workflow-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(96, 165, 250, 0.8);
+  }
+  .dark .workflow-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: #60a5fa;
+  }
+
   .main-content { @apply flex-1 ml-[var(--sidebar-width)] p-8 flex flex-col gap-8 min-w-0 transition-all duration-300; }
   
   @media (max-width: 1024px) {
