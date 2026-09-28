@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { ArrowLeft, Download, Printer, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { getConversionConstants } from './SubjectMarks';
+import { getGroupsForClass, isSixthSubject } from '../utils/reportUtils';
 
 const Flowsheet = () => {
   const { classId } = useParams();
@@ -70,18 +71,48 @@ const Flowsheet = () => {
   const isICSEClass = cls?.name?.match(/\b(9|10|ix|x)\b/i);
   const isISCClass = cls?.name?.match(/\b(11|12|xi|xii)\b/i);
 
-  let groupsToUse = [];
-  if (isICSEClass) {
-    groupsToUse = [
-      { name: 'English', matchers: ['english paper', 'english language', 'english literature'] },
-      { name: 'HCG', matchers: ['history', 'civics', 'geography'] },
-      { name: 'Science', matchers: ['physics', 'chemistry', 'biology', 'science'] }
-    ];
-  } else if (isISCClass) {
-    groupsToUse = [
-      { name: 'English', matchers: ['english paper', 'english language', 'english literature'] }
-    ];
-  }
+  const groupsToUse = getGroupsForClass(cls?.name);
+
+  // Group columns for table & excel: collapse all 6th subject electives into one unified '6th Sub' column
+  const displayColumns = useMemo(() => {
+    const hasSixthSubjects = assignedSubjects.some(sub => isSixthSubject(sub.name));
+    if (!hasSixthSubjects) {
+      return assignedSubjects.map(sub => ({
+        id: sub.id,
+        name: sub.name.substring(0, 4),
+        fullName: sub.name,
+        isSixthGroup: false,
+        sub
+      }));
+    }
+
+    const cols = [];
+    let sixthGroupAdded = false;
+
+    assignedSubjects.forEach(sub => {
+      if (isSixthSubject(sub.name)) {
+        if (!sixthGroupAdded) {
+          cols.push({
+            id: 'group_6th_sub',
+            name: '6th Sub',
+            fullName: '6th Subject',
+            isSixthGroup: true
+          });
+          sixthGroupAdded = true;
+        }
+      } else {
+        cols.push({
+          id: sub.id,
+          name: sub.name.substring(0, 4),
+          fullName: sub.name,
+          isSixthGroup: false,
+          sub
+        });
+      }
+    });
+
+    return cols;
+  }, [assignedSubjects]);
 
   // 1. Calculate totals for each student
   const rawData = classStudents.map(student => {
@@ -198,9 +229,14 @@ const Flowsheet = () => {
         'No.': index + 1,
         'Student\'s Name': row.name,
       };
-      assignedSubjects.forEach(sub => {
-        const scoreObj = row.subjectScores.find(s => s.subjectId === sub.id);
-        rowData[sub.name] = scoreObj ? scoreObj.total : 0;
+      displayColumns.forEach(col => {
+        if (col.isSixthGroup) {
+          const scoreObj = row.subjectScores.find(s => isSixthSubject(s.subjectName));
+          rowData['6th Subject'] = scoreObj ? scoreObj.total : '';
+        } else {
+          const scoreObj = row.subjectScores.find(s => s.subjectId === col.id);
+          rowData[col.fullName || col.name] = scoreObj ? scoreObj.total : '';
+        }
       });
       rowData['Total'] = row.grandTotal;
       rowData['Per'] = Number(row.percentage);
@@ -262,9 +298,9 @@ const Flowsheet = () => {
               <tr>
                 <th style={{ border: '1px solid #ccc', padding: '0.5rem', textAlign: 'center' }}>No.</th>
                 <th style={{ border: '1px solid #ccc', padding: '0.5rem', minWidth: '150px' }}>Student's Name</th>
-                {assignedSubjects.map(sub => (
-                  <th key={sub.id} style={{ border: '1px solid #ccc', padding: '0.5rem', textAlign: 'center', maxWidth: '60px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {sub.name.substring(0, 4)}
+                {displayColumns.map(col => (
+                  <th key={col.id} title={col.fullName} style={{ border: '1px solid #ccc', padding: '0.5rem', textAlign: 'center', maxWidth: '60px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {col.name}
                   </th>
                 ))}
                 <th style={{ border: '1px solid #ccc', padding: '0.5rem', textAlign: 'center' }}>Total</th>
@@ -279,11 +315,18 @@ const Flowsheet = () => {
                   <td style={{ border: '1px solid #ccc', padding: '0.25rem 0.5rem', fontWeight: 500, whiteSpace: 'nowrap' }}>
                     {row.name.toUpperCase()}
                   </td>
-                  {assignedSubjects.map(sub => {
-                    const scoreObj = row.subjectScores.find(s => s.subjectId === sub.id);
+                  {displayColumns.map(col => {
+                    let scoreVal = '';
+                    if (col.isSixthGroup) {
+                      const scoreObj = row.subjectScores.find(s => isSixthSubject(s.subjectName));
+                      scoreVal = scoreObj ? scoreObj.total : '';
+                    } else {
+                      const scoreObj = row.subjectScores.find(s => s.subjectId === col.id);
+                      scoreVal = scoreObj ? scoreObj.total : '';
+                    }
                     return (
-                      <td key={sub.id} style={{ border: '1px solid #ccc', padding: '0.25rem 0.5rem', textAlign: 'center' }}>
-                        {scoreObj ? scoreObj.total : ''}
+                      <td key={col.id} style={{ border: '1px solid #ccc', padding: '0.25rem 0.5rem', textAlign: 'center' }}>
+                        {scoreVal}
                       </td>
                     );
                   })}
@@ -294,7 +337,7 @@ const Flowsheet = () => {
               ))}
               {flowsheetData.length === 0 && (
                 <tr>
-                  <td colSpan={assignedSubjects.length + 5} className="text-center p-4">No students found.</td>
+                  <td colSpan={displayColumns.length + 5} className="text-center p-4">No students found.</td>
                 </tr>
               )}
             </tbody>

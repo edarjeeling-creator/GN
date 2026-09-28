@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, User, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText, AlertTriangle, Lock, Menu, X, Wallet, MessageSquare, ClipboardCheck, CheckCircle2, Printer } from 'lucide-react';
+import { LayoutDashboard, Users, User, BookOpen, LogOut, Shield, Search, CalendarCheck, BarChart3, FileText, AlertTriangle, Lock, Menu, X, Wallet, MessageSquare, ClipboardCheck, CheckCircle2, Printer, Download } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeProvider';
@@ -564,6 +564,9 @@ const Layout = ({ children }) => {
                     </NavLink>
                     <NavLink to="/weekly-tests" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
                       <FileText size={18} /> Weekly Tests
+                    </NavLink>
+                    <NavLink to="/download" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
+                      <Download size={18} /> Download & Print
                     </NavLink>
                     <NavLink to="/hpc/workspace" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ borderRadius: '0.5rem', marginBottom: '0.25rem' }}>
                       <ClipboardCheck size={18} /> HPC Workspace

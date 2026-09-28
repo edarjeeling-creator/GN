@@ -5,7 +5,7 @@ import { ArrowLeft, Printer, User, Lock, AlertTriangle, ShieldCheck } from 'luci
 import { useAuth } from '../context/AuthContext';
 import { MarksWorkflowService } from '../services/MarksWorkflowService';
 import { getConversionConstants } from './SubjectMarks';
-import { getGroupsForClass, getDynamicSubjectName, calculateAttendancePercentage, getGrade, getGradeColor } from '../utils/reportUtils';
+import { getGroupsForClass, getDynamicSubjectName, isSixthSubject, calculateAttendancePercentage, getGrade, getGradeColor } from '../utils/reportUtils';
 import { formatStudentDisplayName } from '../utils/studentUtils';
 
 const ReportCards = () => {
@@ -166,9 +166,14 @@ const ReportCards = () => {
       grandMtTotal += mtTotal;
       maxPossibleTotal += 100;
 
+      const dynName = getDynamicSubjectName(sub.name, student);
+      const formattedSubName = isSixthSubject(dynName) && !dynName.toLowerCase().includes('6th') && !dynName.toLowerCase().includes('sixth')
+        ? `6th Subject (${dynName})`
+        : dynName;
+
       return { 
         subjectId: sub.id, 
-        subjectName: getDynamicSubjectName(sub.name, student), 
+        subjectName: formattedSubName, 
         mtTotal
       };
     });

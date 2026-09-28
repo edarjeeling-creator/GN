@@ -166,10 +166,13 @@ function App() {
               <Route path="/attendance" element={<TeacherRoute><Attendance /></TeacherRoute>} />
               <Route path="/weekly-tests" element={<TeacherRoute><WeeklyTests /></TeacherRoute>} />
 
+              {/* Download & Print Center */}
+              <Route path="/download" element={<AcademicRoute><ReportPrintingControl defaultTab="weekly_tests" /></AcademicRoute>} />
+
               {/* Coordinator Routes */}
               <Route path="/coordinator/marks" element={<CoordinatorRoute><CoordinatorControlRoom /></CoordinatorRoute>} />
               <Route path="/coordinator/review/:submissionId" element={<CoordinatorRoute><CoordinatorMarksReview /></CoordinatorRoute>} />
-              <Route path="/coordinator/reports" element={<CoordinatorRoute><ReportPrintingControl /></CoordinatorRoute>} />
+              <Route path="/coordinator/reports" element={<CoordinatorRoute><ReportPrintingControl defaultTab="report_cards" /></CoordinatorRoute>} />
 
               {/* Principal & Admin Routes */}
               <Route path="/principal" element={<PrincipalRoute><PrincipalPortal /></PrincipalRoute>} />
