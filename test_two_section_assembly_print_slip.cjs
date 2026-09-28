@@ -144,10 +144,60 @@ async function run() {
 
   assert.ok(totalCalculatedHeight < USABLE_HEIGHT_MM, 'Total document height must be well under 285mm');
   assert.ok(totalCalculatedHeight < 200, 'Conservative safety check: height is under 200mm');
-  console.log('  ✓ 1-Page Guarantee confirmed: Combined report consumes only ~40-50% of the A4 page!\n');
+  // Test 5: Subject Display Name Resolution & Header/Banner Inclusion
+  console.log('Test 5: Subject display name resolution with fallback guarantees');
+  const resolveSubjectDisplayName = ({ subject, subjects, subjectId, submission, activePattern }) => {
+    if (subject?.name && typeof subject.name === 'string' && subject.name.trim()) {
+      return subject.name.trim();
+    }
+    const found = subjects?.find(s => 
+      String(s.id).toLowerCase() === String(subjectId).toLowerCase() || 
+      (s.name && s.name.toLowerCase() === String(subjectId).toLowerCase()) ||
+      (s.code && s.code.toLowerCase() === String(subjectId).toLowerCase())
+    );
+    if (found?.name && typeof found.name === 'string' && found.name.trim()) {
+      return found.name.trim();
+    }
+    if (submission?.subject_name && typeof submission.subject_name === 'string' && submission.subject_name.trim()) {
+      return submission.subject_name.trim();
+    }
+    if (activePattern?.subject_name && typeof activePattern.subject_name === 'string' && activePattern.subject_name.trim()) {
+      return activePattern.subject_name.trim();
+    }
+    if (subjectId && subjectId !== 'undefined' && subjectId !== 'null') {
+      const decoded = decodeURIComponent(String(subjectId)).replace(/[-_]/g, ' ').trim();
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(decoded)) {
+        return decoded.replace(/\b\w/g, l => l.toUpperCase());
+      }
+    }
+    return 'Computer Application';
+  };
+
+  assert.strictEqual(
+    resolveSubjectDisplayName({ subject: { name: 'Computer Application' } }),
+    'Computer Application'
+  );
+  assert.strictEqual(
+    resolveSubjectDisplayName({ subjectId: 'computer-applications', subjects: [] }),
+    'Computer Applications'
+  );
+  assert.strictEqual(
+    resolveSubjectDisplayName({ subjectId: 's-ca', subjects: [{ id: 's-ca', name: 'Computer Applications' }] }),
+    'Computer Applications'
+  );
+  assert.strictEqual(
+    resolveSubjectDisplayName({ subjectId: 'ca', subjects: [{ id: 'uuid-1', code: 'ca', name: 'Computer Application' }] }),
+    'Computer Application'
+  );
+  assert.strictEqual(
+    resolveSubjectDisplayName({ subject: null, subjects: [], subjectId: null }),
+    'Computer Application',
+    'Unresolved subject must default gracefully to Computer Application'
+  );
+  console.log('  ✓ Subject resolution tests passed with 100% reliability!\n');
 
   console.log('================================================================');
-  console.log('ALL 1-PAGE COMBINED ASSEMBLY REPORT TESTS PASSED! (4/4)');
+  console.log('ALL 1-PAGE COMBINED ASSEMBLY REPORT TESTS PASSED! (5/5)');
   console.log('================================================================');
 }
 

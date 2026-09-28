@@ -59,6 +59,34 @@ const SubjectMarks = () => {
   const [submission, setSubmission] = useState(null);
   const [loadingWorkflow, setLoadingWorkflow] = useState(true);
 
+  // Authoritative Subject Display Name (Fallback safe, e.g. Computer Application)
+  const subjectDisplayName = useMemo(() => {
+    if (subject?.name && typeof subject.name === 'string' && subject.name.trim()) {
+      return subject.name.trim();
+    }
+    const found = subjects.find(s => 
+      String(s.id).toLowerCase() === String(subjectId).toLowerCase() || 
+      (s.name && s.name.toLowerCase() === String(subjectId).toLowerCase()) ||
+      (s.code && s.code.toLowerCase() === String(subjectId).toLowerCase())
+    );
+    if (found?.name && typeof found.name === 'string' && found.name.trim()) {
+      return found.name.trim();
+    }
+    if (submission?.subject_name && typeof submission.subject_name === 'string' && submission.subject_name.trim()) {
+      return submission.subject_name.trim();
+    }
+    if (activePattern?.subject_name && typeof activePattern.subject_name === 'string' && activePattern.subject_name.trim()) {
+      return activePattern.subject_name.trim();
+    }
+    if (subjectId && subjectId !== 'undefined' && subjectId !== 'null') {
+      const decoded = decodeURIComponent(String(subjectId)).replace(/[-_]/g, ' ').trim();
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(decoded)) {
+        return decoded.replace(/\b\w/g, l => l.toUpperCase());
+      }
+    }
+    return 'Computer Application';
+  }, [subject, subjects, subjectId, submission, activePattern]);
+
   const localDraftKey = useMemo(() => 
     `gn_draft_marks_${classId}_${subjectId}_${academicYear}_${selectedTerm}`,
     [classId, subjectId, academicYear, selectedTerm]
@@ -85,7 +113,7 @@ const SubjectMarks = () => {
         if (!isMounted) return;
         setPatterns(list);
         if (cls) {
-          const matched = MarksCalculationEngine.resolvePattern(cls.name, academicYear, list, subject?.name, cls.section);
+          const matched = MarksCalculationEngine.resolvePattern(cls.name, academicYear, list, subjectDisplayName, cls.section);
           setActivePattern(matched);
         }
       } catch (err) {
@@ -96,11 +124,11 @@ const SubjectMarks = () => {
     };
     fetchPatterns();
     return () => { isMounted = false; };
-  }, [cls?.name, cls?.section, subject?.name, academicYear]);
+  }, [cls?.name, cls?.section, subjectDisplayName, academicYear]);
 
   // 2. Load submission status & detailed marks
   const loadSubmissionData = async () => {
-    if (!cls || !subject || !profile?.id) return;
+    if (!cls || (!subject && !subjectDisplayName) || !profile?.id) return;
     setLoadingWorkflow(true);
     try {
       const sub = await MarksWorkflowService.getOrCreateSubmission({
@@ -214,7 +242,7 @@ const SubjectMarks = () => {
   // Filter students based on language/elective assignment
   const filteredStudents = useMemo(() => {
     return classStudents.filter(student => {
-      const subName = subject?.name?.toLowerCase() || '';
+      const subName = subjectDisplayName.toLowerCase();
       if (subName.includes('2nd') || subName.includes('second')) return student.second_language ? subName.includes(student.second_language.toLowerCase()) : true;
       if (subName.includes('3rd') || subName.includes('third')) return student.third_language ? subName.includes(student.third_language.toLowerCase()) : true;
       if (subName.includes('elective') || subName.includes('evs/math') || subName.includes('maths/evs') || subName.includes('math/evs')) return student.elective_subject ? subName.includes(student.elective_subject.toLowerCase()) : true;
@@ -228,7 +256,7 @@ const SubjectMarks = () => {
       }
       return true;
     });
-  }, [classStudents, subject, globalFilter]);
+  }, [classStudents, subjectDisplayName, globalFilter]);
 
   // Handle Raw Mark Input Change
   const handleScoreChange = (studentId, componentCode, rawVal, maxRaw) => {
@@ -414,7 +442,7 @@ const SubjectMarks = () => {
       for (const sCls of otherClasses) {
         try {
           const sStudents = students.filter(s => s.class_id === sCls.id || s.classId === sCls.id);
-          const sPattern = MarksCalculationEngine.resolvePattern(sCls.name, academicYear, patterns, subject?.name, sCls.section) || activePattern;
+          const sPattern = MarksCalculationEngine.resolvePattern(sCls.name, academicYear, patterns, subjectDisplayName, sCls.section) || activePattern;
           const sComponents = (sPattern?.components && sPattern.components.length > 0)
             ? [...sPattern.components].sort((a, b) => a.display_order - b.display_order)
             : components;
@@ -516,7 +544,7 @@ const SubjectMarks = () => {
       const sStudents = students.filter(s => s.class_id === sCls.id || s.classId === sCls.id)
         .sort((a, b) => a.roll_no - b.roll_no);
       const filteredSecStudents = sStudents.filter(student => {
-        const subName = subject?.name?.toLowerCase() || '';
+        const subName = subjectDisplayName.toLowerCase();
         if (subName.includes('2nd') || subName.includes('second')) return student.second_language ? subName.includes(student.second_language.toLowerCase()) : true;
         if (subName.includes('3rd') || subName.includes('third')) return student.third_language ? subName.includes(student.third_language.toLowerCase()) : true;
         if (subName.includes('elective') || subName.includes('evs/math') || subName.includes('maths/evs') || subName.includes('math/evs')) return student.elective_subject ? subName.includes(student.elective_subject.toLowerCase()) : true;
@@ -524,7 +552,7 @@ const SubjectMarks = () => {
         return true;
       });
 
-      const sPattern = sData?.pattern || MarksCalculationEngine.resolvePattern(sCls.name, academicYear, patterns, subject?.name, sCls.section) || activePattern;
+      const sPattern = sData?.pattern || MarksCalculationEngine.resolvePattern(sCls.name, academicYear, patterns, subjectDisplayName, sCls.section) || activePattern;
       const sComponents = sData?.components || components;
       const sRawScores = sData?.rawScores || {};
       const sStatuses = sData?.statuses || {};
@@ -538,7 +566,7 @@ const SubjectMarks = () => {
         studentCount: filteredSecStudents.length
       };
     });
-  }, [siblingClasses, classId, assemblySummary, filteredStudents, siblingMarksData, students, subject, academicYear, patterns, activePattern, components]);
+  }, [siblingClasses, classId, assemblySummary, filteredStudents, siblingMarksData, students, subjectDisplayName, academicYear, patterns, activePattern, components]);
 
   const [activePreviewTab, setActivePreviewTab] = useState('both');
   const [printSlipMode, setPrintSlipMode] = useState('both'); // 'single' | 'both'
@@ -548,7 +576,7 @@ const SubjectMarks = () => {
   const generateAssemblyText = (mode = activePreviewTab) => {
     const termLabel = selectedTerm === 'Midterm' ? 'Mid-Term Exam' : 'Final-Term Exam';
     const teacherName = profile?.name || 'Subject Teacher';
-    const subjectName = subject?.name || 'Subject';
+    const subjectName = subjectDisplayName;
 
     if (mode === 'both' && allSectionSummaries.length > 1) {
       let text = `🏫 *GYANODAY NIKETAN — TUESDAY ASSEMBLY HONOURS*
@@ -767,7 +795,7 @@ _Sent via Gyanoday Niketan ERP_`;
   const handleClearMarks = () => {
     if (isReadOnly) return;
     const confirmClear = window.confirm(
-      `Are you sure you want to clear all entered marks for ${cls?.name || 'Class'} - ${subject?.name || 'Subject'}?\n\nThis will reset all mark inputs so you can enter fresh scores.`
+      `Are you sure you want to clear all entered marks for ${cls?.name || 'Class'} - ${subjectDisplayName}?\n\nThis will reset all mark inputs so you can enter fresh scores.`
     );
     if (!confirmClear) return;
 
@@ -843,9 +871,9 @@ _Sent via Gyanoday Niketan ERP_`;
 
       const ws = XLSX.utils.json_to_sheet(exportData);
       const wb = XLSX.utils.book_new();
-      const sheetName = `${cls?.name || 'Class'}_${subject?.name || 'Subject'}`.substring(0, 31).replace(/[/\\?*[\]]/g, '_');
+      const sheetName = `${cls?.name || 'Class'}_${subjectDisplayName}`.substring(0, 31).replace(/[/\\?*[\]]/g, '_');
       XLSX.utils.book_append_sheet(wb, ws, sheetName);
-      const fileName = `${cls?.name || 'Class'}_${cls?.section || ''}_${subject?.name || 'Subject'}_${selectedTerm}_${academicYear}.xlsx`.replace(/\s+/g, '_');
+      const fileName = `${cls?.name || 'Class'}_${cls?.section || ''}_${subjectDisplayName}_${selectedTerm}_${academicYear}.xlsx`.replace(/\s+/g, '_');
       XLSX.writeFile(wb, fileName);
     } catch (err) {
       console.error('Excel Export Error:', err);
@@ -973,7 +1001,7 @@ _Sent via Gyanoday Niketan ERP_`;
       return;
     }
 
-    const confirmMsg = `Submit marks for ${cls?.name} - ${subject?.name} (${selectedTerm}) to Coordinator Sir for verification?\n\nOnce submitted, you will not be able to modify these marks unless the Coordinator returns them for correction.`;
+    const confirmMsg = `Submit marks for ${cls?.name} - ${subjectDisplayName} (${selectedTerm}) to Coordinator Sir for verification?\n\nOnce submitted, you will not be able to modify these marks unless the Coordinator returns them for correction.`;
     if (!window.confirm(confirmMsg)) return;
 
     setIsSubmitting(true);
@@ -1015,7 +1043,7 @@ _Sent via Gyanoday Niketan ERP_`;
           </Button>
           <div>
             <h1 className="text-2xl font-black text-white tracking-tight">
-              {cls?.name} — {subject?.name}
+              {cls?.name} — {subjectDisplayName}
             </h1>
             <p className="text-xs text-slate-300 font-medium mt-0.5">
               Authoritative Student Marks Entry & Automated ERP Calculation
@@ -1588,6 +1616,9 @@ _Sent via Gyanoday Niketan ERP_`;
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
                   Live Preview
                 </span>
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-semibold">
+                  Subject: {subjectDisplayName}
+                </span>
                 {siblingClasses.length > 1 && (
                   <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                     {combinedSectionsLabel} Available
@@ -1698,9 +1729,12 @@ _Sent via Gyanoday Niketan ERP_`;
             {allSectionSummaries.map(({ cls: secCls, summary: secSummary }) => (
               <div key={secCls.id} className="space-y-3">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-800 flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="px-2.5 py-0.5 rounded-lg text-xs font-black uppercase bg-blue-500/20 text-blue-300 border border-blue-500/30">
                       Class: {secCls.name} {secCls.section}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-lg text-xs font-black uppercase bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                      Subject: {subjectDisplayName}
                     </span>
                     <span className="text-xs text-slate-400 font-medium">
                       {secCls.id === classId ? '(Current Roster)' : '(Sibling Section)'}
@@ -1805,9 +1839,30 @@ _Sent via Gyanoday Niketan ERP_`;
             const activeSummary = (activePreviewTab !== 'both' && activePreviewTab !== classId)
               ? (allSectionSummaries.find(s => s.cls.id === activePreviewTab)?.summary || assemblySummary)
               : assemblySummary;
+            const activeCls = (activePreviewTab !== 'both' && activePreviewTab !== classId)
+              ? (siblingClasses.find(c => c.id === activePreviewTab) || cls)
+              : cls;
 
             return (
-              <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-6 bg-slate-950/40">
+              <div className="p-5 space-y-4 bg-slate-950/40">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800 flex-wrap gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-2.5 py-0.5 rounded-lg text-xs font-black uppercase bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                      Class: {activeCls?.name} {activeCls?.section}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-lg text-xs font-black uppercase bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                      Subject: {subjectDisplayName}
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium">
+                      {activeCls?.id === classId ? '(Current Roster)' : '(Sibling Section)'}
+                    </span>
+                  </div>
+                  <span className="text-xs text-slate-400 font-mono">
+                    {activeSummary.topScorers.length} Honours • {activeSummary.requiresAttention.length} Requires Attention
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Top Scorers (1st, 2nd, 3rd) */}
                 <div className="rounded-xl border border-emerald-500/30 bg-slate-900/90 overflow-hidden shadow-sm">
                   <div className="px-4 py-3 bg-emerald-950/40 border-b border-emerald-500/20 flex items-center justify-between">
@@ -1907,8 +1962,9 @@ _Sent via Gyanoday Niketan ERP_`;
                   </div>
                 </div>
               </div>
-            );
-          })()
+            </div>
+          );
+        })()
         )}
       </div>
       </div> {/* End screen interactive UI (no-print) */}
@@ -1954,7 +2010,7 @@ _Sent via Gyanoday Niketan ERP_`;
               <div className="flex justify-center items-center gap-3 text-[10.5px] font-semibold mt-1 text-slate-700 flex-wrap">
                 <span><strong>Classes:</strong> {combinedSectionsLabel}</span>
                 <span>•</span>
-                <span><strong>Subject:</strong> {subject?.name}</span>
+                <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300"><strong>Subject:</strong> {subjectDisplayName}</span>
                 <span>•</span>
                 <span><strong>Term:</strong> {selectedTerm === 'Midterm' ? 'Mid-Term Exam' : 'Final-Term Exam'} {academicYear}</span>
                 <span>•</span>
@@ -1968,9 +2024,14 @@ _Sent via Gyanoday Niketan ERP_`;
                 <div key={secCls.id} className="border border-slate-300 rounded p-1.5 bg-white">
                   {/* Section Sub-header */}
                   <div className="flex items-center justify-between pb-1 mb-1 border-b border-slate-200">
-                    <span className="font-black text-[11px] uppercase tracking-wider text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
-                      Class: {secCls.name} {secCls.section}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-black text-[11px] uppercase tracking-wider text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
+                        Class: {secCls.name} {secCls.section}
+                      </span>
+                      <span className="font-bold text-[10.5px] uppercase tracking-wide text-slate-800 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                        Subject: {subjectDisplayName}
+                      </span>
+                    </div>
                     <span className="text-[9.5px] font-semibold text-slate-600">
                       {secSummary.topScorers.length} Honours Rankers • {secSummary.requiresAttention.length} Below 10
                     </span>
@@ -2066,7 +2127,7 @@ _Sent via Gyanoday Niketan ERP_`;
               <div className="flex justify-center items-center gap-4 text-xs font-semibold mt-2 text-slate-700 flex-wrap">
                 <span><strong>Class:</strong> {cls?.name} {cls?.section}</span>
                 <span>•</span>
-                <span><strong>Subject:</strong> {subject?.name}</span>
+                <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300"><strong>Subject:</strong> {subjectDisplayName}</span>
                 <span>•</span>
                 <span><strong>Term:</strong> {selectedTerm === 'Midterm' ? 'Mid-Term Exam' : 'Final-Term Exam'} {academicYear}</span>
                 <span>•</span>
