@@ -29,6 +29,16 @@ export default function AcademicAssessmentConfig() {
     rounding_rule: 'ROUND_2_DECIMALS'
   });
 
+  // Modal State for Edit Pattern
+  const [showEditPatternModal, setShowEditPatternModal] = useState(false);
+  const [editPatternForm, setEditPatternForm] = useState({
+    pattern_name: '',
+    class_group: 'CUSTOM',
+    applicable_classes: [],
+    description: '',
+    rounding_rule: 'ROUND_2_DECIMALS'
+  });
+
   // Modal State for New Component
   const [showNewComponentModal, setShowNewComponentModal] = useState(false);
   const [newComponentForm, setNewComponentForm] = useState({
@@ -37,6 +47,18 @@ export default function AcademicAssessmentConfig() {
     raw_max_marks: 100,
     converted_max_marks: 100,
     weightage_percentage: 100,
+    is_mandatory: true,
+    contributes_to_total: true
+  });
+
+  // Modal State for Edit Component
+  const [showEditComponentModal, setShowEditComponentModal] = useState(false);
+  const [editingComponent, setEditingComponent] = useState(null);
+  const [editComponentForm, setEditComponentForm] = useState({
+    component_name: '',
+    raw_max_marks: 20,
+    converted_max_marks: 20,
+    weightage_percentage: 20,
     is_mandatory: true,
     contributes_to_total: true
   });
@@ -135,6 +157,102 @@ export default function AcademicAssessmentConfig() {
       setTimeout(() => setSaveStatus(''), 4000);
     } catch (err) {
       alert('Error adding component: ' + err.message);
+    }
+  };
+
+  // Edit Pattern Handler
+  const handleOpenEditPattern = () => {
+    if (!currentPattern) return;
+    setEditPatternForm({
+      pattern_name: currentPattern.pattern_name,
+      class_group: currentPattern.class_group,
+      applicable_classes: Array.isArray(currentPattern.applicable_classes) ? [...currentPattern.applicable_classes] : [],
+      description: currentPattern.description || '',
+      rounding_rule: currentPattern.rounding_rule || 'ROUND_2_DECIMALS'
+    });
+    setShowEditPatternModal(true);
+  };
+
+  const handleUpdatePattern = async (e) => {
+    e.preventDefault();
+    if (!selectedPatternId) return;
+    try {
+      const { error } = await supabase
+        .from('assessment_patterns')
+        .update({
+          pattern_name: editPatternForm.pattern_name,
+          class_group: editPatternForm.class_group,
+          applicable_classes: editPatternForm.applicable_classes,
+          description: editPatternForm.description,
+          rounding_rule: editPatternForm.rounding_rule
+        })
+        .eq('id', selectedPatternId);
+
+      if (error) throw error;
+      setShowEditPatternModal(false);
+      await loadPatterns();
+      setSaveStatus('Assessment scheme successfully updated!');
+      setTimeout(() => setSaveStatus(''), 4000);
+    } catch (err) {
+      alert('Error updating pattern: ' + err.message);
+    }
+  };
+
+  // Edit / Delete Component Handlers
+  const handleOpenEditComponent = (comp) => {
+    setEditingComponent(comp);
+    setEditComponentForm({
+      component_name: comp.component_name,
+      raw_max_marks: comp.raw_max_marks,
+      converted_max_marks: comp.converted_max_marks,
+      weightage_percentage: comp.weightage_percentage,
+      is_mandatory: comp.is_mandatory,
+      contributes_to_total: comp.contributes_to_total
+    });
+    setShowEditComponentModal(true);
+  };
+
+  const handleUpdateComponent = async (e) => {
+    e.preventDefault();
+    if (!editingComponent?.id) return;
+    try {
+      const { error } = await supabase
+        .from('assessment_components')
+        .update({
+          component_name: editComponentForm.component_name,
+          raw_max_marks: Number(editComponentForm.raw_max_marks),
+          converted_max_marks: Number(editComponentForm.converted_max_marks),
+          weightage_percentage: Number(editComponentForm.weightage_percentage),
+          is_mandatory: editComponentForm.is_mandatory,
+          contributes_to_total: editComponentForm.contributes_to_total
+        })
+        .eq('id', editingComponent.id);
+
+      if (error) throw error;
+      setShowEditComponentModal(false);
+      setEditingComponent(null);
+      await loadPatterns();
+      setSaveStatus('Component successfully updated!');
+      setTimeout(() => setSaveStatus(''), 4000);
+    } catch (err) {
+      alert('Error updating component: ' + err.message);
+    }
+  };
+
+  const handleDeleteComponent = async (comp) => {
+    if (!window.confirm(`Delete component "${comp.component_name}"?`)) return;
+    try {
+      const { error } = await supabase
+        .from('assessment_components')
+        .delete()
+        .eq('id', comp.id);
+
+      if (error) throw error;
+      await loadPatterns();
+      setSaveStatus('Component deleted!');
+      setTimeout(() => setSaveStatus(''), 4000);
+    } catch (err) {
+      alert('Error deleting component: ' + err.message);
     }
   };
 
@@ -314,6 +432,14 @@ export default function AcademicAssessmentConfig() {
 
                 <div className="flex items-center gap-2">
                   <button
+                    onClick={handleOpenEditPattern}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 transition"
+                    title="Edit scheme name, classes, and description"
+                  >
+                    <Edit2 size={14} />
+                    <span>Edit Scheme</span>
+                  </button>
+                  <button
                     onClick={handleCloneNewVersion}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition"
                     title="Clone to new version for future terms"
@@ -384,6 +510,7 @@ export default function AcademicAssessmentConfig() {
                           <th className="py-2.5 px-3 text-center">Weightage</th>
                           <th className="py-2.5 px-3 text-center">Totaling</th>
                           <th className="py-2.5 px-3 text-center">Mandatory</th>
+                          <th className="py-2.5 px-3 text-center">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -417,6 +544,24 @@ export default function AcademicAssessmentConfig() {
                               ) : (
                                 <span className="text-slate-400">Optional</span>
                               )}
+                            </td>
+                            <td className="py-3 px-3 text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  onClick={() => handleOpenEditComponent(comp)}
+                                  className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-700 transition"
+                                  title="Edit component marks and weightage"
+                                >
+                                  <Edit2 size={13} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteComponent(comp)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
+                                  title="Delete component"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -531,6 +676,22 @@ export default function AcademicAssessmentConfig() {
                     <option value="NO_ROUNDING">No Rounding</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Applicable Classes (comma-separated) *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Class 8, Class 8 A, Class 8 B"
+                  value={Array.isArray(newPatternForm.applicable_classes) ? newPatternForm.applicable_classes.join(', ') : ''}
+                  onChange={e => setNewPatternForm({
+                    ...newPatternForm,
+                    applicable_classes: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                  })}
+                  className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900"
+                />
               </div>
 
               <div>
@@ -649,6 +810,211 @@ export default function AcademicAssessmentConfig() {
                   className="px-5 py-2 rounded-lg font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
                 >
                   Add Component
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edit Scheme */}
+      {showEditPatternModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700 space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-lg text-slate-900 dark:text-white">Edit Assessment Scheme</h3>
+              <button onClick={() => setShowEditPatternModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdatePattern} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Scheme Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editPatternForm.pattern_name}
+                  onChange={e => setEditPatternForm({ ...editPatternForm, pattern_name: e.target.value })}
+                  className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Class Group *</label>
+                  <select
+                    value={editPatternForm.class_group}
+                    onChange={e => setEditPatternForm({ ...editPatternForm, class_group: e.target.value })}
+                    className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900"
+                  >
+                    <option value="JUNIOR">Junior School</option>
+                    <option value="SENIOR_5_8">Senior School 5–8</option>
+                    <option value="SECONDARY_9_10">Secondary 9–10</option>
+                    <option value="HIGHER_SECONDARY_11_12">Higher Secondary 11–12</option>
+                    <option value="CUSTOM">Custom</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Rounding Rule *</label>
+                  <select
+                    value={editPatternForm.rounding_rule}
+                    onChange={e => setEditPatternForm({ ...editPatternForm, rounding_rule: e.target.value })}
+                    className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900"
+                  >
+                    <option value="ROUND_2_DECIMALS">Round to 2 Decimals</option>
+                    <option value="ROUND_1_DECIMAL">Round to 1 Decimal</option>
+                    <option value="ROUND_NEAREST_INTEGER">Round to Nearest Integer</option>
+                    <option value="NO_ROUNDING">No Rounding</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Applicable Classes (comma-separated) *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Class 8, Class 8 A, Class 8 B"
+                  value={Array.isArray(editPatternForm.applicable_classes) ? editPatternForm.applicable_classes.join(', ') : ''}
+                  onChange={e => setEditPatternForm({
+                    ...editPatternForm,
+                    applicable_classes: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                  })}
+                  className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Description / Guidelines</label>
+                <textarea
+                  rows={3}
+                  value={editPatternForm.description}
+                  onChange={e => setEditPatternForm({ ...editPatternForm, description: e.target.value })}
+                  placeholder="e.g. Weekly test 20 raw marks, exam 100 raw converted to 80..."
+                  className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEditPatternModal(false)}
+                  className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-lg font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edit Component */}
+      {showEditComponentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700 space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-lg text-slate-900 dark:text-white">Edit Component</h3>
+              <button onClick={() => setShowEditComponentModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateComponent} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Component Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editComponentForm.component_name}
+                  onChange={e => setEditComponentForm({ ...editComponentForm, component_name: e.target.value })}
+                  className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Raw Max Marks *</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={editComponentForm.raw_max_marks}
+                    onChange={e => setEditComponentForm({ ...editComponentForm, raw_max_marks: e.target.value })}
+                    className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Converted Max Marks *</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={editComponentForm.converted_max_marks}
+                    onChange={e => setEditComponentForm({ ...editComponentForm, converted_max_marks: e.target.value })}
+                    className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Weightage Percentage (%) *</label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  max="100"
+                  value={editComponentForm.weightage_percentage}
+                  onChange={e => setEditComponentForm({ ...editComponentForm, weightage_percentage: e.target.value })}
+                  className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900"
+                />
+              </div>
+
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editComponentForm.contributes_to_total}
+                    onChange={e => setEditComponentForm({ ...editComponentForm, contributes_to_total: e.target.checked })}
+                    className="rounded text-indigo-600"
+                  />
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">Include in Total</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editComponentForm.is_mandatory}
+                    onChange={e => setEditComponentForm({ ...editComponentForm, is_mandatory: e.target.checked })}
+                    className="rounded text-indigo-600"
+                  />
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">Mandatory</span>
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEditComponentModal(false)}
+                  className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-lg font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                >
+                  Save Component
                 </button>
               </div>
             </form>

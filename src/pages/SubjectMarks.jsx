@@ -152,11 +152,13 @@ const SubjectMarks = () => {
       return [...activePattern.components].sort((a, b) => a.display_order - b.display_order);
     }
     // Default fallback pattern if database table is not yet populated
+    const testMax = MarksCalculationEngine.getClassWeeklyTestMaxMarks(cls?.name || '');
+    const examConvMax = 100 - testMax;
     return [
-      { id: 'c-test', component_code: 'TEST', component_name: 'Weekly Test', raw_max_marks: 25, converted_max_marks: 25, display_order: 1 },
-      { id: 'c-exam', component_code: 'EXAM', component_name: 'Term Examination', raw_max_marks: 100, converted_max_marks: 75, display_order: 2 }
+      { id: 'c-test', component_code: 'TEST', component_name: 'Weekly Test', raw_max_marks: testMax, converted_max_marks: testMax, display_order: 1 },
+      { id: 'c-exam', component_code: 'EXAM', component_name: 'Term Examination', raw_max_marks: 100, converted_max_marks: examConvMax, display_order: 2 }
     ];
-  }, [activePattern]);
+  }, [activePattern, cls?.name]);
 
   // Filter students based on language/elective assignment
   const filteredStudents = useMemo(() => {

@@ -211,13 +211,19 @@ export class MarksCalculationEngine {
 
     // 2. Class group heuristics fallback if explicit list didn't match
     const isJunior = /(^|\b)(playgroup|lkg|ukg|nursery|1|2|3|4|i|ii|iii|iv)(\b|$)/i.test(normClass);
-    const isSenior5to8 = /(^|\b)(5|6|7|8|v|vi|vii|viii)(\b|$)/i.test(normClass) && !normClass.includes('11') && !normClass.includes('12');
+    const isClass8 = /(^|\b)(8|viii)(\b|$)/i.test(normClass);
+    const isSenior5to7 = /(^|\b)(5|6|7|v|vi|vii)(\b|$)/i.test(normClass) && !normClass.includes('11') && !normClass.includes('12');
     const isSecondary9to10 = /(^|\b)(9|10|ix|x)(\b|$)/i.test(normClass);
     const isHigherSec11to12 = /(^|\b)(11|12|xi|xii)(\b|$)/i.test(normClass);
 
+    if (isClass8) {
+      const p8 = patterns.find(p => p.status === 'ACTIVE' && (p.pattern_name?.toLowerCase().includes('class 8') || p.pattern_name?.toLowerCase().includes('class-8')));
+      if (p8) return p8;
+    }
+
     let targetGroup = 'SENIOR_5_8';
     if (isJunior) targetGroup = 'JUNIOR';
-    else if (isSenior5to8) targetGroup = 'SENIOR_5_8';
+    else if (isSenior5to7 || isClass8) targetGroup = 'SENIOR_5_8';
     else if (isSecondary9to10) targetGroup = 'SECONDARY_9_10';
     else if (isHigherSec11to12) targetGroup = 'HIGHER_SECONDARY_11_12';
 
@@ -667,8 +673,8 @@ export class MarksCalculationEngine {
 
   /**
    * Authoritative scale for Weekly Tests by Class:
-   * Classes 5 to 8 -> Max 25 marks
-   * Classes 9 to 12 -> Max 20 marks
+   * Classes 5 to 7 -> Max 25 marks
+   * Classes 8 to 12 -> Max 20 marks (Class 8 is 20 marks)
    * 
    * Supports:
    * - Arabic digits (5-12)
@@ -692,36 +698,37 @@ export class MarksCalculationEngine {
       str = `${str} ${sec}`.trim();
     }
 
-    // 1. Roman numerals (longest match first: XII, XI, IX, X vs VIII, VII, VI, V)
-    if (/(?:^|\b|class\s*|grade\s*)(xii|xi|ix|x)(?:[\s\-_]?[a-z]|\b|$)/i.test(str)) {
+    // 1. Roman numerals (longest match first: XII, XI, IX, X, VIII vs VII, VI, V)
+    // Class VIII (8) is 20 marks, along with IX (9), X (10), XI (11), XII (12)
+    if (/(?:^|\b|class\s*|grade\s*)(xii|xi|ix|x|viii)(?:[\s\-_]?[a-z]|\b|$)/i.test(str)) {
       return 20;
     }
-    if (/(?:^|\b|class\s*|grade\s*)(viii|vii|vi|v)(?:[\s\-_]?[a-z]|\b|$)/i.test(str)) {
+    if (/(?:^|\b|class\s*|grade\s*)(vii|vi|v)(?:[\s\-_]?[a-z]|\b|$)/i.test(str)) {
       return 25;
     }
 
-    // 2. Exact or word-bounded numbers: 9, 10, 11, 12 vs 5, 6, 7, 8
+    // 2. Exact or word-bounded numbers: 8, 9, 10, 11, 12 vs 5, 6, 7
     const numMatch = str.match(/\b(1[0-2]|9|[5-8])\b/);
     if (numMatch) {
       const num = parseInt(numMatch[1], 10);
-      if (num >= 9 && num <= 12) return 20;
-      if (num >= 5 && num <= 8) return 25;
+      if (num >= 8 && num <= 12) return 20;
+      if (num >= 5 && num <= 7) return 25;
     }
 
     // 3. Embedded numbers with section suffixes (e.g. "Class8A", "Class 8A", "10B", "8-A", "Class10")
     const anyNumMatch = str.match(/(?:class\s*|grade\s*|^)?(1[0-2]|9|[5-8])(?:[a-z\s\-]|$)/i);
     if (anyNumMatch) {
       const num = parseInt(anyNumMatch[1], 10);
-      if (num >= 9 && num <= 12) return 20;
-      if (num >= 5 && num <= 8) return 25;
+      if (num >= 8 && num <= 12) return 20;
+      if (num >= 5 && num <= 7) return 25;
     }
 
     // 4. Fallback for general numbers if string has any digit
     const fallbackNum = str.match(/\d+/);
     if (fallbackNum) {
       const num = parseInt(fallbackNum[0], 10);
-      if (num >= 9 && num <= 12) return 20;
-      if (num >= 5 && num <= 8) return 25;
+      if (num >= 8 && num <= 12) return 20;
+      if (num >= 5 && num <= 7) return 25;
     }
 
     return 25;

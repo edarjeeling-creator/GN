@@ -151,6 +151,7 @@ DO $$
 DECLARE
   v_p_junior UUID;
   v_p_5_8 UUID;
+  v_p_8 UUID;
   v_p_9_10 UUID;
   v_p_11_12 UUID;
 BEGIN
@@ -180,10 +181,10 @@ BEGIN
     ON CONFLICT DO NOTHING;
   END IF;
 
-  -- B. SENIOR SCHOOL CLASSES 5 TO 8 (Test 25 + Exam 100 -> 75, Total 100)
+  -- B1. SENIOR SCHOOL CLASSES 5 TO 7 (Test 25 + Exam 100 -> 75, Total 100)
   INSERT INTO public.assessment_patterns (academic_year, pattern_name, class_group, applicable_classes, description, rounding_rule, status)
-  VALUES ('2026', 'Senior School (Classes 5-8) Scheme', 'SENIOR_5_8', 
-    '["Class 5", "Class 6", "Class 7", "Class 8", "Class 5 A", "Class 5 B", "Class 6 A", "Class 6 B", "Class 7 A", "Class 7 B", "Class 8 A", "Class 8 B"]'::jsonb,
+  VALUES ('2026', 'Senior School (Classes 5-7) Scheme', 'SENIOR_5_8', 
+    '["Class 5", "Class 6", "Class 7", "Class 5 A", "Class 5 B", "Class 6 A", "Class 6 B", "Class 7 A", "Class 7 B", "5", "6", "7", "5 A", "5 B", "6 A", "6 B", "7 A", "7 B"]'::jsonb,
     'Weekly Test (25) + Term Exam (100 Raw -> Converted to 75) = Final Total 100', 'ROUND_2_DECIMALS', 'ACTIVE')
   ON CONFLICT DO NOTHING
   RETURNING id INTO v_p_5_8;
@@ -203,6 +204,32 @@ BEGIN
       (v_p_5_8, 'C', 60.00, 69.99, 'Good'),
       (v_p_5_8, 'D', 40.00, 59.99, 'Pass'),
       (v_p_5_8, 'E', 0.00, 39.99, 'Failed')
+    ON CONFLICT DO NOTHING;
+  END IF;
+
+  -- B2. SENIOR SCHOOL CLASS 8 (Weekly Test 20 + Exam 100 -> 80, Total 100)
+  INSERT INTO public.assessment_patterns (academic_year, pattern_name, class_group, applicable_classes, description, rounding_rule, status)
+  VALUES ('2026', 'Senior School (Class 8) Scheme', 'SENIOR_5_8', 
+    '["Class 8", "Class 8 A", "Class 8 B", "8", "8 A", "8 B"]'::jsonb,
+    'Weekly Test (20) + Term Exam (100 Raw -> Converted to 80) = Final Total 100', 'ROUND_2_DECIMALS', 'ACTIVE')
+  ON CONFLICT DO NOTHING
+  RETURNING id INTO v_p_8;
+
+  IF v_p_8 IS NOT NULL THEN
+    INSERT INTO public.assessment_components (pattern_id, component_code, component_name, raw_max_marks, converted_max_marks, weightage_percentage, display_order)
+    VALUES 
+      (v_p_8, 'TEST', 'Weekly Test', 20.00, 20.00, 20.00, 1),
+      (v_p_8, 'EXAM', 'Term Examination', 100.00, 80.00, 80.00, 2)
+    ON CONFLICT DO NOTHING;
+
+    INSERT INTO public.grade_boundaries (pattern_id, grade_name, min_percentage, max_percentage, description)
+    VALUES
+      (v_p_8, 'A*', 90.00, 100.00, 'Distinction'),
+      (v_p_8, 'A', 80.00, 89.99, 'Excellent'),
+      (v_p_8, 'B', 70.00, 79.99, 'Very Good'),
+      (v_p_8, 'C', 60.00, 69.99, 'Good'),
+      (v_p_8, 'D', 40.00, 59.99, 'Pass'),
+      (v_p_8, 'E', 0.00, 39.99, 'Failed')
     ON CONFLICT DO NOTHING;
   END IF;
 
