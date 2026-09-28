@@ -186,24 +186,161 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
     }
   };
 
-  // High-Quality PDF Export
+  // Open Full PDF / Printable Dossier in a dedicated window
+  const handleOpenPdfWindow = () => {
+    if (!report) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Please allow popups for results.gyanodayniketan.cloud to open the PDF report.');
+      return;
+    }
+
+    const reportHtml = pdfContainerRef.current ? pdfContainerRef.current.innerHTML : '';
+    const title = report.pdf_filename ? report.pdf_filename.replace('.pdf', '') : `Weekly_Test_Report_${report.week_identifier}`;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>${title}</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+        <style>
+          @page {
+            size: A4 portrait;
+            margin: 8mm 8mm 8mm 8mm !important;
+          }
+          body {
+            background-color: #f1f5f9;
+            margin: 0;
+            padding: 24px 12px;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #0f172a;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .floating-toolbar {
+            position: fixed;
+            top: 16px;
+            right: 20px;
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #0f172a;
+            padding: 8px 14px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+            border: 1px solid #334155;
+          }
+          .toolbar-btn {
+            background: #f59e0b;
+            color: #0f172a;
+            border: none;
+            padding: 7px 16px;
+            font-size: 12px;
+            font-weight: 800;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+            transition: all 0.2s;
+          }
+          .toolbar-btn:hover {
+            background: #d97706;
+            transform: translateY(-1px);
+          }
+          .toolbar-btn-secondary {
+            background: #334155;
+            color: #f8fafc;
+            box-shadow: none;
+          }
+          .toolbar-btn-secondary:hover {
+            background: #475569;
+          }
+          .pdf-paper {
+            background: #ffffff;
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            padding: 10mm 12mm;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            border-radius: 6px;
+            box-sizing: border-box;
+          }
+          @media print {
+            body {
+              background: #ffffff !important;
+              padding: 0 !important;
+            }
+            .floating-toolbar {
+              display: none !important;
+            }
+            .pdf-paper {
+              width: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              box-shadow: none !important;
+              border-radius: 0 !important;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="floating-toolbar">
+          <button class="toolbar-btn" onclick="window.print()">
+            🖨️ Print / Save as PDF
+          </button>
+          <button class="toolbar-btn toolbar-btn-secondary" onclick="window.close()">
+            ✕ Close
+          </button>
+        </div>
+        <div class="pdf-paper">
+          ${reportHtml}
+        </div>
+        <script>
+          window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+              window.print();
+            }, 600);
+          });
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  // High-Quality PDF Export (with safe fallback to dedicated Print Preview window)
   const handleDownloadPdf = async () => {
-    if (!report || !pdfContainerRef.current) return;
+    if (!report) return;
     setIsGeneratingPdf(true);
     try {
-      const opt = {
-        margin: [8, 8, 8, 8],
-        filename: report.pdf_filename || `Weekly_Test_Report_${report.week_identifier}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'legacy'] }
-      };
+      if (pdfContainerRef.current) {
+        const opt = {
+          margin: [6, 6, 6, 6],
+          filename: report.pdf_filename || `Weekly_Test_Report_${report.week_identifier}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 1.5, useCORS: true, letterRendering: true, logging: false },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['css', 'legacy'] }
+        };
 
-      await html2pdf().set(opt).from(pdfContainerRef.current).save();
+        await html2pdf().set(opt).from(pdfContainerRef.current).save();
+        setIsGeneratingPdf(false);
+        return;
+      }
     } catch (err) {
-      console.error('Error generating PDF:', err);
-      alert('Failed to generate PDF. Please try again or use browser print.');
+      console.warn('html2pdf direct canvas export notice, seamlessly opening print-ready PDF window:', err);
+    }
+
+    // Seamless fallback: open the high-fidelity PDF print preview window
+    try {
+      handleOpenPdfWindow();
+    } catch (err) {
+      console.error('Error opening PDF window:', err);
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -521,26 +658,28 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
               </button>
             )}
 
-            {/* Download PDF */}
+            {/* Open / Download PDF */}
             {report && (
-              <button
-                type="button"
-                onClick={handleDownloadPdf}
-                disabled={isGeneratingPdf}
-                className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-lg flex items-center justify-center gap-1.5 transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
-              >
-                {isGeneratingPdf ? (
-                  <>
-                    <RefreshCw className="animate-spin" size={14} />
-                    <span>PDF...</span>
-                  </>
-                ) : (
-                  <>
-                    <Download size={14} />
-                    <span>Open PDF</span>
-                  </>
-                )}
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleOpenPdfWindow}
+                  className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-lg flex items-center justify-center gap-1.5 transition-transform active:scale-95 cursor-pointer"
+                  title="Open full printable PDF dossier in a new window"
+                >
+                  <Printer size={14} />
+                  <span>Open PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadPdf}
+                  disabled={isGeneratingPdf}
+                  className="px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 font-bold text-xs rounded-xl shadow flex items-center justify-center gap-1 transition cursor-pointer disabled:opacity-50"
+                  title="Download .pdf file directly"
+                >
+                  {isGeneratingPdf ? <RefreshCw className="animate-spin" size={14} /> : <Download size={14} />}
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -1339,8 +1478,11 @@ export default function WeeklyTestReportViewer({ academicYear = '2026', initialT
         </div>
       )}
 
-      {/* 7. HIDDEN PRINTABLE / PDF TEMPLATE (Rendered strictly from immutable server snapshot) */}
-      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+      {/* 7. PRINTABLE / PDF TEMPLATE (Rendered strictly from immutable server snapshot) */}
+      <div 
+        style={{ position: 'fixed', left: 0, top: 0, width: '210mm', opacity: 0, pointerEvents: 'none', zIndex: -9999 }}
+        className="print:opacity-100 print:pointer-events-auto print:z-50 print:relative print:left-auto print:top-auto print:w-full"
+      >
         <WeeklyTestConsolidatedPDF 
           report={report} 
           innerRef={pdfContainerRef}

@@ -27,6 +27,30 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
       className="bg-white text-slate-900 font-sans p-6 sm:p-10 max-w-[210mm] mx-auto text-xs leading-normal print:p-4 print:text-[10px]"
       style={{ minHeight: '297mm' }}
     >
+      <style>{`
+        @page {
+          size: A4 portrait;
+          margin: 8mm 8mm 8mm 8mm !important;
+        }
+        @media print {
+          body {
+            background: #ffffff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+          .print-break-page {
+            page-break-before: always !important;
+            break-before: page !important;
+          }
+          .break-inside-avoid {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+        }
+      `}</style>
       {/* PAGE 1: EXECUTIVE SUMMARY & ASSEMBLY HONOURS DOSSIER */}
       <div className="min-h-[270mm] flex flex-col justify-between pb-8">
         <div>
@@ -125,7 +149,7 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
                 {honours.map(clsHonour => (
                   <div 
                     key={clsHonour.classId} 
-                    className="border border-slate-200 rounded-md p-2.5 bg-slate-50/60 break-inside-avoid"
+                    className="border border-slate-200 rounded-md p-2.5 bg-[#f8fafc] break-inside-avoid"
                   >
                     <div className="font-extrabold text-xs text-slate-900 border-b border-slate-200 pb-1 mb-1.5 flex justify-between items-center">
                       <div className="flex items-center gap-1.5">
@@ -184,7 +208,7 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
                   Below Threshold ({config.requires_attention_threshold || 10})
                 </span>
               </div>
-              <div className="bg-rose-50/50 border border-rose-200 rounded p-2 text-[11px]">
+              <div className="bg-[#fff1f2] border border-rose-200 rounded p-2 text-[11px]">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
                   {requiresAttention.flatMap(c => {
                     const classMax = c.maxMarks || getClassWeeklyTestMaxMarks(c.fullClassName);
@@ -255,7 +279,7 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
               {subjectHonours.map(subH => (
                 <div 
                   key={`${subH.classId}_${subH.subjectId}`}
-                  className="border border-slate-300 rounded-md p-2.5 bg-slate-50/70 break-inside-avoid"
+                  className="border border-slate-300 rounded-md p-2.5 bg-[#f8fafc] break-inside-avoid"
                 >
                   <div className="flex justify-between items-start border-b border-slate-200 pb-1 mb-1.5">
                     <div>
@@ -343,7 +367,7 @@ export default function WeeklyTestConsolidatedPDF({ report, branding = null, inn
                   return (
                     <tr 
                       key={st.studentId}
-                      className={st.isAbsent ? 'bg-amber-50/50' : (isBelowThreshold ? 'bg-rose-50/40' : '')}
+                      className={st.isAbsent ? 'bg-[#fffbeb]' : (isBelowThreshold ? 'bg-[#fff1f2]' : '')}
                     >
                       <td className="p-1.5 border border-slate-300 text-center font-bold text-slate-800">
                         {st.rollNo}
