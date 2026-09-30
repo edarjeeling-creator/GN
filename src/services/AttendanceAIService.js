@@ -132,8 +132,20 @@ Rules:
 3. If attendance mark in the target column is unclear, return status null.
 4. Return ONLY raw JSON without markdown code fences or backticks.`;
 
-    // 1. Discover available models directly from the user's Gemini API key
-    let candidateModels = [];
+    // 1. Build a robust candidate list with modern models first
+    let candidateModels = [
+      { model: 'gemini-2.0-flash', version: 'v1beta' },
+      { model: 'gemini-2.0-flash', version: 'v1' },
+      { model: 'gemini-2.5-flash', version: 'v1beta' },
+      { model: 'gemini-2.0-flash-exp', version: 'v1beta' },
+      { model: 'gemini-1.5-flash-latest', version: 'v1beta' },
+      { model: 'gemini-1.5-flash', version: 'v1' },
+      { model: 'gemini-1.5-pro', version: 'v1' },
+      { model: 'gemini-2.5-pro', version: 'v1beta' },
+      { model: 'gemini-1.5-flash-002', version: 'v1beta' }
+    ];
+
+    // Try dynamic model discovery via ListModels to prepend active models
     try {
       const listResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
       if (listResponse.ok) {
@@ -142,33 +154,43 @@ Rules:
           .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
           .map(m => m.name.replace(/^models\//, ''));
 
-        // Prioritize Flash models, then Pro models
-        const flashModels = available.filter(name => name.includes('flash') && !name.includes('8b'));
-        const proModels = available.filter(name => name.includes('pro'));
-        const otherModels = available.filter(name => !name.includes('flash') && !name.includes('pro'));
+        const discovered = [];
+        // Prioritize 2.5 and 2.0 Flash models FIRST
+        for (const name of available) {
+          if (name.includes('2.5') && name.includes('flash')) {
+            discovered.push({ model: name, version: 'v1beta' });
+          } else if (name.includes('2.0') && name.includes('flash')) {
+            discovered.push({ model: name, version: 'v1beta' }, { model: name, version: 'v1' });
+          }
+        }
+        // Then other flash models (for 1.5, try v1 first because Google deprecated 1.5 on v1beta)
+        for (const name of available) {
+          if (name.includes('flash') && !name.includes('2.0') && !name.includes('2.5') && !name.includes('8b')) {
+            discovered.push({ model: name, version: 'v1' }, { model: name, version: 'v1beta' });
+          }
+        }
+        // Then Pro models
+        for (const name of available) {
+          if (name.includes('pro')) {
+            discovered.push({ model: name, version: 'v1' }, { model: name, version: 'v1beta' });
+          }
+        }
 
-        candidateModels = [
-          ...flashModels.map(name => ({ model: name, version: 'v1beta' })),
-          ...proModels.map(name => ({ model: name, version: 'v1beta' })),
-          ...otherModels.map(name => ({ model: name, version: 'v1beta' }))
-        ];
+        if (discovered.length > 0) {
+          const seen = new Set();
+          const merged = [];
+          for (const item of [...discovered, ...candidateModels]) {
+            const id = `${item.version}/${item.model}`;
+            if (!seen.has(id)) {
+              seen.add(id);
+              merged.push(item);
+            }
+          }
+          candidateModels = merged;
+        }
       }
     } catch (e) {
-      console.warn('Could not query ListModels, using static candidate list:', e);
-    }
-
-    // 2. Static Fallback candidates if ListModels returned nothing
-    if (candidateModels.length === 0) {
-      candidateModels = [
-        { model: 'gemini-1.5-flash-latest', version: 'v1beta' },
-        { model: 'gemini-1.5-flash', version: 'v1' },
-        { model: 'gemini-2.0-flash', version: 'v1beta' },
-        { model: 'gemini-2.0-flash-exp', version: 'v1beta' },
-        { model: 'gemini-1.5-flash-002', version: 'v1beta' },
-        { model: 'gemini-1.5-flash-001', version: 'v1beta' },
-        { model: 'gemini-1.5-pro', version: 'v1' },
-        { model: 'gemini-1.5-pro-latest', version: 'v1beta' }
-      ];
+      console.warn('Could not query ListModels, using default candidate list:', e);
     }
 
     let lastError = null;
@@ -212,7 +234,15 @@ Rules:
             const j = JSON.parse(errText);
             parsedErr = j.error?.message || errText;
           } catch {}
-          throw new Error(`(${version}/${model}) error: ${parsedErr}`);
+
+          // If the key is invalid or quota exhausted, prompt for a new key immediately
+          if (response.status === 400 && (parsedErr.toLowerCase().includes('api key') || parsedErr.toLowerCase().includes('api_key') || parsedErr.toLowerCase().includes('key not valid'))) {
+            const keyErr = new Error(`Invalid Gemini API Key: ${parsedErr}`);
+            keyErr.needsApiKey = true;
+            throw keyErr;
+          }
+
+          throw new Error(`(${version}/${model}): ${parsedErr}`);
         }
 
         const data = await response.json();
@@ -241,6 +271,9 @@ Rules:
         };
       } catch (err) {
         lastError = err;
+        if (err.needsApiKey) {
+          throw err;
+        }
         console.warn(`Attempt with ${version}/${model} failed:`, err.message);
       }
     }

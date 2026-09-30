@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { Check, X, Clock, AlertTriangle, Save, Loader2, Calendar, User, Search, ChevronDown, ChevronUp, Camera, FileUp } from 'lucide-react';
+import { Check, X, Clock, AlertTriangle, Save, Loader2, Calendar, User, Search, ChevronDown, ChevronUp, Camera, FileUp, Key } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -504,11 +504,25 @@ const Attendance = () => {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6">
       
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
-          <Calendar className="text-brand-600 dark:text-brand-400" size={32} /> Daily Attendance
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-1">Mark and manage daily attendance for your classes.</p>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+            <Calendar className="text-brand-600 dark:text-brand-400" size={32} /> Daily Attendance
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Mark and manage daily attendance for your classes.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setKeyModalError('');
+            setIsKeyModalOpen(true);
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-amber-500 dark:hover:text-amber-400 hover:border-amber-400 dark:hover:border-amber-500/50 transition-colors shadow-sm cursor-pointer"
+          title="Configure Google Gemini AI Key"
+        >
+          <Key size={14} className="text-amber-500" />
+          <span>AI Setup</span>
+        </button>
       </div>
 
       <Card>
@@ -585,9 +599,24 @@ const Attendance = () => {
         )}
         
         {message.text && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={`p-4 rounded-xl text-white font-medium flex items-center gap-2 ${message.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'}`}>
-            {message.type === 'success' ? <Check size={20}/> : <AlertTriangle size={20}/>}
-            {message.text}
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={`p-4 rounded-xl text-white font-medium flex items-center justify-between gap-3 flex-wrap ${message.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'}`}>
+            <div className="flex items-center gap-2">
+              {message.type === 'success' ? <Check size={20}/> : <AlertTriangle size={20}/>}
+              <span>{message.text}</span>
+            </div>
+            {message.type !== 'success' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setKeyModalError(message.text);
+                  setIsKeyModalOpen(true);
+                }}
+                className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg text-xs font-bold transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Key size={14} />
+                <span>Configure AI Key</span>
+              </button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -827,14 +856,29 @@ const Attendance = () => {
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className={`fixed bottom-6 right-6 z-50 px-5 py-3.5 rounded-2xl shadow-2xl font-medium flex items-center gap-3 text-white border backdrop-blur-md ${
+            className={`fixed bottom-6 right-6 z-50 px-5 py-3.5 rounded-2xl shadow-2xl font-medium flex items-center justify-between gap-3 text-white border backdrop-blur-md ${
               message.type === 'success' 
                 ? 'bg-emerald-600/95 border-emerald-400 shadow-emerald-900/20' 
                 : 'bg-red-600/95 border-red-400 shadow-red-900/20'
             }`}
           >
-            {message.type === 'success' ? <Check size={20} className="shrink-0" /> : <AlertTriangle size={20} className="shrink-0" />}
-            <span className="text-sm font-semibold tracking-wide">{message.text}</span>
+            <div className="flex items-center gap-2.5">
+              {message.type === 'success' ? <Check size={20} className="shrink-0" /> : <AlertTriangle size={20} className="shrink-0" />}
+              <span className="text-sm font-semibold tracking-wide">{message.text}</span>
+            </div>
+            {message.type !== 'success' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setKeyModalError(message.text);
+                  setIsKeyModalOpen(true);
+                }}
+                className="ml-2 px-2.5 py-1 bg-white/20 hover:bg-white/30 text-white rounded-lg text-xs font-bold transition-colors shrink-0 flex items-center gap-1 cursor-pointer"
+              >
+                <Key size={12} />
+                <span>AI Key</span>
+              </button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

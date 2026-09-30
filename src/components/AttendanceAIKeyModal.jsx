@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Key, Sparkles, X, Check, ExternalLink, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from './ui/Button';
@@ -13,6 +13,14 @@ export default function AttendanceAIKeyModal({
   const [apiKey, setApiKey] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      AttendanceAIService.getGeminiApiKey().then((saved) => {
+        if (saved) setApiKey(saved);
+      });
+    }
+  }, [isOpen]);
 
   const handleSave = async (e) => {
     e.preventDefault();
