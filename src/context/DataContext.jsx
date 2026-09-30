@@ -270,6 +270,37 @@ export const DataProvider = ({ children }) => {
     setStudents(prev => prev.map(s => s.id === studentId ? { ...s, name: newName } : s));
   };
 
+  const moveStudent = async (studentId, newClassId, newRollNo = null) => {
+    if (isReadOnly) {
+      alert("This action is disabled. The portal is in Read-Only Mode.");
+      return { success: false, error: { message: "Portal is in Read-Only Mode." } };
+    }
+
+    const updates = { class_id: newClassId };
+    if (newRollNo !== null && newRollNo !== undefined && newRollNo !== '') {
+      updates.roll_no = Number(newRollNo);
+    }
+
+    // Optimistic UI update
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, ...updates } : s));
+
+    const { data, error } = await supabase.from('students')
+      .update(updates)
+      .eq('id', studentId)
+      .select();
+
+    if (error) {
+      console.error("Error moving student to new class:", error);
+      return { success: false, error };
+    }
+
+    if (data && data.length > 0) {
+      setStudents(prev => prev.map(s => s.id === studentId ? { ...s, ...data[0] } : s));
+      return { success: true, data: data[0] };
+    }
+    return { success: true };
+  };
+
   const updateStudentContactNumber = async (studentId, contactNumber) => {
     if (isReadOnly) {
       alert("This action is disabled. The portal is in Read-Only Mode.");
@@ -459,7 +490,7 @@ export const DataProvider = ({ children }) => {
       academicYear, setAcademicYear,
       classes: activeClasses, subjects, students, teacherSubjects, marks, attendance, featureAccess,
       loadingData,
-      updateMark, toggleTeacherSubject, addStudent, updateStudentName, updateStudentContactNumber, updateStudentLanguages, updateStudentUid, updateStudentPictureUrl, updateSubjectName, addSubject, removeStudent, grantFeatureAccess, revokeFeatureAccess
+      updateMark, toggleTeacherSubject, addStudent, updateStudentName, moveStudent, updateStudentContactNumber, updateStudentLanguages, updateStudentUid, updateStudentPictureUrl, updateSubjectName, addSubject, removeStudent, grantFeatureAccess, revokeFeatureAccess
     }}>
       {children}
     </DataContext.Provider>

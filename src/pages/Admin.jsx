@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase, getClientSchoolId } from '../lib/supabase';
 import { motion } from 'framer-motion';
-import { Users, BookOpen, Shield, Layers, LogOut, QrCode, ShieldCheck, Loader2, Building2, MapPin, Key, UserPlus, UserX, UserCheck, Edit, Search, Filter, Trash2, Mail, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Users, BookOpen, Shield, Layers, LogOut, QrCode, ShieldCheck, Loader2, Building2, MapPin, Key, UserPlus, UserX, UserCheck, Edit, Search, Filter, Trash2, Mail, CheckCircle2, AlertCircle, ArrowRightLeft } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
@@ -33,6 +33,7 @@ import CreateUserModal from '../components/admin/CreateUserModal';
 import EditUserModal from '../components/admin/EditUserModal';
 import DeactivateConfirmationModal from '../components/admin/DeactivateConfirmationModal';
 import CreateStudentModal from '../components/admin/CreateStudentModal';
+import MoveStudentModal from '../components/admin/MoveStudentModal';
 import { UserCredentialService } from '../services/UserCredentialService';
 
 const Admin = () => {
@@ -77,6 +78,8 @@ const Admin = () => {
 
   // Student Lifecycle Management
   const [isCreateStudentModalOpen, setIsCreateStudentModalOpen] = useState(false);
+  const [movingStudent, setMovingStudent] = useState(null);
+  const [isMoveStudentModalOpen, setIsMoveStudentModalOpen] = useState(false);
 
   // Staff Filters
   const [staffRoleFilter, setStaffRoleFilter] = useState('all');
@@ -1277,6 +1280,18 @@ const Admin = () => {
                             Edit Name
                           </button>
                           <button 
+                            className="btn-hero-outline flex items-center gap-1"
+                            style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', border: '1px solid #3b82f6', color: '#2563eb', fontWeight: 600 }}
+                            onClick={() => {
+                              setMovingStudent(s);
+                              setIsMoveStudentModalOpen(true);
+                            }}
+                            title="Shift student between classes and class sections"
+                          >
+                            <ArrowRightLeft size={13} />
+                            <span>Move</span>
+                          </button>
+                          <button 
                             className="btn btn-outline"
                             style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', border: '1px solid #e2e8f0', color: '#475569' }}
                             onClick={() => {
@@ -1959,6 +1974,23 @@ const Admin = () => {
         initialClassId={manageStudentsClassFilter !== 'all' ? manageStudentsClassFilter : ''}
         onSuccess={() => {
           fetchStats();
+        }}
+      />
+
+      <MoveStudentModal
+        isOpen={isMoveStudentModalOpen}
+        onClose={() => {
+          setIsMoveStudentModalOpen(false);
+          setMovingStudent(null);
+        }}
+        student={movingStudent}
+        classes={classes}
+        students={students}
+        onSuccess={(updatedStudent, targetClass) => {
+          fetchStats();
+          if (targetClass?.id) {
+            setManageStudentsClassFilter(targetClass.id);
+          }
         }}
       />
 

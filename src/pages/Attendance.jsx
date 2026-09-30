@@ -455,39 +455,48 @@ const Attendance = () => {
       </div>
 
       <Card>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+        <CardContent className="p-4 sm:p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 items-end">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Select Class</label>
-              <select className="input-field w-full h-11 bg-white" value={selectedClassId} onChange={e => setSelectedClassId(e.target.value)}>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Select Class</label>
+              <select className="input-field w-full h-11 bg-white dark:bg-slate-800 dark:text-white" value={selectedClassId} onChange={e => setSelectedClassId(e.target.value)}>
                 <option value="">-- Choose Class --</option>
                 {classes.map(c => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Date</label>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Date</label>
               <Input type="date" className="w-full h-11" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} />
             </div>
-            <div className="flex gap-2">
-              <Button onClick={markAllPresent} disabled={!selectedClassId || classStudents.length === 0 || (isLocked && profile?.role === 'teacher')} className="flex-1 h-11 shadow-sm px-2 text-xs sm:text-sm font-semibold">
-                <Check size={16} className="mr-1" /> Mark All
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2 w-full">
+              <Button 
+                onClick={markAllPresent} 
+                disabled={!selectedClassId || classStudents.length === 0 || (isLocked && profile?.role === 'teacher')} 
+                className="w-full h-10 sm:h-11 shadow-sm px-1 sm:px-2.5 text-xs sm:text-sm font-semibold whitespace-nowrap"
+                title="Mark all students present"
+              >
+                <Check size={15} className="shrink-0 mr-1" />
+                <span>Mark All</span>
               </Button>
               <Button 
                 onClick={() => fileInputRef.current?.click()} 
                 disabled={!selectedClassId || classStudents.length === 0 || isAnalyzing || (isLocked && profile?.role === 'teacher')} 
-                variant="outline"
-                className="flex-1 h-11 shadow-sm px-2 border-brand-200 text-brand-700 hover:bg-brand-50 text-xs sm:text-sm font-semibold"
+                variant="secondary"
+                className="w-full h-10 sm:h-11 shadow-sm px-1 sm:px-2.5 border-brand-200 dark:border-brand-700 text-brand-700 dark:text-brand-300 hover:bg-brand-50 dark:hover:bg-slate-800 text-xs sm:text-sm font-semibold whitespace-nowrap"
+                title="Import attendance using AI scan"
               >
-                {isAnalyzing ? <Loader2 size={16} className="animate-spin mr-1" /> : <Camera size={16} className="mr-1" />}
-                Import AI
+                {isAnalyzing ? <Loader2 size={15} className="animate-spin shrink-0 mr-1" /> : <Camera size={15} className="shrink-0 mr-1" />}
+                <span>Import AI</span>
               </Button>
               <Button 
                 onClick={triggerSaveFlow} 
                 disabled={saving || !selectedClassId || classStudents.length === 0 || (isLocked && profile?.role === 'teacher')} 
-                className="flex-1 h-11 shadow-md px-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold"
+                className="w-full h-10 sm:h-11 shadow-md px-1 sm:px-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold whitespace-nowrap"
+                title="Save attendance"
               >
-                {saving ? <Loader2 className="animate-spin mr-1" size={16} /> : <Save size={16} className="mr-1" />}
-                {saving ? 'Saving...' : 'Save Attendance'}
+                {saving ? <Loader2 className="animate-spin shrink-0 mr-1" size={15} /> : <Save size={15} className="shrink-0 mr-1" />}
+                <span>{saving ? 'Saving...' : 'Save'}</span>
+                <span className="hidden xl:inline">&nbsp;Attendance</span>
               </Button>
               <input 
                 type="file" 
@@ -607,21 +616,21 @@ const Attendance = () => {
           </Card>
         ) : (
           <Card className="overflow-hidden flex flex-col shadow-sm">
-            <div className="p-4 border-b border-slate-200 bg-white flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col sm:flex-row justify-between items-center gap-4">
               <div className="relative w-full sm:w-72">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <Input value={globalFilter ?? ''} onChange={e => setGlobalFilter(e.target.value)} placeholder="Search students..." className="pl-10 h-10 w-full bg-slate-50" />
+                <Input value={globalFilter ?? ''} onChange={e => setGlobalFilter(e.target.value)} placeholder="Search students..." className="pl-10 h-10 w-full bg-slate-50 dark:bg-slate-800" />
               </div>
-              <Badge variant="primary" className="text-sm px-3 py-1.5 h-auto">Total: {classStudents.length} Students</Badge>
+              <Badge variant="default" className="text-sm px-3 py-1.5 h-auto">Total: {classStudents.length} Students</Badge>
             </div>
             
             <div className="overflow-x-auto">
               <table className="w-full text-left">
-                <thead className="bg-slate-50 border-b border-slate-200">
+                <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700">
                   {table.getHeaderGroups().map(headerGroup => (
                     <tr key={headerGroup.id}>
                       {headerGroup.headers.map(header => (
-                        <th key={header.id} className="p-4 font-semibold text-slate-600 text-sm whitespace-nowrap cursor-pointer select-none hover:bg-slate-100 transition-colors" onClick={header.column.getToggleSortingHandler()}>
+                        <th key={header.id} className="p-4 font-semibold text-slate-600 dark:text-slate-300 text-sm whitespace-nowrap cursor-pointer select-none hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={header.column.getToggleSortingHandler()}>
                           <div className="flex items-center gap-2">
                             {flexRender(header.column.columnDef.header, header.getContext())}
                             {{
@@ -634,9 +643,9 @@ const Attendance = () => {
                     </tr>
                   ))}
                 </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                   {table.getRowModel().rows.map(row => (
-                    <tr key={row.id} className="hover:bg-slate-50 transition-colors">
+                    <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                       {row.getVisibleCells().map(cell => (
                         <td key={cell.id} className="p-4 align-middle">
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -653,7 +662,7 @@ const Attendance = () => {
               </table>
             </div>
             
-            <div className="p-4 border-t border-slate-200 bg-white/95 backdrop-blur flex items-center justify-between flex-wrap gap-4 sticky bottom-0 z-20 shadow-lg border-b border-slate-200">
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur flex items-center justify-between flex-wrap gap-4 sticky bottom-0 z-20 shadow-lg border-b border-slate-200 dark:border-slate-800">
               <div className="flex-1 min-w-[240px]">
                 {message.text && (
                   <motion.div
@@ -670,11 +679,11 @@ const Attendance = () => {
                   </motion.div>
                 )}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
                 <Button 
                   onClick={triggerSaveFlow} 
                   disabled={saving || (isLocked && profile?.role === 'teacher')} 
-                  className="h-11 px-8 shadow-sm text-sm font-semibold transition-all"
+                  className="w-full sm:w-auto h-11 px-6 sm:px-8 shadow-sm text-sm font-semibold transition-all"
                 >
                   {saving ? <Loader2 className="animate-spin mr-2" size={18} /> : <Save size={18} className="mr-2" />}
                   {saving ? 'Saving...' : 'Save Attendance'}
