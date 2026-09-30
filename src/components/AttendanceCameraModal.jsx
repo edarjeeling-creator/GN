@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Camera, CameraOff, X, RefreshCw, Zap, ZapOff, Upload, 
-  Check, AlertTriangle, Loader2, Sparkles, FileText
+  Check, AlertTriangle, Loader2, Sparkles, FileText, Calendar
 } from 'lucide-react';
 import { Button } from './ui/Button';
 
@@ -11,13 +11,15 @@ export default function AttendanceCameraModal({
   onClose,
   onPhotoCaptured,
   selectedClassName = '',
-  selectedDate = ''
+  selectedDate = '',
+  defaultScanMode = 'month'
 }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const nativeCameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
 
+  const [scanMode, setScanMode] = useState(defaultScanMode);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const [facingMode, setFacingMode] = useState('environment'); // 'environment' = rear camera
@@ -203,7 +205,7 @@ export default function AttendanceCameraModal({
   // Confirm photo and send to AI
   const confirmAndAnalyze = () => {
     if (capturedFile) {
-      onPhotoCaptured(capturedFile);
+      onPhotoCaptured(capturedFile, scanMode);
       onClose();
     }
   };
@@ -242,7 +244,7 @@ export default function AttendanceCameraModal({
                 </span>
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                {selectedClassName ? `${selectedClassName} • ` : ''}{selectedDate ? `Date: ${selectedDate}` : 'Take a photo of paper register'}
+                {selectedClassName ? `${selectedClassName} • ` : ''}{scanMode === 'month' ? 'Full Month Register Scan' : (selectedDate ? `Date: ${selectedDate}` : 'Take a photo of paper register')}
               </p>
             </div>
           </div>
@@ -256,6 +258,44 @@ export default function AttendanceCameraModal({
           </button>
         </div>
 
+        {/* Scan Mode Selector */}
+        <div className="px-3.5 py-2.5 bg-slate-950/80 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-xs text-slate-300">
+            <span className="font-semibold text-slate-400">Scan Mode:</span>
+            <span className="text-[11px] text-brand-300 font-medium">
+              {scanMode === 'month' 
+                ? 'Extracts all active dates across the monthly register page' 
+                : `Extracts selected single date (${selectedDate || 'Today'})`}
+            </span>
+          </div>
+          <div className="flex bg-slate-900 p-0.5 rounded-xl border border-slate-800 shrink-0">
+            <button
+              type="button"
+              onClick={() => setScanMode('month')}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                scanMode === 'month'
+                  ? 'bg-brand-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Calendar size={13} />
+              <span>Full Month</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setScanMode('day')}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                scanMode === 'day'
+                  ? 'bg-brand-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <FileText size={13} />
+              <span>Single Day</span>
+            </button>
+          </div>
+        </div>
+
         {/* Viewport Area */}
         <div className="relative flex-1 min-h-[320px] sm:min-h-[420px] bg-black flex items-center justify-center overflow-hidden">
           {previewUrl ? (
@@ -267,7 +307,8 @@ export default function AttendanceCameraModal({
                 className="max-h-[60vh] max-w-full object-contain rounded-xl shadow-lg border border-slate-800" 
               />
               <div className="absolute top-4 left-4 bg-slate-900/85 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-emerald-400 flex items-center gap-1.5">
-                <Check size={14} /> Photo Ready for AI Analysis
+                <Check size={14} /> 
+                <span>{scanMode === 'month' ? 'Photo Ready • Full Month Register' : `Photo Ready • Single Day (${selectedDate})`}</span>
               </div>
             </div>
           ) : cameraActive ? (
@@ -289,7 +330,9 @@ export default function AttendanceCameraModal({
                   <div className="w-5 h-5 border-t-2 border-r-2 border-brand-400 -mt-1 -mr-1"></div>
                 </div>
                 <div className="text-center bg-black/60 backdrop-blur-sm mx-auto px-3 py-1.5 rounded-full text-xs text-slate-200 border border-white/10">
-                  Align the register column & student list inside this frame
+                  {scanMode === 'month'
+                    ? 'Align the entire register page (students & all date columns) inside frame'
+                    : 'Align the register column & student list inside this frame'}
                 </div>
                 <div className="flex justify-between">
                   <div className="w-5 h-5 border-b-2 border-l-2 border-brand-400 -mb-1 -ml-1"></div>

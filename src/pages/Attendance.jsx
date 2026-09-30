@@ -40,8 +40,10 @@ const Attendance = () => {
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
   const [keyModalError, setKeyModalError] = useState('');
   const [pendingAiImageFile, setPendingAiImageFile] = useState(null);
+  const [pendingScanMode, setPendingScanMode] = useState('month');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiResults, setAiResults] = useState(null);
+  const [aiMonthResults, setAiMonthResults] = useState(null);
   const fileInputRef = useRef(null);
 
   const classStudents = useMemo(() => {
@@ -99,7 +101,7 @@ const Attendance = () => {
     }
   };
 
-  const processImageFile = async (rawFile) => {
+  const processImageFile = async (rawFile, scanMode = 'month') => {
     if (!rawFile) return;
 
     if (!rawFile.type.startsWith('image/')) {
@@ -107,8 +109,14 @@ const Attendance = () => {
       return;
     }
 
+    setPendingScanMode(scanMode);
     setIsAnalyzing(true);
-    setMessage({ text: 'AI is analyzing attendance register photo...', type: 'warning' });
+    setMessage({ 
+      text: scanMode === 'month' 
+        ? 'AI is analyzing register photograph for full-month attendance...' 
+        : 'AI is analyzing attendance register photo for selected date...', 
+      type: 'warning' 
+    });
     
     try {
       // Auto-compress high-res camera captures (e.g. 12-48MP photos) to stay under 5MB while preserving text sharpness
@@ -171,11 +179,67 @@ const Attendance = () => {
         base64Image: base64Data,
         mimeType,
         classId: selectedClassId,
-        selectedDate
+        selectedDate,
+        scanMode
       });
 
       if (!data) throw new Error("No data returned from AI");
 
+      if (scanMode === 'month' || data.scan_mode === 'full_month') {
+        if (!data.results || data.results.length === 0) {
+          throw new Error("No student attendance records were detected in the register photo.");
+        }
+        if (!data.detected_dates || data.detected_dates.length === 0) {
+          throw new Error("No active date columns with attendance markings were detected in the register image.");
+        }
+
+        const matchedMonthRecords = data.results.map((aiRecord, index) => {
+          let matchedStudent = null;
+          let matchStatus = 'UNMATCHED';
+
+          if (aiRecord.roll_no != null) {
+            matchedStudent = classStudents.find(s => parseInt(s.roll_no) === parseInt(aiRecord.roll_no));
+          }
+
+          if (!matchedStudent && aiRecord.name) {
+            const normalizedName = aiRecord.name.toLowerCase().replace(/\s+/g, ' ').trim();
+            matchedStudent = classStudents.find(s => s.name.toLowerCase().replace(/\s+/g, ' ').trim() === normalizedName);
+          }
+
+          if (!matchedStudent && aiRecord.name) {
+            matchStatus = 'AMBIGUOUS';
+          }
+
+          if (matchedStudent && matchStatus !== 'AMBIGUOUS') {
+            matchStatus = 'MATCHED';
+          }
+
+          return {
+            ...aiRecord,
+            key: `ai_month_row_${index}`,
+            matchStatus,
+            studentId: matchedStudent?.id || null,
+            attendance: { ...aiRecord.attendance }
+          };
+        });
+
+        setMessage({ 
+          text: `Successfully extracted attendance for ${data.results.length} students across ${data.detected_dates.length} dates (${data.month_name || ''} ${data.year || ''}). Please review below.`, 
+          type: 'success' 
+        });
+
+        setAiResults(null);
+        setAiMonthResults({
+          monthName: data.month_name || 'Register Month',
+          year: data.year || new Date(selectedDate).getFullYear(),
+          detectedDates: data.detected_dates,
+          records: matchedMonthRecords,
+          selectedDates: new Set(data.detected_dates)
+        });
+        return;
+      }
+
+      // Single Day mode
       if (data.month_year_match === false) {
         throw new Error("The uploaded register appears to be from a different month or year than the selected date.");
       }
@@ -227,6 +291,7 @@ const Attendance = () => {
         };
       });
 
+      setAiMonthResults(null);
       setAiResults(matchedResults);
     } catch (err) {
       console.error('AI Analysis failed:', err);
@@ -247,7 +312,7 @@ const Attendance = () => {
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      processImageFile(file);
+      processImageFile(file, 'month');
     }
   };
 
@@ -279,6 +344,132 @@ const Attendance = () => {
 
   const cancelAiImport = () => {
     setAiResults(null);
+  };
+
+  // Full Month Import Handlers
+  const updateAiMonthResultStudent = (key, studentId) => {
+    setAiMonthResults(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        records: prev.records.map(res => res.key === key ? { 
+          ...res, 
+          studentId: studentId || null, 
+          matchStatus: studentId ? 'MATCHED' : 'UNMATCHED' 
+        } : res)
+      };
+    });
+  };
+
+  const updateAiMonthStatus = (key, dateStr, status) => {
+    setAiMonthResults(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        records: prev.records.map(res => res.key === key ? {
+          ...res,
+          attendance: {
+            ...res.attendance,
+            [dateStr]: status || null
+          }
+        } : res)
+      };
+    });
+  };
+
+  const toggleMonthDate = (dateStr) => {
+    setAiMonthResults(prev => {
+      if (!prev) return prev;
+      const nextSet = new Set(prev.selectedDates);
+      if (nextSet.has(dateStr)) {
+        nextSet.delete(dateStr);
+      } else {
+        nextSet.add(dateStr);
+      }
+      return { ...prev, selectedDates: nextSet };
+    });
+  };
+
+  const cancelAiMonthImport = () => {
+    setAiMonthResults(null);
+  };
+
+  const saveFullMonthAttendance = async () => {
+    if (!aiMonthResults || !selectedClassId) return;
+
+    const matchedRecords = aiMonthResults.records.filter(r => r.studentId);
+    if (matchedRecords.length === 0) {
+      alert('Please match at least one student before saving.');
+      return;
+    }
+
+    const activeDates = aiMonthResults.detectedDates.filter(d => aiMonthResults.selectedDates?.has(d) ?? true);
+    if (activeDates.length === 0) {
+      alert('No dates are selected to save.');
+      return;
+    }
+
+    setSaving(true);
+    setMessage({ text: '', type: '' });
+
+    try {
+      const recordsToUpsert = [];
+      const validStatuses = ['Present', 'Absent', 'Late', 'Half Day', 'Leave'];
+
+      activeDates.forEach(dateStr => {
+        matchedRecords.forEach(record => {
+          let status = record.attendance[dateStr];
+          if (status && validStatuses.includes(status)) {
+            recordsToUpsert.push({
+              student_id: record.studentId,
+              class_id: selectedClassId,
+              date: dateStr,
+              academic_year: academicYear || String(aiMonthResults.year) || '2026',
+              status,
+              remarks: null
+            });
+          }
+        });
+      });
+
+      if (recordsToUpsert.length === 0) {
+        alert('No attendance entries found to save.');
+        setSaving(false);
+        return;
+      }
+
+      // Upsert in batches of 200 records
+      const BATCH_SIZE = 200;
+      for (let i = 0; i < recordsToUpsert.length; i += BATCH_SIZE) {
+        const batch = recordsToUpsert.slice(i, i + BATCH_SIZE);
+        const { error } = await supabase.from('attendance').upsert(batch, { onConflict: 'student_id,date' });
+        if (error) throw error;
+      }
+
+      setMessage({
+        text: `Successfully saved ${recordsToUpsert.length} records across ${activeDates.length} days for ${aiMonthResults.monthName} ${aiMonthResults.year}!`,
+        type: 'success'
+      });
+
+      // If the currently selected date in picker is within these active dates, refresh daily attendance state
+      if (activeDates.includes(selectedDate)) {
+        const { data } = await supabase.from('attendance').select('*').eq('class_id', selectedClassId).eq('date', selectedDate);
+        if (data) {
+          const map = {};
+          data.forEach(r => { map[r.student_id] = { id: r.id, status: r.status, remarks: r.remarks || '' }; });
+          classStudents.forEach(student => { if (!map[student.id]) map[student.id] = { id: null, status: '', remarks: '' }; });
+          setAttendanceData(map);
+        }
+      }
+
+      setAiMonthResults(null);
+    } catch (err) {
+      console.error('Failed to save monthly attendance:', err);
+      const errDetail = err?.message || err?.error_description || 'Failed to save monthly attendance.';
+      setMessage({ text: `Failed to save monthly attendance: ${errDetail}`, type: 'danger' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const triggerSaveFlow = () => {
@@ -632,6 +823,203 @@ const Attendance = () => {
             <h3 className="text-lg font-bold text-slate-700">No students found</h3>
             <p className="text-slate-500">This class currently has no enrolled students.</p>
           </Card>
+        ) : aiMonthResults ? (
+          <Card className="overflow-hidden flex flex-col shadow-sm border-brand-300 bg-brand-50/20 dark:bg-slate-900">
+            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                  <Calendar className="text-brand-500" size={22} />
+                  Review Full Month Register Import
+                  <span className="text-xs font-bold uppercase tracking-wider bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300 px-2.5 py-0.5 rounded-full">
+                    {aiMonthResults.monthName} {aiMonthResults.year}
+                  </span>
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  Verify students and dates extracted from register. Click any date pill to toggle that column, or adjust any cell status before saving.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <Button variant="outline" onClick={cancelAiMonthImport} disabled={saving} className="text-xs h-9">
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={saveFullMonthAttendance} 
+                  disabled={saving} 
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm h-9 shadow-md flex items-center gap-1.5"
+                >
+                  {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                  <span>Save Month Attendance</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Date Column Toggle Bar */}
+            <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2 overflow-x-auto text-xs">
+              <span className="font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0">
+                Active Dates ({aiMonthResults.detectedDates.length}):
+              </span>
+              <div className="flex items-center gap-1.5 flex-nowrap">
+                {aiMonthResults.detectedDates.map(dateStr => {
+                  const isSelected = aiMonthResults.selectedDates?.has(dateStr) ?? true;
+                  const dayNum = parseInt(dateStr.split('-')[2], 10);
+                  const dObj = new Date(dateStr + 'T00:00:00');
+                  const weekday = dObj.toLocaleDateString('en-US', { weekday: 'short' });
+                  return (
+                    <button
+                      key={dateStr}
+                      type="button"
+                      onClick={() => toggleMonthDate(dateStr)}
+                      className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-colors shrink-0 flex items-center gap-1 cursor-pointer ${
+                        isSelected
+                          ? 'bg-brand-600 text-white shadow-sm'
+                          : 'bg-slate-200 dark:bg-slate-700 text-slate-500 line-through opacity-60'
+                      }`}
+                      title={isSelected ? `Click to exclude ${dateStr}` : `Click to include ${dateStr}`}
+                    >
+                      <span>{dayNum}</span>
+                      <span className="text-[10px] font-normal opacity-85">({weekday})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Table Container */}
+            <div className="p-0 overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[700px]">
+                <thead className="bg-slate-50/90 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  <tr>
+                    <th className="p-3 pl-4 sticky left-0 z-20 bg-slate-50 dark:bg-slate-800 min-w-[140px] shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
+                      AI Student
+                    </th>
+                    <th className="p-3 min-w-[180px]">
+                      Matched Class Student
+                    </th>
+                    {aiMonthResults.detectedDates.map(dateStr => {
+                      const isSelected = aiMonthResults.selectedDates?.has(dateStr) ?? true;
+                      const dayNum = parseInt(dateStr.split('-')[2], 10);
+                      const dObj = new Date(dateStr + 'T00:00:00');
+                      const weekday = dObj.toLocaleDateString('en-US', { weekday: 'short' });
+                      return (
+                        <th key={dateStr} className={`p-2.5 text-center min-w-[62px] ${!isSelected ? 'opacity-40 bg-slate-100 dark:bg-slate-800/40' : ''}`}>
+                          <div className="font-bold text-sm leading-tight text-slate-800 dark:text-slate-100">{dayNum}</div>
+                          <div className="text-[10px] uppercase text-slate-400 font-semibold">{weekday}</div>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody className="text-sm divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+                  {aiMonthResults.records.map(record => (
+                    <tr key={record.key} className={!record.studentId ? 'bg-amber-50/60 dark:bg-amber-950/20' : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/40'}>
+                      {/* Sticky Student Column */}
+                      <td className="p-3 pl-4 sticky left-0 z-10 bg-white dark:bg-slate-900 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
+                        <div className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[130px]" title={record.name}>
+                          {record.name || <span className="text-slate-400 italic">Unknown</span>}
+                        </div>
+                        <div className="text-xs text-slate-500">Roll: {record.roll_no ?? '-'}</div>
+                      </td>
+
+                      {/* Matched Class Student dropdown */}
+                      <td className="p-3">
+                        <select
+                          className={`w-full p-1.5 border rounded-lg text-xs font-medium dark:bg-slate-800 dark:text-white ${
+                            record.matchStatus === 'UNMATCHED' 
+                              ? 'border-red-300 bg-red-50 dark:bg-red-950/30' 
+                              : 'border-slate-200 dark:border-slate-700'
+                          }`}
+                          value={record.studentId || ''}
+                          onChange={(e) => updateAiMonthResultStudent(record.key, e.target.value)}
+                        >
+                          <option value="">-- Unmatched (Manual) --</option>
+                          {classStudents.map(s => (
+                            <option key={s.id} value={s.id}>
+                              {formatStudentDisplayName(s.name)} (Roll: {s.roll_no})
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      {/* Date Cells */}
+                      {aiMonthResults.detectedDates.map(dateStr => {
+                        const isSelected = aiMonthResults.selectedDates?.has(dateStr) ?? true;
+                        const status = record.attendance[dateStr] || '';
+                        return (
+                          <td key={dateStr} className={`p-1.5 text-center ${!isSelected ? 'opacity-35 bg-slate-50 dark:bg-slate-800/30' : ''}`}>
+                            <select
+                              disabled={!isSelected}
+                              value={status}
+                              onChange={(e) => updateAiMonthStatus(record.key, dateStr, e.target.value)}
+                              className={`w-12 h-7 text-xs font-bold rounded border text-center transition-colors cursor-pointer ${
+                                status === 'Present' ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800' :
+                                status === 'Absent' ? 'bg-red-100 text-red-800 border-red-300 dark:bg-red-950/60 dark:text-red-300 dark:border-red-800' :
+                                status === 'Late' ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800' :
+                                status === 'Leave' ? 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800' :
+                                'bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700'
+                              }`}
+                              title={`${formatStudentDisplayName(record.name)} - ${dateStr}: ${status || 'Blank'}`}
+                            >
+                              <option value="">-</option>
+                              <option value="Present">P</option>
+                              <option value="Absent">A</option>
+                              <option value="Late">L</option>
+                              <option value="Leave">Lv</option>
+                            </select>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+                {/* Summary Footer */}
+                <tfoot className="bg-slate-50 dark:bg-slate-800 border-t-2 border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300">
+                  <tr>
+                    <td colSpan={2} className="p-3 pl-4 sticky left-0 z-10 bg-slate-50 dark:bg-slate-800 text-slate-500">
+                      Daily Present / Absent Totals:
+                    </td>
+                    {aiMonthResults.detectedDates.map(dateStr => {
+                      const isSelected = aiMonthResults.selectedDates?.has(dateStr) ?? true;
+                      let presCount = 0;
+                      let absCount = 0;
+                      aiMonthResults.records.forEach(r => {
+                        if (r.studentId) {
+                          if (r.attendance[dateStr] === 'Present') presCount++;
+                          if (r.attendance[dateStr] === 'Absent') absCount++;
+                        }
+                      });
+                      return (
+                        <td key={dateStr} className={`p-2 text-center ${!isSelected ? 'opacity-35' : ''}`}>
+                          <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-black">{presCount}P</div>
+                          <div className="text-[10px] text-red-500 font-bold">{absCount}A</div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-3">
+              <div className="text-xs text-slate-500 dark:text-slate-400">
+                <span className="font-semibold text-slate-700 dark:text-slate-200">{aiMonthResults.records.filter(r => r.studentId).length}</span> of {aiMonthResults.records.length} students matched • <span className="font-semibold text-slate-700 dark:text-slate-200">{aiMonthResults.detectedDates.filter(d => aiMonthResults.selectedDates?.has(d) ?? true).length}</span> days selected
+              </div>
+              <div className="flex gap-2.5">
+                <Button variant="outline" onClick={cancelAiMonthImport} disabled={saving} className="text-xs">
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={saveFullMonthAttendance} 
+                  disabled={saving} 
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm px-4 shadow-md flex items-center gap-1.5"
+                >
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  <span>Save Entire Month Attendance</span>
+                </Button>
+              </div>
+            </div>
+          </Card>
         ) : aiResults ? (
           <Card className="overflow-hidden flex flex-col shadow-sm border-brand-300 bg-brand-50/30">
             <div className="p-4 border-b border-slate-200 bg-white">
@@ -843,7 +1231,7 @@ const Attendance = () => {
         errorMessage={keyModalError}
         onKeySaved={() => {
           if (pendingAiImageFile) {
-            processImageFile(pendingAiImageFile);
+            processImageFile(pendingAiImageFile, pendingScanMode);
             setPendingAiImageFile(null);
           }
         }}
