@@ -132,13 +132,50 @@ Rules:
 3. If attendance mark in the target column is unclear, return status null.
 4. Return ONLY raw JSON without markdown code fences or backticks.`;
 
-    // Try gemini-2.0-flash first, fallback to gemini-1.5-flash
-    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    // 1. Discover available models directly from the user's Gemini API key
+    let candidateModels = [];
+    try {
+      const listResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      if (listResponse.ok) {
+        const listData = await listResponse.json();
+        const available = (listData.models || [])
+          .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+          .map(m => m.name.replace(/^models\//, ''));
+
+        // Prioritize Flash models, then Pro models
+        const flashModels = available.filter(name => name.includes('flash') && !name.includes('8b'));
+        const proModels = available.filter(name => name.includes('pro'));
+        const otherModels = available.filter(name => !name.includes('flash') && !name.includes('pro'));
+
+        candidateModels = [
+          ...flashModels.map(name => ({ model: name, version: 'v1beta' })),
+          ...proModels.map(name => ({ model: name, version: 'v1beta' })),
+          ...otherModels.map(name => ({ model: name, version: 'v1beta' }))
+        ];
+      }
+    } catch (e) {
+      console.warn('Could not query ListModels, using static candidate list:', e);
+    }
+
+    // 2. Static Fallback candidates if ListModels returned nothing
+    if (candidateModels.length === 0) {
+      candidateModels = [
+        { model: 'gemini-1.5-flash-latest', version: 'v1beta' },
+        { model: 'gemini-1.5-flash', version: 'v1' },
+        { model: 'gemini-2.0-flash', version: 'v1beta' },
+        { model: 'gemini-2.0-flash-exp', version: 'v1beta' },
+        { model: 'gemini-1.5-flash-002', version: 'v1beta' },
+        { model: 'gemini-1.5-flash-001', version: 'v1beta' },
+        { model: 'gemini-1.5-pro', version: 'v1' },
+        { model: 'gemini-1.5-pro-latest', version: 'v1beta' }
+      ];
+    }
+
     let lastError = null;
 
-    for (const model of modelsToTry) {
+    for (const { model, version } of candidateModels) {
       try {
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const geminiUrl = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`;
         
         const requestBody = {
           contents: [
@@ -175,7 +212,7 @@ Rules:
             const j = JSON.parse(errText);
             parsedErr = j.error?.message || errText;
           } catch {}
-          throw new Error(`Gemini API (${model}) error: ${parsedErr}`);
+          throw new Error(`(${version}/${model}) error: ${parsedErr}`);
         }
 
         const data = await response.json();
@@ -204,7 +241,7 @@ Rules:
         };
       } catch (err) {
         lastError = err;
-        console.warn(`Attempt with ${model} failed:`, err.message);
+        console.warn(`Attempt with ${version}/${model} failed:`, err.message);
       }
     }
 
