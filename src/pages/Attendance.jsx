@@ -11,6 +11,7 @@ import { Input } from '../components/ui/Input';
 import { useReactTable, getCoreRowModel, flexRender, getSortedRowModel, getFilteredRowModel } from '@tanstack/react-table';
 import { absenteeNotificationService } from '../services/AbsenteeNotificationService';
 import AbsenteeNotificationModal from '../components/AbsenteeNotificationModal';
+import AttendanceCameraModal from '../components/AttendanceCameraModal';
 import { formatStudentDisplayName } from '../utils/studentUtils';
 
 const Attendance = () => {
@@ -32,7 +33,8 @@ const Attendance = () => {
   const [absenteeModalData, setAbsenteeModalData] = useState(null);
   const [showAbsenteeModal, setShowAbsenteeModal] = useState(false);
 
-
+  // AI Camera & Scan Modal State
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiResults, setAiResults] = useState(null);
   const fileInputRef = useRef(null);
@@ -92,23 +94,65 @@ const Attendance = () => {
     }
   };
 
-  const handleImageUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processImageFile = async (rawFile) => {
+    if (!rawFile) return;
 
-    if (!file.type.startsWith('image/')) {
+    if (!rawFile.type.startsWith('image/')) {
       alert('Please upload a valid image file.');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image size should be less than 5MB.');
       return;
     }
 
     setIsAnalyzing(true);
-    setMessage({ text: '', type: '' });
+    setMessage({ text: 'AI is analyzing attendance register photo...', type: 'warning' });
     
     try {
+      // Auto-compress high-res camera captures (e.g. 12-48MP photos) to stay under 5MB while preserving text sharpness
+      let file = rawFile;
+      if (rawFile.size > 3 * 1024 * 1024) {
+        file = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              const MAX_DIM = 2400;
+              let { width, height } = img;
+              if (width > MAX_DIM || height > MAX_DIM) {
+                if (width > height) {
+                  height = Math.round((height * MAX_DIM) / width);
+                  width = MAX_DIM;
+                } else {
+                  width = Math.round((width * MAX_DIM) / height);
+                  height = MAX_DIM;
+                }
+              }
+              const canvas = document.createElement('canvas');
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, width, height);
+              canvas.toBlob((blob) => {
+                if (blob) {
+                  resolve(new File([blob], rawFile.name || 'attendance.jpg', { type: 'image/jpeg' }));
+                } else {
+                  resolve(rawFile);
+                }
+              }, 'image/jpeg', 0.88);
+            };
+            img.onerror = () => resolve(rawFile);
+            img.src = e.target.result;
+          };
+          reader.onerror = () => resolve(rawFile);
+          reader.readAsDataURL(rawFile);
+        });
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image size should be less than 5MB.');
+        setIsAnalyzing(false);
+        setMessage({ text: '', type: '' });
+        return;
+      }
+
       const base64Data = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result.split(',')[1]);
@@ -116,7 +160,7 @@ const Attendance = () => {
         reader.readAsDataURL(file);
       });
 
-      const mimeType = file.type;
+      const mimeType = file.type || 'image/jpeg';
 
       const { data, error } = await supabase.functions.invoke('analyze-attendance-register', {
         body: { base64Image: base64Data, mimeType, classId: selectedClassId, selectedDate }
@@ -150,6 +194,8 @@ const Attendance = () => {
       // Optional: show a warning if confidence is low, but still allow review
       if (data.date_column_confidence && data.date_column_confidence < 0.6) {
         setMessage({ text: 'Warning: The AI is not highly confident it found the correct date column. Please review carefully.', type: 'warning' });
+      } else {
+        setMessage({ text: `Successfully extracted attendance for ${data.results.length} students. Please review below.`, type: 'success' });
       }
 
       const matchedResults = data.results.map((aiRecord, index) => {
@@ -191,6 +237,13 @@ const Attendance = () => {
     } finally {
       setIsAnalyzing(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processImageFile(file);
     }
   };
 
@@ -479,11 +532,17 @@ const Attendance = () => {
                 <span>Mark All</span>
               </Button>
               <Button 
-                onClick={() => fileInputRef.current?.click()} 
+                onClick={() => {
+                  if (!selectedClassId) {
+                    setMessage({ text: 'Please select a class first.', type: 'danger' });
+                    return;
+                  }
+                  setIsCameraModalOpen(true);
+                }} 
                 disabled={!selectedClassId || classStudents.length === 0 || isAnalyzing || (isLocked && profile?.role === 'teacher')} 
                 variant="secondary"
                 className="w-full h-10 sm:h-11 shadow-sm px-1 sm:px-2.5 border-brand-200 dark:border-brand-700 text-brand-700 dark:text-brand-300 hover:bg-brand-50 dark:hover:bg-slate-800 text-xs sm:text-sm font-semibold whitespace-nowrap"
-                title="Import attendance using AI scan"
+                title="Open active camera to scan attendance register"
               >
                 {isAnalyzing ? <Loader2 size={15} className="animate-spin shrink-0 mr-1" /> : <Camera size={15} className="shrink-0 mr-1" />}
                 <span>Import AI</span>
@@ -501,6 +560,7 @@ const Attendance = () => {
               <input 
                 type="file" 
                 accept="image/*" 
+                capture="environment"
                 ref={fileInputRef} 
                 onChange={handleImageUpload} 
                 className="hidden" 
@@ -732,6 +792,15 @@ const Attendance = () => {
         isOpen={showAbsenteeModal} 
         onClose={() => setShowAbsenteeModal(false)} 
         data={absenteeModalData} 
+      />
+
+      {/* Interactive AI Camera Scanner Modal */}
+      <AttendanceCameraModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onPhotoCaptured={processImageFile}
+        selectedClassName={classes.find(c => c.id === selectedClassId) ? `${classes.find(c => c.id === selectedClassId).name} ${classes.find(c => c.id === selectedClassId).section}` : ''}
+        selectedDate={selectedDate}
       />
 
       {/* Floating Status Notification Toast */}
