@@ -12,6 +12,8 @@ import { useReactTable, getCoreRowModel, flexRender, getSortedRowModel, getFilte
 import { absenteeNotificationService } from '../services/AbsenteeNotificationService';
 import AbsenteeNotificationModal from '../components/AbsenteeNotificationModal';
 import AttendanceCameraModal from '../components/AttendanceCameraModal';
+import AttendanceAIKeyModal from '../components/AttendanceAIKeyModal';
+import { AttendanceAIService } from '../services/AttendanceAIService';
 import { formatStudentDisplayName } from '../utils/studentUtils';
 
 const Attendance = () => {
@@ -35,6 +37,9 @@ const Attendance = () => {
 
   // AI Camera & Scan Modal State
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
+  const [keyModalError, setKeyModalError] = useState('');
+  const [pendingAiImageFile, setPendingAiImageFile] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiResults, setAiResults] = useState(null);
   const fileInputRef = useRef(null);
@@ -162,21 +167,13 @@ const Attendance = () => {
 
       const mimeType = file.type || 'image/jpeg';
 
-      const { data, error } = await supabase.functions.invoke('analyze-attendance-register', {
-        body: { base64Image: base64Data, mimeType, classId: selectedClassId, selectedDate }
+      const data = await AttendanceAIService.analyzeRegister({
+        base64Image: base64Data,
+        mimeType,
+        classId: selectedClassId,
+        selectedDate
       });
 
-      if (error) {
-        if (error.context && typeof error.context.json === 'function') {
-          try {
-            const errData = await error.context.json();
-            throw new Error(errData.error || errData.message || error.message);
-          } catch (e) {
-            throw new Error(error.message);
-          }
-        }
-        throw error;
-      }
       if (!data) throw new Error("No data returned from AI");
 
       if (data.month_year_match === false) {
@@ -232,8 +229,15 @@ const Attendance = () => {
 
       setAiResults(matchedResults);
     } catch (err) {
-      console.error(err);
-      setMessage({ text: err.message || 'Failed to analyze image.', type: 'danger' });
+      console.error('AI Analysis failed:', err);
+      if (err.needsApiKey) {
+        setPendingAiImageFile(rawFile);
+        setKeyModalError(err.message);
+        setIsKeyModalOpen(true);
+        setMessage({ text: '', type: '' });
+      } else {
+        setMessage({ text: err.message || 'Failed to analyze image.', type: 'danger' });
+      }
     } finally {
       setIsAnalyzing(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -801,6 +805,19 @@ const Attendance = () => {
         onPhotoCaptured={processImageFile}
         selectedClassName={classes.find(c => c.id === selectedClassId) ? `${classes.find(c => c.id === selectedClassId).name} ${classes.find(c => c.id === selectedClassId).section}` : ''}
         selectedDate={selectedDate}
+      />
+
+      {/* AI Key Configuration Modal (shown when server edge function is not deployed on Dokploy) */}
+      <AttendanceAIKeyModal
+        isOpen={isKeyModalOpen}
+        onClose={() => setIsKeyModalOpen(false)}
+        errorMessage={keyModalError}
+        onKeySaved={() => {
+          if (pendingAiImageFile) {
+            processImageFile(pendingAiImageFile);
+            setPendingAiImageFile(null);
+          }
+        }}
       />
 
       {/* Floating Status Notification Toast */}
