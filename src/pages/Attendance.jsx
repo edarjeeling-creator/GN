@@ -728,7 +728,12 @@ const Attendance = () => {
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Date</label>
-              <Input type="date" className="w-full h-11" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} />
+              <input 
+                type="date" 
+                className="input-field w-full h-11 bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-lg px-3.5 text-sm font-semibold [color-scheme:light] dark:[color-scheme:dark] cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500" 
+                value={selectedDate} 
+                onChange={e => setSelectedDate(e.target.value)} 
+              />
             </div>
             <div className="grid grid-cols-3 gap-1.5 sm:gap-2 w-full">
               <Button 

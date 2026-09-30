@@ -3,12 +3,14 @@ import React from 'react';
 const cn = (...classes) => classes.filter(Boolean).join(' ');
 
 const Input = React.forwardRef(({ className, type = "text", error, ...props }, ref) => {
+  const isDateOrTime = type === 'date' || type === 'time' || type === 'datetime-local';
   return (
     <div className="w-full">
       <input
         type={type}
         className={cn(
           "flex h-10 w-full rounded-md border border-[var(--border-color)] bg-[var(--bg-color)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:border-brand-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200",
+          isDateOrTime && "[color-scheme:light] dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer",
           error && "border-red-500 focus-visible:ring-red-500",
           className
         )}
