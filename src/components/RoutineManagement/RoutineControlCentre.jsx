@@ -210,8 +210,8 @@ export default function RoutineControlCentre({ currentUser }) {
         { id: 'c238361e-59f3-4cd1-acd4-a4ce2462a082', name: 'Ms. Pratika Tamang', department: 'History (9H Class Teacher)' },
         { id: 'da9fd64d-adb4-47d1-a7d1-a6cea1545d69', name: 'Ms. Supriya Chettri', department: 'Science & Chemistry (5A Class Teacher)' },
         { id: '9c6b9967-cc9f-49ff-882f-59a1bf938896', name: 'Ms. Anupama Gurung', department: 'Nepali (5B Class Teacher)' },
-        { id: 't-thendup-bhutia', name: 'Mr. Thendup Bhutia', department: 'Physical Training Instructor (PTI)', wing: 'SENIOR' },
-        { id: 't-ashisraj-gurung', name: 'Mr. Ashisraj Gurung', department: 'Physical Training Instructor (PTI)', wing: 'SENIOR' },
+        { id: '79d6175e-b7c9-4e5b-9531-7c0b2fc7c720', name: 'Mr. Thendup Bhutia', department: 'Physical Training Instructor (PTI)', wing: 'SENIOR' },
+        { id: 'e083bc1f-6f44-4bad-8282-4d66bd64c8a8', name: 'Mr. Ashisraj Gurung', department: 'Physical Training Instructor (PTI)', wing: 'SENIOR' },
         { id: 't-pti', name: 'Physical Training Instructors (PTI)', department: 'Sports & Games (Thendup & Ashisraj)', wing: 'SENIOR' },
         // Junior School Exclusive Faculty (Primary Section)
         { id: 't-pema', name: 'Ms. Pema', department: 'Junior Wing Primary Faculty', wing: 'JUNIOR' },
@@ -238,7 +238,10 @@ export default function RoutineControlCentre({ currentUser }) {
         // Ensure any timetable faculty not yet registered in profiles is included
         masterFallback.forEach(fb => {
           const exists = teachers.some(t => {
+            if (t.id === fb.id) return true;
             const info = RoutineService.resolveTeacherInfo(t.id) || RoutineService.resolveTeacherInfo(t.name);
+            const fbInfo = RoutineService.resolveTeacherInfo(fb.id) || RoutineService.resolveTeacherInfo(fb.name);
+            if (info && fbInfo && (info.fullName === fbInfo.fullName || info.slug === fbInfo.slug || info.profileId === fbInfo.profileId)) return true;
             return info && (info.slug === fb.id || info.profileId === fb.id || RoutineService.normalizeName(t.name) === RoutineService.normalizeName(fb.name));
           });
           if (!exists) {
@@ -484,7 +487,7 @@ export default function RoutineControlCentre({ currentUser }) {
     // Refresh entries
     const refreshed = await RoutineService.getMasterRoutine(selectedVersionId);
     setMasterEntries(refreshed);
-    const updatedTeacherData = await RoutineService.getTeacherRoutine(selectedTeacherId, selectedVersionId, teacher?.name);
+    const updatedTeacherData = await RoutineService.getTeacherRoutine(selectedTeacherId, selectedVersionId, teacher?.name, refreshed);
     setSelectedTeacherData(updatedTeacherData);
   };
 
@@ -495,7 +498,7 @@ export default function RoutineControlCentre({ currentUser }) {
     await RoutineService.saveBatchEntries(selectedVersionId, remaining);
     setMasterEntries(remaining);
     const teacher = teachersList.find(t => t.id === selectedTeacherId);
-    const updatedTeacherData = await RoutineService.getTeacherRoutine(selectedTeacherId, selectedVersionId, teacher?.name);
+    const updatedTeacherData = await RoutineService.getTeacherRoutine(selectedTeacherId, selectedVersionId, teacher?.name, remaining);
     setSelectedTeacherData(updatedTeacherData);
   };
 
@@ -508,7 +511,7 @@ export default function RoutineControlCentre({ currentUser }) {
       const refreshed = await RoutineService.getMasterRoutine(selectedVersionId);
       setMasterEntries(refreshed);
       const teacher = teachersList.find(t => t.id === selectedTeacherId);
-      const updatedTeacherData = await RoutineService.getTeacherRoutine(selectedTeacherId, selectedVersionId, teacher?.name);
+      const updatedTeacherData = await RoutineService.getTeacherRoutine(selectedTeacherId, selectedVersionId, teacher?.name, refreshed);
       setSelectedTeacherData(updatedTeacherData);
       alert(`Copied Day ${sourceDayId} schedule to Day ${targetDayId} for ${selectedTeacherData?.teacherName}!`);
     } catch (err) {

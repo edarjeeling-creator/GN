@@ -146,24 +146,39 @@ const TEACHER_IDENTITY_MAP = {
   },
   'Mr. Thendup Bhutia': {
     slug: 't-thendup-bhutia',
-    profileId: 't-thendup-bhutia',
+    profileId: '79d6175e-b7c9-4e5b-9531-7c0b2fc7c720',
     name: 'Thendup Bhutia',
     fullName: 'Mr. Thendup Bhutia',
-    department: 'Physical Training Instructor (PTI)'
+    department: 'Physical Training Instructor (PTI)',
+    wing: 'SENIOR',
+    aliases: ['t-thendup-bhutia', 'Thendup Bhutia  ', 'Thendup Bhutia', 'Mr. Thendup Bhutia', 'PTI', 't-pti']
   },
   'Mr. Ashisraj Gurung': {
     slug: 't-ashisraj-gurung',
-    profileId: 't-ashisraj-gurung',
+    profileId: 'e083bc1f-6f44-4bad-8282-4d66bd64c8a8',
     name: 'Ashisraj Gurung',
     fullName: 'Mr. Ashisraj Gurung',
-    department: 'Physical Training Instructor (PTI)'
+    department: 'Physical Training Instructor (PTI)',
+    wing: 'SENIOR',
+    aliases: ['t-ashisraj-gurung', 'Ashisraj Gurung', 'Ashishraj Gurung', 'Mr. Ashishraj Gurung', 'Mr. Ashisraj Gurung', 'PTI', 't-pti']
+  },
+  'Ashishraj Gurung': {
+    slug: 't-ashisraj-gurung',
+    profileId: 'e083bc1f-6f44-4bad-8282-4d66bd64c8a8',
+    name: 'Ashishraj Gurung',
+    fullName: 'Mr. Ashisraj Gurung',
+    department: 'Physical Training Instructor (PTI)',
+    wing: 'SENIOR',
+    aliases: ['t-ashisraj-gurung', 'Ashisraj Gurung', 'Ashishraj Gurung', 'Mr. Ashishraj Gurung', 'Mr. Ashisraj Gurung', 'PTI', 't-pti']
   },
   'Physical Training Instructors (PTI)': {
     slug: 't-pti',
-    profileId: '1a0a2998-da0e-4ad5-9505-1514b423825d',
+    profileId: 't-pti',
     name: 'PTI',
     fullName: 'Physical Training Instructors (PTI)',
-    department: 'Sports & Games'
+    department: 'Sports & Games',
+    wing: 'SENIOR',
+    aliases: ['t-thendup-bhutia', 't-ashisraj-gurung', '79d6175e-b7c9-4e5b-9531-7c0b2fc7c720', 'e083bc1f-6f44-4bad-8282-4d66bd64c8a8', 'Mr. Thendup Bhutia', 'Mr. Ashisraj Gurung', 'Ashishraj Gurung']
   },
   'Mr. Deven Gurung': {
     slug: 't-deven-gurung',
@@ -412,6 +427,7 @@ function normalizeName(name) {
     .replace(/\s*\(.*?\).*/g, '') // Remove department / designation / parenthetical notes
     .toLowerCase()
     .replace(/^(miss|mrs|mr|ms|dr)\.?\s*/i, '') // Remove honorifics with or without dot
+    .replace(/ashish/gi, 'ashis') // Standardize alternate spelling Ashishraj <-> Ashisraj
     .replace(/[^a-z0-9]/g, '')
     .trim();
 }
@@ -425,6 +441,8 @@ function resolveTeacherInfo(query) {
       info.slug === query ||
       info.name === query ||
       info.fullName === query ||
+      (info.aliases && info.aliases.includes(query)) ||
+      (info.aliases && info.aliases.some(a => normalizeName(a) === cleanQ)) ||
       normalizeName(info.name) === cleanQ ||
       normalizeName(info.fullName) === cleanQ ||
       normalizeName(key) === cleanQ
@@ -450,27 +468,49 @@ function resolveTeacherAliases(teacherId, hintName = '') {
     aliases.add(info.fullName);
     aliases.add(normalizeName(info.name));
     aliases.add(normalizeName(info.fullName));
+    if (info.aliases) {
+      info.aliases.forEach(a => {
+        aliases.add(a);
+        aliases.add(normalizeName(a));
+      });
+    }
   }
 
   // Unify PTI faculty aliases: Mr. Thendup Bhutia and Mr. Ashisraj Gurung share this exact timetable
   const isPTI = (
-    teacherId === 't-pti' || teacherId === 't-thendup-bhutia' || teacherId === 't-ashisraj-gurung' ||
-    (info && (info.slug === 't-pti' || info.slug === 't-thendup-bhutia' || info.slug === 't-ashisraj-gurung')) ||
-    (hintName && /thendup|ashisraj|ashis|bhutia|pti|physical training instructor/i.test(hintName))
+    teacherId === 't-pti' || 
+    teacherId === 't-thendup-bhutia' || 
+    teacherId === 't-ashisraj-gurung' ||
+    teacherId === '79d6175e-b7c9-4e5b-9531-7c0b2fc7c720' ||
+    teacherId === 'e083bc1f-6f44-4bad-8282-4d66bd64c8a8' ||
+    (info && (
+      info.slug === 't-pti' || 
+      info.slug === 't-thendup-bhutia' || 
+      info.slug === 't-ashisraj-gurung' ||
+      info.profileId === '79d6175e-b7c9-4e5b-9531-7c0b2fc7c720' ||
+      info.profileId === 'e083bc1f-6f44-4bad-8282-4d66bd64c8a8'
+    )) ||
+    (hintName && /thendup|ashisraj|ashishraj|ashis|ashish|bhutia|pti|physical training instructor/i.test(hintName))
   );
   if (isPTI) {
     aliases.add('t-pti');
     aliases.add('t-thendup-bhutia');
     aliases.add('t-ashisraj-gurung');
+    aliases.add('79d6175e-b7c9-4e5b-9531-7c0b2fc7c720');
+    aliases.add('e083bc1f-6f44-4bad-8282-4d66bd64c8a8');
     aliases.add('Physical Training Instructors (PTI)');
     aliases.add('Mr. Thendup Bhutia');
     aliases.add('Thendup Bhutia');
+    aliases.add('Thendup Bhutia ');
     aliases.add('Mr. Ashisraj Gurung');
     aliases.add('Ashisraj Gurung');
+    aliases.add('Mr. Ashishraj Gurung');
+    aliases.add('Ashishraj Gurung');
     aliases.add('PTI');
     aliases.add(normalizeName('Physical Training Instructors (PTI)'));
     aliases.add(normalizeName('Mr. Thendup Bhutia'));
     aliases.add(normalizeName('Mr. Ashisraj Gurung'));
+    aliases.add(normalizeName('Mr. Ashishraj Gurung'));
   }
 
   return aliases;
@@ -1632,16 +1672,16 @@ class TestRoutineEngine {
     });
 
     let teacherName = 'Teacher';
-    if (teacherId === 't-thendup-bhutia' || (hintName && /thendup/i.test(hintName))) {
+    if (teacherId === 't-thendup-bhutia' || teacherId === '79d6175e-b7c9-4e5b-9531-7c0b2fc7c720' || (hintName && /thendup/i.test(hintName))) {
       teacherName = 'Mr. Thendup Bhutia';
-    } else if (teacherId === 't-ashisraj-gurung' || (hintName && /ashisraj|ashis/i.test(hintName))) {
+    } else if (teacherId === 't-ashisraj-gurung' || teacherId === 'e083bc1f-6f44-4bad-8282-4d66bd64c8a8' || (hintName && /ashisraj|ashishraj|ashis|ashish/i.test(hintName))) {
       teacherName = 'Mr. Ashisraj Gurung';
-    } else if (tEntries[0]?.teacher_name) {
-      teacherName = tEntries[0].teacher_name;
     } else if (resolveTeacherName(teacherId)) {
       teacherName = resolveTeacherName(teacherId);
     } else if (hintName) {
       teacherName = hintName;
+    } else if (tEntries[0]?.teacher_name) {
+      teacherName = tEntries[0].teacher_name;
     }
 
     const periodMap = new Map();
@@ -3000,6 +3040,41 @@ runTest('Test 72: Staff WhatsApp relief notice formatter generates properly form
   assert.ok(notice.includes('Relief: Mr. Sagar Gurung'));
   assert.ok(notice.includes('Bridge Faculty (Pinky BK, Anjana Gurung, Sashank Lama, Rakesh Rai)'));
   assert.ok(notice.includes('25-minute offset between campuses'));
+});
+
+runTest('Test 73: Mr. Thendup Bhutia authentic Supabase UUID (79d6175e-b7c9-4e5b-9531-7c0b2fc7c720) resolves 31 periods and proper name without hint', () => {
+  const tb = engine.getTeacherRoutine('79d6175e-b7c9-4e5b-9531-7c0b2fc7c720', 'c0000000-2026-0001-0000-000000000001');
+  assert.strictEqual(tb.teacherName, 'Mr. Thendup Bhutia');
+  assert.strictEqual(tb.totalAssignedPeriods, 31);
+  assert.strictEqual(tb.freePeriodsCount, 14);
+});
+
+runTest('Test 74: Mr. Ashisraj Gurung authentic Supabase UUID (e083bc1f-6f44-4bad-8282-4d66bd64c8a8) resolves 31 periods and proper name without hint', () => {
+  const ag = engine.getTeacherRoutine('e083bc1f-6f44-4bad-8282-4d66bd64c8a8', 'c0000000-2026-0001-0000-000000000001');
+  assert.strictEqual(ag.teacherName, 'Mr. Ashisraj Gurung');
+  assert.strictEqual(ag.totalAssignedPeriods, 31);
+  assert.strictEqual(ag.freePeriodsCount, 14);
+});
+
+runTest('Test 75: Trailing whitespace in name query ("Thendup Bhutia  ") successfully resolves to Mr. Thendup Bhutia with 31 periods', () => {
+  const tb = engine.getTeacherRoutine('79d6175e-b7c9-4e5b-9531-7c0b2fc7c720', 'c0000000-2026-0001-0000-000000000001', 'Thendup Bhutia  ');
+  assert.strictEqual(tb.teacherName, 'Mr. Thendup Bhutia');
+  assert.strictEqual(tb.totalAssignedPeriods, 31);
+  assert.strictEqual(tb.freePeriodsCount, 14);
+});
+
+runTest('Test 76: Alternate spelling "Ashishraj Gurung" successfully resolves to Mr. Ashisraj Gurung with 31 periods', () => {
+  const ag = engine.getTeacherRoutine('e083bc1f-6f44-4bad-8282-4d66bd64c8a8', 'c0000000-2026-0001-0000-000000000001', 'Ashishraj Gurung');
+  assert.strictEqual(ag.teacherName, 'Mr. Ashisraj Gurung');
+  assert.strictEqual(ag.totalAssignedPeriods, 31);
+  assert.strictEqual(ag.freePeriodsCount, 14);
+});
+
+runTest('Test 77: Mr. Prajwal Singh UUID (1a0a2998-da0e-4ad5-9505-1514b423825d) remains distinct with 29 periods and does not collide with PTI', () => {
+  const ps = engine.getTeacherRoutine('1a0a2998-da0e-4ad5-9505-1514b423825d', 'c0000000-2026-0001-0000-000000000001');
+  assert.strictEqual(ps.teacherName, 'Mr. Prajwal Singh');
+  assert.strictEqual(ps.totalAssignedPeriods, 29);
+  assert.strictEqual(ps.freePeriodsCount, 16);
 });
 
 console.log('\n================================================================');

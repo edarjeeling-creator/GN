@@ -335,11 +335,11 @@ const Admin = () => {
     if (!newSpelling || newSpelling.trim() === '' || newSpelling === student.name) return;
     
     const cleanName = newSpelling.trim();
-    const { error } = await supabase.from('students').update({ name: cleanName }).eq('id', student.id);
-    if (!error) {
+    const { data, error } = await supabase.from('students').update({ name: cleanName }).eq('id', student.id).select();
+    if (!error && data && data.length > 0) {
       updateStudentName(student.id, cleanName);
     } else {
-      alert("Error updating student name: " + error.message);
+      alert("Error updating student name: " + (error?.message || "Failed to update database (0 rows updated)."));
     }
   };
 

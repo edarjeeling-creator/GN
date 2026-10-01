@@ -16,6 +16,14 @@ import AttendanceAIKeyModal from '../components/AttendanceAIKeyModal';
 import { AttendanceAIService } from '../services/AttendanceAIService';
 import { formatStudentDisplayName } from '../utils/studentUtils';
 
+const isValidISODate = (dateStr) => {
+  if (typeof dateStr !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) return false;
+  const [y, m, d] = dateStr.trim().split('-').map(num => parseInt(num, 10));
+  if (m < 1 || m > 12 || d < 1 || d > 31) return false;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && (dt.getUTCMonth() + 1) === m && dt.getUTCDate() === d;
+};
+
 const Attendance = () => {
   const { classes, students, academicYear } = useData();
   const { profile } = useAuth();
@@ -189,8 +197,9 @@ const Attendance = () => {
         if (!data.results || data.results.length === 0) {
           throw new Error("No student attendance records were detected in the register photo.");
         }
-        if (!data.detected_dates || data.detected_dates.length === 0) {
-          throw new Error("No active date columns with attendance markings were detected in the register image.");
+        const validDetectedDates = (data.detected_dates || []).filter(isValidISODate);
+        if (validDetectedDates.length === 0) {
+          throw new Error("No valid calendar date columns were detected in the register image.");
         }
 
         const matchedMonthRecords = data.results.map((aiRecord, index) => {
@@ -224,7 +233,7 @@ const Attendance = () => {
         });
 
         setMessage({ 
-          text: `Successfully extracted attendance for ${data.results.length} students across ${data.detected_dates.length} dates (${data.month_name || ''} ${data.year || ''}). Please review below.`, 
+          text: `Successfully extracted attendance for ${data.results.length} students across ${validDetectedDates.length} dates (${data.month_name || ''} ${data.year || ''}). Please review below.`, 
           type: 'success' 
         });
 
@@ -232,9 +241,9 @@ const Attendance = () => {
         setAiMonthResults({
           monthName: data.month_name || 'Register Month',
           year: data.year || new Date(selectedDate).getFullYear(),
-          detectedDates: data.detected_dates,
+          detectedDates: validDetectedDates,
           records: matchedMonthRecords,
-          selectedDates: new Set(data.detected_dates)
+          selectedDates: new Set(validDetectedDates)
         });
         return;
       }
@@ -403,9 +412,11 @@ const Attendance = () => {
       return;
     }
 
-    const activeDates = aiMonthResults.detectedDates.filter(d => aiMonthResults.selectedDates?.has(d) ?? true);
+    const activeDates = (aiMonthResults.detectedDates || [])
+      .filter(d => aiMonthResults.selectedDates?.has(d) ?? true)
+      .filter(isValidISODate);
     if (activeDates.length === 0) {
-      alert('No dates are selected to save.');
+      alert('No valid dates are selected to save.');
       return;
     }
 
@@ -862,7 +873,7 @@ const Attendance = () => {
             {/* Date Column Toggle Bar */}
             <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2 overflow-x-auto text-xs">
               <span className="font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0">
-                Active Dates ({aiMonthResults.detectedDates.length}):
+                Active Dates ({aiMonthResults.selectedDates ? aiMonthResults.selectedDates.size : aiMonthResults.detectedDates.length}):
               </span>
               <div className="flex items-center gap-1.5 flex-nowrap">
                 {aiMonthResults.detectedDates.map(dateStr => {

@@ -12,8 +12,8 @@
  * 4. REAL-WORLD DATA: Pre-seeded with the Principal's authentic handwritten routine sheets.
  */
 
-import { supabase } from '../lib/supabase';
-import NotificationService from './NotificationService';
+import { supabase } from '../lib/supabase.js';
+import NotificationService from './NotificationService.js';
 
 export const TEACHER_IDENTITY_MAP = {
   'Subodh': {
@@ -122,23 +122,34 @@ export const TEACHER_IDENTITY_MAP = {
   },
   'Mr. Thendup Bhutia': {
     slug: 't-thendup-bhutia',
-    profileId: 't-thendup-bhutia',
+    profileId: '79d6175e-b7c9-4e5b-9531-7c0b2fc7c720',
     name: 'Thendup Bhutia',
     fullName: 'Mr. Thendup Bhutia',
     department: 'Physical Training Instructor (PTI)',
-    wing: 'SENIOR'
+    wing: 'SENIOR',
+    aliases: ['79d6175e-b7c9-4e5b-9531-7c0b2fc7c720', 't-thendup-bhutia', 'Thendup Bhutia', 'Thendup Bhutia  ', 'Mr. Thendup Bhutia']
   },
   'Mr. Ashisraj Gurung': {
     slug: 't-ashisraj-gurung',
-    profileId: 't-ashisraj-gurung',
+    profileId: 'e083bc1f-6f44-4bad-8282-4d66bd64c8a8',
     name: 'Ashisraj Gurung',
     fullName: 'Mr. Ashisraj Gurung',
     department: 'Physical Training Instructor (PTI)',
-    wing: 'SENIOR'
+    wing: 'SENIOR',
+    aliases: ['e083bc1f-6f44-4bad-8282-4d66bd64c8a8', 't-ashisraj-gurung', 'Ashisraj Gurung', 'Ashishraj Gurung', 'Mr. Ashishraj Gurung', 'Mr. Ashisraj Gurung']
+  },
+  'Ashishraj Gurung': {
+    slug: 't-ashisraj-gurung',
+    profileId: 'e083bc1f-6f44-4bad-8282-4d66bd64c8a8',
+    name: 'Ashishraj Gurung',
+    fullName: 'Mr. Ashisraj Gurung',
+    department: 'Physical Training Instructor (PTI)',
+    wing: 'SENIOR',
+    aliases: ['e083bc1f-6f44-4bad-8282-4d66bd64c8a8', 't-ashisraj-gurung', 'Ashisraj Gurung', 'Ashishraj Gurung', 'Mr. Ashishraj Gurung', 'Mr. Ashisraj Gurung']
   },
   'Physical Training Instructors (PTI)': {
     slug: 't-pti',
-    profileId: '1a0a2998-da0e-4ad5-9505-1514b423825d',
+    profileId: 't-pti',
     name: 'PTI',
     fullName: 'Physical Training Instructors (PTI)',
     department: 'Sports & Games',
@@ -1836,6 +1847,7 @@ export class RoutineService {
       .replace(/\s*\(.*?\).*/g, '') // Remove department / designation / parenthetical notes
       .toLowerCase()
       .replace(/^(miss|mrs|mr|ms|dr)\.?\s*/i, '') // Remove honorifics with or without dot
+      .replace(/ashish/gi, 'ashis') // Standardize alternate spelling Ashishraj <-> Ashisraj
       .replace(/[^a-z0-9]/g, '')
       .trim();
   }
@@ -1852,6 +1864,8 @@ export class RoutineService {
         info.slug === query ||
         info.name === query ||
         info.fullName === query ||
+        (info.aliases && info.aliases.includes(query)) ||
+        (info.aliases && info.aliases.some(a => this.normalizeName(a) === cleanQ)) ||
         this.normalizeName(info.name) === cleanQ ||
         this.normalizeName(info.fullName) === cleanQ ||
         this.normalizeName(key) === cleanQ
@@ -1880,27 +1894,49 @@ export class RoutineService {
       aliases.add(info.fullName);
       aliases.add(this.normalizeName(info.name));
       aliases.add(this.normalizeName(info.fullName));
+      if (info.aliases) {
+        info.aliases.forEach(a => {
+          aliases.add(a);
+          aliases.add(this.normalizeName(a));
+        });
+      }
     }
 
     // Unify PTI faculty aliases: Mr. Thendup Bhutia and Mr. Ashisraj Gurung share this exact timetable
     const isPTI = (
-      teacherId === 't-pti' || teacherId === 't-thendup-bhutia' || teacherId === 't-ashisraj-gurung' ||
-      (info && (info.slug === 't-pti' || info.slug === 't-thendup-bhutia' || info.slug === 't-ashisraj-gurung')) ||
-      (hintName && /thendup|ashisraj|ashis|bhutia|pti|physical training instructor/i.test(hintName))
+      teacherId === 't-pti' || 
+      teacherId === 't-thendup-bhutia' || 
+      teacherId === 't-ashisraj-gurung' ||
+      teacherId === '79d6175e-b7c9-4e5b-9531-7c0b2fc7c720' ||
+      teacherId === 'e083bc1f-6f44-4bad-8282-4d66bd64c8a8' ||
+      (info && (
+        info.slug === 't-pti' || 
+        info.slug === 't-thendup-bhutia' || 
+        info.slug === 't-ashisraj-gurung' ||
+        info.profileId === '79d6175e-b7c9-4e5b-9531-7c0b2fc7c720' ||
+        info.profileId === 'e083bc1f-6f44-4bad-8282-4d66bd64c8a8'
+      )) ||
+      (hintName && /thendup|ashisraj|ashishraj|ashis|ashish|bhutia|pti|physical training instructor/i.test(hintName))
     );
     if (isPTI) {
       aliases.add('t-pti');
       aliases.add('t-thendup-bhutia');
       aliases.add('t-ashisraj-gurung');
+      aliases.add('79d6175e-b7c9-4e5b-9531-7c0b2fc7c720');
+      aliases.add('e083bc1f-6f44-4bad-8282-4d66bd64c8a8');
       aliases.add('Physical Training Instructors (PTI)');
       aliases.add('Mr. Thendup Bhutia');
       aliases.add('Thendup Bhutia');
+      aliases.add('Thendup Bhutia ');
       aliases.add('Mr. Ashisraj Gurung');
       aliases.add('Ashisraj Gurung');
+      aliases.add('Mr. Ashishraj Gurung');
+      aliases.add('Ashishraj Gurung');
       aliases.add('PTI');
       aliases.add(this.normalizeName('Physical Training Instructors (PTI)'));
       aliases.add(this.normalizeName('Mr. Thendup Bhutia'));
       aliases.add(this.normalizeName('Mr. Ashisraj Gurung'));
+      aliases.add(this.normalizeName('Mr. Ashishraj Gurung'));
     }
 
     return aliases;
@@ -2069,16 +2105,16 @@ export class RoutineService {
     });
 
     let teacherName = 'Teacher';
-    if (teacherId === 't-thendup-bhutia' || (teacherNameHint && /thendup/i.test(teacherNameHint))) {
+    if (teacherId === 't-thendup-bhutia' || teacherId === '79d6175e-b7c9-4e5b-9531-7c0b2fc7c720' || (teacherNameHint && /thendup/i.test(teacherNameHint))) {
       teacherName = 'Mr. Thendup Bhutia';
-    } else if (teacherId === 't-ashisraj-gurung' || (teacherNameHint && /ashisraj|ashis/i.test(teacherNameHint))) {
+    } else if (teacherId === 't-ashisraj-gurung' || teacherId === 'e083bc1f-6f44-4bad-8282-4d66bd64c8a8' || (teacherNameHint && /ashisraj|ashishraj|ashis|ashish/i.test(teacherNameHint))) {
       teacherName = 'Mr. Ashisraj Gurung';
-    } else if (entries[0]?.teacher_name) {
-      teacherName = entries[0].teacher_name;
     } else if (this.resolveTeacherName(teacherId)) {
       teacherName = this.resolveTeacherName(teacherId);
     } else if (teacherNameHint) {
       teacherName = teacherNameHint;
+    } else if (entries[0]?.teacher_name) {
+      teacherName = entries[0].teacher_name;
     }
 
     // Deduplicate entries by (day_of_week, period_num) to ensure exact slot counting
@@ -2109,7 +2145,7 @@ export class RoutineService {
    * TODAY'S ROUTINE (Teacher Mobile & Dashboard Widget):
    * Returns period-by-period list for the current day.
    */
-  static async getTodayTeacherRoutine(teacherId, date = new Date(), versionId = null) {
+  static async getTodayTeacherRoutine(teacherId, date = new Date(), versionId = null, teacherNameHint = '') {
     const d = new Date(date);
     let dayOfWeek = d.getDay(); // 0=Sun, 1=Mon... 6=Sat
     if (dayOfWeek === 0 || dayOfWeek === 6) dayOfWeek = 1; // Default to Monday on weekends for preview
@@ -2120,7 +2156,7 @@ export class RoutineService {
       targetVersion = active?.id;
     }
 
-    const teacherData = await this.getTeacherRoutine(teacherId, targetVersion);
+    const teacherData = await this.getTeacherRoutine(teacherId, targetVersion, teacherNameHint);
     const daySchedule = teacherData.scheduleByDay[dayOfWeek] || { periods: [] };
 
     return {

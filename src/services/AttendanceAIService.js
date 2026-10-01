@@ -108,6 +108,7 @@ Follow these critical steps:
 2. Locate the date column headers across the page (columns numbered 1 through 31).
 3. Identify ALL date columns that contain attendance entries (check marks, ticks, 'P', 'p', 'ab', 'a', 'A', 'L', 'ML', 'Leave', crosses, etc.).
    Completely ignore columns that are entirely blank (e.g. days before the session started, holidays/Sundays with no entries, or blank future days).
+   CRITICAL CALENDAR RULE: Only extract dates that actually exist in ${targetMonth} (e.g., April, June, September, November have only 30 days — NEVER include day 31; February has 28 or 29 days). If the register page has pre-printed column headers up to 31 in a month with fewer days, IGNORE column 31 completely.
 4. For every student row on the register:
    a. Read their Roll No / Serial Number (Sl No) and Student Name.
    b. For EVERY active date column identified in step 3, determine the student's attendance status.
@@ -321,21 +322,44 @@ Rules:
           const targetMM = String(targetDateObj.getMonth() + 1).padStart(2, '0');
           const monthNumStr = monthMap[mKey] || targetMM;
 
+          const mNum = parseInt(monthNumStr, 10);
+          const yNum = parseInt(String(detectedYear), 10);
+          // Calculate exact number of days in the detected month/year (UTC date 0 of next month)
+          const maxDaysInMonth = new Date(Date.UTC(yNum, mNum, 0)).getUTCDate();
+
+          // Calendar validator: ensures YYYY-MM-DD is an actual calendar date (e.g. rejects 2026-04-31)
+          const isValidISODate = (dateStr) => {
+            if (typeof dateStr !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) return false;
+            const [y, m, d] = dateStr.trim().split('-').map(num => parseInt(num, 10));
+            if (m < 1 || m > 12 || d < 1 || d > 31) return false;
+            const dt = new Date(Date.UTC(y, m - 1, d));
+            return dt.getUTCFullYear() === y && (dt.getUTCMonth() + 1) === m && dt.getUTCDate() === d;
+          };
+
           // Build list of valid unique ISO dates
           const dateSet = new Set();
           if (Array.isArray(parsed.detected_dates)) {
             parsed.detected_dates.forEach(d => {
-              if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.trim())) {
-                dateSet.add(d.trim());
+              if (typeof d === 'string') {
+                const trimmed = d.trim();
+                if (isValidISODate(trimmed)) {
+                  const day = parseInt(trimmed.split('-')[2], 10);
+                  if (day >= 1 && day <= maxDaysInMonth) {
+                    dateSet.add(trimmed);
+                  }
+                }
               }
             });
           }
           if (Array.isArray(parsed.detected_days)) {
             parsed.detected_days.forEach(day => {
               const num = parseInt(day, 10);
-              if (!isNaN(num) && num >= 1 && num <= 31) {
+              if (!isNaN(num) && num >= 1 && num <= maxDaysInMonth) {
                 const dayStr = String(num).padStart(2, '0');
-                dateSet.add(`${detectedYear}-${monthNumStr}-${dayStr}`);
+                const iso = `${detectedYear}-${monthNumStr}-${dayStr}`;
+                if (isValidISODate(iso)) {
+                  dateSet.add(iso);
+                }
               }
             });
           }
@@ -345,12 +369,18 @@ Rules:
             parsed.records.forEach(r => {
               if (r.attendance && typeof r.attendance === 'object') {
                 Object.keys(r.attendance).forEach(k => {
-                  if (/^\d{4}-\d{2}-\d{2}$/.test(k)) {
-                    dateSet.add(k);
+                  if (isValidISODate(k)) {
+                    const day = parseInt(k.split('-')[2], 10);
+                    if (day >= 1 && day <= maxDaysInMonth) {
+                      dateSet.add(k);
+                    }
                   } else {
                     const num = parseInt(k, 10);
-                    if (!isNaN(num) && num >= 1 && num <= 31) {
-                      dateSet.add(`${detectedYear}-${monthNumStr}-${String(num).padStart(2, '0')}`);
+                    if (!isNaN(num) && num >= 1 && num <= maxDaysInMonth) {
+                      const iso = `${detectedYear}-${monthNumStr}-${String(num).padStart(2, '0')}`;
+                      if (isValidISODate(iso)) {
+                        dateSet.add(iso);
+                      }
                     }
                   }
                 });
@@ -358,7 +388,7 @@ Rules:
             });
           }
 
-          const detectedDates = Array.from(dateSet).sort();
+          const detectedDates = Array.from(dateSet).filter(isValidISODate).sort();
 
           const validatedRecords = (parsed.records || []).map((item) => {
             const normAttendance = {};

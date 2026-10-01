@@ -7,7 +7,7 @@ import {
   ChevronDown, User, Send, AlertTriangle,
   Phone, MessageSquare, Edit2, Check, X,
   QrCode, ShieldCheck, MapPin, HelpCircle,
-  Printer, IdCard, Building2, Bell, Trash2
+  Printer, IdCard, Building2, Bell, Trash2, ArrowRight
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -77,8 +77,16 @@ const Dashboard = () => {
   const [recentNotices, setRecentNotices] = useState([]);
   const [isIdModalOpen, setIsIdModalOpen] = useState(false);
   const [selectedNoticeForModal, setSelectedNoticeForModal] = useState(null);
-  const [deletingNoticeId, setDeletingNoticeId] = useState(null);
-  const [activeTopTab, setActiveTopTab] = useState('attendance'); // 'attendance' | 'notices' | 'routine'
+  const [activeTopTab, setActiveTopTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam === 'routine' || tabParam === 'notices' || tabParam === 'attendance') {
+        return tabParam;
+      }
+    }
+    return 'attendance';
+  });
 
   // Scroll Container & Tab Refs for smooth horizontal scrolling
   const tabsScrollContainerRef = useRef(null);
@@ -191,10 +199,10 @@ const Dashboard = () => {
         if (!isMounted) return;
         setActiveRoutineVersion(activeVer);
         if (activeVer) {
-          const tRoutine = await RoutineService.getTeacherRoutine(profile.id, activeVer.id);
+          const tRoutine = await RoutineService.getTeacherRoutine(profile.id, activeVer.id, profile.name);
           if (!isMounted) return;
           setMyRoutineData(tRoutine);
-          const todayR = await RoutineService.getTodayTeacherRoutine(profile.id, new Date(), activeVer.id);
+          const todayR = await RoutineService.getTodayTeacherRoutine(profile.id, new Date(), activeVer.id, profile.name);
           if (!isMounted) return;
           setMyTodayRoutine(todayR);
           const dist = await RoutineService.getDistributionStatus(activeVer.id);
@@ -673,6 +681,35 @@ const Dashboard = () => {
           )}
         </div>
       </div>
+
+      {/* Prominent Routine Sign-Off Notice for Unacknowledged Faculty */}
+      {activeRoutineVersion && !myAckStatus?.acknowledged_at && activeTopTab !== 'routine' && (
+        <div 
+          onClick={() => setActiveTopTab('routine')}
+          className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-blue-950/80 via-slate-900/90 to-brand-950/80 border border-blue-500/40 text-blue-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg cursor-pointer hover:border-blue-400 transition-all"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-blue-500/20 text-blue-300 shrink-0 animate-pulse">
+              <Clock size={22} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-sm sm:text-base text-white">New Weekly Routine Published ({activeRoutineVersion.version_code})</span>
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-400 text-slate-950">Action Required</span>
+              </div>
+              <p className="text-xs text-blue-200/80 mt-0.5">
+                Your 5-day teaching schedule ({myRoutineData?.totalAssignedPeriods || 31} assigned periods) is ready. Click to review your timetable.
+              </p>
+            </div>
+          </div>
+          <button 
+            type="button" 
+            className="self-end sm:self-auto shrink-0 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow flex items-center gap-1.5"
+          >
+            Review Routine <ArrowRight size={13} />
+          </button>
+        </div>
+      )}
 
       {/* Tab Panels */}
       <AnimatePresence mode="wait">

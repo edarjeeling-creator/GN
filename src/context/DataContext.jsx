@@ -276,6 +276,7 @@ export const DataProvider = ({ children }) => {
       return { success: false, error: { message: "Portal is in Read-Only Mode." } };
     }
 
+    const originalStudent = students.find(s => s.id === studentId);
     const updates = { class_id: newClassId };
     if (newRollNo !== null && newRollNo !== undefined && newRollNo !== '') {
       updates.roll_no = Number(newRollNo);
@@ -284,21 +285,29 @@ export const DataProvider = ({ children }) => {
     // Optimistic UI update
     setStudents(prev => prev.map(s => s.id === studentId ? { ...s, ...updates } : s));
 
-    const { data, error } = await supabase.from('students')
-      .update(updates)
-      .eq('id', studentId)
-      .select();
+    try {
+      const { data, error } = await supabase.from('students')
+        .update(updates)
+        .eq('id', studentId)
+        .select();
 
-    if (error) {
-      console.error("Error moving student to new class:", error);
-      return { success: false, error };
-    }
+      if (error || !data || data.length === 0) {
+        console.error("Error moving student to new class:", error || "0 rows updated (RLS blocked)");
+        if (originalStudent) {
+          setStudents(prev => prev.map(s => s.id === studentId ? originalStudent : s));
+        }
+        return { success: false, error: error || { message: "Failed to move student. Database rejected update (0 rows affected)." } };
+      }
 
-    if (data && data.length > 0) {
       setStudents(prev => prev.map(s => s.id === studentId ? { ...s, ...data[0] } : s));
       return { success: true, data: data[0] };
+    } catch (err) {
+      console.error("Exception moving student:", err);
+      if (originalStudent) {
+        setStudents(prev => prev.map(s => s.id === studentId ? originalStudent : s));
+      }
+      return { success: false, error: err };
     }
-    return { success: true };
   };
 
   const updateStudentContactNumber = async (studentId, contactNumber) => {
@@ -309,26 +318,61 @@ export const DataProvider = ({ children }) => {
 
     const cleaned = contactNumber ? String(contactNumber).replace(/[^\d+]/g, '').trim() : null;
 
+    // Snapshot previous student state for rollback in case save fails
+    const originalStudent = students.find(s => s.id === studentId);
+    const originalContact = originalStudent ? originalStudent.contact_number : null;
+
     // Optimistic UI update
     setStudents(prev => prev.map(s => s.id === studentId ? { ...s, contact_number: cleaned } : s));
 
-    const { data, error } = await supabase.from('students')
-      .update({ contact_number: cleaned })
-      .eq('id', studentId)
-      .select();
+    try {
+      // 1. First attempt via secure RPC (SECURITY DEFINER guarantees update even if RLS is restrictive)
+      const { data: rpcData, error: rpcError } = await supabase.rpc('update_student_contact_number', {
+        p_student_id: studentId,
+        p_contact_number: cleaned
+      });
 
-    if (error) {
-      console.error("Error updating student contact number:", error);
-      return { success: false, error };
+      if (!rpcError && rpcData?.success) {
+        const updatedRow = rpcData.data;
+        if (updatedRow) {
+          setStudents(prev => prev.map(s => s.id === studentId ? { ...s, ...updatedRow } : s));
+        }
+        return { success: true, data: updatedRow };
+      }
+
+      // 2. Direct table update fallback
+      const { data, error } = await supabase.from('students')
+        .update({ contact_number: cleaned })
+        .eq('id', studentId)
+        .select();
+
+      if (error || !data || data.length === 0) {
+        console.error("Error updating student contact number:", error || "0 rows updated (blocked by RLS)");
+        // Revert optimistic update
+        setStudents(prev => prev.map(s => s.id === studentId ? { ...s, contact_number: originalContact } : s));
+        return { 
+          success: false, 
+          error: error || { message: "Database rejected the update (0 rows affected). Please ensure Supabase RLS allows student updates." } 
+        };
+      }
+
+      setStudents(prev => prev.map(s => s.id === studentId ? { ...s, ...data[0] } : s));
+      return { success: true, data: data[0] };
+    } catch (err) {
+      console.error("Exception updating student contact number:", err);
+      // Revert optimistic update
+      setStudents(prev => prev.map(s => s.id === studentId ? { ...s, contact_number: originalContact } : s));
+      return { success: false, error: err };
     }
-    return { success: true, data: data?.[0] };
   };
 
   const updateStudentLanguages = async (studentId, secondLang, thirdLang, electiveSubject = null, sixthSubject = null) => {
     if (isReadOnly) {
       alert("This action is disabled. The portal is in Read-Only Mode.");
-      return;
+      return { success: false, error: { message: "Portal is in Read-Only Mode." } };
     }
+
+    const originalStudent = students.find(s => s.id === studentId);
 
     // Optimistic UI
     setStudents(prev => prev.map(s => 
@@ -336,9 +380,29 @@ export const DataProvider = ({ children }) => {
     ));
     
     // DB Update
-    await supabase.from('students')
-      .update({ second_language: secondLang, third_language: thirdLang, elective_subject: electiveSubject, sixth_subject: sixthSubject })
-      .eq('id', studentId);
+    try {
+      const { data, error } = await supabase.from('students')
+        .update({ second_language: secondLang, third_language: thirdLang, elective_subject: electiveSubject, sixth_subject: sixthSubject })
+        .eq('id', studentId)
+        .select();
+
+      if (error || !data || data.length === 0) {
+        console.error("Error updating student languages:", error || "0 rows updated");
+        if (originalStudent) {
+          setStudents(prev => prev.map(s => s.id === studentId ? originalStudent : s));
+        }
+        return { success: false, error: error || { message: "Database rejected language update (0 rows affected)." } };
+      }
+
+      setStudents(prev => prev.map(s => s.id === studentId ? { ...s, ...data[0] } : s));
+      return { success: true, data: data[0] };
+    } catch (err) {
+      console.error("Exception updating student languages:", err);
+      if (originalStudent) {
+        setStudents(prev => prev.map(s => s.id === studentId ? originalStudent : s));
+      }
+      return { success: false, error: err };
+    }
   };
 
   const updateStudentUid = async (studentId, newUid) => {
@@ -347,15 +411,23 @@ export const DataProvider = ({ children }) => {
       return { success: false, error: { message: "Portal is in Read-Only Mode." } };
     }
 
-    const { error } = await supabase.from('students')
-      .update({ uid: newUid })
-      .eq('id', studentId);
+    try {
+      const { data, error } = await supabase.from('students')
+        .update({ uid: newUid })
+        .eq('id', studentId)
+        .select();
 
-    if (!error) {
+      if (error || !data || data.length === 0) {
+        console.error("Error updating student UID:", error || "0 rows updated");
+        return { success: false, error: error || { message: "Database rejected UID update (0 rows affected)." } };
+      }
+
       setStudents(prev => prev.map(s => s.id === studentId ? { ...s, uid: newUid } : s));
-      return { success: true };
+      return { success: true, data: data[0] };
+    } catch (err) {
+      console.error("Exception updating UID:", err);
+      return { success: false, error: err };
     }
-    return { success: false, error };
   };
 
   const updateStudentPictureUrl = (studentId, newUrl) => {
