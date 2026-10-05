@@ -41,7 +41,7 @@ export const getConversionConstants = (className) => {
 const SubjectMarks = () => {
   const { classId, subjectId } = useParams();
   const navigate = useNavigate();
-  const { classes, subjects, students, marks, academicYear } = useData();
+  const { classes, subjects, students, marks, attendance, academicYear } = useData();
   const { profile } = useAuth();
 
   const cls = classes.find(c => c.id === classId);
@@ -182,7 +182,8 @@ const SubjectMarks = () => {
         classStudents.forEach(st => {
           ['Exam', 'Test'].forEach(code => {
             const key = `${st.id}_${code.toUpperCase()}`;
-            if (scoresMap[key] === undefined || scoresMap[key] === '') {
+            // If already marked ABSENT or NOT_APPLICABLE in detailed marks, DO NOT overwrite with legacy score!
+            if ((scoresMap[key] === undefined || scoresMap[key] === '') && statusMap[key] !== 'ABSENT' && statusMap[key] !== 'NOT_APPLICABLE') {
               const legacyTermKey = `${st.id}_${subjectId}_${academicYear}_${selectedTerm}_${code}`;
               if (marks[legacyTermKey] !== undefined && marks[legacyTermKey] !== null) {
                 scoresMap[key] = String(marks[legacyTermKey]);
@@ -234,8 +235,8 @@ const SubjectMarks = () => {
             const legacyVal = scoresMap[`${st.id}_TEST`];
             const legacySt = statusMap[`${st.id}_TEST`] || 'MARKED';
             const k = `${st.id}_${defaultAttId}`;
-            if (legacyVal !== undefined && legacyVal !== '') {
-              attScoreMap[k] = String(legacyVal);
+            if (legacySt === 'ABSENT' || legacySt === 'NOT_APPLICABLE' || (legacyVal !== undefined && legacyVal !== '')) {
+              attScoreMap[k] = legacyVal !== undefined ? String(legacyVal) : '';
               attStatusMap[k] = legacySt;
             }
           });
@@ -318,23 +319,27 @@ const SubjectMarks = () => {
   }, [activePattern, cls?.name]);
 
   // Filter students based on language/elective assignment
-  const filteredStudents = useMemo(() => {
+  const eligibleSubjectStudents = useMemo(() => {
     return classStudents.filter(student => {
       const subName = subjectDisplayName.toLowerCase();
       if (subName.includes('2nd') || subName.includes('second')) return student.second_language ? subName.includes(student.second_language.toLowerCase()) : true;
       if (subName.includes('3rd') || subName.includes('third')) return student.third_language ? subName.includes(student.third_language.toLowerCase()) : true;
       if (subName.includes('elective') || subName.includes('evs/math') || subName.includes('maths/evs') || subName.includes('math/evs')) return student.elective_subject ? subName.includes(student.elective_subject.toLowerCase()) : true;
       if (subName.includes('6th') || subName.includes('sixth')) return student.sixth_subject ? subName.includes(student.sixth_subject.toLowerCase()) : true;
-      
-      if (globalFilter) {
-        const q = globalFilter.toLowerCase();
-        const matchesName = student.name?.toLowerCase().includes(q);
-        const matchesRoll = String(student.roll_no).includes(q);
-        return matchesName || matchesRoll;
-      }
       return true;
     });
-  }, [classStudents, subjectDisplayName, globalFilter]);
+  }, [classStudents, subjectDisplayName]);
+
+  // Display roster filtering (search box)
+  const filteredStudents = useMemo(() => {
+    if (!globalFilter) return eligibleSubjectStudents;
+    const q = globalFilter.toLowerCase();
+    return eligibleSubjectStudents.filter(student => {
+      const matchesName = student.name?.toLowerCase().includes(q);
+      const matchesRoll = String(student.roll_no).includes(q);
+      return matchesName || matchesRoll;
+    });
+  }, [eligibleSubjectStudents, globalFilter]);
 
   // Calculate live attempt aggregates for each student
   const studentAttemptAggregates = useMemo(() => {
@@ -655,7 +660,7 @@ const SubjectMarks = () => {
   // Generic authoritative calculator for any class section
   const computeSectionAssemblySummary = (targetCls, targetStudents, targetRawScores, targetStatuses, targetComponents, targetPattern) => {
     if (!targetCls || !targetStudents?.length || !targetComponents?.length) {
-      return { topScorers: [], requiresAttention: [], totalEvaluated: 0 };
+      return { topScorers: [], requiresAttention: [], absentees: [], totalEvaluated: 0, totalEligible: 0 };
     }
 
     const currentClassName = `${targetCls.name || ''} ${targetCls.section || ''}`.trim();
@@ -664,6 +669,7 @@ const SubjectMarks = () => {
       const studentScores = {};
       const studentStatuses = {};
       let hasAnyAbsent = false;
+      let hasAnyNumericScore = false;
 
       targetComponents.forEach(comp => {
         let rawVal;
@@ -679,14 +685,34 @@ const SubjectMarks = () => {
           stStatus = targetStatuses[key] || 'MARKED';
         }
 
+        const normStatus = String(stStatus || '').trim().toUpperCase();
+        const normVal = String(rawVal !== null && rawVal !== undefined ? rawVal : '').trim().toUpperCase();
+
+        const isAbsentEntry = normStatus === 'ABSENT' || normStatus === 'AB' || normStatus === 'ABS' ||
+          normVal === 'AB' || normVal === 'A' || normVal === 'ABS' || normVal === 'ABSENT';
+
+        if (isAbsentEntry) {
+          hasAnyAbsent = true;
+          stStatus = 'ABSENT';
+          rawVal = '';
+        } else if (normVal !== '' && !isNaN(Number(normVal))) {
+          hasAnyNumericScore = true;
+        }
+
         studentScores[comp.component_code] = rawVal;
         studentStatuses[comp.component_code] = stStatus;
-        if (comp.contributes_to_total !== false) {
-          if (stStatus === 'ABSENT' || String(rawVal).toUpperCase() === 'A' || String(rawVal).toUpperCase() === 'ABS') {
-            hasAnyAbsent = true;
-          }
-        }
       });
+
+      // Also check daily attendance record for the test conducted date if available
+      if (!hasAnyAbsent && !hasAnyNumericScore && conductedDate && attendance && Array.isArray(attendance)) {
+        const attRec = attendance.find(a => 
+          (a.student_id === student.id || a.studentId === student.id) && 
+          String(a.date).slice(0, 10) === String(conductedDate).slice(0, 10)
+        );
+        if (attRec && String(attRec.status).toLowerCase() === 'absent') {
+          hasAnyAbsent = true;
+        }
+      }
 
       const result = MarksCalculationEngine.calculateStudentResult({
         components: targetComponents,
@@ -696,7 +722,9 @@ const SubjectMarks = () => {
         roundingRule: targetPattern?.rounding_rule || 'ROUND_2_DECIMALS'
       });
 
-      const isAbsent = hasAnyAbsent || result.isAllAbsent;
+      // A student is considered absent if they have an absent entry without positive score overrides,
+      // or if calculation marked them as all-absent / grade AB.
+      const isAbsent = (hasAnyAbsent && !hasAnyNumericScore) || result.isAllAbsent || result.grade === 'AB';
       
       // Skip students with completely blank marks who are not marked absent
       if (!result.hasAnyMark && !isAbsent) {
@@ -711,7 +739,7 @@ const SubjectMarks = () => {
         total,
         isAbsent,
         house,
-        grade: result.grade
+        grade: isAbsent ? 'AB' : result.grade
       };
     }).filter(Boolean);
 
@@ -724,10 +752,10 @@ const SubjectMarks = () => {
     });
   };
 
-  // Live calculation of 1st, 2nd, 3rd Rankers and Requires Attention for Current Section
+  // Live calculation of 1st, 2nd, 3rd Rankers, Requires Attention, and Absentees for Current Section
   const assemblySummary = useMemo(() => {
-    return computeSectionAssemblySummary(cls, filteredStudents, rawScores, statuses, components, activePattern);
-  }, [filteredStudents, components, rawScores, statuses, activePattern, cls]);
+    return computeSectionAssemblySummary(cls, eligibleSubjectStudents, rawScores, statuses, components, activePattern);
+  }, [eligibleSubjectStudents, components, rawScores, statuses, activePattern, cls, attendance, conductedDate]);
 
   // State for sibling sections marks: { [classId]: { rawScores, statuses, pattern, components } }
   const [siblingMarksData, setSiblingMarksData] = useState({});
@@ -774,7 +802,8 @@ const SubjectMarks = () => {
           sStudents.forEach(st => {
             ['EXAM', 'TEST'].forEach(code => {
               const key = `${st.id}_${code}`;
-              if (sRawScores[key] === undefined || sRawScores[key] === '') {
+              // If already marked ABSENT or NOT_APPLICABLE in detailed marks, DO NOT overwrite with legacy score!
+              if ((sRawScores[key] === undefined || sRawScores[key] === '') && sStatuses[key] !== 'ABSENT' && sStatuses[key] !== 'NOT_APPLICABLE') {
                 const termCode = code === 'EXAM' ? 'Exam' : 'Test';
                 const legacyKey1 = `${st.id}_${subjectId}_${academicYear}_${selectedTerm}_${termCode}`;
                 const legacyKey2 = `${st.id}_${subjectId}_${selectedTerm}_${termCode}`;
@@ -835,7 +864,7 @@ const SubjectMarks = () => {
           cls: sCls,
           isCurrent: true,
           summary: assemblySummary,
-          studentCount: filteredStudents.length
+          studentCount: eligibleSubjectStudents.length
         };
       }
 
@@ -2951,7 +2980,7 @@ _Sent via Gyanoday Niketan ERP_`;
                     </span>
                   </div>
                   <span className="text-xs text-slate-400 font-mono">
-                    {secSummary.topScorers.length} Honours • {secSummary.requiresAttention.length} Requires Attention
+                    {secSummary.topScorers.length} Honours • {secSummary.requiresAttention.length} Requires Attention{secSummary.absentees?.length > 0 ? ` • ${secSummary.absentees.length} Absent` : ''}
                   </span>
                 </div>
 
@@ -3040,6 +3069,20 @@ _Sent via Gyanoday Niketan ERP_`;
                     </div>
                   </div>
                 </div>
+
+                {/* Dedicated Absentee Section */}
+                {secSummary.absentees && secSummary.absentees.length > 0 && (
+                  <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-700/70 flex items-center justify-between gap-3 text-xs flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase bg-slate-800 text-amber-300 border border-amber-500/30">
+                        📋 Absent Students ({secSummary.absentees.length})
+                      </span>
+                      <span className="text-slate-300 font-medium">
+                        {secSummary.absentees.map(a => `${formatStudentDisplayName(a.student.name)}${a.house ? ` (${a.house})` : ''}`).join(', ')}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -3068,7 +3111,7 @@ _Sent via Gyanoday Niketan ERP_`;
                     </span>
                   </div>
                   <span className="text-xs text-slate-400 font-mono">
-                    {activeSummary.topScorers.length} Honours • {activeSummary.requiresAttention.length} Requires Attention
+                    {activeSummary.topScorers.length} Honours • {activeSummary.requiresAttention.length} Requires Attention{activeSummary.absentees?.length > 0 ? ` • ${activeSummary.absentees.length} Absent` : ''}
                   </span>
                 </div>
 
@@ -3172,6 +3215,20 @@ _Sent via Gyanoday Niketan ERP_`;
                   </div>
                 </div>
               </div>
+
+              {/* Dedicated Absentee Section */}
+              {activeSummary.absentees && activeSummary.absentees.length > 0 && (
+                <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/70 flex items-center justify-between gap-3 text-xs flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase bg-slate-800 text-amber-300 border border-amber-500/30">
+                      📋 Absent Students ({activeSummary.absentees.length})
+                    </span>
+                    <span className="text-slate-300 font-medium">
+                      {activeSummary.absentees.map(a => `${formatStudentDisplayName(a.student.name)}${a.house ? ` (${a.house})` : ''}`).join(', ')}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })()
@@ -3266,7 +3323,7 @@ _Sent via Gyanoday Niketan ERP_`;
                       </span>
                     </div>
                     <span className="text-[9.5px] font-bold text-black">
-                      {secSummary.topScorers.length} Honours Rankers • {secSummary.requiresAttention.length} Below 10
+                      {secSummary.topScorers.length} Honours Rankers • {secSummary.requiresAttention.length} Below 10{secSummary.absentees?.length > 0 ? ` • ${secSummary.absentees.length} Absent` : ''}
                     </span>
                   </div>
 
@@ -3332,6 +3389,16 @@ _Sent via Gyanoday Niketan ERP_`;
                       )}
                     </div>
                   </div>
+
+                  {/* Dedicated Absentee Section */}
+                  {secSummary.absentees && secSummary.absentees.length > 0 && (
+                    <div className="mt-1.5 pt-1 border-t border-black text-[9.5px] text-black">
+                      <span className="font-bold">📋 Absent Students ({secSummary.absentees.length}): </span>
+                      <span className="font-semibold text-slate-800">
+                        {secSummary.absentees.map(a => `${formatStudentDisplayName(a.student.name)}${a.house ? ` (${a.house})` : ''}`).join(', ')}
+                      </span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -3368,6 +3435,10 @@ _Sent via Gyanoday Niketan ERP_`;
                 <span><strong>Term:</strong> {selectedTerm === 'Midterm' ? 'Mid-Term Exam' : 'Final-Term Exam'} {academicYear}</span>
                 <span>•</span>
                 <span><strong>Teacher:</strong> {profile?.name || 'Faculty Member'}</span>
+                <span>•</span>
+                <span className="font-mono text-black">
+                  {assemblySummary.topScorers.length} Honours Rankers • {assemblySummary.requiresAttention.length} Below 10{assemblySummary.absentees?.length > 0 ? ` • ${assemblySummary.absentees.length} Absent` : ''}
+                </span>
               </div>
             </div>
 
@@ -3436,6 +3507,16 @@ _Sent via Gyanoday Niketan ERP_`;
                 )}
               </div>
             </div>
+
+            {/* Dedicated Absentee Section */}
+            {assemblySummary.absentees && assemblySummary.absentees.length > 0 && (
+              <div className="mt-3 pt-2 border-t border-black text-xs text-black">
+                <span className="font-bold">📋 Absent Students ({assemblySummary.absentees.length}): </span>
+                <span className="font-semibold text-slate-800">
+                  {assemblySummary.absentees.map(a => `${formatStudentDisplayName(a.student.name)}${a.house ? ` (${a.house})` : ''}`).join(', ')}
+                </span>
+              </div>
+            )}
 
             <div className="mt-4 pt-3 border-t border-black flex justify-between text-xs text-black font-semibold">
               <div>

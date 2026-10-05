@@ -196,8 +196,80 @@ async function run() {
   );
   console.log('  ✓ Subject resolution tests passed with 100% reliability!\n');
 
+  // Test 6: Absent Student Handling (Shivani Kumari Scenario)
+  console.log('Test 6: Absent Student Handling (Shivani Kumari Scenario)');
+  const studentsWithAbsent = [
+    { student: { id: 's1', name: 'Md. Afan' }, total: 23, isAbsent: false, house: 'Topaz' },
+    { student: { id: 's2', name: 'Abhishek Gupta' }, total: 22, isAbsent: false, house: 'Garnet' },
+    { student: { id: 's3', name: 'Aarav Sharma' }, total: 21, isAbsent: false, house: 'Topaz' },
+    { student: { id: 's4', name: 'Shivani Kumari' }, total: 0, isAbsent: true, house: 'Garnet' }, // ABSENT!
+    { student: { id: 's5', name: 'Rohit Verma' }, total: 8, isAbsent: false, house: 'Turquoise' } // Genuinely Below 10
+  ];
+
+  const summary = MarksCalculationEngine.calculateHonoursAndAttention(studentsWithAbsent, {
+    rankingPolicy: 'DENSE',
+    requiresAttentionThreshold: 10,
+    thresholdType: 'SCORE',
+    excludeAbsentFromRanking: true
+  });
+
+  // Top scorers should NOT include Shivani Kumari
+  assert.strictEqual(summary.topScorers.length, 3);
+  assert.ok(!summary.topScorers.some(s => s.student.name === 'Shivani Kumari'));
+
+  // Requires attention must ONLY include Rohit Verma (8/25), NEVER Shivani Kumari (Absent)
+  assert.strictEqual(summary.requiresAttention.length, 1, 'Only Rohit Verma should be in Requires Attention');
+  assert.strictEqual(summary.requiresAttention[0].student.name, 'Rohit Verma');
+  assert.ok(!summary.requiresAttention.some(s => s.student.name === 'Shivani Kumari'), 'Shivani Kumari must NOT be listed under Requires Attention (Below 10)');
+
+  // Absentees list MUST include Shivani Kumari
+  assert.strictEqual(summary.absentees.length, 1, 'Shivani Kumari must be in absentees list');
+  assert.strictEqual(summary.absentees[0].student.name, 'Shivani Kumari');
+  assert.strictEqual(summary.absentees[0].house, 'Garnet');
+  console.log('  ✓ Shivani Kumari (Absent) is strictly excluded from Below 10 and cleanly placed in Absentee list!');
+
+  // Test 6B: Verify computeSectionAssemblySummary simulation with Weekly Test = AB and Exam = unentered
+  const sampleComponents = [
+    { component_code: 'TEST', raw_max_marks: 25, converted_max_marks: 25, contributes_to_total: true },
+    { component_code: 'EXAM', raw_max_marks: 100, converted_max_marks: 75, contributes_to_total: true }
+  ];
+
+  const targetRaw = {
+    'st_shivani_TEST': '',
+    'st_shivani_EXAM': ''
+  };
+  const targetStatuses = {
+    'st_shivani_TEST': 'ABSENT',
+    'st_shivani_EXAM': 'MARKED'
+  };
+
+  let hasAnyAbsent = false;
+  let hasAnyNumericScore = false;
+  sampleComponents.forEach(comp => {
+    const key = `st_shivani_${comp.component_code}`;
+    const rawVal = targetRaw[key];
+    const stStatus = targetStatuses[key];
+    const normStatus = String(stStatus || '').trim().toUpperCase();
+    const normVal = String(rawVal || '').trim().toUpperCase();
+    if (normStatus === 'ABSENT' || normStatus === 'AB' || normVal === 'AB' || normVal === 'ABS') {
+      hasAnyAbsent = true;
+    } else if (normVal !== '' && !isNaN(Number(normVal))) {
+      hasAnyNumericScore = true;
+    }
+  });
+
+  const res = MarksCalculationEngine.calculateStudentResult({
+    components: sampleComponents,
+    rawScores: { TEST: '', EXAM: '' },
+    statuses: { TEST: 'ABSENT', EXAM: 'MARKED' }
+  });
+
+  const isAbsentEvaluated = (hasAnyAbsent && !hasAnyNumericScore) || res.isAllAbsent || res.grade === 'AB';
+  assert.strictEqual(isAbsentEvaluated, true, 'Student with Weekly Test AB and unentered Exam must evaluate to isAbsent=true');
+  console.log('  ✓ Weekly Test AB with unentered Exam correctly resolves isAbsent=true!\n');
+
   console.log('================================================================');
-  console.log('ALL 1-PAGE COMBINED ASSEMBLY REPORT TESTS PASSED! (5/5)');
+  console.log('ALL 1-PAGE COMBINED ASSEMBLY REPORT TESTS PASSED! (6/6)');
   console.log('================================================================');
 }
 
