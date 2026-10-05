@@ -103,7 +103,7 @@ const SubjectMarks = () => {
   const [submitError, setSubmitError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [globalFilter, setGlobalFilter] = useState('');
-  const [exportLoading, setExportLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(null); // 'excel' | 'csv' | null
   const [exportSuccess, setExportSuccess] = useState(null); // 'excel' | 'csv' | null
   const fileInputRef = useRef(null);
 
@@ -1213,57 +1213,129 @@ _Sent via Gyanoday Niketan ERP_`;
     } catch (e) {}
   };
 
-  // Universal Download Helper supporting Blob URL with Data URI fallback for mobile devices
-  const triggerBrowserDownload = (blob, fileName, textFallback = null) => {
-    // 1. Try standard Blob URL download
-    try {
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.style.display = 'none';
-      link.href = url;
-      link.setAttribute('download', fileName);
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        try {
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(url);
-        } catch (e) {}
-      }, 1500);
-      return true;
-    } catch (blobErr) {
-      console.warn('Standard Blob URL download failed, trying data URI fallback:', blobErr);
-    }
+  // Multi-Platform File Downloader Supporting Desktop and Mobile Environments
+  const downloadExportedFile = async ({ fileName, blob, dataUri, workbook }) => {
+    let downloaded = false;
 
-    // 2. Data URI fallback for CSV (guaranteed to work across WebViews and phones)
-    if (textFallback) {
+    // 1. Mobile Web Share API:
+    // When accessed on a mobile phone (Android / iOS / Capacitor / PWA), native sharing provides
+    // the most reliable experience by invoking the OS share sheet (Save to Files / Drive / WhatsApp / Downloads).
+    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+    if (isMobile && blob && typeof navigator.share === 'function' && typeof File !== 'undefined') {
       try {
-        const encodedUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(textFallback);
-        const link = document.createElement('a');
-        link.setAttribute('href', encodedUri);
-        link.setAttribute('download', fileName);
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(() => {
-          try { document.body.removeChild(link); } catch (e) {}
-        }, 1500);
-        return true;
-      } catch (dataUriErr) {
-        console.warn('Data URI download failed:', dataUriErr);
+        const file = new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
+        if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: fileName
+          });
+          return true;
+        }
+      } catch (shareErr) {
+        if (shareErr.name === 'AbortError') {
+          // User closed/cancelled the share picker intentionally
+          return true;
+        }
+        console.warn('Mobile Web Share unsuccessful, falling back to direct download:', shareErr);
       }
     }
 
-    return false;
+    // 2. Desktop Excel export via SheetJS's official writeFile
+    if (workbook && XLSX && typeof XLSX.writeFile === 'function' && !isMobile) {
+      try {
+        XLSX.writeFile(workbook, fileName);
+        return true;
+      } catch (writeFileErr) {
+        console.warn('XLSX.writeFile threw error, attempting direct blob/URI download:', writeFileErr);
+      }
+    }
+
+    // 3. Standard Blob URL Download
+    // Key rules:
+    // - NEVER use `display: none`: modern Chrome/WebKit ignores programmatic clicks on unrendered elements.
+    // - Use off-screen positioning with fixed coordinates.
+    // - Do NOT revoke the object URL immediately; keep it alive for 60 seconds so the browser download manager can stream it.
+    if (blob && typeof window !== 'undefined' && window.URL && window.URL.createObjectURL) {
+      try {
+        const objectUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = fileName;
+        link.rel = 'noopener';
+        link.style.position = 'fixed';
+        link.style.left = '-9999px';
+        link.style.top = '-9999px';
+        link.style.opacity = '0';
+        document.body.appendChild(link);
+        link.click();
+        downloaded = true;
+
+        setTimeout(() => {
+          try {
+            document.body.removeChild(link);
+          } catch (e) {}
+        }, 3000);
+
+        setTimeout(() => {
+          try {
+            window.URL.revokeObjectURL(objectUrl);
+          } catch (e) {}
+        }, 60000);
+
+        return true;
+      } catch (blobErr) {
+        console.warn('Blob URL download failed, falling back to Data URI:', blobErr);
+      }
+    }
+
+    // 4. Data URI Fallback (Supported universally across browsers & WebViews)
+    if (dataUri) {
+      try {
+        const link = document.createElement('a');
+        link.href = dataUri;
+        link.download = fileName;
+        link.rel = 'noopener';
+        link.style.position = 'fixed';
+        link.style.left = '-9999px';
+        link.style.top = '-9999px';
+        link.style.opacity = '0';
+        document.body.appendChild(link);
+        link.click();
+        downloaded = true;
+
+        setTimeout(() => {
+          try {
+            document.body.removeChild(link);
+          } catch (e) {}
+        }, 3000);
+
+        return true;
+      } catch (uriErr) {
+        console.error('Data URI download failed:', uriErr);
+      }
+    }
+
+    // 5. Final fallback for mobile Excel if Web Share wasn't available
+    if (!downloaded && workbook && XLSX && typeof XLSX.writeFile === 'function') {
+      try {
+        XLSX.writeFile(workbook, fileName);
+        return true;
+      } catch (e) {
+        console.error('Final fallback XLSX.writeFile failed:', e);
+      }
+    }
+
+    return downloaded;
   };
 
   // Export Marks to Excel (.xlsx) or CSV (.csv)
-  const handleExportMarks = (format = 'excel') => {
+  const handleExportMarks = async (format = 'excel') => {
     if (!filteredStudents || filteredStudents.length === 0) {
       alert('No students found to export. If search filter is active, clear search first.');
       return;
     }
 
-    setExportLoading(true);
+    setExportLoading(format);
     try {
       const exportData = filteredStudents.map(student => {
         const studentScores = {};
@@ -1366,30 +1438,44 @@ _Sent via Gyanoday Niketan ERP_`;
 
       const ws = XLSX.utils.json_to_sheet(exportData);
       const wb = XLSX.utils.book_new();
-      const sheetName = `${safeClass}_${safeSub}`.substring(0, 31).replace(/[/\\?*[\]]/g, '_');
+      const sheetName = `${safeClass}_${safeSub}`.substring(0, 31).replace(/[/\\?*[\]:]/g, '_');
       XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
+      let success = false;
       if (format === 'csv') {
         const csvContent = XLSX.utils.sheet_to_csv(ws);
-        const csvBlob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        triggerBrowserDownload(csvBlob, `${baseName}.csv`, csvContent);
+        const csvBlob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const csvDataUri = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csvContent);
+        success = await downloadExportedFile({
+          fileName: `${baseName}.csv`,
+          blob: csvBlob,
+          dataUri: csvDataUri
+        });
       } else {
         // Excel format (.xlsx)
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
         const xlsxBlob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const success = triggerBrowserDownload(xlsxBlob, `${baseName}.xlsx`);
-        if (!success && XLSX.writeFile) {
-          XLSX.writeFile(wb, `${baseName}.xlsx`);
-        }
+        const b64 = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+        const xlsxDataUri = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + b64;
+        success = await downloadExportedFile({
+          fileName: `${baseName}.xlsx`,
+          blob: xlsxBlob,
+          dataUri: xlsxDataUri,
+          workbook: wb
+        });
       }
 
-      setExportSuccess(format);
-      setTimeout(() => setExportSuccess(null), 2500);
+      if (success) {
+        setExportSuccess(format);
+        setTimeout(() => setExportSuccess(null), 3000);
+      } else {
+        alert('Could not start download. Please check browser permissions or try the CSV format.');
+      }
     } catch (err) {
       console.error('Export Error:', err);
       alert('Failed to export marksheet: ' + err.message);
     } finally {
-      setExportLoading(false);
+      setExportLoading(null);
     }
   };
 
@@ -1991,7 +2077,7 @@ _Sent via Gyanoday Niketan ERP_`;
                 <button
                   type="button"
                   onClick={() => handleExportMarks('excel')}
-                  disabled={exportLoading}
+                  disabled={!!exportLoading}
                   className={`px-3 py-2 md:py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0 whitespace-nowrap active:scale-95 ${
                     exportSuccess === 'excel'
                       ? 'bg-emerald-800 text-emerald-100 border-emerald-600'
@@ -1999,7 +2085,7 @@ _Sent via Gyanoday Niketan ERP_`;
                   }`}
                   title="Export current marksheet to Excel (.xlsx)"
                 >
-                  {exportLoading ? (
+                  {exportLoading === 'excel' ? (
                     <RefreshCw size={13} className="animate-spin text-emerald-400" />
                   ) : exportSuccess === 'excel' ? (
                     <Check size={13} className="text-emerald-300" />
@@ -2013,7 +2099,7 @@ _Sent via Gyanoday Niketan ERP_`;
                 <button
                   type="button"
                   onClick={() => handleExportMarks('csv')}
-                  disabled={exportLoading}
+                  disabled={!!exportLoading}
                   className={`px-3 py-2 md:py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0 whitespace-nowrap active:scale-95 ${
                     exportSuccess === 'csv'
                       ? 'bg-teal-800 text-teal-100 border-teal-600'
@@ -2021,7 +2107,7 @@ _Sent via Gyanoday Niketan ERP_`;
                   }`}
                   title="Export marksheet to CSV (.csv) for Google Sheets & mobile devices"
                 >
-                  {exportLoading ? (
+                  {exportLoading === 'csv' ? (
                     <RefreshCw size={13} className="animate-spin text-teal-400" />
                   ) : exportSuccess === 'csv' ? (
                     <Check size={13} className="text-teal-300" />

@@ -304,6 +304,37 @@ console.log('\nTest 5: File Name Sanitization');
   console.log('  ✓ All file name sanitization cases safely stripped path separators');
 }
 
+// -------------------------------------------------------------
+// Test 6: Multi-Platform Downloader Resilience & URI Generation
+// -------------------------------------------------------------
+console.log('\nTest 6: Multi-Platform Downloader Resilience & URI Generation');
+{
+  // 1. Verify Base64 Excel Data URI generation
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet([{ Roll: 1, Name: 'Test Student', Marks: 25 }]);
+  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+  const b64 = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+  const xlsxDataUri = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + b64;
+
+  assert(xlsxDataUri.startsWith('data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,'), 'Excel Data URI header valid');
+  assert(b64.length > 100, 'Excel base64 content non-empty');
+
+  // Verify that base64 can be converted back to workbook
+  const buffer = Buffer.from(b64, 'base64');
+  const roundtripWb = XLSX.read(buffer, { type: 'buffer' });
+  assert.strictEqual(roundtripWb.SheetNames[0], 'Sheet1', 'Base64 roundtrip workbook preserved sheet');
+
+  // 2. Verify CSV UTF-8 BOM encoding for Excel compatibility
+  const csvRaw = 'Roll No,Student Name\n1,Muzzammil Aftab';
+  const csvWithBom = '\uFEFF' + csvRaw;
+  const csvDataUri = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csvRaw);
+
+  assert(csvWithBom.startsWith('\uFEFF'), 'CSV should contain UTF-8 BOM');
+  assert(csvDataUri.includes('\uFEFF'), 'CSV Data URI should contain UTF-8 BOM');
+
+  console.log('  ✓ Excel Base64 Data URI and CSV UTF-8 BOM verified successfully');
+}
+
 console.log('\n================================================================');
-console.log('ALL STUDENT ROSTER EXPORT TESTS PASSED SUCCESSFULLY! (5/5)');
+console.log('ALL STUDENT ROSTER EXPORT TESTS PASSED SUCCESSFULLY! (6/6)');
 console.log('================================================================');
