@@ -113,8 +113,83 @@ export class MarksWorkflowService {
   }
 
   /**
+   * Fetch all assessment attempts with nested student attempt marks for a submission
+   * Single joined query to prevent N+1 performance bottlenecks
+   */
+  static async getSubmissionAttemptsWithMarks(submissionId) {
+    if (!submissionId) return [];
+    try {
+      const { data: attempts, error } = await supabase
+        .from('assessment_attempts')
+        .select(`
+          *,
+          attempt_marks:student_attempt_marks(*)
+        `)
+        .eq('submission_id', submissionId)
+        .order('attempt_number', { ascending: true });
+
+      if (error) {
+        console.warn('Notice loading assessment_attempts (table may be pending migration):', error.message);
+        return [];
+      }
+      return attempts || [];
+    } catch (err) {
+      console.warn('Notice loading assessment_attempts:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Save assessment attempts and student attempt marks
+   */
+  static async saveAssessmentAttempts({ submissionId, attempts = [], attemptMarksList = [] }) {
+    if (!submissionId) return { success: false };
+
+    try {
+      // 1. Save attempts
+      if (attempts.length > 0) {
+        const { error: aErr } = await supabase
+          .from('assessment_attempts')
+          .upsert(attempts, { onConflict: 'submission_id,component_id,attempt_number' });
+        if (aErr) throw aErr;
+      }
+
+      // 2. Save student attempt marks
+      if (attemptMarksList.length > 0) {
+        const { error: mErr } = await supabase
+          .from('student_attempt_marks')
+          .upsert(attemptMarksList, { onConflict: 'attempt_id,student_id' });
+        if (mErr) throw mErr;
+      }
+
+      return { success: true };
+    } catch (err) {
+      console.warn('saveAssessmentAttempts notice:', err.message || err);
+      return { success: false, error: err };
+    }
+  }
+
+  /**
+   * Delete an assessment attempt (only permitted in editable workflow states)
+   */
+  static async deleteAssessmentAttempt(attemptId) {
+    if (!attemptId) return { success: false };
+    try {
+      const { error } = await supabase
+        .from('assessment_attempts')
+        .delete()
+        .eq('id', attemptId);
+      if (error) throw error;
+      return { success: true };
+    } catch (err) {
+      console.error('Error deleting assessment attempt:', err);
+      throw err;
+    }
+  }
+
+  /**
    * Save draft marks for a class & subject
-   * Also synchronizes with legacy public.marks for complete backward compatibility
+   * Also synchronizes with legacy public.marks and assessment_attempts for complete backward compatibility
    */
   static async saveDraftMarks({
     submissionId,
@@ -124,8 +199,23 @@ export class MarksWorkflowService {
     term,
     testDate = null,
     detailedMarksList = [], // array of { studentId, componentId, rawScore, convertedScore, status }
-    legacyMarksPayload = []  // array of { student_id, subject_id, term, score }
+    legacyMarksPayload = [], // array of { student_id, subject_id, term, score }
+    attemptsPayload = [],    // array of assessment_attempts records
+    attemptMarksPayload = [] // array of student_attempt_marks records
   }) {
+    // 0. Upsert assessment attempts & attempt marks if provided
+    if (attemptsPayload.length > 0 || attemptMarksPayload.length > 0) {
+      try {
+        await this.saveAssessmentAttempts({
+          submissionId,
+          attempts: attemptsPayload,
+          attemptMarksList: attemptMarksPayload
+        });
+      } catch (attErr) {
+        console.warn('Assessment attempts sync notice:', attErr.message || attErr);
+      }
+    }
+
     // 1. Upsert detailed marks
     if (detailedMarksList.length > 0) {
       const formatted = detailedMarksList.map(m => ({

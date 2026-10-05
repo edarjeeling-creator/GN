@@ -20,6 +20,8 @@ export default function CoordinatorMarksReview() {
   const [submission, setSubmission] = useState(null);
   const [pattern, setPattern] = useState(null);
   const [detailedMarks, setDetailedMarks] = useState([]);
+  const [attempts, setAttempts] = useState([]);
+  const [attemptMarks, setAttemptMarks] = useState([]);
   const [actionLoading, setActionLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -59,6 +61,18 @@ export default function CoordinatorMarksReview() {
       // 3. Fetch detailed marks
       const marks = await MarksWorkflowService.getSubmissionDetailedMarks(submissionId);
       setDetailedMarks(marks);
+
+      // 3b. Fetch dynamic assessment attempts if any
+      try {
+        const { attempts: subAttempts, attemptMarks: subAttemptMarks } = 
+          await MarksWorkflowService.getSubmissionAttemptsWithMarks(submissionId);
+        setAttempts(subAttempts || []);
+        setAttemptMarks(subAttemptMarks || []);
+      } catch (attErr) {
+        console.warn('Failed to fetch submission attempts (fallback to detailed marks):', attErr);
+        setAttempts([]);
+        setAttemptMarks([]);
+      }
 
       // 4. Fetch audit logs if available
       const { data: logs } = await supabase
@@ -101,14 +115,49 @@ export default function CoordinatorMarksReview() {
 
     return classStudents.map(student => {
       const studentMarksForStudent = detailedMarks.filter(m => m.student_id === student.id);
+      const studentAttemptMarksList = attemptMarks.filter(m => m.student_id === student.id);
+
+      // Aggregate dynamic attempts for TEST component if attempts exist
+      let attemptAggregate = null;
+      if (attempts.length > 0) {
+        const scoresMap = {};
+        studentAttemptMarksList.forEach(m => {
+          scoresMap[m.attempt_id] = { score: m.score, status: m.status };
+        });
+        attemptAggregate = MarksCalculationEngine.aggregateAttempts({
+          attempts,
+          scores: scoresMap,
+          roundingRule: pattern?.rounding_rule || 'ROUND_2_DECIMALS',
+          aggregationMethod: 'AVERAGE'
+        });
+      }
       
       const componentScores = {};
       components.forEach(comp => {
         const found = studentMarksForStudent.find(m => m.component_id === comp.id);
+        let rawScore = found ? found.raw_score : null;
+        let convertedScore = found ? found.converted_score : null;
+        let status = found ? found.status : 'MARKED';
+
+        // If dynamic attempts exist for TEST component, use aggregate
+        if (comp.component_code === 'TEST' && attemptAggregate) {
+          if (attemptAggregate.validCount > 0) {
+            rawScore = attemptAggregate.aggregatedScore;
+            convertedScore = attemptAggregate.aggregatedScore;
+            status = attemptAggregate.status;
+          } else if (attemptAggregate.absentCount > 0 || attemptAggregate.naCount > 0) {
+            status = attemptAggregate.status;
+            rawScore = null;
+            convertedScore = null;
+          }
+        }
+
         componentScores[comp.id] = {
-          rawScore: found ? found.raw_score : null,
-          convertedScore: found ? found.converted_score : null,
-          status: found ? found.status : 'MARKED'
+          rawScore,
+          convertedScore,
+          status,
+          attemptAggregate,
+          studentAttemptMarksList
         };
       });
 
@@ -122,10 +171,12 @@ export default function CoordinatorMarksReview() {
       return {
         student,
         componentScores,
-        calc
+        calc,
+        attemptAggregate,
+        studentAttemptMarksList
       };
     });
-  }, [pattern, classStudents, detailedMarks]);
+  }, [pattern, classStudents, detailedMarks, attempts, attemptMarks]);
 
   // Action Handlers
   const handleApprove = async () => {
@@ -270,6 +321,15 @@ export default function CoordinatorMarksReview() {
             </div>
           )}
 
+          {attempts.length > 1 && (
+            <div className="mt-2 text-xs bg-indigo-950/70 p-2.5 rounded-lg border border-indigo-500/50 text-indigo-200 flex items-center gap-2">
+              <span className="font-bold text-white px-1.5 py-0.5 rounded bg-indigo-600 text-[10px]">MULTI-TEST</span>
+              <span>
+                <strong>{attempts.length} Test Attempts:</strong> {attempts.map(a => a.attempt_name || `Test ${a.attempt_number}`).join(', ')} • Official Weekly Test marks shown are the arithmetic average of valid attempts.
+              </span>
+            </div>
+          )}
+
           {isReturned && submission.return_reason && (
             <div className="mt-2 text-xs bg-rose-950/60 p-2.5 rounded-lg border border-rose-500 text-rose-200 flex items-start gap-2">
               <RotateCcw size={14} className="mt-0.5 shrink-0 text-rose-400" />
@@ -355,14 +415,24 @@ export default function CoordinatorMarksReview() {
               <tr className="bg-slate-800 text-slate-200 border-b border-slate-700 text-xs font-semibold uppercase tracking-wider">
                 <th className="py-3 px-4 w-16 text-center text-slate-300">Roll</th>
                 <th className="py-3 px-4 text-slate-200 font-bold">Student Name</th>
-                {pattern?.components?.map(comp => (
-                  <th key={comp.id} className="py-3 px-4 text-center text-slate-200">
-                    <div className="font-bold">{comp.component_name}</div>
-                    <div className="text-[10px] text-slate-400 lowercase font-normal mt-0.5">
-                      raw /{comp.raw_max_marks} {comp.converted_max_marks !== comp.raw_max_marks ? `→ conv /${comp.converted_max_marks}` : ''}
-                    </div>
-                  </th>
-                ))}
+                {pattern?.components?.map(comp => {
+                  const isTestWithMultiple = comp.component_code === 'TEST' && attempts.length > 1;
+                  return (
+                    <th key={comp.id} className="py-3 px-4 text-center text-slate-200">
+                      <div className="font-bold flex items-center justify-center gap-1.5">
+                        <span>{comp.component_name}</span>
+                        {isTestWithMultiple && (
+                          <span className="px-1.5 py-0.5 text-[9px] font-bold bg-indigo-500/30 text-indigo-300 rounded border border-indigo-400/40">
+                            {attempts.length} Tests Avg
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-slate-400 lowercase font-normal mt-0.5">
+                        raw /{comp.raw_max_marks} {comp.converted_max_marks !== comp.raw_max_marks ? `→ conv /${comp.converted_max_marks}` : ''}
+                      </div>
+                    </th>
+                  );
+                })}
                 <th className="py-3 px-4 text-center text-slate-200 font-bold">Final Total</th>
                 <th className="py-3 px-4 text-center text-slate-200 font-bold">Percentage</th>
                 <th className="py-3 px-4 text-center text-slate-200 font-bold">Grade</th>
@@ -370,7 +440,7 @@ export default function CoordinatorMarksReview() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
-              {studentRows.map(({ student, componentScores, calc }) => (
+              {studentRows.map(({ student, componentScores, calc, studentAttemptMarksList }) => (
                 <tr key={student.id} className="hover:bg-slate-800/60 transition-colors">
                   <td className="py-3 px-4 text-center font-semibold text-slate-400">
                     {student.roll_no || '—'}
@@ -384,6 +454,7 @@ export default function CoordinatorMarksReview() {
                     const score = componentScores[comp.id];
                     const isAbsent = score?.status === 'ABSENT';
                     const isNA = score?.status === 'NOT_APPLICABLE';
+                    const isTestWithMultiple = comp.component_code === 'TEST' && attempts.length > 1;
 
                     return (
                       <td key={comp.id} className="py-3 px-4 text-center">
@@ -397,13 +468,29 @@ export default function CoordinatorMarksReview() {
                           </span>
                         ) : score?.rawScore !== null && score?.rawScore !== undefined ? (
                           <div>
-                            <span className="font-semibold text-white">
-                              {score.rawScore}
-                            </span>
-                            {comp.converted_max_marks !== comp.raw_max_marks && (
-                              <span className="text-xs text-indigo-400 font-semibold ml-1.5">
-                                ({score.convertedScore})
+                            <div className="flex items-center justify-center gap-1">
+                              <span className="font-semibold text-white">
+                                {score.rawScore}
                               </span>
+                              {comp.converted_max_marks !== comp.raw_max_marks && (
+                                <span className="text-xs text-indigo-400 font-semibold">
+                                  ({score.convertedScore})
+                                </span>
+                              )}
+                              {isTestWithMultiple && (
+                                <span className="text-[9px] text-indigo-300 font-bold px-1 py-0.2 rounded bg-indigo-950/80 border border-indigo-500/30">
+                                  avg
+                                </span>
+                              )}
+                            </div>
+                            {isTestWithMultiple && (
+                              <div className="text-[10px] text-slate-400 mt-0.5 font-mono">
+                                {attempts.map(a => {
+                                  const m = studentAttemptMarksList?.find(item => item.attempt_id === a.id);
+                                  const val = m?.status === 'ABSENT' ? 'AB' : m?.status === 'NOT_APPLICABLE' ? 'NA' : (m?.score !== null && m?.score !== undefined ? m.score : '—');
+                                  return `T${a.attempt_number}:${val}`;
+                                }).join(' • ')}
+                              </div>
                             )}
                           </div>
                         ) : (
@@ -535,13 +622,45 @@ export default function CoordinatorMarksReview() {
                 const raw = score?.rawScore;
                 const conv = score?.convertedScore;
                 const isConv = comp.converted_max_marks !== comp.raw_max_marks;
+                const isTestWithMultiple = comp.component_code === 'TEST' && attempts.length > 1;
 
                 return (
-                  <div key={comp.id} className="p-3 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-100 dark:border-slate-800 space-y-1 text-xs">
+                  <div key={comp.id} className="p-3 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-100 dark:border-slate-800 space-y-1.5 text-xs">
                     <div className="flex justify-between font-semibold text-slate-700 dark:text-slate-300">
-                      <span>{comp.component_name}</span>
+                      <div className="flex items-center gap-2">
+                        <span>{comp.component_name}</span>
+                        {isTestWithMultiple && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-bold bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 rounded border border-indigo-300 dark:border-indigo-700">
+                            {attempts.length} Test Attempts
+                          </span>
+                        )}
+                      </div>
                       <span>Raw: {raw !== null ? `${raw} / ${comp.raw_max_marks}` : 'Not entered'}</span>
                     </div>
+
+                    {isTestWithMultiple && (
+                      <div className="p-2.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 space-y-1.5 border border-slate-200 dark:border-slate-700">
+                        <div className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Conducted Test Attempts:</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {attempts.map(att => {
+                            const attMark = calculationModalStudent.studentAttemptMarksList?.find(m => m.attempt_id === att.id);
+                            const markVal = attMark?.status === 'ABSENT' ? 'AB' : attMark?.status === 'NOT_APPLICABLE' ? 'NA' : (attMark?.score !== null && attMark?.score !== undefined ? `${attMark.score} / ${att.raw_max_marks || 25}` : 'Not entered');
+                            return (
+                              <div key={att.id} className="flex justify-between text-[11px] bg-white dark:bg-slate-900 p-1.5 rounded border border-slate-200 dark:border-slate-700">
+                                <span className="font-medium text-slate-700 dark:text-slate-300">{att.attempt_name || `Test ${att.attempt_number}`}:</span>
+                                <span className="font-bold text-indigo-600 dark:text-indigo-400">{markVal}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {score?.attemptAggregate && (
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono pt-1">
+                            Formula: Sum({score.attemptAggregate.validCount} valid tests) ÷ {score.attemptAggregate.validCount} = <strong>{raw}</strong> / {comp.raw_max_marks}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {isConv && raw !== null && (
                       <div className="text-slate-500 font-mono text-[11px]">
                         Conversion: ({raw} ÷ {comp.raw_max_marks}) × {comp.converted_max_marks} = <strong>{conv}</strong> / {comp.converted_max_marks}

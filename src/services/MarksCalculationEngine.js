@@ -110,70 +110,249 @@ export class MarksCalculationEngine {
   }
 
   /**
-   * Calculate Economics 3-Test Average for Classes 9H & 10H
-   * Formula: Sum of tests with marks entered ÷ Number of tests attended (excluding ABSENT)
+   * Generic, Scalable Assessment Attempts Aggregator
+   * Aggregates multiple attempts (e.g. Test 1, Test 2, Test 3...) for an assessment component
+   * 
+   * Supported aggregation methods:
+   * - 'AVERAGE': Arithmetic mean of valid entered attempts: SUM(valid_marks) / COUNT(valid_attempts)
+   * - 'BEST': Highest score among valid entered attempts
+   * - 'LATEST': Most recent valid attempt
+   * - 'SUM': Sum of valid attempts
+   * 
+   * Strict Business Rules:
+   * 1. Empty / unentered attempts MUST NOT participate in calculation (neither numerator nor denominator).
+   * 2. Absent (AB) and Not Applicable (NA) are NEVER treated as zero.
+   * 3. If at least 1 valid numeric attempt exists, average is calculated using only attended numeric attempts.
+   * 4. If all entered attempts are AB, the aggregate status is 'ABSENT' and score is null.
+   * 5. If all entered attempts are NA, the aggregate status is 'NOT_APPLICABLE' and score is null.
+   * 6. If attempts are a mix of AB and NA with no numeric scores, aggregate status is 'ABSENT' and score is null.
+   * 7. If no attempts have any entered marks/statuses, aggregate status is 'MARKED' and score is null.
    * 
    * @param {Object} params
-   * @param {string|number} params.test1 - Score for Test 1
-   * @param {string|number} params.test2 - Score for Test 2
-   * @param {string|number} params.test3 - Score for Test 3
-   * @param {string} [params.status1='MARKED'] - 'MARKED' | 'ABSENT' | 'NOT_APPLICABLE'
-   * @param {string} [params.status2='MARKED'] - 'MARKED' | 'ABSENT' | 'NOT_APPLICABLE'
-   * @param {string} [params.status3='MARKED'] - 'MARKED' | 'ABSENT' | 'NOT_APPLICABLE'
+   * @param {Array} params.attempts - Array of attempt objects or scores
+   * @param {Object} [params.scores] - Optional map of { [attemptId]: { score, status } }
    * @param {string} [params.roundingRule='ROUND_2_DECIMALS']
-   * @returns {{ averageScore: number|null, status: string, displayText: string }}
+   * @param {string} [params.aggregationMethod='AVERAGE']
+   * @returns {{ aggregatedScore: number|null, status: string, displayText: string, validCount: number, absentCount: number, naCount: number, emptyCount: number, breakdown: Array }}
+   */
+  static aggregateAttempts({
+    attempts = [],
+    scores = {},
+    roundingRule = 'ROUND_2_DECIMALS',
+    aggregationMethod = 'AVERAGE'
+  }) {
+    if (!attempts || attempts.length === 0) {
+      return {
+        aggregatedScore: null,
+        status: 'MARKED',
+        displayText: '—',
+        validCount: 0,
+        absentCount: 0,
+        naCount: 0,
+        emptyCount: 0,
+        breakdown: []
+      };
+    }
+
+    const breakdown = [];
+    let sum = 0;
+    let validCount = 0;
+    let absentCount = 0;
+    let naCount = 0;
+    let emptyCount = 0;
+    const numericValues = [];
+
+    attempts.forEach((att, idx) => {
+      const attId = att.id || att.attempt_id || `att_${idx + 1}`;
+      const attNumber = att.attempt_number || (idx + 1);
+      const attName = att.attempt_name || att.name || `Test ${attNumber}`;
+      const rawMax = Number(att.raw_max_marks || att.max_marks || 25);
+
+      // Determine score and status from scores map or attempt object directly
+      let rawVal = undefined;
+      let status = 'MARKED';
+
+      if (scores && scores[attId] !== undefined) {
+        const entry = scores[attId];
+        if (typeof entry === 'object' && entry !== null) {
+          rawVal = entry.score !== undefined ? entry.score : (entry.rawScore !== undefined ? entry.rawScore : entry.raw_score);
+          status = entry.status || 'MARKED';
+        } else {
+          rawVal = entry;
+        }
+      } else if (att.score !== undefined || att.rawScore !== undefined || att.raw_score !== undefined) {
+        rawVal = att.score !== undefined ? att.score : (att.rawScore !== undefined ? att.rawScore : att.raw_score);
+        status = att.status || 'MARKED';
+      }
+
+      // Normalize AB / NA strings
+      const strVal = String(rawVal !== undefined && rawVal !== null ? rawVal : '').trim().toUpperCase();
+      if (strVal === 'AB' || strVal === 'ABS' || strVal === 'ABSENT' || status === 'ABSENT') {
+        absentCount++;
+        breakdown.push({ attemptId: attId, attemptName: attName, attemptNumber: attNumber, rawMax, score: null, status: 'ABSENT', display: 'AB' });
+      } else if (strVal === 'NA' || strVal === 'N/A' || strVal === 'NOT_APPLICABLE' || status === 'NOT_APPLICABLE') {
+        naCount++;
+        breakdown.push({ attemptId: attId, attemptName: attName, attemptNumber: attNumber, rawMax, score: null, status: 'NOT_APPLICABLE', display: 'NA' });
+      } else if (rawVal !== '' && rawVal !== null && rawVal !== undefined) {
+        const num = Number(rawVal);
+        if (!isNaN(num)) {
+          sum += num;
+          validCount++;
+          numericValues.push(num);
+          breakdown.push({ attemptId: attId, attemptName: attName, attemptNumber: attNumber, rawMax, score: num, status: 'MARKED', display: String(num) });
+        } else {
+          emptyCount++;
+          breakdown.push({ attemptId: attId, attemptName: attName, attemptNumber: attNumber, rawMax, score: null, status: 'MARKED', display: '' });
+        }
+      } else {
+        emptyCount++;
+        breakdown.push({ attemptId: attId, attemptName: attName, attemptNumber: attNumber, rawMax, score: null, status: 'MARKED', display: '' });
+      }
+    });
+
+    // Case 1: Valid numeric attempts exist -> Calculate according to aggregation method
+    if (validCount > 0) {
+      let rawAggregated = null;
+      const method = String(aggregationMethod || 'AVERAGE').toUpperCase();
+
+      switch (method) {
+        case 'BEST':
+          rawAggregated = Math.max(...numericValues);
+          break;
+        case 'LATEST':
+          rawAggregated = numericValues[numericValues.length - 1];
+          break;
+        case 'SUM':
+          rawAggregated = sum;
+          break;
+        case 'AVERAGE':
+        default:
+          rawAggregated = sum / validCount;
+          break;
+      }
+
+      const roundedScore = this.applyRounding(rawAggregated, roundingRule);
+      const display = roundedScore !== null 
+        ? (Number.isInteger(roundedScore) ? String(roundedScore) : roundedScore.toFixed(2)) 
+        : '';
+
+      return {
+        aggregatedScore: roundedScore,
+        status: 'MARKED',
+        displayText: display,
+        validCount,
+        absentCount,
+        naCount,
+        emptyCount,
+        breakdown
+      };
+    }
+
+    // Case 2: No numeric attempt, but all entered non-empty attempts are ABSENT
+    if (absentCount > 0 && naCount === 0) {
+      return {
+        aggregatedScore: null,
+        status: 'ABSENT',
+        displayText: 'AB',
+        validCount: 0,
+        absentCount,
+        naCount: 0,
+        emptyCount,
+        breakdown
+      };
+    }
+
+    // Case 3: No numeric attempt, but all entered non-empty attempts are NA
+    if (naCount > 0 && absentCount === 0) {
+      return {
+        aggregatedScore: null,
+        status: 'NOT_APPLICABLE',
+        displayText: 'NA',
+        validCount: 0,
+        absentCount: 0,
+        naCount,
+        emptyCount,
+        breakdown
+      };
+    }
+
+    // Case 4: No numeric attempt, mixed AB and NA
+    if (absentCount > 0 && naCount > 0) {
+      return {
+        aggregatedScore: null,
+        status: 'ABSENT',
+        displayText: '—',
+        validCount: 0,
+        absentCount,
+        naCount,
+        emptyCount,
+        breakdown
+      };
+    }
+
+    // Case 5: Completely unentered / empty attempts
+    return {
+      aggregatedScore: null,
+      status: 'MARKED',
+      displayText: '—',
+      validCount: 0,
+      absentCount: 0,
+      naCount: 0,
+      emptyCount,
+      breakdown
+    };
+  }
+
+  /**
+   * Validate whether a raw attempt mark is within allowable boundaries [0, maxRaw]
+   */
+  static validateAttemptMark(value, maxRaw = 25) {
+    if (value === '' || value === null || value === undefined) {
+      return { isValid: true, normalizedValue: null, status: 'MARKED' };
+    }
+    const str = String(value).trim().toUpperCase();
+    if (str === 'AB' || str === 'ABS' || str === 'ABSENT') {
+      return { isValid: true, normalizedValue: null, status: 'ABSENT' };
+    }
+    if (str === 'NA' || str === 'N/A') {
+      return { isValid: true, normalizedValue: null, status: 'NOT_APPLICABLE' };
+    }
+    const num = Number(value);
+    if (isNaN(num)) {
+      return { isValid: false, error: 'Mark must be a valid number, "AB", or "NA".' };
+    }
+    if (num < 0) {
+      return { isValid: false, error: 'Mark cannot be negative.' };
+    }
+    if (num > Number(maxRaw)) {
+      return { isValid: false, error: `Mark (${num}) exceeds maximum allowed marks (${maxRaw}).` };
+    }
+    return { isValid: true, normalizedValue: num, status: 'MARKED' };
+  }
+
+  /**
+   * Backward-compatible adapter for Economics 3-Test calculation
    */
   static calculateEconomics3TestAverage({
     test1, test2, test3,
     status1 = 'MARKED', status2 = 'MARKED', status3 = 'MARKED',
     roundingRule = 'ROUND_2_DECIMALS'
   }) {
-    const tests = [
-      { raw: test1, status: status1 },
-      { raw: test2, status: status2 },
-      { raw: test3, status: status3 }
+    const attempts = [
+      { id: 't1', attempt_number: 1, attempt_name: 'Test 1', raw_max_marks: 20 },
+      { id: 't2', attempt_number: 2, attempt_name: 'Test 2', raw_max_marks: 20 },
+      { id: 't3', attempt_number: 3, attempt_name: 'Test 3', raw_max_marks: 20 }
     ];
-
-    let sum = 0;
-    let attendedCount = 0;
-    let absentCount = 0;
-
-    for (const t of tests) {
-      const isAbsent = t.status === 'ABSENT' || String(t.raw || '').trim().toUpperCase() === 'AB' || String(t.raw || '').trim().toUpperCase() === 'ABS';
-      if (isAbsent) {
-        absentCount++;
-      } else if (t.status === 'MARKED' && t.raw !== '' && t.raw !== null && t.raw !== undefined) {
-        const val = Number(t.raw);
-        if (!isNaN(val)) {
-          sum += val;
-          attendedCount++;
-        }
-      }
-    }
-
-    // All 3 tests marked Absent -> Average remains AB (not 0!)
-    if (absentCount === 3) {
-      return { averageScore: null, status: 'ABSENT', displayText: 'AB' };
-    }
-
-    // If no test has been entered and none marked absent -> unentered
-    if (attendedCount === 0 && absentCount === 0) {
-      return { averageScore: null, status: 'MARKED', displayText: '' };
-    }
-
-    // If attendedCount is 0 but some tests are marked absent and others unentered
-    if (attendedCount === 0) {
-      return { averageScore: null, status: 'ABSENT', displayText: 'AB' };
-    }
-
-    // Attended at least 1 test: compute average based on attended tests
-    const rawAvg = sum / attendedCount;
-    const roundedAvg = this.applyRounding(rawAvg, roundingRule);
-
+    const scores = {
+      t1: { score: test1, status: status1 },
+      t2: { score: test2, status: status2 },
+      t3: { score: test3, status: status3 }
+    };
+    const agg = this.aggregateAttempts({ attempts, scores, roundingRule, aggregationMethod: 'AVERAGE' });
     return {
-      averageScore: roundedAvg,
-      status: 'MARKED',
-      displayText: roundedAvg !== null ? roundedAvg.toFixed(2) : ''
+      averageScore: agg.aggregatedScore,
+      status: agg.status,
+      displayText: agg.status === 'ABSENT' ? 'AB' : (agg.status === 'NOT_APPLICABLE' ? 'NA' : (agg.aggregatedScore !== null ? agg.aggregatedScore.toFixed(2) : ''))
     };
   }
 

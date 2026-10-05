@@ -5,7 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { 
   ArrowLeft, Save, AlertCircle, CheckCircle2, Upload, Search, 
   Send, Lock, RefreshCw, AlertTriangle, ShieldCheck, Check, Info, FileText,
-  Trophy, Copy, Printer, Frown, Sparkles, MessageCircle, CheckCheck, Calendar, Trash2
+  Trophy, Copy, Printer, Frown, Sparkles, MessageCircle, CheckCheck, Calendar, Trash2,
+  Plus, ChevronDown, ChevronRight, Download, X
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { motion } from 'framer-motion';
@@ -102,7 +103,16 @@ const SubjectMarks = () => {
   const [submitError, setSubmitError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [globalFilter, setGlobalFilter] = useState('');
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState(null); // 'excel' | 'csv' | null
   const fileInputRef = useRef(null);
+
+  // Dynamic Multiple Test Attempts State
+  const [attempts, setAttempts] = useState([]); // array of assessment_attempts
+  const [attemptScores, setAttemptScores] = useState({}); // { `${studentId}_${attemptId}`: string }
+  const [attemptStatuses, setAttemptStatuses] = useState({}); // { `${studentId}_${attemptId}`: 'MARKED' | 'ABSENT' | 'NOT_APPLICABLE' }
+  const [isWeeklyTestExpanded, setIsWeeklyTestExpanded] = useState(false);
+  const [expandedStudentIds, setExpandedStudentIds] = useState({});
 
   // 1. Load assessment patterns and resolve active pattern
   useEffect(() => {
@@ -152,6 +162,8 @@ const SubjectMarks = () => {
 
       if (sub?.id) {
         const details = await MarksWorkflowService.getSubmissionDetailedMarks(sub.id);
+        const subAttempts = await MarksWorkflowService.getSubmissionAttemptsWithMarks(sub.id);
+
         const scoresMap = {};
         const statusMap = {};
 
@@ -177,26 +189,87 @@ const SubjectMarks = () => {
           });
         });
 
+        // Initialize / Load attempts
+        const testMax = MarksCalculationEngine.getClassWeeklyTestMaxMarks(cls?.name || '');
+        const testComp = activePattern?.components?.find(c => c.component_code === 'TEST') || {
+          id: 'c-test', component_code: 'TEST', component_name: 'Weekly Test', raw_max_marks: testMax
+        };
+
+        const attScoreMap = {};
+        const attStatusMap = {};
+
+        if (subAttempts && subAttempts.length > 0) {
+          const activeAtts = subAttempts.filter(a => a.status !== 'DELETED');
+          setAttempts(activeAtts);
+          if (activeAtts.length > 1) {
+            setIsWeeklyTestExpanded(true);
+          }
+          activeAtts.forEach(att => {
+            (att.attempt_marks || []).forEach(m => {
+              const k = `${m.student_id}_${att.id}`;
+              attScoreMap[k] = m.score !== null && m.score !== undefined ? String(m.score) : '';
+              attStatusMap[k] = m.status || 'MARKED';
+            });
+          });
+        } else {
+          // Initialize default Test 1 attempt for baseline single test
+          const defaultAttId = `att_1_${sub.id}`;
+          const defaultAttempt = {
+            id: defaultAttId,
+            submission_id: sub.id,
+            component_id: testComp.id,
+            attempt_number: 1,
+            attempt_name: 'Test 1',
+            test_date: sub.test_date || conductedDate || null,
+            raw_max_marks: testComp.raw_max_marks || testMax,
+            status: 'ACTIVE'
+          };
+          setAttempts([defaultAttempt]);
+
+          // Seed Attempt 1 with existing Weekly Test marks
+          classStudents.forEach(st => {
+            const legacyVal = scoresMap[`${st.id}_TEST`];
+            const legacySt = statusMap[`${st.id}_TEST`] || 'MARKED';
+            const k = `${st.id}_${defaultAttId}`;
+            if (legacyVal !== undefined && legacyVal !== '') {
+              attScoreMap[k] = String(legacyVal);
+              attStatusMap[k] = legacySt;
+            }
+          });
+        }
+
         // Check local storage for any unsaved changes that were entered before page refresh/exit
         try {
           const cachedStr = localStorage.getItem(localDraftKey);
           if (cachedStr) {
             const cached = JSON.parse(cachedStr);
-            if (cached && cached.rawScores) {
-              let hasUnsavedLocal = false;
-              Object.keys(cached.rawScores).forEach(k => {
-                const val = cached.rawScores[k];
-                if (val !== undefined && val !== '' && val !== scoresMap[k]) {
-                  scoresMap[k] = val;
-                  if (cached.statuses?.[k]) {
-                    statusMap[k] = cached.statuses[k];
+            if (cached) {
+              if (cached.attempts && Array.isArray(cached.attempts) && cached.attempts.length > 0) {
+                setAttempts(cached.attempts);
+                if (cached.attempts.length > 1) setIsWeeklyTestExpanded(true);
+              }
+              if (cached.attemptScores) {
+                Object.assign(attScoreMap, cached.attemptScores);
+              }
+              if (cached.attemptStatuses) {
+                Object.assign(attStatusMap, cached.attemptStatuses);
+              }
+              if (cached.rawScores) {
+                let hasUnsavedLocal = false;
+                Object.keys(cached.rawScores).forEach(k => {
+                  const val = cached.rawScores[k];
+                  if (val !== undefined && val !== '' && val !== scoresMap[k]) {
+                    scoresMap[k] = val;
+                    if (cached.statuses?.[k]) {
+                      statusMap[k] = cached.statuses[k];
+                    }
+                    hasUnsavedLocal = true;
                   }
-                  hasUnsavedLocal = true;
+                });
+                if (hasUnsavedLocal) {
+                  console.log('Restored unsaved draft marks from device storage.');
+                  setSaveStatus('pending');
                 }
-              });
-              if (hasUnsavedLocal) {
-                console.log('Restored unsaved draft marks from device storage.');
-                setSaveStatus('pending');
               }
             }
           }
@@ -204,6 +277,8 @@ const SubjectMarks = () => {
           console.warn('Local draft restore notice:', e);
         }
 
+        setAttemptScores(attScoreMap);
+        setAttemptStatuses(attStatusMap);
         setRawScores(scoresMap);
         setStatuses(statusMap);
       }
@@ -258,7 +333,33 @@ const SubjectMarks = () => {
     });
   }, [classStudents, subjectDisplayName, globalFilter]);
 
-  // Handle Raw Mark Input Change
+  // Calculate live attempt aggregates for each student
+  const studentAttemptAggregates = useMemo(() => {
+    const map = {};
+    if (!attempts || attempts.length === 0) return map;
+    const rule = activePattern?.rounding_rule || 'ROUND_2_DECIMALS';
+
+    classStudents.forEach(st => {
+      const studentScoresMap = {};
+      attempts.forEach(att => {
+        const k = `${st.id}_${att.id}`;
+        studentScoresMap[att.id] = {
+          score: attemptScores[k] !== undefined ? attemptScores[k] : '',
+          status: attemptStatuses[k] || 'MARKED'
+        };
+      });
+
+      map[st.id] = MarksCalculationEngine.aggregateAttempts({
+        attempts,
+        scores: studentScoresMap,
+        roundingRule: rule,
+        aggregationMethod: 'AVERAGE'
+      });
+    });
+    return map;
+  }, [classStudents, attempts, attemptScores, attemptStatuses, activePattern?.rounding_rule]);
+
+  // Handle Raw Mark Input Change (Supports both legacy direct input and single attempt sync)
   const handleScoreChange = (studentId, componentCode, rawVal, maxRaw) => {
     if (isReadOnly) return;
     
@@ -279,6 +380,18 @@ const SubjectMarks = () => {
     const key = `${studentId}_${componentCode}`;
     const nextScores = { ...rawScores, [key]: rawVal };
     const nextStatuses = { ...statuses, [key]: 'MARKED' };
+
+    // Synchronize Attempt 1 if single-test mode
+    let nextAttemptScores = attemptScores;
+    let nextAttemptStatuses = attemptStatuses;
+    if (componentCode === 'TEST' && attempts.length === 1) {
+      const attKey = `${studentId}_${attempts[0].id}`;
+      nextAttemptScores = { ...attemptScores, [attKey]: rawVal };
+      nextAttemptStatuses = { ...attemptStatuses, [attKey]: 'MARKED' };
+      setAttemptScores(nextAttemptScores);
+      setAttemptStatuses(nextAttemptStatuses);
+    }
+
     setRawScores(nextScores);
     setStatuses(nextStatuses);
     setSaveStatus('pending');
@@ -288,6 +401,9 @@ const SubjectMarks = () => {
       localStorage.setItem(localDraftKey, JSON.stringify({
         rawScores: nextScores,
         statuses: nextStatuses,
+        attempts,
+        attemptScores: nextAttemptScores,
+        attemptStatuses: nextAttemptStatuses,
         timestamp: Date.now()
       }));
     } catch (e) {}
@@ -302,6 +418,21 @@ const SubjectMarks = () => {
     if (newStatus !== 'MARKED') {
       nextScores[key] = '';
     }
+
+    // Synchronize Attempt 1 if single-test mode
+    let nextAttemptScores = attemptScores;
+    let nextAttemptStatuses = attemptStatuses;
+    if (componentCode === 'TEST' && attempts.length === 1) {
+      const attKey = `${studentId}_${attempts[0].id}`;
+      nextAttemptStatuses = { ...attemptStatuses, [attKey]: newStatus };
+      nextAttemptScores = { ...attemptScores };
+      if (newStatus !== 'MARKED') {
+        nextAttemptScores[attKey] = '';
+      }
+      setAttemptStatuses(nextAttemptStatuses);
+      setAttemptScores(nextAttemptScores);
+    }
+
     setStatuses(nextStatuses);
     setRawScores(nextScores);
     setSaveStatus('pending');
@@ -310,9 +441,164 @@ const SubjectMarks = () => {
       localStorage.setItem(localDraftKey, JSON.stringify({
         rawScores: nextScores,
         statuses: nextStatuses,
+        attempts,
+        attemptScores: nextAttemptScores,
+        attemptStatuses: nextAttemptStatuses,
         timestamp: Date.now()
       }));
     } catch (e) {}
+  };
+
+  // Handle Individual Attempt Score Input
+  const handleAttemptScoreChange = (studentId, attemptId, rawVal, maxRaw) => {
+    if (isReadOnly) return;
+    const validation = MarksCalculationEngine.validateAttemptMark(rawVal, maxRaw);
+    if (!validation.isValid) {
+      alert(validation.error);
+      return;
+    }
+
+    const key = `${studentId}_${attemptId}`;
+    const nextScores = { ...attemptScores, [key]: rawVal };
+    const nextStatuses = { ...attemptStatuses, [key]: validation.status || 'MARKED' };
+
+    setAttemptScores(nextScores);
+    setAttemptStatuses(nextStatuses);
+    setSaveStatus('pending');
+
+    try {
+      localStorage.setItem(localDraftKey, JSON.stringify({
+        rawScores,
+        statuses,
+        attempts,
+        attemptScores: nextScores,
+        attemptStatuses: nextStatuses,
+        timestamp: Date.now()
+      }));
+    } catch (e) {}
+  };
+
+  // Handle Individual Attempt Status Toggle (Marked / Absent / N/A)
+  const handleAttemptStatusChange = (studentId, attemptId, newStatus) => {
+    if (isReadOnly) return;
+    const key = `${studentId}_${attemptId}`;
+    const nextStatuses = { ...attemptStatuses, [key]: newStatus };
+    const nextScores = { ...attemptScores };
+    if (newStatus !== 'MARKED') {
+      nextScores[key] = '';
+    }
+
+    setAttemptStatuses(nextStatuses);
+    setAttemptScores(nextScores);
+    setSaveStatus('pending');
+
+    try {
+      localStorage.setItem(localDraftKey, JSON.stringify({
+        rawScores,
+        statuses,
+        attempts,
+        attemptScores: nextScores,
+        attemptStatuses: nextStatuses,
+        timestamp: Date.now()
+      }));
+    } catch (e) {}
+  };
+
+  // Add New Test Attempt (e.g. Test 2, Test 3)
+  const handleAddAttempt = () => {
+    if (isReadOnly) return;
+    const testMax = MarksCalculationEngine.getClassWeeklyTestMaxMarks(cls?.name || '');
+    const testComp = components.find(c => c.component_code === 'TEST') || {
+      id: 'c-test', raw_max_marks: testMax
+    };
+
+    const newNumber = attempts.length + 1;
+    const newAttemptId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+      ? crypto.randomUUID() 
+      : `att_${newNumber}_${Date.now()}`;
+
+    const newAttempt = {
+      id: newAttemptId,
+      submission_id: submission?.id,
+      component_id: testComp.id,
+      attempt_number: newNumber,
+      attempt_name: `Test ${newNumber}`,
+      test_date: conductedDate || new Date().toISOString().split('T')[0],
+      raw_max_marks: testComp.raw_max_marks || testMax,
+      status: 'ACTIVE'
+    };
+
+    const nextAttempts = [...attempts, newAttempt];
+    setAttempts(nextAttempts);
+    setIsWeeklyTestExpanded(true); // Automatically expand when a repeat test is added
+    setSaveStatus('pending');
+
+    try {
+      localStorage.setItem(localDraftKey, JSON.stringify({
+        rawScores,
+        statuses,
+        attempts: nextAttempts,
+        attemptScores,
+        attemptStatuses,
+        timestamp: Date.now()
+      }));
+    } catch (e) {}
+  };
+
+  // Delete Test Attempt (only permitted in draft state)
+  const handleDeleteAttempt = async (attemptToDelete) => {
+    if (isReadOnly) return;
+    if (attempts.length <= 1) {
+      alert('At least one test attempt must remain.');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete ${attemptToDelete.attempt_name}? This will remove all student marks entered for this test.`)) {
+      return;
+    }
+
+    const filtered = attempts
+      .filter(a => a.id !== attemptToDelete.id)
+      .map((a, idx) => ({
+        ...a,
+        attempt_number: idx + 1,
+        attempt_name: a.attempt_name.startsWith('Test ') ? `Test ${idx + 1}` : a.attempt_name
+      }));
+
+    const nextScores = { ...attemptScores };
+    const nextStatuses = { ...attemptStatuses };
+    Object.keys(nextScores).forEach(k => {
+      if (k.endsWith(`_${attemptToDelete.id}`)) delete nextScores[k];
+    });
+    Object.keys(nextStatuses).forEach(k => {
+      if (k.endsWith(`_${attemptToDelete.id}`)) delete nextStatuses[k];
+    });
+
+    setAttempts(filtered);
+    setAttemptScores(nextScores);
+    setAttemptStatuses(nextStatuses);
+    setSaveStatus('pending');
+
+    if (attemptToDelete.id && !attemptToDelete.id.startsWith('att_') && !attemptToDelete.id.startsWith('temp_')) {
+      try {
+        await MarksWorkflowService.deleteAssessmentAttempt(attemptToDelete.id);
+      } catch (err) {
+        console.warn('Notice deleting attempt from DB:', err.message || err);
+      }
+    }
+  };
+
+  // Update Test Attempt Date
+  const handleAttemptDateChange = (attemptId, newDate) => {
+    if (isReadOnly) return;
+    const nextAttempts = attempts.map(a => a.id === attemptId ? { ...a, test_date: newDate } : a);
+    setAttempts(nextAttempts);
+    setSaveStatus('pending');
+  };
+
+  // Toggle student row expansion
+  const toggleStudentExpanded = (studentId) => {
+    setExpandedStudentIds(prev => ({ ...prev, [studentId]: !prev[studentId] }));
   };
 
   // Debounced Auto-Save Draft: triggers automatically 2.5 seconds after user stops typing
@@ -332,7 +618,7 @@ const SubjectMarks = () => {
         clearTimeout(autoSaveTimerRef.current);
       }
     };
-  }, [rawScores, statuses, conductedDate, saveStatus, isReadOnly, submission?.id]);
+  }, [rawScores, statuses, attempts, attemptScores, attemptStatuses, conductedDate, saveStatus, isReadOnly, submission?.id]);
 
   // Warn user if attempting to leave window/tab with unsaved marks
   useEffect(() => {
@@ -377,9 +663,19 @@ const SubjectMarks = () => {
       let hasAnyAbsent = false;
 
       targetComponents.forEach(comp => {
-        const key = `${student.id}_${comp.component_code}`;
-        const rawVal = targetRawScores[key];
-        const stStatus = targetStatuses[key] || 'MARKED';
+        let rawVal;
+        let stStatus;
+
+        if (comp.component_code === 'TEST' && targetCls?.id === classId && studentAttemptAggregates[student.id]) {
+          const agg = studentAttemptAggregates[student.id];
+          rawVal = agg?.aggregatedScore !== null && agg?.aggregatedScore !== undefined ? agg.aggregatedScore : '';
+          stStatus = agg?.status || 'MARKED';
+        } else {
+          const key = `${student.id}_${comp.component_code}`;
+          rawVal = targetRawScores[key];
+          stStatus = targetStatuses[key] || 'MARKED';
+        }
+
         studentScores[comp.component_code] = rawVal;
         studentStatuses[comp.component_code] = stStatus;
         if (comp.contributes_to_total !== false) {
@@ -723,14 +1019,80 @@ _Sent via Gyanoday Niketan ERP_`;
       const detailedPayload = [];
       const legacyPayload = [];
 
+      // 1. Normalize attempts with valid UUIDs
+      const validUUIDRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const testComp = components.find(c => c.component_code === 'TEST') || components[0];
+      const normalizedAttempts = attempts.map((a, idx) => {
+        let attId = a.id;
+        if (!attId || !validUUIDRegex.test(attId)) {
+          attId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+            ? crypto.randomUUID() 
+            : `00000000-0000-4000-a000-${String(idx + 1).padStart(12, '0')}`;
+        }
+        return {
+          ...a,
+          id: attId,
+          attempt_number: idx + 1,
+          attempt_name: a.attempt_name || `Test ${idx + 1}`
+        };
+      });
+
+      const attemptsPayload = normalizedAttempts.map(a => ({
+        id: a.id,
+        submission_id: submission.id,
+        component_id: testComp.id,
+        attempt_number: a.attempt_number,
+        attempt_name: a.attempt_name,
+        test_date: a.test_date || conductedDate || null,
+        raw_max_marks: a.raw_max_marks,
+        status: 'ACTIVE',
+        created_by: profile?.id
+      }));
+
+      // 2. Prepare student attempt marks payload
+      const attemptMarksPayload = [];
+      normalizedAttempts.forEach(att => {
+        classStudents.forEach(st => {
+          // Look up mark using both new UUID and original attempt id
+          const origAttempt = attempts.find(a => a.attempt_number === att.attempt_number);
+          const kNew = `${st.id}_${att.id}`;
+          const kOrig = origAttempt ? `${st.id}_${origAttempt.id}` : null;
+          
+          const rawVal = attemptScores[kNew] !== undefined ? attemptScores[kNew] : (kOrig && attemptScores[kOrig] !== undefined ? attemptScores[kOrig] : '');
+          const stStatus = attemptStatuses[kNew] || (kOrig && attemptStatuses[kOrig]) || 'MARKED';
+
+          if ((rawVal !== '' && rawVal !== null && rawVal !== undefined) || stStatus !== 'MARKED') {
+            attemptMarksPayload.push({
+              attempt_id: att.id,
+              student_id: st.id,
+              score: rawVal !== '' && rawVal !== null && rawVal !== undefined ? Number(rawVal) : null,
+              status: stStatus,
+              updated_at: new Date().toISOString()
+            });
+          }
+        });
+      });
+
       classStudents.forEach(st => {
         // Collect student scores and statuses for calculation
         const studentScores = {};
         const studentStatuses = {};
         components.forEach(comp => {
-          const key = `${st.id}_${comp.component_code}`;
-          studentScores[comp.component_code] = rawScores[key];
-          studentStatuses[comp.component_code] = statuses[key] || 'MARKED';
+          let rawVal;
+          let stStatus;
+
+          if (comp.component_code === 'TEST' && normalizedAttempts.length > 0) {
+            const agg = studentAttemptAggregates[st.id];
+            rawVal = agg?.aggregatedScore !== null && agg?.aggregatedScore !== undefined ? agg.aggregatedScore : '';
+            stStatus = agg?.status || 'MARKED';
+          } else {
+            const key = `${st.id}_${comp.component_code}`;
+            rawVal = rawScores[key];
+            stStatus = statuses[key] || 'MARKED';
+          }
+
+          studentScores[comp.component_code] = rawVal;
+          studentStatuses[comp.component_code] = stStatus;
         });
 
         // Run authoritative ERP calculation for this student
@@ -746,8 +1108,18 @@ _Sent via Gyanoday Niketan ERP_`;
           const key = `${st.id}_${comp.component_code}`;
           const compData = calcResult.componentBreakdown?.find(b => b.componentCode === comp.component_code);
 
-          let rawVal = comp.is_calculated ? compData?.rawScore : rawScores[key];
-          let stStatus = comp.is_calculated ? compData?.status : (statuses[key] || 'MARKED');
+          let rawVal;
+          let stStatus;
+
+          if (comp.component_code === 'TEST' && normalizedAttempts.length > 0) {
+            const agg = studentAttemptAggregates[st.id];
+            rawVal = agg?.aggregatedScore !== null && agg?.aggregatedScore !== undefined ? agg.aggregatedScore : null;
+            stStatus = agg?.status || 'MARKED';
+          } else {
+            rawVal = comp.is_calculated ? compData?.rawScore : rawScores[key];
+            stStatus = comp.is_calculated ? compData?.status : (statuses[key] || 'MARKED');
+          }
+
           let converted = compData?.convertedScore;
 
           detailedPayload.push({
@@ -794,7 +1166,9 @@ _Sent via Gyanoday Niketan ERP_`;
         term: selectedTerm,
         testDate: conductedDate,
         detailedMarksList: detailedPayload,
-        legacyMarksPayload: legacyPayload
+        legacyMarksPayload: legacyPayload,
+        attemptsPayload,
+        attemptMarksPayload
       });
 
       // Clear emergency device backup once synced to server
@@ -839,16 +1213,75 @@ _Sent via Gyanoday Niketan ERP_`;
     } catch (e) {}
   };
 
-  // Export Marks to Excel
-  const handleExportExcel = () => {
+  // Universal Download Helper supporting Blob URL with Data URI fallback for mobile devices
+  const triggerBrowserDownload = (blob, fileName, textFallback = null) => {
+    // 1. Try standard Blob URL download
+    try {
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.style.display = 'none';
+      link.href = url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        try {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+        } catch (e) {}
+      }, 1500);
+      return true;
+    } catch (blobErr) {
+      console.warn('Standard Blob URL download failed, trying data URI fallback:', blobErr);
+    }
+
+    // 2. Data URI fallback for CSV (guaranteed to work across WebViews and phones)
+    if (textFallback) {
+      try {
+        const encodedUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(textFallback);
+        const link = document.createElement('a');
+        link.setAttribute('href', encodedUri);
+        link.setAttribute('download', fileName);
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+          try { document.body.removeChild(link); } catch (e) {}
+        }, 1500);
+        return true;
+      } catch (dataUriErr) {
+        console.warn('Data URI download failed:', dataUriErr);
+      }
+    }
+
+    return false;
+  };
+
+  // Export Marks to Excel (.xlsx) or CSV (.csv)
+  const handleExportMarks = (format = 'excel') => {
+    if (!filteredStudents || filteredStudents.length === 0) {
+      alert('No students found to export. If search filter is active, clear search first.');
+      return;
+    }
+
+    setExportLoading(true);
     try {
       const exportData = filteredStudents.map(student => {
         const studentScores = {};
         const studentStatuses = {};
         components.forEach(comp => {
-          const key = `${student.id}_${comp.component_code}`;
-          studentScores[comp.component_code] = rawScores[key];
-          studentStatuses[comp.component_code] = statuses[key] || 'MARKED';
+          let rawVal;
+          let stStatus;
+          if (comp.component_code === 'TEST' && attempts.length > 0) {
+            const agg = studentAttemptAggregates[student.id];
+            rawVal = agg?.aggregatedScore !== null && agg?.aggregatedScore !== undefined ? agg.aggregatedScore : '';
+            stStatus = agg?.status || 'MARKED';
+          } else {
+            const key = `${student.id}_${comp.component_code}`;
+            rawVal = rawScores[key];
+            stStatus = statuses[key] || 'MARKED';
+          }
+          studentScores[comp.component_code] = rawVal;
+          studentStatuses[comp.component_code] = stStatus;
         });
 
         const result = MarksCalculationEngine.calculateStudentResult({
@@ -864,15 +1297,47 @@ _Sent via Gyanoday Niketan ERP_`;
           'Student Name': student.name
         };
 
+        // If multiple test attempts exist, export individual attempt columns first
+        if (attempts.length > 1) {
+          attempts.forEach(att => {
+            const attKey = `${student.id}_${att.id}`;
+            const attScore = attemptScores[attKey];
+            const attStatus = attemptStatuses[attKey] || 'MARKED';
+            const attColHeader = `${att.attempt_name || `Test ${att.attempt_number}`} (Max ${att.raw_max_marks || 25})`;
+            if (attStatus === 'ABSENT') {
+              row[attColHeader] = 'AB';
+            } else if (attStatus === 'NOT_APPLICABLE') {
+              row[attColHeader] = 'NA';
+            } else if (attScore !== '' && attScore !== null && attScore !== undefined) {
+              row[attColHeader] = Number(attScore);
+            } else {
+              row[attColHeader] = '';
+            }
+          });
+        }
+
         components.forEach(comp => {
           const key = `${student.id}_${comp.component_code}`;
           const compData = result.componentBreakdown?.find(b => b.componentCode === comp.component_code);
-          const stStatus = comp.is_calculated ? compData?.status : (statuses[key] || 'MARKED');
-          const rawVal = comp.is_calculated ? compData?.rawScore : rawScores[key];
+          let stStatus;
+          let rawVal;
 
-          const colHeader = comp.is_calculated
+          if (comp.component_code === 'TEST' && attempts.length > 0) {
+            const agg = studentAttemptAggregates[student.id];
+            rawVal = agg?.aggregatedScore !== null && agg?.aggregatedScore !== undefined ? agg.aggregatedScore : null;
+            stStatus = agg?.status || 'MARKED';
+          } else {
+            stStatus = comp.is_calculated ? compData?.status : (statuses[key] || 'MARKED');
+            rawVal = comp.is_calculated ? compData?.rawScore : rawScores[key];
+          }
+
+          let colHeader = comp.is_calculated
             ? `${comp.component_name} (Auto Max ${comp.raw_max_marks})`
             : `${comp.component_name} (Max ${comp.raw_max_marks})`;
+
+          if (comp.component_code === 'TEST' && attempts.length > 1) {
+            colHeader = `${comp.component_name} (Average /${comp.raw_max_marks})`;
+          }
 
           if (stStatus === 'ABSENT') {
             row[colHeader] = 'AB';
@@ -885,23 +1350,51 @@ _Sent via Gyanoday Niketan ERP_`;
           }
         });
 
-        row['Calculated Total'] = result.hasAnyMark ? (result.isAllAbsent ? 'AB' : result.totalConverted) : '';
+        row['Calculated Total'] = result.hasAnyMark ? (result.isAllAbsent ? 'AB' : (result.totalConverted ?? '')) : '';
         row['Grade'] = result.grade || '';
 
         return row;
       });
 
+      // Prepare sanitized names for filenames and sheet names (stripping slashes and invalid chars)
+      const safeClass = String(cls?.name || 'Class').replace(/[/\\?%*:|"<>]/g, '-').trim();
+      const safeSec = cls?.section ? `_${String(cls.section).replace(/[/\\?%*:|"<>]/g, '-').trim()}` : '';
+      const safeSub = String(subjectDisplayName || 'Subject').replace(/[/\\?%*:|"<>]/g, '-').trim();
+      const safeTerm = String(selectedTerm || 'Term').replace(/[/\\?%*:|"<>]/g, '-').trim();
+      const safeYr = String(academicYear || '2026').replace(/[/\\?%*:|"<>]/g, '-').trim();
+      const baseName = `${safeClass}${safeSec}_${safeSub}_${safeTerm}_${safeYr}`.replace(/\s+/g, '_');
+
       const ws = XLSX.utils.json_to_sheet(exportData);
       const wb = XLSX.utils.book_new();
-      const sheetName = `${cls?.name || 'Class'}_${subjectDisplayName}`.substring(0, 31).replace(/[/\\?*[\]]/g, '_');
+      const sheetName = `${safeClass}_${safeSub}`.substring(0, 31).replace(/[/\\?*[\]]/g, '_');
       XLSX.utils.book_append_sheet(wb, ws, sheetName);
-      const fileName = `${cls?.name || 'Class'}_${cls?.section || ''}_${subjectDisplayName}_${selectedTerm}_${academicYear}.xlsx`.replace(/\s+/g, '_');
-      XLSX.writeFile(wb, fileName);
+
+      if (format === 'csv') {
+        const csvContent = XLSX.utils.sheet_to_csv(ws);
+        const csvBlob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        triggerBrowserDownload(csvBlob, `${baseName}.csv`, csvContent);
+      } else {
+        // Excel format (.xlsx)
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const xlsxBlob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const success = triggerBrowserDownload(xlsxBlob, `${baseName}.xlsx`);
+        if (!success && XLSX.writeFile) {
+          XLSX.writeFile(wb, `${baseName}.xlsx`);
+        }
+      }
+
+      setExportSuccess(format);
+      setTimeout(() => setExportSuccess(null), 2500);
     } catch (err) {
-      console.error('Excel Export Error:', err);
-      alert('Failed to export Excel: ' + err.message);
+      console.error('Export Error:', err);
+      alert('Failed to export marksheet: ' + err.message);
+    } finally {
+      setExportLoading(false);
     }
   };
+
+  // Backward compatibility alias
+  const handleExportExcel = () => handleExportMarks('excel');
 
   // Import Marks from Excel
   const handleImportExcel = (e) => {
@@ -926,6 +1419,8 @@ _Sent via Gyanoday Niketan ERP_`;
         let updatedCount = 0;
         const newRawScores = { ...rawScores };
         const newStatuses = { ...statuses };
+        const newAttemptScores = { ...attemptScores };
+        const newAttemptStatuses = { ...attemptStatuses };
 
         rows.forEach(row => {
           // Find student by roll_no or name
@@ -946,9 +1441,48 @@ _Sent via Gyanoday Niketan ERP_`;
 
           let studentUpdated = false;
 
+          // 1. Check individual attempts if multiple attempts exist
+          if (attempts.length > 0) {
+            attempts.forEach(att => {
+              const attNameNorm = (att.attempt_name || `test${att.attempt_number}`).toLowerCase().replace(/[^a-z0-9]/g, '');
+              const possibleCols = Object.keys(row).filter(k => {
+                const normK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+                return normK.includes(attNameNorm) || (attempts.length === 1 && (normK.includes('weeklytest') || normK.includes('test')));
+              });
+
+              if (possibleCols.length > 0) {
+                const rawCell = row[possibleCols[0]];
+                const attKey = `${student.id}_${att.id}`;
+                if (rawCell !== undefined && rawCell !== null && rawCell !== '') {
+                  const strCell = String(rawCell).trim().toUpperCase();
+                  if (strCell === 'AB' || strCell === 'ABS' || strCell === 'ABSENT' || strCell === 'A') {
+                    newAttemptStatuses[attKey] = 'ABSENT';
+                    newAttemptScores[attKey] = '';
+                    studentUpdated = true;
+                  } else if (strCell === 'NA' || strCell === 'N/A') {
+                    newAttemptStatuses[attKey] = 'NOT_APPLICABLE';
+                    newAttemptScores[attKey] = '';
+                    studentUpdated = true;
+                  } else {
+                    const num = Number(rawCell);
+                    if (!isNaN(num) && num >= 0) {
+                      const clamped = Math.min(num, Number(att.raw_max_marks || 25));
+                      newAttemptScores[attKey] = String(clamped);
+                      newAttemptStatuses[attKey] = 'MARKED';
+                      studentUpdated = true;
+                    }
+                  }
+                }
+              }
+            });
+          }
+
           components.forEach(comp => {
             // NEVER import calculated columns (e.g. TEST_AVG) - always recalculate!
             if (comp.is_calculated) return;
+
+            // If TEST and we have attempts, attempt processing above handled or will handle it
+            if (comp.component_code === 'TEST' && attempts.length > 0) return;
 
             // Look for matching column in row
             const possibleCols = Object.keys(row).filter(k => {
@@ -993,8 +1527,10 @@ _Sent via Gyanoday Niketan ERP_`;
         if (updatedCount > 0) {
           setRawScores(newRawScores);
           setStatuses(newStatuses);
+          setAttemptScores(newAttemptScores);
+          setAttemptStatuses(newAttemptStatuses);
           setSaveStatus('pending');
-          alert(`Successfully imported marks for ${updatedCount} students. Calculated fields (including Average) have been automatically recomputed. Click "Save Draft" to save changes.`);
+          alert(`Successfully imported marks for ${updatedCount} students. Calculated fields (including Test Average) have been automatically recomputed. Click "Save Draft" to save changes.`);
         } else {
           alert('Could not match any rows with students in this class. Please ensure Roll No or Student Name columns match the roster.');
         }
@@ -1336,66 +1872,205 @@ _Sent via Gyanoday Niketan ERP_`;
         </div>
       )}
 
+      {/* Weekly Test Attempts Management Bar */}
+      {attempts.length > 0 && (
+        <div className="bg-slate-900 border border-slate-700/80 rounded-2xl p-4 shadow-md space-y-2">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                <span className="text-emerald-400 font-extrabold text-sm">{isWeeklyTestExpanded ? '▼' : '▶'}</span>
+                <span>Weekly Test Attempts ({attempts.length}):</span>
+              </div>
+              
+              <div className="flex items-center gap-2 flex-wrap">
+                {attempts.map(att => (
+                  <div key={att.id} className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-700 shadow-inner">
+                    <span className="font-bold text-white text-xs">{att.attempt_name}</span>
+                    <span className="text-[10px] text-slate-400 font-mono">/{att.raw_max_marks}</span>
+                    <input
+                      type="date"
+                      disabled={isReadOnly}
+                      value={att.test_date || ''}
+                      onChange={e => handleAttemptDateChange(att.id, e.target.value)}
+                      title={`Date for ${att.attempt_name}`}
+                      className="bg-slate-900 px-1.5 py-0.5 rounded text-[11px] text-slate-300 border border-slate-700 focus:outline-none focus:border-indigo-400 font-mono"
+                    />
+                    {!isReadOnly && attempts.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAttempt(att)}
+                        className="text-slate-500 hover:text-rose-400 p-0.5 rounded hover:bg-slate-800 transition cursor-pointer"
+                        title={`Delete ${att.attempt_name}`}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {!isReadOnly && (
+                <button
+                  type="button"
+                  onClick={handleAddAttempt}
+                  className="px-3 py-1.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                  title="Add a repeat test attempt for this assessment period"
+                >
+                  <Plus size={14} />
+                  <span>Add Test</span>
+                </button>
+              )}
+              {attempts.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setIsWeeklyTestExpanded(!isWeeklyTestExpanded)}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  {isWeeklyTestExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  <span>{isWeeklyTestExpanded ? 'Collapse All' : 'Expand All'}</span>
+                </button>
+              )}
+            </div>
+          </div>
+          {attempts.length > 1 && (
+            <div className="text-[11px] text-slate-400 flex items-center gap-1">
+              <Info size={12} className="text-indigo-400 shrink-0" />
+              <span>Multi-Test Active: Official Weekly Test mark is calculated as arithmetic average of valid entered attempts. Empty tests and AB/NA are handled automatically.</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Student Marks Table */}
       <div className="bg-slate-900 border border-slate-700/80 rounded-2xl overflow-hidden shadow-xl">
-        <div className="p-4 border-b border-slate-800 bg-slate-900 flex justify-between items-center flex-wrap gap-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-extrabold text-white tracking-tight">
-              Student Roster ({filteredStudents.length} Students Enrolled)
+        {/* Student Roster Header & Responsive Action Toolbar */}
+        <div className="p-3.5 sm:p-4 border-b border-slate-800 bg-slate-900 space-y-3">
+          {/* Top row: Title and student counter */}
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h2 className="text-sm sm:text-base font-extrabold text-white tracking-tight flex items-center gap-2">
+              <span>Student Roster</span>
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                {filteredStudents.length} {filteredStudents.length === 1 ? 'Student' : 'Students Enrolled'}
+              </span>
             </h2>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 text-slate-400" size={14} />
+
+          {/* Controls: Responsive Search + Swipeable Horizontal Action Toolbar */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            {/* Search Input: full width on mobile, constrained on desktop */}
+            <div className="relative w-full md:w-72 shrink-0">
+              <Search className="absolute left-3 top-2.5 text-slate-400" size={14} />
               <input
                 type="text"
                 value={globalFilter}
                 onChange={e => setGlobalFilter(e.target.value)}
                 placeholder="Search student or roll no..."
-                className="pl-8 pr-3 py-1.5 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 w-56 font-medium"
+                className="w-full pl-9 pr-8 py-2 md:py-1.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-medium transition-all shadow-inner"
               />
+              {globalFilter && (
+                <button
+                  type="button"
+                  onClick={() => setGlobalFilter('')}
+                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-white cursor-pointer"
+                  title="Clear search"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
 
-            <button
-              type="button"
-              onClick={handleExportExcel}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-              title="Export current marksheet to Excel"
-            >
-              <FileText size={14} className="text-emerald-400" />
-              <span>Export</span>
-            </button>
-
-            {!isReadOnly && (
-              <>
+            {/* Horizontal Scrollable Action Toolbar with Right Fade Indicator on Mobile */}
+            <div className="relative min-w-0 max-w-full">
+              <div 
+                className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 px-0.5 flex-nowrap touch-pan-x"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+              >
+                {/* 1. Export Excel Button */}
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-                  title="Import marks from Excel spreadsheet"
+                  onClick={() => handleExportMarks('excel')}
+                  disabled={exportLoading}
+                  className={`px-3 py-2 md:py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0 whitespace-nowrap active:scale-95 ${
+                    exportSuccess === 'excel'
+                      ? 'bg-emerald-800 text-emerald-100 border-emerald-600'
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                  }`}
+                  title="Export current marksheet to Excel (.xlsx)"
                 >
-                  <Upload size={14} className="text-blue-400" />
-                  <span>Import</span>
+                  {exportLoading ? (
+                    <RefreshCw size={13} className="animate-spin text-emerald-400" />
+                  ) : exportSuccess === 'excel' ? (
+                    <Check size={13} className="text-emerald-300" />
+                  ) : (
+                    <FileText size={13} className="text-emerald-400" />
+                  )}
+                  <span>{exportSuccess === 'excel' ? 'Exported!' : 'Export Excel'}</span>
                 </button>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleImportExcel}
-                  accept=".xlsx, .xls"
-                  className="hidden"
-                />
 
+                {/* 2. Export CSV Button */}
                 <button
                   type="button"
-                  onClick={handleClearMarks}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800/80 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-                  title="Clear all student marks in this marksheet"
+                  onClick={() => handleExportMarks('csv')}
+                  disabled={exportLoading}
+                  className={`px-3 py-2 md:py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0 whitespace-nowrap active:scale-95 ${
+                    exportSuccess === 'csv'
+                      ? 'bg-teal-800 text-teal-100 border-teal-600'
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                  }`}
+                  title="Export marksheet to CSV (.csv) for Google Sheets & mobile devices"
                 >
-                  <Trash2 size={14} />
-                  <span>Clear</span>
+                  {exportLoading ? (
+                    <RefreshCw size={13} className="animate-spin text-teal-400" />
+                  ) : exportSuccess === 'csv' ? (
+                    <Check size={13} className="text-teal-300" />
+                  ) : (
+                    <Download size={13} className="text-teal-400" />
+                  )}
+                  <span>{exportSuccess === 'csv' ? 'Exported!' : 'Export CSV'}</span>
                 </button>
-              </>
-            )}
+
+                {/* 3. Import Button (Teacher Draft Mode) */}
+                {!isReadOnly && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-3 py-2 md:py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0 whitespace-nowrap active:scale-95"
+                      title="Import marks from spreadsheet file (.xlsx, .xls, .csv)"
+                    >
+                      <Upload size={13} className="text-blue-400" />
+                      <span>Import</span>
+                    </button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleImportExcel}
+                      accept=".xlsx, .xls, .csv"
+                      className="hidden"
+                    />
+
+                    {/* 4. Clear Marks Button */}
+                    <button
+                      type="button"
+                      onClick={handleClearMarks}
+                      className="px-3 py-2 md:py-1.5 rounded-xl text-xs font-semibold bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800/80 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0 whitespace-nowrap active:scale-95"
+                      title="Clear all entered student marks in this marksheet"
+                    >
+                      <Trash2 size={13} />
+                      <span>Clear</span>
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Right edge subtle fade gradient on mobile to visually indicate more swipeable actions */}
+              <div 
+                className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-slate-900 via-slate-900/60 to-transparent md:hidden" 
+                aria-hidden="true" 
+              />
+            </div>
           </div>
         </div>
 
@@ -1405,23 +2080,58 @@ _Sent via Gyanoday Niketan ERP_`;
               <tr>
                 <th className="p-3 w-16 text-center text-slate-300 font-bold">Roll</th>
                 <th className="p-3 text-slate-100 font-bold text-sm">Student Name</th>
-                {components.map(comp => (
-                  <th key={comp.id} className="p-3 text-center min-w-[140px] text-slate-100 font-bold">
-                    <div className="text-xs flex items-center justify-center gap-1.5">
-                      <span>{comp.component_name}</span>
-                      {comp.is_calculated && (
-                        <span className="px-1.5 py-0.5 text-[9px] bg-cyan-900/80 text-cyan-300 border border-cyan-500/50 rounded-full font-bold uppercase tracking-wider">
-                          Auto
-                        </span>
+                {components.map(comp => {
+                  const isWeeklyTest = comp.component_code === 'TEST';
+                  return (
+                    <th key={comp.id} className={`p-3 text-center text-slate-100 font-bold transition-all ${isWeeklyTest && isWeeklyTestExpanded ? 'min-w-[280px]' : 'min-w-[140px]'}`}>
+                      <div className="text-xs flex items-center justify-center gap-1.5">
+                        {isWeeklyTest ? (
+                          <button
+                            type="button"
+                            onClick={() => setIsWeeklyTestExpanded(!isWeeklyTestExpanded)}
+                            className="flex items-center gap-1 hover:text-emerald-400 cursor-pointer font-bold transition text-xs"
+                            title={isWeeklyTestExpanded ? 'Collapse test attempts' : 'Expand test attempts'}
+                          >
+                            <span className="text-[11px] text-emerald-400 font-black">
+                              {isWeeklyTestExpanded ? '▼' : '▶'}
+                            </span>
+                            <span>{comp.component_name}</span>
+                          </button>
+                        ) : (
+                          <span>{comp.component_name}</span>
+                        )}
+                        {isWeeklyTest && attempts.length > 1 && (
+                          <span className="px-1.5 py-0.5 text-[9px] bg-indigo-950 text-indigo-300 border border-indigo-700/60 rounded-full font-bold">
+                            {attempts.length} Tests
+                          </span>
+                        )}
+                        {comp.is_calculated && !isWeeklyTest && (
+                          <span className="px-1.5 py-0.5 text-[9px] bg-cyan-900/80 text-cyan-300 border border-cyan-500/50 rounded-full font-bold uppercase tracking-wider">
+                            Auto
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] font-mono text-slate-300 font-medium mt-0.5">
+                        {comp.is_calculated && !isWeeklyTest
+                          ? `Auto Max /${comp.raw_max_marks}` 
+                          : `Raw /${comp.raw_max_marks} (Weight: /${comp.converted_max_marks})`}
+                      </div>
+                      {isWeeklyTest && !isReadOnly && (
+                        <div className="mt-1 flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={handleAddAttempt}
+                            className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/40 flex items-center gap-1 transition cursor-pointer"
+                            title="Add another weekly test attempt"
+                          >
+                            <Plus size={10} />
+                            <span>Add Test</span>
+                          </button>
+                        </div>
                       )}
-                    </div>
-                    <div className="text-[11px] font-mono text-slate-300 font-medium mt-0.5">
-                      {comp.is_calculated 
-                        ? `Auto Max /${comp.raw_max_marks}` 
-                        : `Raw /${comp.raw_max_marks} (Weight: /${comp.converted_max_marks})`}
-                    </div>
-                  </th>
-                ))}
+                    </th>
+                  );
+                })}
                 <th className="p-3 text-center min-w-[110px] text-slate-100 font-bold">
                   <div className="text-xs">Calculated Total</div>
                   <div className="text-[11px] font-mono text-slate-300 font-medium mt-0.5">
@@ -1439,9 +2149,15 @@ _Sent via Gyanoday Niketan ERP_`;
                 const studentScores = {};
                 const studentStatuses = {};
                 components.forEach(comp => {
-                  const key = `${student.id}_${comp.component_code}`;
-                  studentScores[comp.component_code] = rawScores[key];
-                  studentStatuses[comp.component_code] = statuses[key] || 'MARKED';
+                  if (comp.component_code === 'TEST' && attempts.length > 0) {
+                    const agg = studentAttemptAggregates[student.id];
+                    studentScores[comp.component_code] = agg?.aggregatedScore !== null && agg?.aggregatedScore !== undefined ? agg.aggregatedScore : '';
+                    studentStatuses[comp.component_code] = agg?.status || 'MARKED';
+                  } else {
+                    const key = `${student.id}_${comp.component_code}`;
+                    studentScores[comp.component_code] = rawScores[key];
+                    studentStatuses[comp.component_code] = statuses[key] || 'MARKED';
+                  }
                 });
 
                 // Automated ERP calculation
@@ -1470,6 +2186,242 @@ _Sent via Gyanoday Niketan ERP_`;
                       const key = `${student.id}_${comp.component_code}`;
                       const compData = result.componentBreakdown?.find(b => b.componentCode === comp.component_code);
                       const isCalc = comp.is_calculated;
+
+                      // SPECIAL HANDLING: Expandable Multiple-Test Attempts for Weekly Test
+                      if (comp.component_code === 'TEST') {
+                        const agg = studentAttemptAggregates[student.id];
+                        const isExpanded = isWeeklyTestExpanded || expandedStudentIds[student.id];
+
+                        // Case A: Single test and collapsed -> Render clean, familiar single-input cell
+                        if (attempts.length <= 1 && !isExpanded) {
+                          const defaultAtt = attempts[0] || { id: 'att_1', raw_max_marks: comp.raw_max_marks };
+                          const attKey = `${student.id}_${defaultAtt.id}`;
+                          const rawVal = attemptScores[attKey] !== undefined ? attemptScores[attKey] : (rawScores[key] || '');
+                          const stStatus = attemptStatuses[attKey] || statuses[key] || 'MARKED';
+
+                          return (
+                            <td key={comp.id} className="p-3 text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                {stStatus === 'MARKED' ? (
+                                  <div className="relative">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      max={defaultAtt.raw_max_marks}
+                                      step="0.5"
+                                      disabled={isReadOnly}
+                                      value={rawVal}
+                                      onChange={e => {
+                                        handleAttemptScoreChange(student.id, defaultAtt.id, e.target.value, defaultAtt.raw_max_marks);
+                                        handleScoreChange(student.id, 'TEST', e.target.value, defaultAtt.raw_max_marks);
+                                      }}
+                                      placeholder={`0 - ${defaultAtt.raw_max_marks}`}
+                                      className={`w-24 text-center py-1.5 px-2 font-mono font-bold text-xs rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all ${
+                                        isReadOnly 
+                                          ? 'bg-slate-800 text-slate-400 border-slate-700 cursor-not-allowed'
+                                          : 'bg-slate-950 text-white border-slate-600 hover:border-slate-400 shadow-inner'
+                                      }`}
+                                    />
+                                  </div>
+                                ) : (
+                                  <span className={`px-3 py-1 font-bold text-[11px] rounded-lg font-mono ${
+                                    stStatus === 'ABSENT' 
+                                      ? 'bg-rose-950 text-rose-300 border border-rose-500/60'
+                                      : 'bg-slate-800 text-slate-300 border border-slate-600'
+                                  }`}>
+                                    {stStatus === 'ABSENT' ? 'AB' : 'NA'}
+                                  </span>
+                                )}
+
+                                {!isReadOnly && (
+                                  <div className="flex flex-col gap-1">
+                                    <button
+                                      type="button"
+                                      title="Toggle Absent"
+                                      onClick={() => {
+                                        const nextSt = stStatus === 'ABSENT' ? 'MARKED' : 'ABSENT';
+                                        handleAttemptStatusChange(student.id, defaultAtt.id, nextSt);
+                                        handleStatusChange(student.id, 'TEST', nextSt);
+                                      }}
+                                      className={`px-1.5 py-0.5 text-[9px] font-black rounded border transition-colors cursor-pointer ${
+                                        stStatus === 'ABSENT' 
+                                          ? 'bg-rose-600 text-white border-rose-500' 
+                                          : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                                      }`}
+                                    >
+                                      AB
+                                    </button>
+                                    <button
+                                      type="button"
+                                      title="Toggle Not Applicable"
+                                      onClick={() => {
+                                        const nextSt = stStatus === 'NOT_APPLICABLE' ? 'MARKED' : 'NOT_APPLICABLE';
+                                        handleAttemptStatusChange(student.id, defaultAtt.id, nextSt);
+                                        handleStatusChange(student.id, 'TEST', nextSt);
+                                      }}
+                                      className={`px-1.5 py-0.5 text-[9px] font-black rounded border transition-colors cursor-pointer ${
+                                        stStatus === 'NOT_APPLICABLE' 
+                                          ? 'bg-amber-600 text-white border-amber-500' 
+                                          : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                                      }`}
+                                    >
+                                      NA
+                                    </button>
+                                  </div>
+                                )}
+
+                                <button
+                                  type="button"
+                                  onClick={() => toggleStudentExpanded(student.id)}
+                                  title="Expand test attempts"
+                                  className="p-1 text-slate-500 hover:text-emerald-400 transition cursor-pointer"
+                                >
+                                  <ChevronRight size={13} />
+                                </button>
+                              </div>
+                            </td>
+                          );
+                        }
+
+                        // Case B: Multi-test collapsed state
+                        if (!isExpanded) {
+                          return (
+                            <td key={comp.id} className="p-3 text-center">
+                              <div 
+                                onClick={() => toggleStudentExpanded(student.id)}
+                                className="cursor-pointer inline-flex flex-col items-center p-2 rounded-xl bg-slate-950/80 border border-slate-700/80 hover:border-emerald-500/60 transition shadow-sm"
+                                title="Click to view and edit test attempts"
+                              >
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[10px] text-emerald-400">▶</span>
+                                  <span className="text-xs font-bold text-white font-mono">
+                                    {agg?.displayText || '—'} /{comp.raw_max_marks}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-indigo-300 font-semibold mt-0.5">
+                                  {attempts.length} Tests • Click to Expand
+                                </span>
+                              </div>
+                            </td>
+                          );
+                        }
+
+                        // Case C: Multi-test EXPANDED state (Section 10 & 11)
+                        return (
+                          <td key={comp.id} className="p-3 text-center">
+                            <div className="bg-slate-950 border border-slate-700/80 rounded-xl p-2.5 space-y-2 shadow-inner text-left min-w-[260px] max-w-sm mx-auto">
+                              <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleStudentExpanded(student.id)}
+                                    className="text-slate-400 hover:text-white transition"
+                                    title="Collapse attempts"
+                                  >
+                                    <ChevronDown size={14} className="text-emerald-400" />
+                                  </button>
+                                  <span className="text-xs font-bold text-slate-200">Weekly Test</span>
+                                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-950 text-indigo-300 font-mono font-bold">
+                                    {attempts.length} Tests
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-xs font-mono font-bold text-emerald-400">
+                                    Avg: {agg?.displayText || '—'} /{comp.raw_max_marks}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Attempts Matrix */}
+                              <div className="space-y-1.5">
+                                {attempts.map(att => {
+                                  const attKey = `${student.id}_${att.id}`;
+                                  const attVal = attemptScores[attKey] !== undefined ? attemptScores[attKey] : '';
+                                  const attSt = attemptStatuses[attKey] || 'MARKED';
+
+                                  return (
+                                    <div key={att.id} className="flex items-center justify-between gap-2 p-1.5 rounded-lg bg-slate-900 border border-slate-800">
+                                      <div className="flex items-center gap-1 min-w-[65px]">
+                                        <span className="text-xs font-bold text-white">{att.attempt_name}</span>
+                                      </div>
+
+                                      <div className="flex items-center gap-1.5">
+                                        {attSt === 'MARKED' ? (
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            max={att.raw_max_marks}
+                                            step="0.5"
+                                            disabled={isReadOnly}
+                                            value={attVal}
+                                            onChange={e => handleAttemptScoreChange(student.id, att.id, e.target.value, att.raw_max_marks)}
+                                            placeholder={`0 - ${att.raw_max_marks}`}
+                                            className={`w-20 text-center py-1 px-1.5 font-mono font-bold text-xs rounded border focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
+                                              isReadOnly 
+                                                ? 'bg-slate-800 text-slate-400 border-slate-700 cursor-not-allowed'
+                                                : 'bg-slate-950 text-white border-slate-600 hover:border-slate-400'
+                                            }`}
+                                          />
+                                        ) : (
+                                          <span className={`px-2 py-0.5 font-bold text-[10px] rounded font-mono ${
+                                            attSt === 'ABSENT' 
+                                              ? 'bg-rose-950 text-rose-300 border border-rose-500/60' 
+                                              : 'bg-slate-800 text-slate-300 border border-slate-600'
+                                          }`}>
+                                            {attSt === 'ABSENT' ? 'AB' : 'NA'}
+                                          </span>
+                                        )}
+
+                                        {!isReadOnly && (
+                                          <div className="flex items-center gap-1">
+                                            <button
+                                              type="button"
+                                              title="Toggle Absent"
+                                              onClick={() => handleAttemptStatusChange(student.id, att.id, attSt === 'ABSENT' ? 'MARKED' : 'ABSENT')}
+                                              className={`px-1.5 py-0.5 text-[9px] font-black rounded border cursor-pointer ${
+                                                attSt === 'ABSENT' ? 'bg-rose-600 text-white border-rose-500' : 'bg-slate-800 text-slate-400 border-slate-700'
+                                              }`}
+                                            >
+                                              AB
+                                            </button>
+                                            <button
+                                              type="button"
+                                              title="Toggle Not Applicable"
+                                              onClick={() => handleAttemptStatusChange(student.id, att.id, attSt === 'NOT_APPLICABLE' ? 'MARKED' : 'NOT_APPLICABLE')}
+                                              className={`px-1.5 py-0.5 text-[9px] font-black rounded border cursor-pointer ${
+                                                attSt === 'NOT_APPLICABLE' ? 'bg-amber-600 text-white border-amber-500' : 'bg-slate-800 text-slate-400 border-slate-700'
+                                              }`}
+                                            >
+                                              NA
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Footer with summary and add attempt */}
+                              <div className="pt-1 flex items-center justify-between text-[11px] border-t border-slate-800 text-slate-400">
+                                <div className="font-semibold text-slate-300">
+                                  Average: <span className="text-emerald-400 font-mono font-bold">{agg?.displayText || '—'} /{comp.raw_max_marks}</span>
+                                </div>
+                                {!isReadOnly && (
+                                  <button
+                                    type="button"
+                                    onClick={handleAddAttempt}
+                                    className="text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
+                                  >
+                                    + Add Test
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        );
+                      }
+
                       const rawVal = isCalc ? compData?.rawScore : (rawScores[key] !== undefined ? rawScores[key] : '');
                       const stStatus = isCalc ? compData?.status : (statuses[key] || 'MARKED');
                       const converted = compData?.convertedScore !== null && compData?.convertedScore !== undefined
