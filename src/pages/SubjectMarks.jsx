@@ -6,7 +6,7 @@ import {
   ArrowLeft, Save, AlertCircle, CheckCircle2, Upload, Search, 
   Send, Lock, RefreshCw, AlertTriangle, ShieldCheck, Check, Info, FileText,
   Trophy, Copy, Printer, Frown, Sparkles, MessageCircle, CheckCheck, Calendar, Trash2,
-  Plus, ChevronDown, ChevronRight, Download, X
+  Plus, ChevronDown, ChevronRight, Download, X, Share2, ExternalLink
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { motion } from 'framer-motion';
@@ -103,8 +103,11 @@ const SubjectMarks = () => {
   const [submitError, setSubmitError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [globalFilter, setGlobalFilter] = useState('');
-  const [exportLoading, setExportLoading] = useState(null); // 'excel' | 'csv' | null
-  const [exportSuccess, setExportSuccess] = useState(null); // 'excel' | 'csv' | null
+  const [exportLoading, setExportLoading] = useState(null); // 'excel' | 'csv' | 'copy' | null
+  const [exportSuccess, setExportSuccess] = useState(null); // 'excel' | 'csv' | 'copy' | null
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportModalData, setExportModalData] = useState(null);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const fileInputRef = useRef(null);
 
   // Dynamic Multiple Test Attempts State
@@ -1213,105 +1216,289 @@ _Sent via Gyanoday Niketan ERP_`;
     } catch (e) {}
   };
 
-  // Multi-Platform File Downloader Supporting Desktop and Mobile Environments
-  const downloadExportedFile = async ({ fileName, blob, dataUri, workbook }) => {
-    let downloaded = false;
-
-    // 1. Direct Excel download via SheetJS's official writeFile
-    // SheetJS writeFile has internal compatibility handlers for Chrome, Edge, Safari, and Firefox.
-    if (workbook && XLSX && typeof XLSX.writeFile === 'function') {
-      try {
-        XLSX.writeFile(workbook, fileName);
-        return true;
-      } catch (writeFileErr) {
-        console.warn('XLSX.writeFile notice, attempting direct blob/URI download:', writeFileErr);
-      }
+  // Extract and format the complete export dataset from current roster
+  const generateExportDataset = () => {
+    if (!filteredStudents || filteredStudents.length === 0) {
+      return null;
     }
 
-    // 2. Standard Blob Object URL Download
-    // Key rules:
-    // - NEVER use `display: none`: modern Chrome/WebKit ignores programmatic clicks on unrendered elements.
-    // - Use off-screen positioning with fixed coordinates.
-    // - Keep object URL alive for 60 seconds so the browser download manager has time to complete the transfer.
-    if (blob && typeof window !== 'undefined' && window.URL && window.URL.createObjectURL) {
-      try {
-        const objectUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = objectUrl;
-        link.download = fileName;
-        link.rel = 'noopener';
-        link.style.position = 'fixed';
-        link.style.left = '-9999px';
-        link.style.top = '-9999px';
-        link.style.opacity = '0';
-        document.body.appendChild(link);
-        link.click();
-        downloaded = true;
-
-        setTimeout(() => {
-          try {
-            document.body.removeChild(link);
-          } catch (e) {}
-        }, 3000);
-
-        setTimeout(() => {
-          try {
-            window.URL.revokeObjectURL(objectUrl);
-          } catch (e) {}
-        }, 60000);
-
-        return true;
-      } catch (blobErr) {
-        console.warn('Blob URL download failed, falling back to Data URI:', blobErr);
-      }
-    }
-
-    // 3. Data URI Fallback (Supported universally across browsers & WebViews)
-    if (dataUri) {
-      try {
-        const link = document.createElement('a');
-        link.href = dataUri;
-        link.download = fileName;
-        link.rel = 'noopener';
-        link.style.position = 'fixed';
-        link.style.left = '-9999px';
-        link.style.top = '-9999px';
-        link.style.opacity = '0';
-        document.body.appendChild(link);
-        link.click();
-        downloaded = true;
-
-        setTimeout(() => {
-          try {
-            document.body.removeChild(link);
-          } catch (e) {}
-        }, 3000);
-
-        return true;
-      } catch (uriErr) {
-        console.error('Data URI download failed:', uriErr);
-      }
-    }
-
-    // 4. Mobile Web Share API (Last-mile fallback if direct link clicks are blocked by mobile sandbox)
-    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
-    if (isMobile && blob && typeof navigator.share === 'function' && typeof File !== 'undefined') {
-      try {
-        const file = new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
-        if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: fileName
-          });
-          return true;
+    const exportRows = filteredStudents.map(student => {
+      const studentScores = {};
+      const studentStatuses = {};
+      components.forEach(comp => {
+        let rawVal;
+        let stStatus;
+        if (comp.component_code === 'TEST' && attempts.length > 0) {
+          const agg = studentAttemptAggregates[student.id];
+          rawVal = agg?.aggregatedScore !== null && agg?.aggregatedScore !== undefined ? agg.aggregatedScore : '';
+          stStatus = agg?.status || 'MARKED';
+        } else {
+          const key = `${student.id}_${comp.component_code}`;
+          rawVal = rawScores[key];
+          stStatus = statuses[key] || 'MARKED';
         }
-      } catch (shareErr) {
-        if (shareErr.name === 'AbortError') return true;
-        console.warn('Mobile Web Share fallback:', shareErr);
+        studentScores[comp.component_code] = rawVal;
+        studentStatuses[comp.component_code] = stStatus;
+      });
+
+      const result = MarksCalculationEngine.calculateStudentResult({
+        components,
+        rawScores: studentScores,
+        statuses: studentStatuses,
+        gradeBoundaries: activePattern?.grade_boundaries || [],
+        roundingRule: activePattern?.rounding_rule || 'ROUND_2_DECIMALS'
+      });
+
+      const row = {
+        'Roll No': student.roll_no,
+        'Student Name': student.name
+      };
+
+      // If multiple test attempts exist, export individual attempt columns first
+      if (attempts.length > 1) {
+        attempts.forEach(att => {
+          const attKey = `${student.id}_${att.id}`;
+          const attScore = attemptScores[attKey];
+          const attStatus = attemptStatuses[attKey] || 'MARKED';
+          const attColHeader = `${att.attempt_name || `Test ${att.attempt_number}`} (Max ${att.raw_max_marks || 25})`;
+          if (attStatus === 'ABSENT') {
+            row[attColHeader] = 'AB';
+          } else if (attStatus === 'NOT_APPLICABLE') {
+            row[attColHeader] = 'NA';
+          } else if (attScore !== '' && attScore !== null && attScore !== undefined) {
+            row[attColHeader] = Number(attScore);
+          } else {
+            row[attColHeader] = '';
+          }
+        });
+      }
+
+      components.forEach(comp => {
+        const key = `${student.id}_${comp.component_code}`;
+        const compData = result.componentBreakdown?.find(b => b.componentCode === comp.component_code);
+        let stStatus;
+        let rawVal;
+
+        if (comp.component_code === 'TEST' && attempts.length > 0) {
+          const agg = studentAttemptAggregates[student.id];
+          rawVal = agg?.aggregatedScore !== null && agg?.aggregatedScore !== undefined ? agg.aggregatedScore : null;
+          stStatus = agg?.status || 'MARKED';
+        } else {
+          stStatus = comp.is_calculated ? compData?.status : (statuses[key] || 'MARKED');
+          rawVal = comp.is_calculated ? compData?.rawScore : rawScores[key];
+        }
+
+        let colHeader = comp.is_calculated
+          ? `${comp.component_name} (Auto Max ${comp.raw_max_marks})`
+          : `${comp.component_name} (Max ${comp.raw_max_marks})`;
+
+        if (comp.component_code === 'TEST' && attempts.length > 1) {
+          colHeader = `${comp.component_name} (Average /${comp.raw_max_marks})`;
+        }
+
+        if (stStatus === 'ABSENT') {
+          row[colHeader] = 'AB';
+        } else if (stStatus === 'NOT_APPLICABLE') {
+          row[colHeader] = 'NA';
+        } else if (rawVal !== '' && rawVal !== null && rawVal !== undefined) {
+          row[colHeader] = Number(rawVal);
+        } else {
+          row[colHeader] = '';
+        }
+      });
+
+      row['Calculated Total'] = result.hasAnyMark ? (result.isAllAbsent ? 'AB' : (result.totalConverted ?? '')) : '';
+      row['Grade'] = result.grade || '';
+
+      return row;
+    });
+
+    // Prepare sanitized names for filenames and sheet names (stripping slashes and invalid chars)
+    const safeClass = String(cls?.name || 'Class').replace(/[/\\?%*:|"<>]/g, '-').trim();
+    const safeSec = cls?.section ? `_${String(cls.section).replace(/[/\\?%*:|"<>]/g, '-').trim()}` : '';
+    const safeSub = String(subjectDisplayName || 'Subject').replace(/[/\\?%*:|"<>]/g, '-').trim();
+    const safeTerm = String(selectedTerm || 'Term').replace(/[/\\?%*:|"<>]/g, '-').trim();
+    const safeYr = String(academicYear || '2026').replace(/[/\\?%*:|"<>]/g, '-').trim();
+    const baseName = `${safeClass}${safeSec}_${safeSub}_${safeTerm}_${safeYr}`.replace(/\s+/g, '_');
+
+    const headers = exportRows.length > 0 ? Object.keys(exportRows[0]) : [];
+
+    // TSV format for direct clipboard copy and paste into Excel / Sheets
+    const tsvText = [
+      headers.join('\t'),
+      ...exportRows.map(row => headers.map(h => String(row[h] ?? '').replace(/[\t\n\r]/g, ' ')).join('\t'))
+    ].join('\n');
+
+    // SheetJS Workbook & Sheet
+    const ws = XLSX.utils.json_to_sheet(exportRows);
+    const wb = XLSX.utils.book_new();
+    const sheetName = `${safeClass}_${safeSub}`.substring(0, 31).replace(/[/\\?*[\]:]/g, '_');
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+    // CSV format
+    const csvContent = XLSX.utils.sheet_to_csv(ws);
+    const csvBlob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const csvDataUri = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csvContent);
+
+    // Excel format (.xlsx)
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const xlsxBlob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const b64 = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+    const xlsxDataUri = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + b64;
+
+    return {
+      exportRows,
+      headers,
+      count: exportRows.length,
+      baseName,
+      tsvText,
+      csvContent,
+      csvBlob,
+      csvDataUri,
+      wb,
+      xlsxBlob,
+      xlsxDataUri,
+      b64
+    };
+  };
+
+  // Multi-Platform File Downloader & Delivery Orchestrator
+  const downloadExportedFile = async ({ fileName, blob, dataUri, workbook, csvContent, format, b64, dataset }) => {
+    const isMobileDevice = typeof navigator !== 'undefined' && (
+      /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '') || 
+      (navigator.maxTouchPoints && navigator.maxTouchPoints > 1)
+    );
+    const isNativeApp = typeof window !== 'undefined' && (
+      !!window.Capacitor?.isNativePlatform?.() || 
+      !!window.GyanodayNative?.isNativeApp?.()
+    );
+
+    // Strategy 1: Native Android Bridge in Gyanoday APK (Writes directly to Downloads folder)
+    if (typeof window !== 'undefined' && window.GyanodayNative && typeof window.GyanodayNative.saveAndDownloadFile === 'function' && b64) {
+      try {
+        const mime = format === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        const handled = window.GyanodayNative.saveAndDownloadFile(b64, mime, fileName);
+        if (handled) {
+          return { success: true, method: 'native' };
+        }
+      } catch (nativeErr) {
+        console.warn('Native bridge download failed, falling back:', nativeErr);
       }
     }
 
-    return downloaded;
+    // Strategy 2: Mobile Web Share API (Primary for Android & iOS)
+    // In Android WebView, standard <a download> is suppressed, but native system share opens WhatsApp/Drive/Files
+    if ((isMobileDevice || isNativeApp) && typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      // 2A. Share actual file (Web Share Level 2)
+      if (blob && typeof File !== 'undefined') {
+        try {
+          const mime = format === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+          const file = new File([blob], fileName, { type: mime });
+          if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: fileName,
+              text: `Gyanoday Niketan Marksheet: ${fileName}`
+            });
+            return { success: true, method: 'share_file' };
+          }
+        } catch (shareFileErr) {
+          if (shareFileErr.name === 'AbortError') {
+            return { success: true, method: 'share_dismissed' };
+          }
+          console.warn('Web Share file failed, checking text fallback:', shareFileErr);
+        }
+      }
+
+      // 2B. Share text directly (Web Share Level 1) for CSV
+      if (format === 'csv' && csvContent) {
+        try {
+          await navigator.share({
+            title: fileName,
+            text: csvContent
+          });
+          return { success: true, method: 'share_text' };
+        } catch (shareTextErr) {
+          if (shareTextErr.name === 'AbortError') {
+            return { success: true, method: 'share_dismissed' };
+          }
+          console.warn('Web Share text failed:', shareTextErr);
+        }
+      }
+    }
+
+    // Strategy 3: Desktop Browser Direct Download (Chrome, Edge, Firefox, Safari on PC/Mac)
+    if (!isMobileDevice && !isNativeApp) {
+      // 3A. Official SheetJS writeFile for Excel
+      if (format === 'excel' && workbook && XLSX && typeof XLSX.writeFile === 'function') {
+        try {
+          XLSX.writeFile(workbook, fileName);
+          return { success: true, method: 'desktop_download' };
+        } catch (writeFileErr) {
+          console.warn('XLSX.writeFile notice, attempting blob URL fallback:', writeFileErr);
+        }
+      }
+
+      // 3B. Standard Object URL Download
+      if (blob && typeof window !== 'undefined' && window.URL && window.URL.createObjectURL) {
+        try {
+          const objectUrl = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = objectUrl;
+          link.download = fileName;
+          link.rel = 'noopener';
+          link.style.position = 'fixed';
+          link.style.left = '-9999px';
+          link.style.top = '-9999px';
+          link.style.opacity = '0';
+          document.body.appendChild(link);
+          link.click();
+
+          setTimeout(() => {
+            try { document.body.removeChild(link); } catch (e) {}
+            try { window.URL.revokeObjectURL(objectUrl); } catch (e) {}
+          }, 60000);
+
+          return { success: true, method: 'desktop_download' };
+        } catch (blobErr) {
+          console.warn('Blob URL download failed, falling back to Data URI:', blobErr);
+        }
+      }
+
+      // 3C. Data URI Fallback
+      if (dataUri) {
+        try {
+          const link = document.createElement('a');
+          link.href = dataUri;
+          link.download = fileName;
+          link.rel = 'noopener';
+          link.style.position = 'fixed';
+          link.style.left = '-9999px';
+          link.style.top = '-9999px';
+          link.style.opacity = '0';
+          document.body.appendChild(link);
+          link.click();
+
+          setTimeout(() => {
+            try { document.body.removeChild(link); } catch (e) {}
+          }, 3000);
+
+          return { success: true, method: 'desktop_download' };
+        } catch (uriErr) {
+          console.error('Data URI download failed:', uriErr);
+        }
+      }
+    }
+
+    // Strategy 4: Fallback for Mobile WebViews where direct link clicks are ignored:
+    // Open the comprehensive Export Modal so the teacher can 1-tap copy, share, view, or download.
+    if (dataset) {
+      setExportModalData(dataset);
+      setShowExportModal(true);
+      return { success: true, method: 'modal_opened' };
+    }
+
+    return { success: false, method: 'none' };
   };
 
   // Export Marks to Excel (.xlsx) or CSV (.csv)
@@ -1323,143 +1510,70 @@ _Sent via Gyanoday Niketan ERP_`;
 
     setExportLoading(format);
     try {
-      const exportData = filteredStudents.map(student => {
-        const studentScores = {};
-        const studentStatuses = {};
-        components.forEach(comp => {
-          let rawVal;
-          let stStatus;
-          if (comp.component_code === 'TEST' && attempts.length > 0) {
-            const agg = studentAttemptAggregates[student.id];
-            rawVal = agg?.aggregatedScore !== null && agg?.aggregatedScore !== undefined ? agg.aggregatedScore : '';
-            stStatus = agg?.status || 'MARKED';
-          } else {
-            const key = `${student.id}_${comp.component_code}`;
-            rawVal = rawScores[key];
-            stStatus = statuses[key] || 'MARKED';
-          }
-          studentScores[comp.component_code] = rawVal;
-          studentStatuses[comp.component_code] = stStatus;
-        });
+      const dataset = generateExportDataset();
+      if (!dataset) return;
 
-        const result = MarksCalculationEngine.calculateStudentResult({
-          components,
-          rawScores: studentScores,
-          statuses: studentStatuses,
-          gradeBoundaries: activePattern?.grade_boundaries || [],
-          roundingRule: activePattern?.rounding_rule || 'ROUND_2_DECIMALS'
-        });
+      const fileName = format === 'csv' ? `${dataset.baseName}.csv` : `${dataset.baseName}.xlsx`;
+      const blob = format === 'csv' ? dataset.csvBlob : dataset.xlsxBlob;
+      const dataUri = format === 'csv' ? dataset.csvDataUri : dataset.xlsxDataUri;
 
-        const row = {
-          'Roll No': student.roll_no,
-          'Student Name': student.name
-        };
-
-        // If multiple test attempts exist, export individual attempt columns first
-        if (attempts.length > 1) {
-          attempts.forEach(att => {
-            const attKey = `${student.id}_${att.id}`;
-            const attScore = attemptScores[attKey];
-            const attStatus = attemptStatuses[attKey] || 'MARKED';
-            const attColHeader = `${att.attempt_name || `Test ${att.attempt_number}`} (Max ${att.raw_max_marks || 25})`;
-            if (attStatus === 'ABSENT') {
-              row[attColHeader] = 'AB';
-            } else if (attStatus === 'NOT_APPLICABLE') {
-              row[attColHeader] = 'NA';
-            } else if (attScore !== '' && attScore !== null && attScore !== undefined) {
-              row[attColHeader] = Number(attScore);
-            } else {
-              row[attColHeader] = '';
-            }
-          });
-        }
-
-        components.forEach(comp => {
-          const key = `${student.id}_${comp.component_code}`;
-          const compData = result.componentBreakdown?.find(b => b.componentCode === comp.component_code);
-          let stStatus;
-          let rawVal;
-
-          if (comp.component_code === 'TEST' && attempts.length > 0) {
-            const agg = studentAttemptAggregates[student.id];
-            rawVal = agg?.aggregatedScore !== null && agg?.aggregatedScore !== undefined ? agg.aggregatedScore : null;
-            stStatus = agg?.status || 'MARKED';
-          } else {
-            stStatus = comp.is_calculated ? compData?.status : (statuses[key] || 'MARKED');
-            rawVal = comp.is_calculated ? compData?.rawScore : rawScores[key];
-          }
-
-          let colHeader = comp.is_calculated
-            ? `${comp.component_name} (Auto Max ${comp.raw_max_marks})`
-            : `${comp.component_name} (Max ${comp.raw_max_marks})`;
-
-          if (comp.component_code === 'TEST' && attempts.length > 1) {
-            colHeader = `${comp.component_name} (Average /${comp.raw_max_marks})`;
-          }
-
-          if (stStatus === 'ABSENT') {
-            row[colHeader] = 'AB';
-          } else if (stStatus === 'NOT_APPLICABLE') {
-            row[colHeader] = 'NA';
-          } else if (rawVal !== '' && rawVal !== null && rawVal !== undefined) {
-            row[colHeader] = Number(rawVal);
-          } else {
-            row[colHeader] = '';
-          }
-        });
-
-        row['Calculated Total'] = result.hasAnyMark ? (result.isAllAbsent ? 'AB' : (result.totalConverted ?? '')) : '';
-        row['Grade'] = result.grade || '';
-
-        return row;
+      const result = await downloadExportedFile({
+        fileName,
+        blob,
+        dataUri,
+        workbook: dataset.wb,
+        csvContent: dataset.csvContent,
+        format,
+        b64: dataset.b64,
+        dataset
       });
 
-      // Prepare sanitized names for filenames and sheet names (stripping slashes and invalid chars)
-      const safeClass = String(cls?.name || 'Class').replace(/[/\\?%*:|"<>]/g, '-').trim();
-      const safeSec = cls?.section ? `_${String(cls.section).replace(/[/\\?%*:|"<>]/g, '-').trim()}` : '';
-      const safeSub = String(subjectDisplayName || 'Subject').replace(/[/\\?%*:|"<>]/g, '-').trim();
-      const safeTerm = String(selectedTerm || 'Term').replace(/[/\\?%*:|"<>]/g, '-').trim();
-      const safeYr = String(academicYear || '2026').replace(/[/\\?%*:|"<>]/g, '-').trim();
-      const baseName = `${safeClass}${safeSec}_${safeSub}_${safeTerm}_${safeYr}`.replace(/\s+/g, '_');
-
-      const ws = XLSX.utils.json_to_sheet(exportData);
-      const wb = XLSX.utils.book_new();
-      const sheetName = `${safeClass}_${safeSub}`.substring(0, 31).replace(/[/\\?*[\]:]/g, '_');
-      XLSX.utils.book_append_sheet(wb, ws, sheetName);
-
-      let success = false;
-      if (format === 'csv') {
-        const csvContent = XLSX.utils.sheet_to_csv(ws);
-        const csvBlob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const csvDataUri = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csvContent);
-        success = await downloadExportedFile({
-          fileName: `${baseName}.csv`,
-          blob: csvBlob,
-          dataUri: csvDataUri
-        });
+      if (result.success) {
+        if (result.method !== 'modal_opened' && result.method !== 'share_dismissed') {
+          setExportSuccess(format);
+          setTimeout(() => setExportSuccess(null), 3000);
+        }
       } else {
-        // Excel format (.xlsx)
-        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const xlsxBlob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const b64 = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
-        const xlsxDataUri = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + b64;
-        success = await downloadExportedFile({
-          fileName: `${baseName}.xlsx`,
-          blob: xlsxBlob,
-          dataUri: xlsxDataUri,
-          workbook: wb
-        });
-      }
-
-      if (success) {
-        setExportSuccess(format);
-        setTimeout(() => setExportSuccess(null), 3000);
-      } else {
-        alert('Could not start download. Please check browser permissions or try the CSV format.');
+        setExportModalData(dataset);
+        setShowExportModal(true);
       }
     } catch (err) {
       console.error('Export Error:', err);
       alert('Failed to export marksheet: ' + err.message);
+    } finally {
+      setExportLoading(null);
+    }
+  };
+
+  // 1-Tap Copy Marksheet to Clipboard (Universal support across all phones and browsers)
+  const handleCopyMarksTable = async () => {
+    if (!filteredStudents || filteredStudents.length === 0) {
+      alert('No students found to copy. If search filter is active, clear search first.');
+      return;
+    }
+    setExportLoading('copy');
+    try {
+      const dataset = generateExportDataset();
+      if (!dataset) return;
+
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(dataset.tsvText);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = dataset.tsvText;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setExportSuccess('copy');
+      setTimeout(() => setExportSuccess(null), 3000);
+      alert(`✓ Copied ${dataset.count} student records to clipboard!\n\nYou can now paste directly into Microsoft Excel, Google Sheets, or WhatsApp.`);
+    } catch (err) {
+      console.error('Copy table error:', err);
+      alert('Could not copy to clipboard: ' + err.message);
     } finally {
       setExportLoading(null);
     }
@@ -2103,7 +2217,57 @@ _Sent via Gyanoday Niketan ERP_`;
                   <span>{exportSuccess === 'csv' ? 'Exported!' : 'Export CSV'}</span>
                 </button>
 
-                {/* 3. Import Button (Teacher Draft Mode) */}
+                {/* 3. Copy Data Button (1-Tap Universal Clipboard Copy for Excel & WhatsApp) */}
+                <button
+                  type="button"
+                  onClick={handleCopyMarksTable}
+                  disabled={!!exportLoading}
+                  className={`px-3 py-2 md:py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0 whitespace-nowrap active:scale-95 ${
+                    exportSuccess === 'copy'
+                      ? 'bg-amber-800 text-amber-100 border-amber-600'
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                  }`}
+                  title="Copy marksheet data to clipboard (tab-separated format for Excel & WhatsApp)"
+                >
+                  {exportLoading === 'copy' ? (
+                    <RefreshCw size={13} className="animate-spin text-amber-400" />
+                  ) : exportSuccess === 'copy' ? (
+                    <Check size={13} className="text-amber-300" />
+                  ) : (
+                    <Copy size={13} className="text-amber-400" />
+                  )}
+                  <span>{exportSuccess === 'copy' ? 'Copied!' : 'Copy Data'}</span>
+                </button>
+
+                {/* 4. Print / PDF Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowPrintModal(true)}
+                  className="px-3 py-2 md:py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0 whitespace-nowrap active:scale-95"
+                  title="Preview official printable marksheet and print or save as PDF"
+                >
+                  <Printer size={13} className="text-purple-400" />
+                  <span>Print / PDF</span>
+                </button>
+
+                {/* 5. Export Options Modal Trigger */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const d = generateExportDataset();
+                    if (d) {
+                      setExportModalData(d);
+                      setShowExportModal(true);
+                    }
+                  }}
+                  className="px-3 py-2 md:py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0 whitespace-nowrap active:scale-95"
+                  title="Open export and sharing options modal"
+                >
+                  <Share2 size={13} className="text-sky-400" />
+                  <span>Options</span>
+                </button>
+
+                {/* 6. Import Button (Teacher Draft Mode) */}
                 {!isReadOnly && (
                   <>
                     <button
@@ -3282,6 +3446,354 @@ _Sent via Gyanoday Niketan ERP_`;
               </div>
               <div>
                 <span>Principal Initials: __________</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* COMPREHENSIVE EXPORT & SHARE MODAL (MOBILE & DESKTOP)    */}
+        {/* ======================================================== */}
+        {showExportModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-slate-900 border border-slate-700 text-slate-100 rounded-2xl max-w-lg w-full p-5 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+              {/* Header */}
+              <div className="flex items-start justify-between pb-3 border-b border-slate-800">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400">
+                      <FileText size={18} />
+                    </span>
+                    <h3 className="text-base font-bold text-white">Export & Share Marksheet</h3>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Class {cls?.name} {cls?.section} • {subjectDisplayName} • {selectedTerm} {academicYear}
+                  </p>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <span className="px-2 py-0.5 text-[10px] bg-slate-800 text-slate-300 rounded font-mono font-semibold">
+                      {filteredStudents.length} Students Listed
+                    </span>
+                    {attempts.length > 1 && (
+                      <span className="px-2 py-0.5 text-[10px] bg-indigo-900/60 text-indigo-300 rounded font-semibold">
+                        {attempts.length} Test Attempts
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowExportModal(false)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition cursor-pointer"
+                  title="Close dialog"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Options List */}
+              <div className="mt-4 space-y-3">
+                {/* Option 1: Mobile Share Sheet (WhatsApp, Drive, Files) */}
+                <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-wider mb-1.5">
+                    <Share2 size={13} />
+                    <span>1. Share via Phone Apps (WhatsApp, Drive, Quick Share)</span>
+                  </div>
+                  <p className="text-xs text-slate-300 mb-2.5">
+                    Opens your phone's native share sheet. You can send directly to WhatsApp contacts or save to Google Drive.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleExportMarks('excel');
+                        setShowExportModal(false);
+                      }}
+                      disabled={!!exportLoading}
+                      className="flex-1 py-2 px-3 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center gap-1.5 transition active:scale-95 shadow cursor-pointer"
+                    >
+                      <FileText size={14} />
+                      <span>Share Excel (.xlsx)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleExportMarks('csv');
+                        setShowExportModal(false);
+                      }}
+                      disabled={!!exportLoading}
+                      className="flex-1 py-2 px-3 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white flex items-center justify-center gap-1.5 transition active:scale-95 shadow cursor-pointer"
+                    >
+                      <Download size={14} />
+                      <span>Share CSV (.csv)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Option 2: 1-Tap Copy to Clipboard */}
+                <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
+                  <div className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wider mb-1.5">
+                    <Copy size={13} />
+                    <span>2. Instant Copy to Clipboard (Universal 100%)</span>
+                  </div>
+                  <p className="text-xs text-slate-300 mb-2.5">
+                    Copies complete student roster, attempts, marks & grades. Paste directly into Microsoft Excel, Google Sheets, or WhatsApp.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await handleCopyMarksTable();
+                      setShowExportModal(false);
+                    }}
+                    disabled={!!exportLoading}
+                    className="w-full py-2 px-3 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white flex items-center justify-center gap-1.5 transition active:scale-95 shadow cursor-pointer"
+                  >
+                    <Copy size={14} />
+                    <span>Copy Marksheet Data (Table / TSV)</span>
+                  </button>
+                </div>
+
+                {/* Option 3: View & Print / Save PDF */}
+                <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
+                  <div className="flex items-center gap-2 text-xs font-bold text-purple-400 uppercase tracking-wider mb-1.5">
+                    <Printer size={13} />
+                    <span>3. Official Printable Marksheet (PDF)</span>
+                  </div>
+                  <p className="text-xs text-slate-300 mb-2.5">
+                    Opens a full-page clean print preview with browser "Save as PDF" capability.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowExportModal(false);
+                      setShowPrintModal(true);
+                    }}
+                    className="w-full py-2 px-3 rounded-lg text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center gap-1.5 transition active:scale-95 shadow cursor-pointer"
+                  >
+                    <Printer size={14} />
+                    <span>Preview & Print / Save PDF</span>
+                  </button>
+                </div>
+
+                {/* Option 4: Direct Browser Download Links */}
+                <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
+                  <div className="flex items-center gap-2 text-xs font-bold text-blue-400 uppercase tracking-wider mb-1.5">
+                    <Download size={13} />
+                    <span>4. Direct File Download (For Laptops & Desktops)</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mb-2.5">
+                    Trigger download directly to device storage.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const d = exportModalData || generateExportDataset();
+                        if (d) {
+                          const link = document.createElement('a');
+                          link.href = d.xlsxDataUri;
+                          link.download = `${d.baseName}.xlsx`;
+                          document.body.appendChild(link);
+                          link.click();
+                          setTimeout(() => { try { document.body.removeChild(link); } catch (e) {} }, 1000);
+                          setShowExportModal(false);
+                        }
+                      }}
+                      className="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 flex items-center justify-center gap-1 transition cursor-pointer"
+                    >
+                      <Download size={13} />
+                      <span>Download Excel</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const d = exportModalData || generateExportDataset();
+                        if (d) {
+                          const link = document.createElement('a');
+                          link.href = d.csvDataUri;
+                          link.download = `${d.baseName}.csv`;
+                          document.body.appendChild(link);
+                          link.click();
+                          setTimeout(() => { try { document.body.removeChild(link); } catch (e) {} }, 1000);
+                          setShowExportModal(false);
+                        }
+                      }}
+                      className="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 flex items-center justify-center gap-1 transition cursor-pointer"
+                    >
+                      <Download size={13} />
+                      <span>Download CSV</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="mt-4 pt-3 border-t border-slate-800 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowExportModal(false)}
+                  className="py-1.5 px-4 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* PRINTABLE OFFICIAL MARKSHEET MODAL                       */}
+        {/* ======================================================== */}
+        {showPrintModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white text-black rounded-xl max-w-4xl w-full p-4 sm:p-6 shadow-2xl relative max-h-[95vh] overflow-y-auto">
+              {/* Action Bar (Hidden during window.print) */}
+              <div className="no-print flex items-center justify-between pb-3 mb-4 border-b border-slate-300">
+                <div className="flex items-center gap-2">
+                  <Printer size={18} className="text-purple-700" />
+                  <span className="font-bold text-sm text-slate-800">Printable Marksheet Preview</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow transition cursor-pointer"
+                  >
+                    <Printer size={13} />
+                    <span>Print / Save as PDF</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPrintModal(false)}
+                    className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold transition cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+
+              {/* Printable Content */}
+              <div className="print-content text-black bg-white">
+                <div className="text-center border-b-2 border-black pb-3 mb-3">
+                  <h1 className="text-xl sm:text-2xl font-black uppercase tracking-wider font-serif text-black">GYANODAY NIKETAN</h1>
+                  <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wide text-black mt-0.5">
+                    Official Subject Assessment Marksheet
+                  </h2>
+                  <div className="flex justify-center items-center gap-3 sm:gap-6 text-xs font-bold mt-2 text-black flex-wrap">
+                    <span>Class: {cls?.name} {cls?.section}</span>
+                    <span>•</span>
+                    <span>Subject: {subjectDisplayName}</span>
+                    <span>•</span>
+                    <span>Term: {selectedTerm} ({academicYear})</span>
+                    <span>•</span>
+                    <span>Teacher: {profile?.name || 'Faculty Member'}</span>
+                  </div>
+                </div>
+
+                {/* Students Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border border-black border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 border-b border-black text-black font-bold">
+                        <th className="p-1.5 border-r border-black w-12 text-center">Roll</th>
+                        <th className="p-1.5 border-r border-black">Student Name</th>
+                        {attempts.length > 1 && attempts.map(att => (
+                          <th key={att.id} className="p-1.5 border-r border-black text-center min-w-[65px]">
+                            <div>{att.attempt_name || `Test ${att.attempt_number}`}</div>
+                            <div className="text-[10px] text-slate-600">/{att.raw_max_marks || 25}</div>
+                          </th>
+                        ))}
+                        {components.map(comp => (
+                          <th key={comp.id} className="p-1.5 border-r border-black text-center min-w-[70px]">
+                            <div>
+                              {comp.component_code === 'TEST' && attempts.length > 1 
+                                ? 'Weekly Avg' 
+                                : comp.component_name}
+                            </div>
+                            <div className="text-[10px] text-slate-600">
+                              /{comp.raw_max_marks} (wt: /{comp.converted_max_marks})
+                            </div>
+                          </th>
+                        ))}
+                        <th className="p-1.5 border-r border-black text-center min-w-[60px]">Total</th>
+                        <th className="p-1.5 text-center w-16">Grade</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-black/30">
+                      {filteredStudents.map(student => {
+                        const studentScores = {};
+                        const studentStatuses = {};
+                        components.forEach(comp => {
+                          if (comp.component_code === 'TEST' && attempts.length > 0) {
+                            const agg = studentAttemptAggregates[student.id];
+                            studentScores[comp.component_code] = agg?.aggregatedScore !== null && agg?.aggregatedScore !== undefined ? agg.aggregatedScore : '';
+                            studentStatuses[comp.component_code] = agg?.status || 'MARKED';
+                          } else {
+                            const key = `${student.id}_${comp.component_code}`;
+                            studentScores[comp.component_code] = rawScores[key];
+                            studentStatuses[comp.component_code] = statuses[key] || 'MARKED';
+                          }
+                        });
+
+                        const result = MarksCalculationEngine.calculateStudentResult({
+                          components,
+                          rawScores: studentScores,
+                          statuses: studentStatuses,
+                          gradeBoundaries: activePattern?.grade_boundaries || [],
+                          roundingRule: activePattern?.rounding_rule || 'ROUND_2_DECIMALS'
+                        });
+
+                        return (
+                          <tr key={student.id} className="border-b border-black/20 hover:bg-slate-50">
+                            <td className="p-1.5 border-r border-black text-center font-bold font-mono">{student.roll_no}</td>
+                            <td className="p-1.5 border-r border-black font-semibold">{formatStudentDisplayName(student.name)}</td>
+                            {attempts.length > 1 && attempts.map(att => {
+                              const attKey = `${student.id}_${att.id}`;
+                              const attScore = attemptScores[attKey];
+                              const attStatus = attemptStatuses[attKey] || 'MARKED';
+                              return (
+                                <td key={att.id} className="p-1.5 border-r border-black text-center font-mono">
+                                  {attStatus === 'ABSENT' ? 'AB' : attStatus === 'NOT_APPLICABLE' ? 'NA' : (attScore !== '' && attScore !== null && attScore !== undefined ? attScore : '—')}
+                                </td>
+                              );
+                            })}
+                            {components.map(comp => {
+                              const key = `${student.id}_${comp.component_code}`;
+                              const compData = result.componentBreakdown?.find(b => b.componentCode === comp.component_code);
+                              let stStatus;
+                              let rawVal;
+                              if (comp.component_code === 'TEST' && attempts.length > 0) {
+                                const agg = studentAttemptAggregates[student.id];
+                                rawVal = agg?.aggregatedScore !== null && agg?.aggregatedScore !== undefined ? agg.aggregatedScore : null;
+                                stStatus = agg?.status || 'MARKED';
+                              } else {
+                                stStatus = comp.is_calculated ? compData?.status : (statuses[key] || 'MARKED');
+                                rawVal = comp.is_calculated ? compData?.rawScore : rawScores[key];
+                              }
+                              return (
+                                <td key={comp.id} className="p-1.5 border-r border-black text-center font-mono">
+                                  {stStatus === 'ABSENT' ? 'AB' : stStatus === 'NOT_APPLICABLE' ? 'NA' : (rawVal !== '' && rawVal !== null && rawVal !== undefined ? rawVal : '—')}
+                                </td>
+                              );
+                            })}
+                            <td className="p-1.5 border-r border-black text-center font-mono font-bold">
+                              {result.hasAnyMark ? (result.isAllAbsent ? 'AB' : (result.totalConverted ?? '—')) : '—'}
+                            </td>
+                            <td className="p-1.5 text-center font-bold">
+                              {result.grade || '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Signatures */}
+                <div className="mt-4 pt-3 border-t border-black flex justify-between text-xs text-black font-semibold">
+                  <div>Date: {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                  <div>Teacher Signature: _______________________</div>
+                  <div>Principal Initials: __________</div>
+                </div>
               </div>
             </div>
           </div>

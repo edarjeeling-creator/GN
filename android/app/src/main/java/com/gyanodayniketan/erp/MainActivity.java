@@ -12,7 +12,18 @@ import android.webkit.JavascriptInterface;
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import android.os.Build;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.content.ContentValues;
+import android.util.Base64;
+import android.widget.Toast;
+import android.media.MediaScannerConnection;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -43,6 +54,16 @@ public class MainActivity extends BridgeActivity {
         // Expose Native Android Location & Settings Bridge to WebView
         if (getBridge() != null && getBridge().getWebView() != null) {
             getBridge().getWebView().addJavascriptInterface(new GyanodayNativeBridge(), "GyanodayNative");
+            getBridge().getWebView().setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
+                try {
+                    Intent intent = new Intent(Intent.ACTION_VIEW);
+                    intent.setData(Uri.parse(url));
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
         }
 
         // Register modern AndroidX back button dispatcher to handle in-app history and modals
@@ -115,6 +136,65 @@ public class MainActivity extends BridgeActivity {
                 startActivity(intent);
             } catch (Exception e) {
                 openAppSettings();
+            }
+        }
+
+        @JavascriptInterface
+        public boolean saveAndDownloadFile(String base64Data, String mimeType, String fileName) {
+            try {
+                byte[] bytes = Base64.decode(base64Data, Base64.DEFAULT);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    ContentValues values = new ContentValues();
+                    values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
+                    values.put(MediaStore.MediaColumns.MIME_TYPE, mimeType);
+                    values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+                    Uri uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+                    if (uri != null) {
+                        try (OutputStream os = getContentResolver().openOutputStream(uri)) {
+                            if (os != null) {
+                                os.write(bytes);
+                                os.flush();
+                            }
+                        }
+                    }
+                } else {
+                    File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                    if (!dir.exists()) dir.mkdirs();
+                    File file = new File(dir, fileName);
+                    try (FileOutputStream fos = new FileOutputStream(file)) {
+                        fos.write(bytes);
+                        fos.flush();
+                    }
+                    MediaScannerConnection.scanFile(MainActivity.this, new String[]{file.getAbsolutePath()}, null, null);
+                }
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Downloaded: " + fileName, Toast.LENGTH_LONG).show());
+                return true;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
+
+        @JavascriptInterface
+        public boolean shareFile(String base64Data, String mimeType, String fileName) {
+            try {
+                byte[] bytes = Base64.decode(base64Data, Base64.DEFAULT);
+                File cacheDir = getCacheDir();
+                File file = new File(cacheDir, fileName);
+                try (FileOutputStream fos = new FileOutputStream(file)) {
+                    fos.write(bytes);
+                    fos.flush();
+                }
+                Uri uri = FileProvider.getUriForFile(MainActivity.this, getPackageName() + ".fileprovider", file);
+                Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                shareIntent.setType(mimeType);
+                shareIntent.putExtra(Intent.EXTRA_STREAM, uri);
+                shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivity(Intent.createChooser(shareIntent, "Share Marksheet"));
+                return true;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return false;
             }
         }
     }
