@@ -1217,44 +1217,22 @@ _Sent via Gyanoday Niketan ERP_`;
   const downloadExportedFile = async ({ fileName, blob, dataUri, workbook }) => {
     let downloaded = false;
 
-    // 1. Mobile Web Share API:
-    // When accessed on a mobile phone (Android / iOS / Capacitor / PWA), native sharing provides
-    // the most reliable experience by invoking the OS share sheet (Save to Files / Drive / WhatsApp / Downloads).
-    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
-    if (isMobile && blob && typeof navigator.share === 'function' && typeof File !== 'undefined') {
-      try {
-        const file = new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
-        if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: fileName
-          });
-          return true;
-        }
-      } catch (shareErr) {
-        if (shareErr.name === 'AbortError') {
-          // User closed/cancelled the share picker intentionally
-          return true;
-        }
-        console.warn('Mobile Web Share unsuccessful, falling back to direct download:', shareErr);
-      }
-    }
-
-    // 2. Desktop Excel export via SheetJS's official writeFile
-    if (workbook && XLSX && typeof XLSX.writeFile === 'function' && !isMobile) {
+    // 1. Direct Excel download via SheetJS's official writeFile
+    // SheetJS writeFile has internal compatibility handlers for Chrome, Edge, Safari, and Firefox.
+    if (workbook && XLSX && typeof XLSX.writeFile === 'function') {
       try {
         XLSX.writeFile(workbook, fileName);
         return true;
       } catch (writeFileErr) {
-        console.warn('XLSX.writeFile threw error, attempting direct blob/URI download:', writeFileErr);
+        console.warn('XLSX.writeFile notice, attempting direct blob/URI download:', writeFileErr);
       }
     }
 
-    // 3. Standard Blob URL Download
+    // 2. Standard Blob Object URL Download
     // Key rules:
     // - NEVER use `display: none`: modern Chrome/WebKit ignores programmatic clicks on unrendered elements.
     // - Use off-screen positioning with fixed coordinates.
-    // - Do NOT revoke the object URL immediately; keep it alive for 60 seconds so the browser download manager can stream it.
+    // - Keep object URL alive for 60 seconds so the browser download manager has time to complete the transfer.
     if (blob && typeof window !== 'undefined' && window.URL && window.URL.createObjectURL) {
       try {
         const objectUrl = window.URL.createObjectURL(blob);
@@ -1288,7 +1266,7 @@ _Sent via Gyanoday Niketan ERP_`;
       }
     }
 
-    // 4. Data URI Fallback (Supported universally across browsers & WebViews)
+    // 3. Data URI Fallback (Supported universally across browsers & WebViews)
     if (dataUri) {
       try {
         const link = document.createElement('a');
@@ -1315,13 +1293,21 @@ _Sent via Gyanoday Niketan ERP_`;
       }
     }
 
-    // 5. Final fallback for mobile Excel if Web Share wasn't available
-    if (!downloaded && workbook && XLSX && typeof XLSX.writeFile === 'function') {
+    // 4. Mobile Web Share API (Last-mile fallback if direct link clicks are blocked by mobile sandbox)
+    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+    if (isMobile && blob && typeof navigator.share === 'function' && typeof File !== 'undefined') {
       try {
-        XLSX.writeFile(workbook, fileName);
-        return true;
-      } catch (e) {
-        console.error('Final fallback XLSX.writeFile failed:', e);
+        const file = new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
+        if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: fileName
+          });
+          return true;
+        }
+      } catch (shareErr) {
+        if (shareErr.name === 'AbortError') return true;
+        console.warn('Mobile Web Share fallback:', shareErr);
       }
     }
 
