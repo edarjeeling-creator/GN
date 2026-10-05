@@ -105,6 +105,7 @@ const SubjectMarks = () => {
   const [globalFilter, setGlobalFilter] = useState('');
   const [exportLoading, setExportLoading] = useState(null); // 'excel' | 'csv' | 'copy' | null
   const [exportSuccess, setExportSuccess] = useState(null); // 'excel' | 'csv' | 'copy' | null
+  const [copySuccess, setCopySuccess] = useState(null); // 'cloud_url' | 'tsv' | null
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportModalData, setExportModalData] = useState(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
@@ -1402,132 +1403,152 @@ _Sent via Gyanoday Niketan ERP_`;
       !!window.GyanodayNative?.isNativeApp?.()
     );
 
-    // Strategy 1: Native Android Bridge in Gyanoday APK (Writes directly to Downloads folder)
+    let downloadedDirectly = false;
+
+    // Strategy 1: Native Android Bridge in Gyanoday APK (Writes directly to MediaStore / Downloads folder)
     if (typeof window !== 'undefined' && window.GyanodayNative && typeof window.GyanodayNative.saveAndDownloadFile === 'function' && b64) {
       try {
         const mime = format === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
         const handled = window.GyanodayNative.saveAndDownloadFile(b64, mime, fileName);
         if (handled) {
-          return { success: true, method: 'native' };
+          downloadedDirectly = true;
         }
       } catch (nativeErr) {
         console.warn('Native bridge download failed, falling back:', nativeErr);
       }
     }
 
-    // Strategy 2: Mobile Web Share API (Primary for Android & iOS)
-    // In Android WebView, standard <a download> is suppressed, but native system share opens WhatsApp/Drive/Files
-    if ((isMobileDevice || isNativeApp) && typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-      // 2A. Share actual file (Web Share Level 2)
-      if (blob && typeof File !== 'undefined') {
-        try {
+    // Strategy 2: Generate Cloud HTTPS Download URL via Supabase Storage
+    // This solves Android WebView / Capacitor where in-memory blob: URLs are blocked from downloading.
+    // An HTTPS URL triggers Android's native DownloadManager or opens the external browser (Chrome).
+    let cloudDownloadUrl = dataset?.cloudUrl || null;
+    if (!cloudDownloadUrl) {
+      try {
+        const uploadBlob = blob || (format === 'csv' ? dataset?.csvBlob : dataset?.xlsxBlob);
+        if (uploadBlob && supabase?.storage) {
           const mime = format === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-          const file = new File([blob], fileName, { type: mime });
-          if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              files: [file],
-              title: fileName,
-              text: `Gyanoday Niketan Marksheet: ${fileName}`
+          const cleanFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const storagePath = `exports/${Date.now()}_${cleanFileName}`;
+          
+          const { error: uploadErr } = await supabase.storage
+            .from('public-assets')
+            .upload(storagePath, uploadBlob, {
+              contentType: mime,
+              cacheControl: '300',
+              upsert: true
             });
-            return { success: true, method: 'share_file' };
-          }
-        } catch (shareFileErr) {
-          if (shareFileErr.name === 'AbortError') {
-            return { success: true, method: 'share_dismissed' };
-          }
-          console.warn('Web Share file failed, checking text fallback:', shareFileErr);
-        }
-      }
 
-      // 2B. Share text directly (Web Share Level 1) for CSV
-      if (format === 'csv' && csvContent) {
-        try {
-          await navigator.share({
-            title: fileName,
-            text: csvContent
-          });
-          return { success: true, method: 'share_text' };
-        } catch (shareTextErr) {
-          if (shareTextErr.name === 'AbortError') {
-            return { success: true, method: 'share_dismissed' };
+          if (!uploadErr) {
+            const { data: urlData } = supabase.storage
+              .from('public-assets')
+              .getPublicUrl(storagePath);
+            cloudDownloadUrl = urlData?.publicUrl || null;
+            if (dataset) {
+              dataset.cloudUrl = cloudDownloadUrl;
+            }
           }
-          console.warn('Web Share text failed:', shareTextErr);
         }
+      } catch (cloudErr) {
+        console.warn('Cloud storage export upload notice:', cloudErr);
       }
     }
 
-    // Strategy 3: Desktop Browser Direct Download (Chrome, Edge, Firefox, Safari on PC/Mac)
-    if (!isMobileDevice && !isNativeApp) {
-      // 3A. Official SheetJS writeFile for Excel
-      if (format === 'excel' && workbook && XLSX && typeof XLSX.writeFile === 'function') {
-        try {
-          XLSX.writeFile(workbook, fileName);
-          return { success: true, method: 'desktop_download' };
-        } catch (writeFileErr) {
-          console.warn('XLSX.writeFile notice, attempting blob URL fallback:', writeFileErr);
+    // If on Mobile or Native App, trigger Cloud Download URL
+    if (cloudDownloadUrl) {
+      try {
+        // In Capacitor native app, opening with '_system' tells the OS to handle via system browser / DownloadManager
+        if (typeof window !== 'undefined') {
+          if (window.Capacitor?.isNativePlatform?.() || window.GyanodayNative?.isNativeApp?.()) {
+            window.open(cloudDownloadUrl, '_system');
+            downloadedDirectly = true;
+          } else if (isMobileDevice) {
+            // Mobile browser: create an anchor tag pointing to cloud URL
+            const cloudLink = document.createElement('a');
+            cloudLink.href = cloudDownloadUrl;
+            cloudLink.download = fileName;
+            cloudLink.target = '_blank';
+            cloudLink.rel = 'noopener noreferrer';
+            document.body.appendChild(cloudLink);
+            cloudLink.click();
+            setTimeout(() => {
+              try { document.body.removeChild(cloudLink); } catch (e) {}
+            }, 5000);
+            downloadedDirectly = true;
+          }
         }
-      }
-
-      // 3B. Standard Object URL Download
-      if (blob && typeof window !== 'undefined' && window.URL && window.URL.createObjectURL) {
-        try {
-          const objectUrl = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = objectUrl;
-          link.download = fileName;
-          link.rel = 'noopener';
-          link.style.position = 'fixed';
-          link.style.left = '-9999px';
-          link.style.top = '-9999px';
-          link.style.opacity = '0';
-          document.body.appendChild(link);
-          link.click();
-
-          setTimeout(() => {
-            try { document.body.removeChild(link); } catch (e) {}
-            try { window.URL.revokeObjectURL(objectUrl); } catch (e) {}
-          }, 60000);
-
-          return { success: true, method: 'desktop_download' };
-        } catch (blobErr) {
-          console.warn('Blob URL download failed, falling back to Data URI:', blobErr);
-        }
-      }
-
-      // 3C. Data URI Fallback
-      if (dataUri) {
-        try {
-          const link = document.createElement('a');
-          link.href = dataUri;
-          link.download = fileName;
-          link.rel = 'noopener';
-          link.style.position = 'fixed';
-          link.style.left = '-9999px';
-          link.style.top = '-9999px';
-          link.style.opacity = '0';
-          document.body.appendChild(link);
-          link.click();
-
-          setTimeout(() => {
-            try { document.body.removeChild(link); } catch (e) {}
-          }, 3000);
-
-          return { success: true, method: 'desktop_download' };
-        } catch (uriErr) {
-          console.error('Data URI download failed:', uriErr);
-        }
+      } catch (triggerErr) {
+        console.warn('Triggering cloud URL notice:', triggerErr);
       }
     }
 
-    // Strategy 4: Fallback for Mobile WebViews where direct link clicks are ignored:
-    // Open the comprehensive Export Modal so the teacher can 1-tap copy, share, view, or download.
+    // Strategy 3: Standard Browser Direct Download (SheetJS & Blob URL)
+    // Works reliably on PC, Mac, Chromebook, and standard mobile browsers
+    if (format === 'excel' && workbook && XLSX && typeof XLSX.writeFile === 'function') {
+      try {
+        XLSX.writeFile(workbook, fileName);
+        downloadedDirectly = true;
+      } catch (writeFileErr) {
+        console.warn('XLSX.writeFile notice:', writeFileErr);
+      }
+    }
+
+    if (blob && typeof window !== 'undefined' && window.URL && window.URL.createObjectURL) {
+      try {
+        const objectUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = fileName;
+        link.rel = 'noopener';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+
+        setTimeout(() => {
+          try { document.body.removeChild(link); } catch (e) {}
+          try { window.URL.revokeObjectURL(objectUrl); } catch (e) {}
+        }, 60000);
+
+        downloadedDirectly = true;
+      } catch (blobErr) {
+        console.warn('Blob URL download failed, checking Data URI fallback:', blobErr);
+      }
+    }
+
+    // Strategy 4: Data URI Fallback
+    if (!downloadedDirectly && dataUri) {
+      try {
+        const link = document.createElement('a');
+        link.href = dataUri;
+        link.download = fileName;
+        link.rel = 'noopener';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+
+        setTimeout(() => {
+          try { document.body.removeChild(link); } catch (e) {}
+        }, 5000);
+
+        downloadedDirectly = true;
+      } catch (uriErr) {
+        console.warn('Data URI download failed:', uriErr);
+      }
+    }
+
+    // On mobile devices or native apps, ALWAYS display the Export Modal as well
+    // so the teacher has the persistent Cloud Download link, 1-tap table copy, and PDF print!
     if (dataset) {
       setExportModalData(dataset);
-      setShowExportModal(true);
-      return { success: true, method: 'modal_opened' };
+      if (isMobileDevice || isNativeApp) {
+        setShowExportModal(true);
+      }
     }
 
-    return { success: false, method: 'none' };
+    return { 
+      success: true, 
+      method: downloadedDirectly ? 'downloaded' : 'modal_opened',
+      cloudUrl: cloudDownloadUrl 
+    };
   };
 
   // Export Marks to Excel (.xlsx) or CSV (.csv)
@@ -1558,10 +1579,8 @@ _Sent via Gyanoday Niketan ERP_`;
       });
 
       if (result.success) {
-        if (result.method !== 'modal_opened' && result.method !== 'share_dismissed') {
-          setExportSuccess(format);
-          setTimeout(() => setExportSuccess(null), 3000);
-        }
+        setExportSuccess(format);
+        setTimeout(() => setExportSuccess(null), 3000);
       } else {
         setExportModalData(dataset);
         setShowExportModal(true);
@@ -1572,6 +1591,52 @@ _Sent via Gyanoday Niketan ERP_`;
     } finally {
       setExportLoading(null);
     }
+  };
+
+  // Trigger direct download from the modal (using Cloud URL or native bridge)
+  const handleTriggerDirectDownload = async (format = 'excel') => {
+    const dataset = exportModalData || generateExportDataset();
+    if (!dataset) return;
+
+    const fileName = format === 'csv' ? `${dataset.baseName}.csv` : `${dataset.baseName}.xlsx`;
+    const mime = format === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+    // 1. Try Native Android Bridge if present in APK
+    if (typeof window !== 'undefined' && window.GyanodayNative?.saveAndDownloadFile && dataset.b64) {
+      try {
+        const ok = window.GyanodayNative.saveAndDownloadFile(dataset.b64, mime, fileName);
+        if (ok) {
+          setExportSuccess(format);
+          setTimeout(() => setExportSuccess(null), 3000);
+          return;
+        }
+      } catch (e) {
+        console.warn('Native bridge failed:', e);
+      }
+    }
+
+    // 2. If Cloud URL is ready, open it directly via _system and invisible anchor
+    if (dataset.cloudUrl) {
+      try {
+        window.open(dataset.cloudUrl, '_system');
+      } catch (e) {}
+      const a = document.createElement('a');
+      a.href = dataset.cloudUrl;
+      a.download = fileName;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        try { document.body.removeChild(a); } catch (err) {}
+      }, 5000);
+      setExportSuccess(format);
+      setTimeout(() => setExportSuccess(null), 3000);
+      return;
+    }
+
+    // 3. Otherwise re-run handleExportMarks to upload to Cloud & trigger download
+    await handleExportMarks(format);
   };
 
   // 1-Tap Copy Marksheet to Clipboard (Universal support across all phones and browsers)
@@ -3572,42 +3637,58 @@ _Sent via Gyanoday Niketan ERP_`;
               </div>
 
               {/* Options List */}
+              {/* Options List */}
               <div className="mt-4 space-y-3">
-                {/* Option 1: Mobile Share Sheet (WhatsApp, Drive, Files) */}
+                {/* Option 1: Direct File Download (.xlsx / .csv) */}
                 <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
                   <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-wider mb-1.5">
-                    <Share2 size={13} />
-                    <span>1. Share via Phone Apps (WhatsApp, Drive, Quick Share)</span>
+                    <Download size={13} />
+                    <span>1. Direct File Download (.xlsx / .csv)</span>
                   </div>
                   <p className="text-xs text-slate-300 mb-2.5">
-                    Opens your phone's native share sheet. You can send directly to WhatsApp contacts or save to Google Drive.
+                    Downloads spreadsheet directly to your phone or computer. Compatible with Android, iOS, Windows & Mac.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        handleExportMarks('excel');
-                        setShowExportModal(false);
-                      }}
+                      onClick={() => handleTriggerDirectDownload('excel')}
                       disabled={!!exportLoading}
                       className="flex-1 py-2 px-3 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center gap-1.5 transition active:scale-95 shadow cursor-pointer"
                     >
                       <FileText size={14} />
-                      <span>Share Excel (.xlsx)</span>
+                      <span>Download Excel (.xlsx)</span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        handleExportMarks('csv');
-                        setShowExportModal(false);
-                      }}
+                      onClick={() => handleTriggerDirectDownload('csv')}
                       disabled={!!exportLoading}
                       className="flex-1 py-2 px-3 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white flex items-center justify-center gap-1.5 transition active:scale-95 shadow cursor-pointer"
                     >
                       <Download size={14} />
-                      <span>Share CSV (.csv)</span>
+                      <span>Download CSV (.csv)</span>
                     </button>
                   </div>
+                  {exportModalData?.cloudUrl && (
+                    <div className="mt-2.5 pt-2 border-t border-slate-700/50 flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-slate-400 truncate max-w-[200px] sm:max-w-[280px]">
+                        Cloud Download Ready
+                      </span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (navigator.clipboard?.writeText) {
+                            await navigator.clipboard.writeText(exportModalData.cloudUrl);
+                            setCopySuccess('cloud_url');
+                            setTimeout(() => setCopySuccess(null), 2500);
+                          }
+                        }}
+                        className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer"
+                      >
+                        {copySuccess === 'cloud_url' ? <Check size={12} /> : <Copy size={12} />}
+                        <span>{copySuccess === 'cloud_url' ? 'Link Copied!' : 'Copy Direct Link'}</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Option 2: 1-Tap Copy to Clipboard */}
@@ -3623,7 +3704,6 @@ _Sent via Gyanoday Niketan ERP_`;
                     type="button"
                     onClick={async () => {
                       await handleCopyMarksTable();
-                      setShowExportModal(false);
                     }}
                     disabled={!!exportLoading}
                     className="w-full py-2 px-3 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white flex items-center justify-center gap-1.5 transition active:scale-95 shadow cursor-pointer"
@@ -3633,11 +3713,76 @@ _Sent via Gyanoday Niketan ERP_`;
                   </button>
                 </div>
 
-                {/* Option 3: View & Print / Save PDF */}
+                {/* Option 3: Mobile Share Sheet (WhatsApp, Drive, Quick Share) */}
+                <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
+                  <div className="flex items-center gap-2 text-xs font-bold text-sky-400 uppercase tracking-wider mb-1.5">
+                    <Share2 size={13} />
+                    <span>3. Share to Phone Apps (WhatsApp, Drive, Mail)</span>
+                  </div>
+                  <p className="text-xs text-slate-300 mb-2.5">
+                    Send directly to WhatsApp contacts, save to Google Drive, or share via Gmail.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const dataset = exportModalData || generateExportDataset();
+                      if (!dataset) return;
+                      const fileName = `${dataset.baseName}.xlsx`;
+                      const mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+                      // A. GyanodayNative shareFile
+                      if (typeof window !== 'undefined' && window.GyanodayNative?.shareFile && dataset.b64) {
+                        try {
+                          if (window.GyanodayNative.shareFile(dataset.b64, mime, fileName)) return;
+                        } catch (e) {}
+                      }
+
+                      // B. Web Share API Level 2 (files)
+                      if (typeof navigator !== 'undefined' && navigator.share && dataset.xlsxBlob && typeof File !== 'undefined') {
+                        try {
+                          const file = new File([dataset.xlsxBlob], fileName, { type: mime });
+                          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            await navigator.share({
+                              files: [file],
+                              title: fileName,
+                              text: `Gyanoday Niketan Marksheet: ${fileName}`
+                            });
+                            return;
+                          }
+                        } catch (e) {
+                          if (e.name === 'AbortError') return;
+                        }
+                      }
+
+                      // C. Fallback: Share download link or WhatsApp link
+                      const shareText = dataset.cloudUrl 
+                        ? `Gyanoday Niketan Marksheet (${fileName}):\nDownload Link: ${dataset.cloudUrl}`
+                        : `Gyanoday Niketan Marksheet: ${fileName}`;
+                      if (typeof navigator !== 'undefined' && navigator.share) {
+                        try {
+                          await navigator.share({ title: fileName, text: shareText, url: dataset.cloudUrl || undefined });
+                          return;
+                        } catch (e) {
+                          if (e.name === 'AbortError') return;
+                        }
+                      }
+
+                      // D. WhatsApp Direct fallback
+                      const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+                      window.open(waUrl, '_blank');
+                    }}
+                    className="w-full py-2 px-3 rounded-lg text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center gap-1.5 transition active:scale-95 shadow cursor-pointer"
+                  >
+                    <Share2 size={14} />
+                    <span>Share Marksheet (WhatsApp / Apps)</span>
+                  </button>
+                </div>
+
+                {/* Option 4: View & Print / Save PDF */}
                 <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
                   <div className="flex items-center gap-2 text-xs font-bold text-purple-400 uppercase tracking-wider mb-1.5">
                     <Printer size={13} />
-                    <span>3. Official Printable Marksheet (PDF)</span>
+                    <span>4. Official Printable Marksheet (PDF)</span>
                   </div>
                   <p className="text-xs text-slate-300 mb-2.5">
                     Opens a full-page clean print preview with browser "Save as PDF" capability.
@@ -3653,57 +3798,6 @@ _Sent via Gyanoday Niketan ERP_`;
                     <Printer size={14} />
                     <span>Preview & Print / Save PDF</span>
                   </button>
-                </div>
-
-                {/* Option 4: Direct Browser Download Links */}
-                <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
-                  <div className="flex items-center gap-2 text-xs font-bold text-blue-400 uppercase tracking-wider mb-1.5">
-                    <Download size={13} />
-                    <span>4. Direct File Download (For Laptops & Desktops)</span>
-                  </div>
-                  <p className="text-xs text-slate-400 mb-2.5">
-                    Trigger download directly to device storage.
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const d = exportModalData || generateExportDataset();
-                        if (d) {
-                          const link = document.createElement('a');
-                          link.href = d.xlsxDataUri;
-                          link.download = `${d.baseName}.xlsx`;
-                          document.body.appendChild(link);
-                          link.click();
-                          setTimeout(() => { try { document.body.removeChild(link); } catch (e) {} }, 1000);
-                          setShowExportModal(false);
-                        }
-                      }}
-                      className="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 flex items-center justify-center gap-1 transition cursor-pointer"
-                    >
-                      <Download size={13} />
-                      <span>Download Excel</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const d = exportModalData || generateExportDataset();
-                        if (d) {
-                          const link = document.createElement('a');
-                          link.href = d.csvDataUri;
-                          link.download = `${d.baseName}.csv`;
-                          document.body.appendChild(link);
-                          link.click();
-                          setTimeout(() => { try { document.body.removeChild(link); } catch (e) {} }, 1000);
-                          setShowExportModal(false);
-                        }
-                      }}
-                      className="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 flex items-center justify-center gap-1 transition cursor-pointer"
-                    >
-                      <Download size={13} />
-                      <span>Download CSV</span>
-                    </button>
-                  </div>
                 </div>
               </div>
 
