@@ -92,6 +92,8 @@ class DevicePushService {
       // Register native push if on native Android / iOS
       if (Capacitor.isNativePlatform()) {
         await this.registerNativePushNotifications(user, schoolId);
+        this.listenForRealtimePush(user.id);
+        return null;
       }
 
       // Detect OS platform

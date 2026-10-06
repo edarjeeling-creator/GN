@@ -480,9 +480,19 @@ const PrincipalPortal = () => {
             query = query.eq('role', 'group_d');
           } else if (noticeAudience === 'students') {
             query = query.eq('role', 'student');
+          } else if (noticeAudience?.startsWith('class:')) {
+            const cId = noticeAudience.replace('class:', '');
+            const { data: cStds } = await supabase.from('students').select('profile_id').eq('class_id', cId);
+            const { data: cTchs } = await supabase.from('teacher_subjects').select('teacher_id').eq('class_id', cId);
+            const uSet = new Set();
+            (cStds || []).forEach(s => s.profile_id && uSet.add(s.profile_id));
+            (cTchs || []).forEach(t => t.teacher_id && uSet.add(t.teacher_id));
+            recipientUserIds = Array.from(uSet);
           }
-          const { data: pRecips } = await query;
-          recipientUserIds = (pRecips || []).map(p => p.id);
+          if (recipientUserIds.length === 0) {
+            const { data: pRecips } = await query;
+            recipientUserIds = (pRecips || []).map(p => p.id);
+          }
 
           // Insert fallback in-app notifications
           if (recipientUserIds.length > 0) {
@@ -504,11 +514,34 @@ const PrincipalPortal = () => {
 
       // 3. Dispatch Mobile / Web Push Notification via notificationService
       if (noticeId) {
+        if (!recipientUserIds || recipientUserIds.length === 0) {
+          try {
+            let pQuery = supabase.from('profiles').select('id');
+            if (noticeAudience === 'teachers') {
+              pQuery = pQuery.in('role', ['teacher', 'coordinator']);
+            } else if (noticeAudience === 'staff') {
+              pQuery = pQuery.in('role', ['teacher', 'non_teaching', 'group_d', 'admin', 'principal', 'coordinator', 'accountant', 'librarian']);
+            } else if (noticeAudience === 'non_teaching') {
+              pQuery = pQuery.in('role', ['non_teaching', 'accountant', 'librarian']);
+            } else if (noticeAudience === 'group_d') {
+              pQuery = pQuery.eq('role', 'group_d');
+            } else if (noticeAudience === 'students') {
+              pQuery = pQuery.eq('role', 'student');
+            }
+            const { data: pRecips } = await pQuery;
+            recipientUserIds = (pRecips || []).map(p => p.id);
+          } catch (rErr) {
+            console.warn('Error resolving recipient user IDs for push:', rErr);
+          }
+        }
+
         notificationService.dispatchNoticePush({
           noticeId,
           title: noticeTitle.trim(),
           content: noticeMessage,
           recipientUserIds
+        }).then(pushRes => {
+          console.info('Notice push notification dispatched:', pushRes);
         }).catch(pushErr => console.warn('Background notice push dispatch error:', pushErr));
       }
 

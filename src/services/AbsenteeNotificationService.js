@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { formatStudentDisplayName, formatDisplayDate, buildAbsenteeParentMessage } from '../utils/studentUtils';
 import { messageTemplateService } from './MessageTemplateService';
+import { fcmPushService } from './FcmPushService';
 
 class AbsenteeNotificationService {
   /**
@@ -86,18 +87,41 @@ class AbsenteeNotificationService {
 
     try {
       // 1. Invoke Supabase Edge Function 'send-notification'
-      const { data: resData, error } = await supabase.functions.invoke('send-notification', {
-        body: {
-          tokens,
-          notification: { title, body },
-          data
-        }
-      });
+      let pushSuccess = false;
+      let resData = null;
 
-      if (error) {
-        console.warn('Edge function send-notification warning:', error);
+      try {
+        const { data: edgeData, error } = await supabase.functions.invoke('send-notification', {
+          body: {
+            tokens,
+            notification: { title, body },
+            data
+          }
+        });
+
+        if (!error && edgeData?.success && !edgeData?.ignored) {
+          pushSuccess = true;
+          resData = edgeData;
+        } else if (error || edgeData?.success === false) {
+          console.warn('Edge function send-notification warning:', error || edgeData);
+        }
+      } catch (invokeEx) {
+        console.warn('Edge function send-notification invocation error:', invokeEx);
       }
-      return { success: !error, data: resData };
+
+      // 2. Fallback to direct FCM HTTP v1 dispatch
+      if (!pushSuccess) {
+        console.info('Activating direct FCM fallback for absentee push notifications...');
+        resData = await fcmPushService.sendPush({
+          tokens,
+          title,
+          body,
+          data
+        });
+        pushSuccess = resData?.success ?? false;
+      }
+
+      return { success: pushSuccess, data: resData };
     } catch (err) {
       console.warn('Error invoking push notification service:', err);
       return { success: false, error: err };

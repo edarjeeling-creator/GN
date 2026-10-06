@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.js';
+import { fcmPushService } from './FcmPushService.js';
 
 class NotificationService {
   /**
@@ -109,12 +110,36 @@ class NotificationService {
         }
       };
 
-      const { data: resData, error: invokeErr } = await supabase.functions.invoke('send-notification', {
-        body: payload
-      });
+      let invokeErr = null;
+      let resData = null;
 
-      if (invokeErr) {
-        console.warn('Edge function send-notification warning for notice push:', invokeErr);
+      try {
+        const invokeRes = await supabase.functions.invoke('send-notification', {
+          body: payload
+        });
+        invokeErr = invokeRes.error;
+        resData = invokeRes.data;
+      } catch (e) {
+        invokeErr = e;
+      }
+
+      if (invokeErr || !resData || resData.success === false || resData.ignored === true) {
+        console.warn('Edge function send-notification warning for notice push:', invokeErr || resData);
+        console.info('Seamlessly activating direct FCM HTTP v1 dispatch fallback for notice push...');
+
+        const fallbackRes = await fcmPushService.sendPush({
+          tokens,
+          title: `🔔 ${title || 'School Notice'}`,
+          body: previewText,
+          data: payload.data
+        });
+
+        return {
+          success: fallbackRes.success,
+          tokenCount: tokens.length,
+          result: fallbackRes,
+          viaFallback: true
+        };
       }
 
       return {
@@ -124,6 +149,23 @@ class NotificationService {
       };
     } catch (err) {
       console.warn('Graceful handling: Notice push notification error:', err);
+      // Last-ditch attempt via direct FCM
+      try {
+        const tokens = await this.resolveRecipientTokens(recipientUserIds);
+        if (tokens.length > 0) {
+          const cleanPreview = this.stripHtml(content);
+          const previewText = cleanPreview.length > 120 ? cleanPreview.slice(0, 117) + '...' : cleanPreview || 'New notice from Principal';
+          const fallbackRes = await fcmPushService.sendPush({
+            tokens,
+            title: `🔔 ${title || 'School Notice'}`,
+            body: previewText,
+            data: { noticeId: String(noticeId), type: 'notice', linkUrl: `/?noticeId=${noticeId}` }
+          });
+          return { success: fallbackRes.success, tokenCount: tokens.length, result: fallbackRes, viaFallback: true };
+        }
+      } catch (innerErr) {
+        console.warn('Direct FCM fallback also failed:', innerErr);
+      }
       return { success: false, error: err };
     }
   }
@@ -157,13 +199,30 @@ class NotificationService {
         const tokens = await this.resolveRecipientTokens([targetUserId]);
 
         if (tokens.length > 0) {
-          await supabase.functions.invoke('send-notification', {
-            body: {
-              tokens,
-              notification: { title, body: content },
-              data: { linkUrl: linkUrl || '/', type }
+          let pushSucceeded = false;
+          try {
+            const { data: resData, error: invokeErr } = await supabase.functions.invoke('send-notification', {
+              body: {
+                tokens,
+                notification: { title, body: content },
+                data: { linkUrl: linkUrl || '/', type }
+              }
+            });
+            if (!invokeErr && resData?.success && !resData?.ignored) {
+              pushSucceeded = true;
             }
-          });
+          } catch (invokeEx) {
+            console.warn('Edge function single-user push error:', invokeEx);
+          }
+
+          if (!pushSucceeded) {
+            await fcmPushService.sendPush({
+              tokens,
+              title: title || '🔔 Gyanoday Niketan Alert',
+              body: content,
+              data: { linkUrl: linkUrl || '/', type }
+            });
+          }
         }
       } catch (pushErr) {
         console.warn('FCM dispatch skipped:', pushErr);
