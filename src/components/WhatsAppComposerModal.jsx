@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { messageTemplateService, FACTORY_TEMPLATES, PLACEHOLDERS_LEGEND } from '../services/MessageTemplateService';
-import { formatStudentDisplayName, formatDisplayDate } from '../utils/studentUtils';
+import { formatStudentDisplayName, formatDisplayDate, formatTelLink } from '../utils/studentUtils';
 import { useData } from '../context/DataContext';
 
 const WhatsAppComposerModal = ({
@@ -306,9 +306,14 @@ const WhatsAppComposerModal = ({
                 ) : (
                   <div className="flex items-center gap-1.5">
                     {activePhone ? (
-                      <span className="flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded border border-emerald-200 dark:border-emerald-800">
+                      <a
+                        href={formatTelLink(activePhone)}
+                        className="flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-300 hover:underline bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded border border-emerald-200 dark:border-emerald-800 transition-colors cursor-pointer"
+                        title={`Click to call ${activePhone}`}
+                        aria-label={`Call ${activePhone}`}
+                      >
                         <Phone size={11} /> {activePhone}
-                      </span>
+                      </a>
                     ) : (
                       <span className="text-xs text-amber-600 dark:text-amber-400 italic">
                         No phone recorded

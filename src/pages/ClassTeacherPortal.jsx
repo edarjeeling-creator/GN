@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { getConversionConstants } from './SubjectMarks';
 import { getGrade } from '../utils/reportUtils';
-import { formatStudentDisplayName } from '../utils/studentUtils';
+import { formatStudentDisplayName, formatTelLink } from '../utils/studentUtils';
 import WhatsAppComposerModal from '../components/WhatsAppComposerModal';
 import TeacherMessageCMS from '../components/TeacherMessageCMS';
 import TestExamCommunicationCentre from '../components/TestExamCommunication/TestExamCommunicationCentre';
@@ -415,7 +415,7 @@ const ClassTeacherPortal = () => {
                     <th className="px-4 py-3 font-semibold min-w-[180px]">Student Name</th>
                     <th className="px-4 py-3 font-semibold min-w-[150px]">Father / Guardian</th>
                     <th className="px-4 py-3 font-semibold min-w-[220px]">Parent Phone Number</th>
-                    <th className="px-4 py-3 font-semibold text-center w-36">Action</th>
+                    <th className="px-4 py-3 font-semibold text-center min-w-[170px]">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/80">
@@ -475,10 +475,15 @@ const ClassTeacherPortal = () => {
                           ) : (
                             <div className="flex items-center gap-2">
                               {student.contact_number ? (
-                                <div className="flex items-center gap-1.5 font-semibold text-emerald-400 text-xs font-mono">
-                                  <Phone size={13} className="text-emerald-400" />
-                                  <span>{student.contact_number}</span>
-                                </div>
+                                <a
+                                  href={formatTelLink(student.contact_number)}
+                                  className="inline-flex items-center gap-1.5 font-semibold text-emerald-400 hover:text-emerald-300 text-xs font-mono transition-colors group cursor-pointer px-2 py-0.5 rounded hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/20"
+                                  title={`Click to call ${formatStudentDisplayName(student.name)}'s parent directly (${student.contact_number})`}
+                                  aria-label={`Call ${student.contact_number}`}
+                                >
+                                  <Phone size={13} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+                                  <span className="underline-offset-2 group-hover:underline">{student.contact_number}</span>
+                                </a>
                               ) : (
                                 <span className="text-amber-400 font-medium italic text-xs">No number</span>
                               )}
@@ -495,14 +500,24 @@ const ClassTeacherPortal = () => {
                         </td>
                         <td className="px-4 py-3 text-center">
                           {student.contact_number ? (
-                            <button
-                              onClick={() => setSelectedComposerStudent(student)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
-                              title="Compose WhatsApp Message"
-                            >
-                              <MessageSquare size={13} />
-                              <span>WhatsApp</span>
-                            </button>
+                            <div className="inline-flex items-center justify-center gap-2">
+                              <a
+                                href={formatTelLink(student.contact_number)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                                title={`Direct phone call to ${student.contact_number}`}
+                              >
+                                <Phone size={12} />
+                                <span>Call</span>
+                              </a>
+                              <button
+                                onClick={() => setSelectedComposerStudent(student)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                                title="Compose WhatsApp Message"
+                              >
+                                <MessageSquare size={13} />
+                                <span>WhatsApp</span>
+                              </button>
+                            </div>
                           ) : (
                             <button
                               onClick={() => handleStartEditPhone(student)}

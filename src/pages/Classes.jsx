@@ -3,7 +3,7 @@ import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import { Book, CheckCircle, Circle, Users, FileText, UserPlus, Phone, Edit2, Check, X } from 'lucide-react';
-import { formatStudentDisplayName } from '../utils/studentUtils';
+import { formatStudentDisplayName, formatTelLink } from '../utils/studentUtils';
 
 const Classes = () => {
   const { classes, subjects, students, teacherSubjects, toggleTeacherSubject, addStudent, addSubject, updateStudentContactNumber } = useData();
@@ -283,10 +283,15 @@ const Classes = () => {
                                   ) : (
                                     <div className="flex items-center gap-2">
                                       {student.contact_number ? (
-                                        <span className="flex items-center gap-1 text-slate-700">
+                                        <a
+                                          href={formatTelLink(student.contact_number)}
+                                          className="flex items-center gap-1 text-slate-700 hover:text-emerald-700 hover:underline cursor-pointer transition-colors"
+                                          title={`Click to call ${student.contact_number}`}
+                                          aria-label={`Call ${student.contact_number}`}
+                                        >
                                           <Phone size={12} className="text-emerald-600" />
                                           {student.contact_number}
-                                        </span>
+                                        </a>
                                       ) : (
                                         <span className="text-slate-400 italic text-xs">No phone</span>
                                       )}

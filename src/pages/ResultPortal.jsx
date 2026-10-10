@@ -22,9 +22,8 @@ const ResultPortal = () => {
   const currentYear = new Date().getFullYear();
   const years = Array.from({length: 6}, (_, i) => `${currentYear - 1 + i}`);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!uid) return;
+  const fetchStudentResult = async (targetUid, termToUse = selectedTerm) => {
+    if (!targetUid) return;
     
     setLoading(true);
     setError('');
@@ -34,7 +33,7 @@ const ResultPortal = () => {
     try {
       // Call the secure RPC function
       const { data, error } = await supabase.rpc('get_student_report', { 
-        p_uid: uid,
+        p_uid: targetUid,
         p_academic_year: academicYear
       });
 
@@ -45,18 +44,18 @@ const ResultPortal = () => {
       }
 
       // Tuesday Assembly Release Rule:
-      // Final term marks only reflect for students on Tuesday during Morning Assembly.
-      // Marks posted after Tuesday reflect on the following Tuesday Assembly.
-      const isFinal = selectedTerm.toLowerCase().includes('final');
-      if (isFinal) {
-        const releaseCheck = checkFinalTermStudentRelease(data.marks, selectedTerm);
+      // Final term EXAM report cards only reflect for students on Tuesday during Morning Assembly.
+      // Regular weekly tests (e.g. Finalterm_Test) are ongoing evaluations and are accessible once published.
+      const isFinalExam = (termToUse === 'Finalterm' || termToUse === 'Combined') && !termToUse.includes('_Test');
+      if (isFinalExam) {
+        const releaseCheck = checkFinalTermStudentRelease(data.marks, termToUse);
         if (!releaseCheck.isReleased) {
           setAssemblyNotice({
             student: data.student,
             cls: data.class,
             releaseDate: releaseCheck.releaseDate,
             academicYear,
-            term: selectedTerm
+            term: termToUse
           });
           setResultData(null);
           setLoading(false);
@@ -65,7 +64,7 @@ const ResultPortal = () => {
       }
 
       // Check if results are published
-      const statusTerm = selectedTerm.includes('_Test') ? `${academicYear}_${selectedTerm}` : `${academicYear}_${selectedTerm}_Exam`;
+      const statusTerm = termToUse.includes('_Test') ? `${academicYear}_${termToUse}` : `${academicYear}_${termToUse}_Exam`;
       const { data: statusData } = await supabase
         .from('marks_status')
         .select('status')
@@ -73,16 +72,16 @@ const ResultPortal = () => {
         .eq('term', statusTerm)
         .maybeSingle();
 
-      const isTest = selectedTerm.includes('_Test');
+      const isTest = termToUse.includes('_Test');
       if (!isTest && (!statusData || statusData.status !== 'Published')) {
-        setError(`Results for ${selectedTerm.replace('_Test', ' Weekly Test')} are not yet published for your class.`);
+        setError(`Results for ${termToUse.replace('_Test', ' Weekly Test')} are not yet published for your class.`);
         return;
       }
       
       if (isTest && statusData && statusData.status !== 'Published') {
          // If a status explicitly exists for the test and it's not published, block it.
          // Otherwise, allow it through (defaulting to published).
-         setError(`Results for ${selectedTerm.replace('_Test', ' Weekly Test')} are not yet published for your class.`);
+         setError(`Results for ${termToUse.replace('_Test', ' Weekly Test')} are not yet published for your class.`);
          return;
       }
       
@@ -103,6 +102,11 @@ const ResultPortal = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    fetchStudentResult(uid, selectedTerm);
   };
 
   // Auto-search if initialUid is provided
@@ -182,13 +186,13 @@ const ResultPortal = () => {
         if (selectedTerm === 'Midterm') subjectTotal = mtExam;
         else if (selectedTerm === 'Finalterm') subjectTotal = isFinalReleased ? ftExam : 0;
         else if (selectedTerm === 'Midterm_Test') subjectTotal = mtTest;
-        else if (selectedTerm === 'Finalterm_Test') subjectTotal = isFinalReleased ? ftTest : 0;
+        else if (selectedTerm === 'Finalterm_Test') subjectTotal = ftTest;
         else subjectTotal = isFinalReleased ? (mtExam + ftExam) : mtExam;
       } else {
         if (selectedTerm === 'Midterm') subjectTotal = mtTotal;
         else if (selectedTerm === 'Finalterm') subjectTotal = isFinalReleased ? ftTotal : 0;
         else if (selectedTerm === 'Midterm_Test') subjectTotal = mtTest;
-        else if (selectedTerm === 'Finalterm_Test') subjectTotal = isFinalReleased ? ftTotal : 0;
+        else if (selectedTerm === 'Finalterm_Test') subjectTotal = ftTest;
         else subjectTotal = isFinalReleased ? (mtTotal + ftTotal) : mtTotal;
       }
 
@@ -202,7 +206,7 @@ const ResultPortal = () => {
         subjectName: formattedSubName, 
         total: subjectTotal,
         mtTest, mtConv, mtTotal,
-        ftTest: isFinalReleased ? ftTest : null,
+        ftTest: selectedTerm === 'Finalterm_Test' ? ftTest : (isFinalReleased ? ftTest : null),
         ftConv: isFinalReleased ? ftConv : null,
         ftTotal: isFinalReleased ? ftTotal : null
       };
@@ -639,11 +643,22 @@ const ResultPortal = () => {
         academicYear={assemblyNotice.academicYear}
         releaseDate={assemblyNotice.releaseDate}
         term={assemblyNotice.term}
+        onViewWeeklyTests={() => {
+          setSelectedTerm('Finalterm_Test');
+          setAssemblyNotice(null);
+          const targetUid = uid || assemblyNotice.student?.uid;
+          if (targetUid) {
+            setUid(targetUid);
+            fetchStudentResult(targetUid, 'Finalterm_Test');
+          }
+        }}
         onSearchAnother={() => {
           setAssemblyNotice(null);
           setResultData(null);
           setUid('');
+          setSelectedTerm('Finalterm_Test');
           window.history.replaceState({}, document.title, window.location.pathname);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
     );

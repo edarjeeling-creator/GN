@@ -160,3 +160,29 @@ export const buildAbsenteeParentMessage = ({ name, className, rollNo, date }) =>
 
   return `Dear Parent, ${displayName} (${classLabel}, ${rollLabel}) is *ABSENT* today (${formattedDate}).`;
 };
+
+/**
+ * Clean and format a phone number for direct tel: URI links
+ * Handles 10-digit Indian numbers, numbers with leading 0 or 91, or international numbers with +
+ * @param {string|number} phone - Raw phone number
+ * @returns {string} tel URI (e.g. 'tel:+918759776335' or 'tel:8759776335')
+ */
+export const formatTelLink = (phone) => {
+  if (!phone) return '#';
+  const cleaned = String(phone).trim().replace(/[^\d+]/g, '');
+  if (!cleaned) return '#';
+  if (cleaned.startsWith('+')) return `tel:${cleaned}`;
+  // 10-digit Indian mobile number (starts with 6, 7, 8, or 9)
+  if (cleaned.length === 10 && /^[6-9]/.test(cleaned)) {
+    return `tel:+91${cleaned}`;
+  }
+  // 12-digit Indian number starting with 91
+  if (cleaned.length === 12 && cleaned.startsWith('91')) {
+    return `tel:+${cleaned}`;
+  }
+  // 11-digit starting with 0 (e.g. 08759776335)
+  if (cleaned.length === 11 && cleaned.startsWith('0') && /^[6-9]/.test(cleaned.slice(1))) {
+    return `tel:+91${cleaned.slice(1)}`;
+  }
+  return `tel:${cleaned}`;
+};

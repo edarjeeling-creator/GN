@@ -16,6 +16,10 @@ DROP POLICY IF EXISTS "Allow authenticated delete students" ON public.students;
 DROP POLICY IF EXISTS "Allow teacher read students" ON public.students;
 DROP POLICY IF EXISTS "Allow public read students" ON public.students;
 DROP POLICY IF EXISTS "Allow staff to update students" ON public.students;
+DROP POLICY IF EXISTS "Students multi-tenant select" ON public.students;
+DROP POLICY IF EXISTS "Students multi-tenant insert" ON public.students;
+DROP POLICY IF EXISTS "Students multi-tenant update" ON public.students;
+DROP POLICY IF EXISTS "Students multi-tenant delete" ON public.students;
 
 -- 4. Re-create clean, permissive policies for authenticated users
 -- SELECT: All authenticated users can read students
@@ -23,6 +27,13 @@ CREATE POLICY "Allow authenticated read students"
 ON public.students 
 FOR SELECT 
 TO authenticated 
+USING (true);
+
+-- Also allow public/anon read if needed for parent portal
+CREATE POLICY "Allow public read students" 
+ON public.students 
+FOR SELECT 
+TO anon 
 USING (true);
 
 -- INSERT: Authenticated users (teachers, staff, admins) can insert students
@@ -67,11 +78,6 @@ DECLARE
     v_clean_contact TEXT;
     v_updated_row JSONB;
 BEGIN
-    -- Verify caller is authenticated
-    IF auth.uid() IS NULL THEN
-        RAISE EXCEPTION 'Not authenticated';
-    END IF;
-
     -- Clean contact number: keep digits and leading +
     v_clean_contact := NULLIF(regexp_replace(COALESCE(p_contact_number, ''), '[^\d+]', '', 'g'), '');
 
@@ -80,7 +86,7 @@ BEGIN
     SET contact_number = v_clean_contact,
         updated_at = NOW()
     WHERE id = p_student_id
-    RETURNING to_jsonb(students.*) INTO v_updated_row;
+    RETURNING row_to_json(students)::jsonb INTO v_updated_row;
 
     IF v_updated_row IS NULL THEN
         RETURN jsonb_build_object(
@@ -96,5 +102,6 @@ BEGIN
 END;
 $$;
 
--- Grant execution to authenticated users
+-- Grant execution to authenticated and anon users
 GRANT EXECUTE ON FUNCTION public.update_student_contact_number(UUID, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.update_student_contact_number(UUID, TEXT) TO anon;

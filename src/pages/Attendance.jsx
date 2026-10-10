@@ -542,18 +542,75 @@ const Attendance = () => {
       const selectedClass = classes.find(c => c.id === selectedClassId);
       const className = selectedClass ? `${selectedClass.name} ${selectedClass.section}` : '';
 
-      if (presentRecords.length > 0 && profile?.id) {
+      if (presentRecords.length > 0) {
+        const formattedDate = new Date(selectedDate).toLocaleDateString('en-GB', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        });
+        const presentIds = presentRecords.map(r => r.student_id);
+
+        if (profile?.id) {
+          try {
+            await supabase.from('student_notifications').update({ 
+              is_invalid: true, 
+              invalidated_at: new Date().toISOString(), 
+              invalidated_by: profile.id 
+            })
+            .eq('type', 'absence_alert')
+            .eq('attendance_date', selectedDate)
+            .in('student_id', presentIds);
+          } catch (e) {
+            // ignore if table does not exist
+          }
+        }
+
+        // Supersede any conflicting unread absence alerts for today in direct notifications table
         try {
-          await supabase.from('student_notifications').update({ 
-            is_invalid: true, 
-            invalidated_at: new Date().toISOString(), 
-            invalidated_by: profile.id 
-          })
-          .eq('type', 'absence_alert')
-          .eq('attendance_date', selectedDate)
-          .in('student_id', presentRecords.map(r => r.student_id));
+          await supabase.from('notifications')
+            .update({ is_read: true })
+            .in('user_id', presentIds)
+            .eq('type', 'attendance_absent')
+            .gte('created_at', `${selectedDate}T00:00:00.000Z`)
+            .lte('created_at', `${selectedDate}T23:59:59.999Z`);
+        } catch (e) {
+          // ignore
+        }
+
+        // Safe fallback for student_notifications table
+        try {
+          const studentPresentNotifs = presentRecords.map(r => ({
+            student_id: r.student_id,
+            attendance_date: selectedDate,
+            title: `✅ Daily Attendance - Marked ${r.status}`,
+            message: `You were marked <strong>${r.status}</strong> on ${formattedDate} in Class ${className}.`,
+            type: 'attendance_present',
+            channel: 'portal'
+          }));
+          await supabase.from('student_notifications').upsert(studentPresentNotifs, {
+            onConflict: 'student_id,attendance_date,type'
+          });
         } catch (e) {
           // ignore if table does not exist
+        }
+
+        // Direct student notifications table insert
+        try {
+          const studentDirectPresentNotifs = presentRecords.map(r => {
+            const studentInfo = classStudents.find(s => s.id === r.student_id) || {};
+            return {
+              user_id: r.student_id,
+              title: `✅ Daily Attendance - Marked ${r.status}`,
+              message: `Dear ${studentInfo.name || 'Student'}, your attendance was marked ${r.status} on ${formattedDate} in Class ${className}.`,
+              type: 'attendance_present',
+              school_id: profile?.school_id || null,
+              is_read: false
+            };
+          });
+          await supabase.from('notifications').insert(studentDirectPresentNotifs);
+        } catch (e) {
+          // ignore
         }
       }
 
@@ -625,7 +682,7 @@ const Attendance = () => {
     {
       accessorKey: 'roll_no',
       header: 'Roll No',
-      cell: info => <span className="font-bold text-slate-700">{info.getValue()}</span>,
+      cell: info => <span className="font-bold text-slate-700 dark:text-slate-200">{info.getValue()}</span>,
     },
     {
       accessorKey: 'name',
@@ -634,10 +691,10 @@ const Attendance = () => {
         const student = info.row.original;
         return (
           <div className="flex items-center gap-4 py-2">
-            <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-slate-200 shrink-0 bg-slate-50 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-slate-200 dark:border-slate-700 shrink-0 bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
               {student.picture_url ? <img src={student.picture_url} alt={student.name} className="w-full h-full object-cover" /> : <User size={20} className="text-slate-400" />}
             </div>
-            <span className="font-semibold text-slate-800">{formatStudentDisplayName(student.name)}</span>
+            <span className="font-semibold text-slate-900 dark:text-white">{formatStudentDisplayName(student.name)}</span>
           </div>
         );
       },
@@ -834,10 +891,10 @@ const Attendance = () => {
             <Loader2 className="animate-spin text-brand-500" size={40} />
           </div>
         ) : classStudents.length === 0 ? (
-          <Card className="text-center p-12 bg-slate-50 border-dashed border-slate-300">
-            <User size={48} className="mx-auto text-slate-300 mb-4" />
-            <h3 className="text-lg font-bold text-slate-700">No students found</h3>
-            <p className="text-slate-500">This class currently has no enrolled students.</p>
+          <Card className="text-center p-12 bg-slate-50 dark:bg-slate-900/60 border-dashed border-slate-300 dark:border-slate-700">
+            <User size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
+            <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">No students found</h3>
+            <p className="text-slate-500 dark:text-slate-400">This class currently has no enrolled students.</p>
           </Card>
         ) : aiMonthResults ? (
           <Card className="overflow-hidden flex flex-col shadow-sm border-brand-300 bg-brand-50/20 dark:bg-slate-900">
@@ -1037,19 +1094,19 @@ const Attendance = () => {
             </div>
           </Card>
         ) : aiResults ? (
-          <Card className="overflow-hidden flex flex-col shadow-sm border-brand-300 bg-brand-50/30">
-            <div className="p-4 border-b border-slate-200 bg-white">
-              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+          <Card className="overflow-hidden flex flex-col shadow-sm border-brand-300 bg-brand-50/30 dark:bg-slate-900">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
                 <FileUp className="text-brand-500" size={20} />
                 Review AI Import
               </h2>
-              <p className="text-sm text-slate-500 mt-1">
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                 Please verify the extracted data. Unresolved or ambiguous records have been left blank.
               </p>
             </div>
             <div className="p-0 overflow-x-auto">
               <table className="w-full text-left border-collapse min-w-[600px]">
-                <thead className="bg-slate-50/80 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-semibold">
+                <thead className="bg-slate-50/80 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-xs uppercase tracking-wider text-slate-500 dark:text-slate-300 font-semibold">
                   <tr>
                     <th className="p-3 pl-4 w-1/3">AI Extracted (Name / Roll)</th>
                     <th className="p-3 w-1/3">Matched Student</th>
@@ -1057,12 +1114,12 @@ const Attendance = () => {
                     <th className="p-3 w-1/12 text-center">Match</th>
                   </tr>
                 </thead>
-                <tbody className="text-sm divide-y divide-slate-100 bg-white">
+                <tbody className="text-sm divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                   {aiResults.map(res => (
-                    <tr key={res.key} className={!res.studentId || !res.resolvedStatus ? 'bg-amber-50/50' : ''}>
+                    <tr key={res.key} className={!res.studentId || !res.resolvedStatus ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''}>
                       <td className="p-3 pl-4">
-                        <div className="font-medium text-slate-800">{res.name || <span className="text-slate-400 italic">Unknown</span>}</div>
-                        <div className="text-xs text-slate-500">Roll: {res.roll_no || '-'}</div>
+                        <div className="font-medium text-slate-800 dark:text-white">{res.name || <span className="text-slate-400 italic">Unknown</span>}</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">Roll: {res.roll_no || '-'}</div>
                       </td>
                       <td className="p-3">
                         <select 
@@ -1152,7 +1209,7 @@ const Attendance = () => {
                   ))}
                   {table.getRowModel().rows.length === 0 && (
                     <tr>
-                      <td colSpan={columns.length} className="p-8 text-center text-slate-500">No matching students found.</td>
+                      <td colSpan={columns.length} className="p-8 text-center text-slate-500 dark:text-slate-400">No matching students found.</td>
                     </tr>
                   )}
                 </tbody>
@@ -1190,32 +1247,32 @@ const Attendance = () => {
           </Card>
         )
       ) : (
-        <Card className="text-center p-16 bg-slate-50 border-dashed border-slate-300">
-          <Calendar size={64} className="mx-auto text-slate-300 mb-6" />
-          <h3 className="text-xl font-bold text-slate-700 mb-2">Select a Class</h3>
-          <p className="text-slate-500">Choose a class from the dropdown above to start marking attendance.</p>
+        <Card className="text-center p-16 bg-slate-50 dark:bg-slate-900/60 border-dashed border-slate-300 dark:border-slate-700">
+          <Calendar size={64} className="mx-auto text-slate-300 dark:text-slate-600 mb-6" />
+          <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200 mb-2">Select a Class</h3>
+          <p className="text-slate-500 dark:text-slate-400">Choose a class from the dropdown above to start marking attendance.</p>
         </Card>
       )}
 
       <AnimatePresence>
         {showOverrideModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200">
-              <div className="p-6 border-b border-slate-100">
-                <h3 className="text-xl font-bold flex items-center gap-2 text-slate-800">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-800">
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
                   <AlertTriangle className="text-amber-500" /> Admin Override Required
                 </h3>
-                <p className="text-sm text-slate-500 mt-2 leading-relaxed">The attendance window is locked. As an admin, you can override this lock, but you must provide a reason for the audit log.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">The attendance window is locked. As an admin, you can override this lock, but you must provide a reason for the audit log.</p>
               </div>
               <div className="p-6">
                 <textarea 
-                  className="input-field w-full h-32 resize-none" 
+                  className="input-field w-full h-32 resize-none bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border-slate-200 dark:border-slate-700" 
                   placeholder="Reason for late attendance modification (e.g. System outage, teacher request)..."
                   value={overrideReason}
                   onChange={e => setOverrideReason(e.target.value)}
                 />
               </div>
-              <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <div className="p-4 bg-slate-50 dark:bg-slate-850 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
                 <Button variant="outline" onClick={() => setShowOverrideModal(false)}>Cancel</Button>
                 <Button onClick={() => executeSave(true)} disabled={!overrideReason}>Confirm Override</Button>
               </div>

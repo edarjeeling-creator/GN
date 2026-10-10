@@ -20,7 +20,7 @@ import NoticeDetailModal from '../components/NoticeDetailModal';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { formatStudentDisplayName } from '../utils/studentUtils';
+import { formatStudentDisplayName, formatTelLink } from '../utils/studentUtils';
 import WhatsAppComposerModal from '../components/WhatsAppComposerModal';
 import { RoutineService, WORKING_DAYS } from '../services/RoutineService';
 import RoutinePrintablePDF from '../components/RoutineManagement/RoutinePrintablePDF';
@@ -1448,8 +1448,8 @@ const Dashboard = () => {
                                     )}
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <h4 className="font-bold text-slate-800 leading-tight truncate">{formatStudentDisplayName(student.name)}</h4>
-                                    <p className="text-xs text-slate-500 mb-1.5">{cls ? `${cls.name} ${cls.section}` : 'Unknown Class'} • Roll {student.roll_no}</p>
+                                    <h4 className="font-bold text-slate-800 dark:text-white leading-tight truncate">{formatStudentDisplayName(student.name)}</h4>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-1.5">{cls ? `${cls.name} ${cls.section}` : 'Unknown Class'} • Roll {student.roll_no}</p>
                                     <Badge variant="danger">{a.status}</Badge>
                                   </div>
                                 </div>
@@ -1494,9 +1494,14 @@ const Dashboard = () => {
                                       <div className="flex items-center gap-1.5 min-w-0">
                                         <Phone size={13} className={student.contact_number ? "text-emerald-600" : "text-amber-500"} />
                                         {student.contact_number ? (
-                                          <span className="font-semibold text-slate-800 truncate">
+                                          <a
+                                            href={formatTelLink(student.contact_number)}
+                                            className="font-semibold text-slate-800 hover:text-emerald-700 hover:underline truncate cursor-pointer transition-colors"
+                                            title={`Click to call ${student.contact_number}`}
+                                            aria-label={`Call ${student.contact_number}`}
+                                          >
                                             {student.contact_number}
-                                          </span>
+                                          </a>
                                         ) : (
                                           <span className="text-amber-600 italic">No phone number</span>
                                         )}

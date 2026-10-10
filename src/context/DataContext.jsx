@@ -325,44 +325,100 @@ export const DataProvider = ({ children }) => {
     // Optimistic UI update
     setStudents(prev => prev.map(s => s.id === studentId ? { ...s, contact_number: cleaned } : s));
 
-    try {
-      // 1. First attempt via secure RPC (SECURITY DEFINER guarantees update even if RLS is restrictive)
-      const { data: rpcData, error: rpcError } = await supabase.rpc('update_student_contact_number', {
-        p_student_id: studentId,
-        p_contact_number: cleaned
-      });
+    const helperDelay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-      if (!rpcError && rpcData?.success) {
-        const updatedRow = rpcData.data;
-        if (updatedRow) {
-          setStudents(prev => prev.map(s => s.id === studentId ? { ...s, ...updatedRow } : s));
+    const isUpstreamOrNetworkError = (err) => {
+      if (!err) return false;
+      const msg = (err.message || String(err)).toLowerCase();
+      return msg.includes('upstream') || msg.includes('502') || msg.includes('gateway') || msg.includes('network') || msg.includes('failed to fetch');
+    };
+
+    // Helper: Direct table update using minimal representation (fast, no heavy SELECT required)
+    const attemptDirectUpdate = async () => {
+      try {
+        const { error, count } = await supabase.from('students')
+          .update({ contact_number: cleaned }, { count: 'exact' })
+          .eq('id', studentId);
+
+        if (!error && (count === null || count === undefined || count > 0)) {
+          return { success: true };
         }
-        return { success: true, data: updatedRow };
+        return { success: false, error: error || { message: "0 rows affected (blocked by RLS or school tenant)" } };
+      } catch (e) {
+        return { success: false, error: e };
+      }
+    };
+
+    // Helper: Secure RPC fallback (bypasses RLS via SECURITY DEFINER)
+    const attemptRpcUpdate = async () => {
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('update_student_contact_number', {
+          p_student_id: studentId,
+          p_contact_number: cleaned
+        });
+
+        if (!rpcError && rpcData?.success) {
+          const updatedRow = rpcData.data;
+          if (updatedRow) {
+            setStudents(prev => prev.map(s => s.id === studentId ? { ...s, ...updatedRow } : s));
+          }
+          return { success: true, data: updatedRow };
+        }
+        return { success: false, error: rpcError || { message: rpcData?.error || "RPC update failed" } };
+      } catch (e) {
+        return { success: false, error: e };
+      }
+    };
+
+    try {
+      // Step 1: Try direct table update first
+      let res = await attemptDirectUpdate();
+
+      // Step 2: If direct update failed, try RPC
+      if (!res.success) {
+        if (isUpstreamOrNetworkError(res.error)) {
+          await helperDelay(500);
+        }
+        res = await attemptRpcUpdate();
       }
 
-      // 2. Direct table update fallback
-      const { data, error } = await supabase.from('students')
-        .update({ contact_number: cleaned })
-        .eq('id', studentId)
-        .select();
+      // Step 3: If still failed due to transient 502/upstream blip, retry with backoff
+      if (!res.success && isUpstreamOrNetworkError(res.error)) {
+        console.warn("Upstream 502 detected when saving contact number. Retrying in 800ms...");
+        await helperDelay(800);
+        res = await attemptDirectUpdate();
+        if (!res.success) {
+          res = await attemptRpcUpdate();
+        }
+      }
 
-      if (error || !data || data.length === 0) {
-        console.error("Error updating student contact number:", error || "0 rows updated (blocked by RLS)");
-        // Revert optimistic update
-        setStudents(prev => prev.map(s => s.id === studentId ? { ...s, contact_number: originalContact } : s));
-        return { 
-          success: false, 
-          error: error || { message: "Database rejected the update (0 rows affected). Please ensure Supabase RLS allows student updates." } 
+      if (res.success) {
+        return { success: true };
+      }
+
+      // Revert optimistic update on definite failure
+      console.error("Error updating student contact number:", res.error);
+      setStudents(prev => prev.map(s => s.id === studentId ? { ...s, contact_number: originalContact } : s));
+
+      let friendlyError = res.error;
+      if (isUpstreamOrNetworkError(res.error)) {
+        friendlyError = {
+          message: "The database server is currently busy or restarting (502 Bad Gateway). Please wait a few seconds and try again, or check the server status in Dokploy."
         };
       }
 
-      setStudents(prev => prev.map(s => s.id === studentId ? { ...s, ...data[0] } : s));
-      return { success: true, data: data[0] };
+      return { success: false, error: friendlyError };
     } catch (err) {
       console.error("Exception updating student contact number:", err);
       // Revert optimistic update
       setStudents(prev => prev.map(s => s.id === studentId ? { ...s, contact_number: originalContact } : s));
-      return { success: false, error: err };
+      let friendlyError = err;
+      if (isUpstreamOrNetworkError(err)) {
+        friendlyError = {
+          message: "The database server is currently busy or restarting (502 Bad Gateway). Please wait a few moments and try again."
+        };
+      }
+      return { success: false, error: friendlyError };
     }
   };
 

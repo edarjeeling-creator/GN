@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Bell, CheckCircle, Trash2, CheckSquare, Search, Calendar, Activity, Download, Book, FileText, Award, AlertTriangle } from 'lucide-react';
+import { ArrowRight, Bell, CheckCircle, CheckCircle2, Clock, Trash2, CheckSquare, Search, Calendar, Activity, Download, Book, FileText, Award, AlertTriangle, UserCheck, X, Eye } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { motion, AnimatePresence } from 'framer-motion';
 import FeeDashboardView from '../components/FeeDashboardView';
@@ -23,6 +23,8 @@ const StudentPortal = () => {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notifSearch, setNotifSearch] = useState('');
+  const [dismissedPresentBanner, setDismissedPresentBanner] = useState(false);
+  const [attendanceFilter, setAttendanceFilter] = useState('all');
 
   const studentData = students?.find(s => {
     if (profile?.id) return s.id === profile.id;
@@ -162,11 +164,47 @@ const StudentPortal = () => {
         };
       });
 
+    // 5. Derive Official Present Attendance Updates from attendanceRecords
+    const presentAlerts = (attendanceRecords || [])
+      .filter(r => ['Present', 'Late'].includes(r.status))
+      .slice(0, 15) // Keep recent 15 records
+      .map(r => {
+        const ackKey = `student_ack_present_${currentStudentId}_${r.id || r.date}`;
+        const readKey = `student_read_present_${currentStudentId}_${r.id || r.date}`;
+        const isAcknowledged = !!localStorage.getItem(ackKey);
+        const isRead = isAcknowledged || !!localStorage.getItem(readKey);
+        const formattedDate = new Date(r.date).toLocaleDateString('en-GB', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        });
+
+        return {
+          id: `att_present_${r.id || r.date}`,
+          originalRecordId: r.id,
+          date: r.date,
+          title: `✅ Daily Attendance - Marked ${r.status}`,
+          message: `You were marked <strong>${r.status}</strong> on ${formattedDate} in Class ${clsName || 'N/A'}. ${
+            r.remarks ? `Remarks: "${r.remarks}". ` : ''
+          }Your presence has been officially recorded and verified by your class teacher.`,
+          type: 'attendance_present',
+          status: r.status,
+          is_read: isRead,
+          is_acknowledged: isAcknowledged,
+          acknowledged_at: localStorage.getItem(ackKey),
+          created_at: r.created_at || (r.date && r.date.includes('T') ? r.date : `${r.date}T09:00:00.000Z`),
+          is_attendance_derived: true
+        };
+      });
+
     // Merge and deduplicate
-    const combined = [...personalData, ...attendanceAlerts, ...formattedGeneral];
+    const combined = [...personalData, ...attendanceAlerts, ...presentAlerts, ...formattedGeneral];
     const uniqueMap = new Map();
     combined.forEach(item => {
-      const key = item.type === 'absence_alert' && item.date ? `absence_${item.date}` : item.id;
+      const key = (item.type === 'absence_alert' || item.type === 'attendance_present') && item.date 
+        ? `${item.type}_${item.date}` 
+        : item.id;
       if (!uniqueMap.has(key)) {
         uniqueMap.set(key, item);
       }
@@ -212,7 +250,8 @@ const StudentPortal = () => {
   const handleMarkAsRead = async (notificationId) => {
     const notif = notifications.find(n => n.id === notificationId);
     if (notif?.is_attendance_derived) {
-      localStorage.setItem(`student_read_absence_${currentStudentId}_${notif.originalRecordId || notif.date}`, 'true');
+      const keyPrefix = notif.type === 'attendance_present' ? 'student_read_present_' : 'student_read_absence_';
+      localStorage.setItem(`${keyPrefix}${currentStudentId}_${notif.originalRecordId || notif.date}`, 'true');
       setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n));
       return;
     }
@@ -225,7 +264,8 @@ const StudentPortal = () => {
   const handleMarkAllAsRead = async () => {
     notifications.forEach(n => {
       if (n.is_attendance_derived) {
-        localStorage.setItem(`student_read_absence_${currentStudentId}_${n.originalRecordId || n.date}`, 'true');
+        const keyPrefix = n.type === 'attendance_present' ? 'student_read_present_' : 'student_read_absence_';
+        localStorage.setItem(`${keyPrefix}${currentStudentId}_${n.originalRecordId || n.date}`, 'true');
       }
     });
     const unreadIds = notifications.filter(n => !n.is_read && !n.is_attendance_derived).map(n => n.id);
@@ -251,7 +291,8 @@ const StudentPortal = () => {
     const notif = notifications.find(n => n.id === notificationId);
     const nowIso = new Date().toISOString();
     if (notif?.is_attendance_derived) {
-      localStorage.setItem(`student_ack_absence_${currentStudentId}_${notif.originalRecordId || notif.date}`, nowIso);
+      const keyPrefix = notif.type === 'attendance_present' ? 'student_ack_present_' : 'student_ack_absence_';
+      localStorage.setItem(`${keyPrefix}${currentStudentId}_${notif.originalRecordId || notif.date}`, nowIso);
       setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, is_acknowledged: true, acknowledged_at: nowIso, is_read: true } : n));
       return;
     }
@@ -268,15 +309,32 @@ const StudentPortal = () => {
     fetchNotifications();
   };
 
+  const handleAcknowledgePresent = (record) => {
+    const nowIso = new Date().toISOString();
+    const ackKey = `student_ack_present_${currentStudentId}_${record.originalRecordId || record.id || record.date}`;
+    localStorage.setItem(ackKey, nowIso);
+    fetchNotifications();
+  };
+
   const unreadCount = notifications.filter(n => !n.is_read).length;
   const filteredNotifications = notifications.filter(n => n.title.toLowerCase().includes(notifSearch.toLowerCase()) || n.message.toLowerCase().includes(notifSearch.toLowerCase()));
 
   const todayStr = new Date().toISOString().split('T')[0];
-  const todayAbsence = attendanceRecords.find(r => {
-    if (!r.date) return false;
-    const rDate = r.date.includes('T') ? r.date.split('T')[0] : r.date;
-    return rDate === todayStr && ['Absent', 'Leave', 'Half Day'].includes(r.status);
-  });
+  const localToday = new Date();
+  const localTodayStr = `${localToday.getFullYear()}-${String(localToday.getMonth() + 1).padStart(2, '0')}-${String(localToday.getDate()).padStart(2, '0')}`;
+
+  const isMatchingDate = (dateVal, targetStr) => {
+    if (!dateVal || !targetStr) return false;
+    const cleanDate = dateVal.includes('T') ? dateVal.split('T')[0] : dateVal;
+    return cleanDate === targetStr;
+  };
+
+  const todayRecord = attendanceRecords.find(r => 
+    isMatchingDate(r.date, todayStr) || isMatchingDate(r.date, localTodayStr)
+  );
+
+  const todayAbsence = todayRecord && ['Absent', 'Leave', 'Half Day'].includes(todayRecord.status) ? todayRecord : null;
+  const todayPresent = todayRecord && ['Present', 'Late'].includes(todayRecord.status) ? todayRecord : null;
 
   const recentUnackAbsence = !todayAbsence && attendanceRecords.find(r => {
     if (!r.date || !['Absent', 'Leave'].includes(r.status)) return false;
@@ -288,7 +346,17 @@ const StudentPortal = () => {
     return !localStorage.getItem(ackKey);
   });
 
-  const activeAbsenceAlert = todayAbsence || recentUnackAbsence;
+  const latestAttendance = attendanceRecords && attendanceRecords.length > 0 ? attendanceRecords[0] : null;
+  const isLatestRecentPresent = latestAttendance && ['Present', 'Late'].includes(latestAttendance.status) && (() => {
+    const rDate = new Date(latestAttendance.date);
+    const now = new Date();
+    const diffDays = (now - rDate) / (1000 * 60 * 60 * 24);
+    return diffDays <= 4;
+  })();
+
+  const activePresentAlert = todayPresent || (!todayAbsence && !recentUnackAbsence && isLatestRecentPresent ? latestAttendance : null);
+  const activeAbsenceAlert = todayAbsence || (!todayPresent && recentUnackAbsence);
+  const showUnackAbsenceNotice = todayPresent && recentUnackAbsence;
 
   const isNotExpired = (expiresAt) => {
     if (!expiresAt) return true;
@@ -437,6 +505,100 @@ const StudentPortal = () => {
         </motion.div>
       )}
 
+      {/* High-Contrast Daily Present Attendance Banner */}
+      {activePresentAlert && !activeAbsenceAlert && !dismissedPresentBanner && (
+        <motion.div 
+          initial={{ opacity: 0, y: -8 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          className="p-4 sm:p-5 rounded-2xl bg-emerald-950/70 border-l-4 border-l-emerald-500 border border-emerald-800/80 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+        >
+          <div className="flex items-start gap-3.5">
+            <div className="p-2.5 bg-emerald-600/30 text-emerald-400 rounded-xl border border-emerald-500/40 shrink-0 mt-0.5">
+              <CheckCircle2 size={24} className="text-emerald-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <span className="font-black text-white text-base sm:text-lg tracking-tight">
+                  ✅ Daily Attendance - Marked {activePresentAlert.status} {todayPresent ? 'Today' : ''}
+                </span>
+                <Badge variant="success" className="bg-emerald-600 text-white font-black uppercase text-xs px-2.5 py-0.5 shadow-sm">
+                  {activePresentAlert.status}
+                </Badge>
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-900/60 text-emerald-300 border border-emerald-700/40">
+                  Verified by Class Teacher
+                </span>
+              </div>
+              <p className="text-slate-200 text-sm mt-1 leading-relaxed font-medium">
+                You were marked <strong className="text-white underline decoration-emerald-400">{activePresentAlert.status}</strong> on {new Date(activePresentAlert.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} in Class {studentClass ? `${studentClass.name} ${studentClass.section || ''}` : (studentData?.className || '')}. {activePresentAlert.remarks ? `Remarks: "${activePresentAlert.remarks}". ` : ''}Your presence has been recorded in the school attendance register.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 shrink-0 w-full md:w-auto">
+            {localStorage.getItem(`student_ack_present_${currentStudentId}_${activePresentAlert.originalRecordId || activePresentAlert.id || activePresentAlert.date}`) ? (
+              <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5 bg-emerald-900/50 px-3 py-2 rounded-xl border border-emerald-700/50">
+                <CheckCircle size={14} /> Confirmed
+              </span>
+            ) : (
+              <Button 
+                onClick={() => handleAcknowledgePresent(activePresentAlert)} 
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-9 px-4 rounded-xl shadow-md flex-1 md:flex-none"
+              >
+                <CheckCircle size={14} className="mr-1.5" /> Confirm Attendance
+              </Button>
+            )}
+            <Button 
+              variant="outline" 
+              onClick={() => setActiveTab('attendance')} 
+              className="border-emerald-700/80 text-emerald-200 hover:bg-emerald-900/40 text-xs h-9 px-3 rounded-xl flex-1 md:flex-none"
+            >
+              Attendance Details →
+            </Button>
+            <button 
+              onClick={() => setDismissedPresentBanner(true)} 
+              className="p-2 text-emerald-400/70 hover:text-emerald-200 rounded-xl hover:bg-emerald-900/40 transition-colors"
+              title="Dismiss banner"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Secondary Notice if Present Today but has Pending Past Absence to Acknowledge */}
+      {showUnackAbsenceNotice && (
+        <motion.div 
+          initial={{ opacity: 0, y: -4 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          className="p-3.5 sm:p-4 rounded-xl bg-red-950/50 border-l-4 border-l-red-500 border border-red-800/60 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 bg-red-600/30 text-red-400 rounded-lg shrink-0">
+              <AlertTriangle size={16} />
+            </div>
+            <p className="text-xs sm:text-sm text-slate-200 font-medium">
+              Notice: You have a previous absence record from <strong className="text-white">{new Date(recentUnackAbsence.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</strong> in Class {clsName} awaiting acknowledgment.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Button 
+              onClick={() => handleAcknowledgeAbsence(recentUnackAbsence)} 
+              size="sm"
+              className="bg-red-600 hover:bg-red-500 text-white font-bold text-xs h-8 px-3 rounded-lg"
+            >
+              <CheckCircle size={12} className="mr-1" /> Acknowledge Alert
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setActiveTab('attendance')} 
+              size="sm"
+              className="border-red-800 text-red-200 hover:bg-red-900/30 text-xs h-8 px-2.5 rounded-lg"
+            >
+              Details →
+            </Button>
+          </div>
+        </motion.div>
+      )}
+
       {/* Tabs */}
       <div className="flex overflow-x-auto custom-scrollbar border-b border-slate-800/80 hide-scrollbar pb-2">
         <div className="flex gap-2 sm:gap-6 min-w-max">
@@ -472,6 +634,53 @@ const StudentPortal = () => {
         {activeTab === 'overview' && (
           <motion.div key="overview" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
             <CalendarWidget />
+
+            {/* Quick Attendance Status Widget */}
+            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className={`p-2.5 rounded-xl border shrink-0 ${
+                  todayPresent 
+                    ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800/60'
+                    : todayAbsence 
+                      ? 'bg-red-950/60 text-red-400 border-red-800/60'
+                      : 'bg-slate-800/50 text-slate-400 border-slate-700/60'
+                }`}>
+                  {todayPresent ? <CheckCircle2 size={24} /> : todayAbsence ? <AlertTriangle size={24} /> : <Calendar size={24} />}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Today's Attendance Status</span>
+                    {todayPresent ? (
+                      <Badge variant="success" className="bg-emerald-600 text-white text-[10px] font-black uppercase px-2 py-0.5">PRESENT</Badge>
+                    ) : todayAbsence ? (
+                      <Badge variant="danger" className="bg-red-600 text-white text-[10px] font-black uppercase px-2 py-0.5">ABSENT</Badge>
+                    ) : (
+                      <Badge variant="secondary" className="bg-slate-800 text-slate-300 text-[10px] font-medium px-2 py-0.5">PENDING ROLL CALL</Badge>
+                    )}
+                  </div>
+                  <p className="text-sm font-semibold text-slate-200 mt-1">
+                    {todayPresent ? (
+                      <span>Marked <strong className="text-emerald-400 font-bold">{todayPresent.status}</strong> today by class teacher in Class {clsName}.</span>
+                    ) : todayAbsence ? (
+                      <span>Marked <strong className="text-red-400 font-bold">{todayAbsence.status}</strong> today in Class {clsName}.</span>
+                    ) : latestAttendance ? (
+                      <span>Roll call pending for today. Previous record: Marked <strong className={['Present', 'Late'].includes(latestAttendance.status) ? 'text-emerald-400' : 'text-red-400'}>{latestAttendance.status}</strong> on {new Date(latestAttendance.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}.</span>
+                    ) : (
+                      'Attendance will reflect here once marked by your teacher.'
+                    )}
+                  </p>
+                </div>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setActiveTab('attendance')}
+                className="text-xs border-slate-700 text-slate-300 hover:bg-slate-800 self-stretch sm:self-auto shrink-0"
+              >
+                View Full Attendance →
+              </Button>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               <Link to="/study-materials">
                 <Card hoverable className="h-full border-t-4 border-t-brand-500 group premium-card">
@@ -557,6 +766,82 @@ const StudentPortal = () => {
                 <Download size={18} /> Official Certificate
               </Button>
             </div>
+
+            {/* Today's Highlight Status */}
+            {todayPresent ? (
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-950/80 to-slate-900 border border-emerald-800/80 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="p-2.5 bg-emerald-600/30 text-emerald-400 rounded-xl border border-emerald-500/40 shrink-0">
+                    <CheckCircle2 size={24} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Today's Attendance Status</span>
+                      <Badge variant="success" className="bg-emerald-600 text-white font-black uppercase text-xs px-2.5 py-0.5 shadow-sm">
+                        {todayPresent.status}
+                      </Badge>
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-300 border border-emerald-700/40">
+                        Verified in Roll Call
+                      </span>
+                    </div>
+                    <p className="text-slate-200 text-sm mt-1 font-medium">
+                      You are marked <strong className="text-emerald-400 font-bold">{todayPresent.status}</strong> today ({new Date(todayPresent.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}) in Class {clsName}. {todayPresent.remarks ? `Remarks: "${todayPresent.remarks}".` : ''}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5 bg-emerald-950/60 px-3 py-1.5 rounded-lg border border-emerald-800/60">
+                    <CheckCircle size={14} /> Recorded by Class Teacher
+                  </span>
+                </div>
+              </div>
+            ) : todayAbsence ? (
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-red-950/80 to-slate-900 border border-red-800/80 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="p-2.5 bg-red-600/30 text-red-400 rounded-xl border border-red-500/40 shrink-0">
+                    <AlertTriangle size={24} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold uppercase tracking-wider text-red-400">Today's Attendance Status</span>
+                      <Badge variant="danger" className="bg-red-600 text-white font-black uppercase text-xs px-2.5 py-0.5 shadow-sm">
+                        {todayAbsence.status}
+                      </Badge>
+                    </div>
+                    <p className="text-slate-200 text-sm mt-1 font-medium">
+                      You are marked <strong className="text-red-400 font-bold">{todayAbsence.status}</strong> today ({new Date(todayAbsence.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}) in Class {clsName}. If incorrect, please contact your class teacher.
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  onClick={() => handleAcknowledgeAbsence(todayAbsence)} 
+                  className="bg-red-600 hover:bg-red-500 text-white font-bold text-xs h-9 px-4 rounded-xl shadow-md shrink-0"
+                >
+                  <CheckCircle size={14} className="mr-1.5" /> Acknowledge Alert
+                </Button>
+              </div>
+            ) : (
+              <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/40 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="p-2.5 bg-slate-800 text-slate-400 rounded-xl border border-slate-700/60 shrink-0">
+                    <Clock size={24} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Today's Attendance Status</span>
+                      <Badge variant="secondary" className="bg-slate-800 text-slate-300 text-xs px-2.5 py-0.5">
+                        PENDING ROLL CALL
+                      </Badge>
+                    </div>
+                    <p className="text-slate-300 text-sm mt-1">
+                      {latestAttendance 
+                        ? `Attendance has not yet been submitted for today. Most recent record: Marked ${latestAttendance.status} on ${new Date(latestAttendance.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}.`
+                        : 'Attendance records will appear here as soon as submitted by your class teacher.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card className="bg-gradient-to-br from-slate-900 to-indigo-950/30 border-slate-800 text-center">
@@ -579,54 +864,109 @@ const StudentPortal = () => {
               </Card>
             </div>
 
+            {/* Attendance Records Log */}
             <Card className="premium-card">
-              <CardHeader className="border-b border-slate-800/80 pb-4">
+              <CardHeader className="border-b border-slate-800/80 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <CardTitle className="text-lg font-bold flex items-center gap-2 text-slate-200">
-                  <Activity size={18} className="text-brand-400" /> Recent Absences
+                  <Activity size={18} className="text-brand-400" /> Attendance History Log
                 </CardTitle>
+                <div className="flex items-center gap-1.5 p-1 bg-slate-950/80 rounded-xl border border-slate-800 self-start sm:self-auto">
+                  <button 
+                    onClick={() => setAttendanceFilter('all')}
+                    className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${attendanceFilter === 'all' ? 'bg-brand-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    All ({totalDays})
+                  </button>
+                  <button 
+                    onClick={() => setAttendanceFilter('present')}
+                    className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${attendanceFilter === 'present' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    Present ({presentDays})
+                  </button>
+                  <button 
+                    onClick={() => setAttendanceFilter('absent')}
+                    className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${attendanceFilter === 'absent' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    Absent & Leaves ({absentDays})
+                  </button>
+                </div>
               </CardHeader>
               <CardContent className="pt-4">
-                {recentAbsences.length === 0 ? (
-                  <div className="bg-emerald-950/20 text-emerald-300 border border-emerald-900/30 p-4 rounded-xl flex items-center gap-3">
-                    <CheckCircle size={20} className="text-emerald-500 shrink-0" />
-                    <div>
-                      <p className="font-semibold text-sm">Great job! You have no recent absences.</p>
-                      <p className="text-xs text-emerald-400/80 mt-0.5">When attendance is marked absent by your teacher, alerts appear across the portal and under the Alerts tab.</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {recentAbsences.map(record => (
-                      <div key={record.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-red-950/40 rounded-xl border border-red-800/80 gap-3 shadow-md">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-red-600/20 text-red-400 rounded-lg shrink-0">
-                            <AlertTriangle size={18} />
-                          </div>
-                          <div>
-                            <span className="font-bold text-white text-base block">
-                              {new Date(record.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                            </span>
-                            {record.remarks && (
-                              <p className="text-xs text-red-200/80 mt-0.5 font-medium">Remarks: {record.remarks}</p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="danger" className="bg-red-600 text-white font-bold uppercase text-xs px-2.5 py-1">
-                            {record.status}
-                          </Badge>
-                          <Button 
-                            onClick={() => { setActiveTab('notifications'); }} 
-                            size="sm"
-                            className="text-xs h-7 px-2.5 bg-red-700/60 hover:bg-red-700 text-white rounded-lg"
-                          >
-                            View Alert →
-                          </Button>
-                        </div>
+                {(() => {
+                  const filteredList = attendanceRecords.filter(r => {
+                    if (attendanceFilter === 'present') return ['Present', 'Late'].includes(r.status);
+                    if (attendanceFilter === 'absent') return ['Absent', 'Leave', 'Half Day'].includes(r.status);
+                    return true;
+                  });
+
+                  if (filteredList.length === 0) {
+                    return (
+                      <div className="bg-slate-900/30 text-slate-400 border border-slate-800/60 p-8 rounded-xl text-center">
+                        <CheckCircle size={28} className="mx-auto mb-2 text-slate-500" />
+                        <p className="font-semibold text-sm">No records found for this filter.</p>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      {filteredList.map(record => {
+                        const isRecPresent = ['Present', 'Late'].includes(record.status);
+                        const isRecAbsent = ['Absent', 'Leave', 'Half Day'].includes(record.status);
+                        return (
+                          <div 
+                            key={record.id || `${record.date}-${record.status}`} 
+                            className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border gap-3 transition-colors ${
+                              isRecPresent 
+                                ? 'bg-emerald-950/20 border-emerald-900/40 hover:bg-emerald-950/30' 
+                                : 'bg-red-950/30 border-red-900/60 hover:bg-red-950/40'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg shrink-0 ${
+                                isRecPresent ? 'bg-emerald-600/20 text-emerald-400' : 'bg-red-600/20 text-red-400'
+                              }`}>
+                                {isRecPresent ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-bold text-white text-base">
+                                    {new Date(record.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                                  </span>
+                                  {isRecPresent && (
+                                    <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-800/60">
+                                      Teacher Verified
+                                    </span>
+                                  )}
+                                </div>
+                                {record.remarks && (
+                                  <p className="text-xs text-slate-300 mt-0.5 font-medium">Remarks: {record.remarks}</p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge 
+                                variant={isRecPresent ? 'success' : 'danger'} 
+                                className={`${isRecPresent ? 'bg-emerald-600' : 'bg-red-600'} text-white font-bold uppercase text-xs px-2.5 py-1`}
+                              >
+                                {record.status}
+                              </Badge>
+                              {isRecAbsent && (
+                                <Button 
+                                  onClick={() => { setActiveTab('notifications'); }} 
+                                  size="sm"
+                                  className="text-xs h-7 px-2.5 bg-red-700/60 hover:bg-red-700 text-white rounded-lg"
+                                >
+                                  View Alert →
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </motion.div>
@@ -690,7 +1030,8 @@ const StudentPortal = () => {
                 ) : (
                   <div className="space-y-4">
                     {filteredNotifications.map((notification, idx) => {
-                      const isAbsence = notification.type === 'absence_alert';
+                      const isAbsence = notification.type === 'absence_alert' || notification.type === 'attendance_absent';
+                      const isPresent = notification.type === 'attendance_present';
                       return (
                         <motion.div 
                           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}
@@ -698,19 +1039,32 @@ const StudentPortal = () => {
                           className={`p-5 rounded-2xl border transition-all ${
                             isAbsence
                               ? 'bg-red-950/40 border-l-4 border-l-red-500 border-red-900/60 shadow-xl'
-                              : notification.is_read 
-                                ? 'bg-slate-900/30 border-slate-800/60' 
-                                : 'bg-brand-950/20 border-brand-900/40 shadow-md'
+                              : isPresent
+                                ? 'bg-emerald-950/30 border-l-4 border-l-emerald-500 border-emerald-900/60 shadow-md'
+                                : notification.is_read 
+                                  ? 'bg-slate-900/30 border-slate-800/60' 
+                                  : 'bg-brand-950/20 border-brand-900/40 shadow-md'
                           }`}
                         >
                           <div className="flex justify-between items-start mb-2 gap-4">
                             <div className="flex items-center gap-2.5 flex-wrap">
-                              <h3 className={`font-bold text-base tracking-tight ${isAbsence ? 'text-white' : notification.is_read ? 'text-slate-300' : 'text-brand-300'}`}>
+                              <h3 className={`font-bold text-base tracking-tight ${
+                                isAbsence 
+                                  ? 'text-white' 
+                                  : isPresent 
+                                    ? 'text-emerald-300' 
+                                    : notification.is_read ? 'text-slate-300' : 'text-brand-300'
+                              }`}>
                                 {notification.title}
                               </h3>
                               {isAbsence && (
                                 <Badge variant="danger" className="bg-red-600 text-white font-black uppercase text-[11px] px-2 py-0.5 shadow-sm">
                                   {notification.status || 'Absent'}
+                                </Badge>
+                              )}
+                              {isPresent && (
+                                <Badge variant="success" className="bg-emerald-600 text-white font-black uppercase text-[11px] px-2 py-0.5 shadow-sm">
+                                  {notification.status || 'Present'}
                                 </Badge>
                               )}
                             </div>
@@ -738,9 +1092,17 @@ const StudentPortal = () => {
                               >
                                 <CheckCircle size={14} className="mr-1.5" /> Acknowledge Alert
                               </Button>
+                            ) : isPresent && !notification.is_acknowledged ? (
+                              <Button 
+                                onClick={() => handleAcknowledge(notification.id)}
+                                size="sm"
+                                className="h-8 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-md"
+                              >
+                                <CheckCircle size={14} className="mr-1.5" /> Confirm Attendance
+                              </Button>
                             ) : notification.is_acknowledged ? (
                               <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 bg-emerald-950/40 px-3 py-1.5 rounded-lg border border-emerald-900/40">
-                                <CheckCircle size={14} /> Acknowledged on {new Date(notification.acknowledged_at).toLocaleDateString()}
+                                <CheckCircle size={14} /> Confirmed on {new Date(notification.acknowledged_at).toLocaleDateString()}
                               </span>
                             ) : null}
                           </div>

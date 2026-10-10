@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { formatAssemblyDate, getTimeUntilAssembly } from '../utils/tuesdayAssemblySchedule';
 import { formatStudentDisplayName } from '../utils/studentUtils';
 
-const TuesdayAssemblyNotice = ({ student, cls, academicYear, releaseDate, term = 'Finalterm', onSearchAnother }) => {
+const TuesdayAssemblyNotice = ({ student, cls, academicYear, releaseDate, term = 'Finalterm', onViewWeeklyTests, onSearchAnother }) => {
   const [timeLeft, setTimeLeft] = useState(() => getTimeUntilAssembly(releaseDate));
 
   useEffect(() => {
@@ -99,18 +99,35 @@ const TuesdayAssemblyNotice = ({ student, cls, academicYear, releaseDate, term =
             </div>
           </div>
 
+          {/* Quick Action: View Conducted Final Term Weekly Tests */}
+          {onViewWeeklyTests && (
+            <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-emerald-950/70 to-teal-950/70 border border-emerald-500/40 text-center">
+              <p className="text-xs text-emerald-200 mb-2.5 font-medium">
+                Conducted Weekly Tests (Tests 1 to 10) are ready and can be viewed immediately:
+              </p>
+              <button
+                type="button"
+                onClick={onViewWeeklyTests}
+                className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <Award size={18} className="text-amber-300" />
+                <span>View Conducted Weekly Tests (Final Term)</span>
+              </button>
+            </div>
+          )}
+
           {/* School Policy Explanation */}
           <div className="space-y-2.5 text-xs sm:text-sm text-slate-300 leading-relaxed bg-slate-800/40 p-4 rounded-xl border border-slate-700/50 mb-6">
             <div className="flex items-start gap-2.5">
               <Bell size={16} className="text-amber-400 shrink-0 mt-0.5" />
               <p>
-                <strong>Assembly Announcement:</strong> In accordance with school tradition, Final Term honors and scores are officially announced in front of the school body during <strong>Tuesday Morning Assembly</strong>.
+                <strong>Assembly Announcement:</strong> In accordance with school tradition, Final Term exam honors and overall report cards are officially announced in front of the school body during <strong>Tuesday Morning Assembly</strong>.
               </p>
             </div>
             <div className="flex items-start gap-2.5">
               <Clock size={16} className="text-indigo-400 shrink-0 mt-0.5" />
               <p>
-                <strong>Teacher Posting Cycle:</strong> Marks reflect on the Principal and Teacher Portals as soon as teachers submit them. For students, marks reflect on Tuesday during assembly. Any marks posted after Tuesday will reflect on the following Tuesday.
+                <strong>Teacher Posting Cycle:</strong> Exam marks reflect on the Principal and Teacher Portals as soon as teachers submit them. For students, annual exam results reflect on Tuesday during assembly.
               </p>
             </div>
             <div className="flex items-start gap-2.5">
@@ -133,7 +150,7 @@ const TuesdayAssemblyNotice = ({ student, cls, academicYear, releaseDate, term =
 
             <button
               onClick={onSearchAnother}
-              className="w-full sm:w-auto px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-md hover:shadow-indigo-500/20 transition-all flex items-center justify-center gap-1.5"
+              className="w-full sm:w-auto px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-md hover:shadow-indigo-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <RefreshCw size={14} />
               <span>Search Another PIN</span>

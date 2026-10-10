@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useData } from '../context/DataContext';
-import { formatStudentDisplayName, formatDisplayDate } from '../utils/studentUtils';
+import { formatStudentDisplayName, formatDisplayDate, formatTelLink } from '../utils/studentUtils';
 import { messageTemplateService, FACTORY_TEMPLATES } from '../services/MessageTemplateService';
 import WhatsAppComposerModal from './WhatsAppComposerModal';
 
@@ -313,7 +313,14 @@ const AbsenteeNotificationModal = ({ isOpen, onClose, data }) => {
                               {item.father_name && <span>Guardian: {item.father_name}</span>}
                               {currentPhone ? (
                                 <span className="flex items-center gap-1 text-slate-300 font-medium">
-                                  <Phone size={11} className="text-emerald-400" /> {currentPhone}
+                                  <a
+                                    href={formatTelLink(currentPhone)}
+                                    className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 hover:underline cursor-pointer transition-colors"
+                                    title={`Click to call ${currentPhone}`}
+                                    aria-label={`Call ${currentPhone}`}
+                                  >
+                                    <Phone size={11} className="text-emerald-400" /> {currentPhone}
+                                  </a>
                                   <button
                                     onClick={() => handleStartEditPhone(item.id, currentPhone)}
                                     className="ml-1 text-[11px] text-brand-400 hover:text-brand-300 underline flex items-center gap-0.5"

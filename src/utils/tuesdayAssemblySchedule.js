@@ -106,12 +106,13 @@ export function getTuesdayAssemblyReleaseDate(postedDate = new Date()) {
  * @returns {Object} { isReleased: boolean, releaseDate: Date, latestPostedDate: Date }
  */
 export function checkFinalTermStudentRelease(marks = [], term = 'Finalterm', currentTime = new Date()) {
-  const isFinalTerm = typeof term === 'string' && (
-    term.toLowerCase().includes('final') || 
-    term.toLowerCase().includes('combined')
-  );
+  const isFinalTerm = typeof term === 'string' && 
+    !term.includes('_Test') && (
+      term.toLowerCase().includes('final') || 
+      term.toLowerCase().includes('combined')
+    );
 
-  // Non-final terms (e.g. Midterm) follow standard publication rules without Tuesday assembly deferral
+  // Non-final terms (e.g. Midterm) and weekly tests follow standard publication rules without Tuesday assembly deferral
   if (!isFinalTerm) {
     return {
       isReleased: true,
@@ -121,14 +122,14 @@ export function checkFinalTermStudentRelease(marks = [], term = 'Finalterm', cur
     };
   }
 
-  // Find the latest posted/updated timestamp for Final term marks
+  // Find the latest posted/updated timestamp for Final term exam marks
   let latestDate = null;
   const marksList = Array.isArray(marks) ? marks : [marks];
 
   for (const m of marksList) {
     if (!m) continue;
     const mTerm = (m.term || '').toLowerCase();
-    if (mTerm.includes('final')) {
+    if (mTerm.includes('final') && !mTerm.includes('test')) {
       const d = m.updated_at || m.created_at || m.timestamp;
       if (d) {
         const parsed = new Date(d);
