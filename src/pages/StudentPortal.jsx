@@ -35,8 +35,9 @@ const StudentPortal = () => {
 
   const currentStudentId = studentData?.id || studentData?.student_id || profile?.student_id || profile?.id;
   const classId = studentData?.class_id || profile?.class_id;
-  const studentClass = classes?.find(c => c.id === classId) || (profile?.className ? { name: profile.class, section: profile.section } : null);
-  const clsName = (studentClass ? `${studentClass.name} ${studentClass.section || ''}` : (studentData?.className || '')).trim();
+  const studentClass = classes?.find(c => c.id === classId) || 
+    (profile?.class || profile?.className ? { name: profile.class || profile.className, section: profile.section || '' } : null);
+  const clsName = (studentClass ? `${studentClass.name || ''} ${studentClass.section || ''}` : (studentData?.className || profile?.class || profile?.className || '')).trim();
 
   const fetchAttendanceHistory = async () => {
     if (!currentStudentId) return;
@@ -576,7 +577,7 @@ const StudentPortal = () => {
               <AlertTriangle size={16} />
             </div>
             <p className="text-xs sm:text-sm text-slate-200 font-medium">
-              Notice: You have a previous absence record from <strong className="text-white">{new Date(recentUnackAbsence.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</strong> in Class {clsName} awaiting acknowledgment.
+              Notice: You have a previous absence record from <strong className="text-white">{new Date(recentUnackAbsence.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</strong> in Class {clsName || 'N/A'} awaiting acknowledgment.
             </p>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -660,9 +661,9 @@ const StudentPortal = () => {
                   </div>
                   <p className="text-sm font-semibold text-slate-200 mt-1">
                     {todayPresent ? (
-                      <span>Marked <strong className="text-emerald-400 font-bold">{todayPresent.status}</strong> today by class teacher in Class {clsName}.</span>
+                      <span>Marked <strong className="text-emerald-400 font-bold">{todayPresent.status}</strong> today by class teacher in Class {clsName || 'N/A'}.</span>
                     ) : todayAbsence ? (
-                      <span>Marked <strong className="text-red-400 font-bold">{todayAbsence.status}</strong> today in Class {clsName}.</span>
+                      <span>Marked <strong className="text-red-400 font-bold">{todayAbsence.status}</strong> today in Class {clsName || 'N/A'}.</span>
                     ) : latestAttendance ? (
                       <span>Roll call pending for today. Previous record: Marked <strong className={['Present', 'Late'].includes(latestAttendance.status) ? 'text-emerald-400' : 'text-red-400'}>{latestAttendance.status}</strong> on {new Date(latestAttendance.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}.</span>
                     ) : (
@@ -785,7 +786,7 @@ const StudentPortal = () => {
                       </span>
                     </div>
                     <p className="text-slate-200 text-sm mt-1 font-medium">
-                      You are marked <strong className="text-emerald-400 font-bold">{todayPresent.status}</strong> today ({new Date(todayPresent.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}) in Class {clsName}. {todayPresent.remarks ? `Remarks: "${todayPresent.remarks}".` : ''}
+                      You are marked <strong className="text-emerald-400 font-bold">{todayPresent.status}</strong> today ({new Date(todayPresent.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}) in Class {clsName || 'N/A'}. {todayPresent.remarks ? `Remarks: "${todayPresent.remarks}".` : ''}
                     </p>
                   </div>
                 </div>
@@ -809,7 +810,7 @@ const StudentPortal = () => {
                       </Badge>
                     </div>
                     <p className="text-slate-200 text-sm mt-1 font-medium">
-                      You are marked <strong className="text-red-400 font-bold">{todayAbsence.status}</strong> today ({new Date(todayAbsence.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}) in Class {clsName}. If incorrect, please contact your class teacher.
+                      You are marked <strong className="text-red-400 font-bold">{todayAbsence.status}</strong> today ({new Date(todayAbsence.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}) in Class {clsName || 'N/A'}. If incorrect, please contact your class teacher.
                     </p>
                   </div>
                 </div>
