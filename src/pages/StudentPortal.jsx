@@ -511,38 +511,38 @@ const StudentPortal = () => {
         <motion.div 
           initial={{ opacity: 0, y: -8 }} 
           animate={{ opacity: 1, y: 0 }} 
-          className="p-4 sm:p-5 rounded-2xl bg-emerald-950/70 border-l-4 border-l-emerald-500 border border-emerald-800/80 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+          className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-950/90 via-slate-900/90 to-emerald-950/80 border-l-4 border-l-emerald-400 border border-emerald-600/50 shadow-2xl shadow-emerald-950/40 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
         >
           <div className="flex items-start gap-3.5">
-            <div className="p-2.5 bg-emerald-600/30 text-emerald-400 rounded-xl border border-emerald-500/40 shrink-0 mt-0.5">
+            <div className="p-2.5 bg-emerald-500/20 text-emerald-300 rounded-xl border border-emerald-400/40 shrink-0 mt-0.5 shadow-sm">
               <CheckCircle2 size={24} className="text-emerald-400" />
             </div>
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">
-                <span className="font-black text-white text-base sm:text-lg tracking-tight">
-                  ✅ Daily Attendance - Marked {activePresentAlert.status} {todayPresent ? 'Today' : ''}
+                <span className="font-extrabold text-white text-base sm:text-lg tracking-tight">
+                  ✅ Daily Attendance - Marked Present {todayPresent ? 'Today' : ''}
                 </span>
-                <Badge variant="success" className="bg-emerald-600 text-white font-black uppercase text-xs px-2.5 py-0.5 shadow-sm">
-                  {activePresentAlert.status}
-                </Badge>
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-900/60 text-emerald-300 border border-emerald-700/40">
-                  Verified by Class Teacher
+                <span className="inline-flex items-center px-3 py-0.5 rounded-full text-xs font-black tracking-wider uppercase bg-emerald-400 text-slate-950 shadow-sm border border-emerald-300">
+                  {activePresentAlert.status || 'PRESENT'}
+                </span>
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-400/40 flex items-center gap-1">
+                  ✓ Verified by Class Teacher
                 </span>
               </div>
-              <p className="text-slate-200 text-sm mt-1 leading-relaxed font-medium">
-                You were marked <strong className="text-white underline decoration-emerald-400">{activePresentAlert.status}</strong> on {new Date(activePresentAlert.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} in Class {clsName || 'N/A'}. {activePresentAlert.remarks ? `Remarks: "${activePresentAlert.remarks}". ` : ''}Your presence has been recorded in the school attendance register.
+              <p className="text-slate-100 text-sm mt-1.5 leading-relaxed font-normal">
+                You were marked <strong className="text-emerald-300 font-extrabold underline decoration-emerald-400 underline-offset-2">{activePresentAlert.status}</strong> on <span className="font-semibold text-white">{new Date(activePresentAlert.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span> in Class <span className="font-semibold text-white">{clsName || 'N/A'}</span>. {activePresentAlert.remarks ? `Remarks: "${activePresentAlert.remarks}". ` : ''}Your presence has been recorded in the school attendance register.
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2.5 shrink-0 w-full md:w-auto">
             {localStorage.getItem(`student_ack_present_${currentStudentId}_${activePresentAlert.originalRecordId || activePresentAlert.id || activePresentAlert.date}`) ? (
-              <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5 bg-emerald-900/50 px-3 py-2 rounded-xl border border-emerald-700/50">
-                <CheckCircle size={14} /> Confirmed
+              <span className="text-xs font-bold text-emerald-200 flex items-center gap-1.5 bg-emerald-500/20 px-3.5 py-2 rounded-xl border border-emerald-400/40 shadow-sm">
+                <CheckCircle size={15} className="text-emerald-300" /> Confirmed
               </span>
             ) : (
               <Button 
                 onClick={() => handleAcknowledgePresent(activePresentAlert)} 
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-9 px-4 rounded-xl shadow-md flex-1 md:flex-none"
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs h-9 px-4 rounded-xl shadow-md flex-1 md:flex-none transition-all"
               >
                 <CheckCircle size={14} className="mr-1.5" /> Confirm Attendance
               </Button>
@@ -550,13 +550,13 @@ const StudentPortal = () => {
             <Button 
               variant="outline" 
               onClick={() => setActiveTab('attendance')} 
-              className="border-emerald-700/80 text-emerald-200 hover:bg-emerald-900/40 text-xs h-9 px-3 rounded-xl flex-1 md:flex-none"
+              className="border-emerald-500/40 text-emerald-200 hover:bg-emerald-500/20 hover:text-white text-xs h-9 px-3.5 rounded-xl font-medium flex-1 md:flex-none transition-colors"
             >
               Attendance Details →
             </Button>
             <button 
               onClick={() => setDismissedPresentBanner(true)} 
-              className="p-2 text-emerald-400/70 hover:text-emerald-200 rounded-xl hover:bg-emerald-900/40 transition-colors"
+              className="p-2 text-emerald-300 hover:text-white rounded-xl hover:bg-emerald-500/20 transition-colors"
               title="Dismiss banner"
             >
               <X size={18} />
@@ -637,35 +637,35 @@ const StudentPortal = () => {
             <CalendarWidget />
 
             {/* Quick Attendance Status Widget */}
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
                 <div className={`p-2.5 rounded-xl border shrink-0 ${
                   todayPresent 
-                    ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800/60'
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
                     : todayAbsence 
-                      ? 'bg-red-950/60 text-red-400 border-red-800/60'
-                      : 'bg-slate-800/50 text-slate-400 border-slate-700/60'
+                      ? 'bg-red-500/20 text-red-300 border-red-400/40'
+                      : 'bg-slate-800/60 text-slate-300 border-slate-700/60'
                 }`}>
                   {todayPresent ? <CheckCircle2 size={24} /> : todayAbsence ? <AlertTriangle size={24} /> : <Calendar size={24} />}
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Today's Attendance Status</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-300">Today's Attendance Status</span>
                     {todayPresent ? (
-                      <Badge variant="success" className="bg-emerald-600 text-white text-[10px] font-black uppercase px-2 py-0.5">PRESENT</Badge>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-black uppercase tracking-wider bg-emerald-400 text-slate-950 shadow-sm border border-emerald-300">PRESENT</span>
                     ) : todayAbsence ? (
-                      <Badge variant="danger" className="bg-red-600 text-white text-[10px] font-black uppercase px-2 py-0.5">ABSENT</Badge>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-black uppercase tracking-wider bg-red-600 text-white shadow-sm border border-red-400">ABSENT</span>
                     ) : (
-                      <Badge variant="secondary" className="bg-slate-800 text-slate-300 text-[10px] font-medium px-2 py-0.5">PENDING ROLL CALL</Badge>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-800 text-slate-200 border border-slate-700">PENDING ROLL CALL</span>
                     )}
                   </div>
-                  <p className="text-sm font-semibold text-slate-200 mt-1">
+                  <p className="text-sm font-semibold text-slate-100 mt-1">
                     {todayPresent ? (
-                      <span>Marked <strong className="text-emerald-400 font-bold">{todayPresent.status}</strong> today by class teacher in Class {clsName || 'N/A'}.</span>
+                      <span>Marked <strong className="text-emerald-300 font-extrabold">{todayPresent.status}</strong> today by class teacher in Class <span className="text-white">{clsName || 'N/A'}</span>.</span>
                     ) : todayAbsence ? (
-                      <span>Marked <strong className="text-red-400 font-bold">{todayAbsence.status}</strong> today in Class {clsName || 'N/A'}.</span>
+                      <span>Marked <strong className="text-red-400 font-extrabold">{todayAbsence.status}</strong> today in Class <span className="text-white">{clsName || 'N/A'}</span>.</span>
                     ) : latestAttendance ? (
-                      <span>Roll call pending for today. Previous record: Marked <strong className={['Present', 'Late'].includes(latestAttendance.status) ? 'text-emerald-400' : 'text-red-400'}>{latestAttendance.status}</strong> on {new Date(latestAttendance.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}.</span>
+                      <span>Roll call pending for today. Previous record: Marked <strong className={['Present', 'Late'].includes(latestAttendance.status) ? 'text-emerald-300' : 'text-red-400'}>{latestAttendance.status}</strong> on {new Date(latestAttendance.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}.</span>
                     ) : (
                       'Attendance will reflect here once marked by your teacher.'
                     )}
@@ -770,29 +770,29 @@ const StudentPortal = () => {
 
             {/* Today's Highlight Status */}
             {todayPresent ? (
-              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-950/80 to-slate-900 border border-emerald-800/80 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-950/90 via-slate-900/90 to-emerald-950/80 border border-emerald-500/40 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3.5">
-                  <div className="p-2.5 bg-emerald-600/30 text-emerald-400 rounded-xl border border-emerald-500/40 shrink-0">
+                  <div className="p-2.5 bg-emerald-500/20 text-emerald-300 rounded-xl border border-emerald-400/40 shrink-0">
                     <CheckCircle2 size={24} />
                   </div>
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Today's Attendance Status</span>
-                      <Badge variant="success" className="bg-emerald-600 text-white font-black uppercase text-xs px-2.5 py-0.5 shadow-sm">
-                        {todayPresent.status}
-                      </Badge>
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-300 border border-emerald-700/40">
+                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">Today's Attendance Status</span>
+                      <span className="inline-flex items-center px-3 py-0.5 rounded-full text-xs font-black tracking-wider uppercase bg-emerald-400 text-slate-950 shadow-sm border border-emerald-300">
+                        {todayPresent.status || 'PRESENT'}
+                      </span>
+                      <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-400/30">
                         Verified in Roll Call
                       </span>
                     </div>
-                    <p className="text-slate-200 text-sm mt-1 font-medium">
-                      You are marked <strong className="text-emerald-400 font-bold">{todayPresent.status}</strong> today ({new Date(todayPresent.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}) in Class {clsName || 'N/A'}. {todayPresent.remarks ? `Remarks: "${todayPresent.remarks}".` : ''}
+                    <p className="text-slate-100 text-sm mt-1 font-medium">
+                      You are marked <strong className="text-emerald-300 font-extrabold">{todayPresent.status}</strong> today ({new Date(todayPresent.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}) in Class <span className="text-white font-semibold">{clsName || 'N/A'}</span>. {todayPresent.remarks ? `Remarks: "${todayPresent.remarks}".` : ''}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5 bg-emerald-950/60 px-3 py-1.5 rounded-lg border border-emerald-800/60">
-                    <CheckCircle size={14} /> Recorded by Class Teacher
+                  <span className="text-xs font-bold text-emerald-200 flex items-center gap-1.5 bg-emerald-500/20 px-3 py-1.5 rounded-lg border border-emerald-400/40 shadow-sm">
+                    <CheckCircle size={14} className="text-emerald-300" /> Recorded by Class Teacher
                   </span>
                 </div>
               </div>
@@ -946,12 +946,15 @@ const StudentPortal = () => {
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Badge 
-                                variant={isRecPresent ? 'success' : 'danger'} 
-                                className={`${isRecPresent ? 'bg-emerald-600' : 'bg-red-600'} text-white font-bold uppercase text-xs px-2.5 py-1`}
+                              <span 
+                                className={`inline-flex items-center font-black uppercase text-xs px-2.5 py-1 rounded-full shadow-sm border ${
+                                  isRecPresent 
+                                    ? 'bg-emerald-400 text-slate-950 border-emerald-300' 
+                                    : 'bg-red-600 text-white border-red-500'
+                                }`}
                               >
                                 {record.status}
-                              </Badge>
+                              </span>
                               {isRecAbsent && (
                                 <Button 
                                   onClick={() => { setActiveTab('notifications'); }} 
@@ -1059,14 +1062,14 @@ const StudentPortal = () => {
                                 {notification.title}
                               </h3>
                               {isAbsence && (
-                                <Badge variant="danger" className="bg-red-600 text-white font-black uppercase text-[11px] px-2 py-0.5 shadow-sm">
+                                <span className="inline-flex items-center bg-red-600 text-white font-black uppercase text-[11px] px-2 py-0.5 rounded shadow-sm border border-red-500">
                                   {notification.status || 'Absent'}
-                                </Badge>
+                                </span>
                               )}
                               {isPresent && (
-                                <Badge variant="success" className="bg-emerald-600 text-white font-black uppercase text-[11px] px-2 py-0.5 shadow-sm">
+                                <span className="inline-flex items-center bg-emerald-400 text-slate-950 font-black uppercase text-[11px] px-2 py-0.5 rounded shadow-sm border border-emerald-300">
                                   {notification.status || 'Present'}
-                                </Badge>
+                                </span>
                               )}
                             </div>
                             <span className="text-xs font-semibold text-slate-400 whitespace-nowrap">
