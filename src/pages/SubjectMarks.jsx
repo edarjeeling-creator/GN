@@ -202,9 +202,11 @@ const SubjectMarks = () => {
 
         const attScoreMap = {};
         const attStatusMap = {};
+        let loadedAttempts = [];
 
         if (subAttempts && subAttempts.length > 0) {
           const activeAtts = subAttempts.filter(a => a.status !== 'DELETED');
+          loadedAttempts = activeAtts;
           setAttempts(activeAtts);
           if (activeAtts.length > 1) {
             setIsWeeklyTestExpanded(true);
@@ -229,6 +231,7 @@ const SubjectMarks = () => {
             raw_max_marks: testComp.raw_max_marks || testMax,
             status: 'ACTIVE'
           };
+          loadedAttempts = [defaultAttempt];
           setAttempts([defaultAttempt]);
 
           // Seed Attempt 1 with existing Weekly Test marks
@@ -244,10 +247,11 @@ const SubjectMarks = () => {
         }
 
         // Check local storage for any unsaved changes that were entered before page refresh/exit
+        let cached = null;
         try {
           const cachedStr = localStorage.getItem(localDraftKey);
           if (cachedStr) {
-            const cached = JSON.parse(cachedStr);
+            cached = JSON.parse(cachedStr);
             if (cached) {
               if (cached.attempts && Array.isArray(cached.attempts) && cached.attempts.length > 0) {
                 setAttempts(cached.attempts);
@@ -280,6 +284,48 @@ const SubjectMarks = () => {
           }
         } catch (e) {
           console.warn('Local draft restore notice:', e);
+        }
+
+        // Reconcile and synchronize attempt aggregates into scoresMap and statusMap
+        const effectiveAttempts = (cached?.attempts && Array.isArray(cached.attempts) && cached.attempts.length > 0)
+          ? cached.attempts
+          : loadedAttempts;
+
+        if (effectiveAttempts && effectiveAttempts.length > 0) {
+          const rule = activePattern?.rounding_rule || 'ROUND_2_DECIMALS';
+          classStudents.forEach(st => {
+            const studentScoresMap = {};
+            let hasAnyEntry = false;
+            effectiveAttempts.forEach(att => {
+              const k = `${st.id}_${att.id}`;
+              const val = attScoreMap[k];
+              const stStatus = attStatusMap[k] || 'MARKED';
+              if ((val !== undefined && val !== '') || stStatus !== 'MARKED') {
+                hasAnyEntry = true;
+              }
+              studentScoresMap[att.id] = {
+                score: val !== undefined ? val : '',
+                status: stStatus
+              };
+            });
+
+            if (hasAnyEntry) {
+              const agg = MarksCalculationEngine.aggregateAttempts({
+                attempts: effectiveAttempts,
+                scores: studentScoresMap,
+                roundingRule: rule,
+                aggregationMethod: 'AVERAGE'
+              });
+              const testKey = `${st.id}_TEST`;
+              if (agg.aggregatedScore !== null && agg.aggregatedScore !== undefined) {
+                scoresMap[testKey] = String(agg.aggregatedScore);
+                statusMap[testKey] = agg.status || 'MARKED';
+              } else if (agg.status && agg.status !== 'MARKED') {
+                scoresMap[testKey] = '';
+                statusMap[testKey] = agg.status;
+              }
+            }
+          });
         }
 
         setAttemptScores(attScoreMap);
@@ -471,14 +517,44 @@ const SubjectMarks = () => {
     const nextScores = { ...attemptScores, [key]: rawVal };
     const nextStatuses = { ...attemptStatuses, [key]: validation.status || 'MARKED' };
 
+    // Live calculation of aggregated Weekly Test score for this student
+    const studentScoresMap = {};
+    attempts.forEach(att => {
+      const k = `${studentId}_${att.id}`;
+      studentScoresMap[att.id] = {
+        score: att.id === attemptId ? rawVal : (nextScores[k] !== undefined ? nextScores[k] : ''),
+        status: att.id === attemptId ? (validation.status || 'MARKED') : (nextStatuses[k] || 'MARKED')
+      };
+    });
+
+    const rule = activePattern?.rounding_rule || 'ROUND_2_DECIMALS';
+    const agg = MarksCalculationEngine.aggregateAttempts({
+      attempts,
+      scores: studentScoresMap,
+      roundingRule: rule,
+      aggregationMethod: 'AVERAGE'
+    });
+
+    const testKey = `${studentId}_TEST`;
+    const nextRawScores = {
+      ...rawScores,
+      [testKey]: agg.aggregatedScore !== null && agg.aggregatedScore !== undefined ? String(agg.aggregatedScore) : ''
+    };
+    const nextStudentStatuses = {
+      ...statuses,
+      [testKey]: agg.status || 'MARKED'
+    };
+
     setAttemptScores(nextScores);
     setAttemptStatuses(nextStatuses);
+    setRawScores(nextRawScores);
+    setStatuses(nextStudentStatuses);
     setSaveStatus('pending');
 
     try {
       localStorage.setItem(localDraftKey, JSON.stringify({
-        rawScores,
-        statuses,
+        rawScores: nextRawScores,
+        statuses: nextStudentStatuses,
         attempts,
         attemptScores: nextScores,
         attemptStatuses: nextStatuses,
@@ -497,14 +573,44 @@ const SubjectMarks = () => {
       nextScores[key] = '';
     }
 
+    // Live calculation of aggregated Weekly Test score for this student
+    const studentScoresMap = {};
+    attempts.forEach(att => {
+      const k = `${studentId}_${att.id}`;
+      studentScoresMap[att.id] = {
+        score: att.id === attemptId ? (newStatus !== 'MARKED' ? '' : (nextScores[k] !== undefined ? nextScores[k] : '')) : (nextScores[k] !== undefined ? nextScores[k] : ''),
+        status: att.id === attemptId ? newStatus : (nextStatuses[k] || 'MARKED')
+      };
+    });
+
+    const rule = activePattern?.rounding_rule || 'ROUND_2_DECIMALS';
+    const agg = MarksCalculationEngine.aggregateAttempts({
+      attempts,
+      scores: studentScoresMap,
+      roundingRule: rule,
+      aggregationMethod: 'AVERAGE'
+    });
+
+    const testKey = `${studentId}_TEST`;
+    const nextRawScores = {
+      ...rawScores,
+      [testKey]: agg.aggregatedScore !== null && agg.aggregatedScore !== undefined ? String(agg.aggregatedScore) : ''
+    };
+    const nextStudentStatuses = {
+      ...statuses,
+      [testKey]: agg.status || 'MARKED'
+    };
+
     setAttemptStatuses(nextStatuses);
     setAttemptScores(nextScores);
+    setRawScores(nextRawScores);
+    setStatuses(nextStudentStatuses);
     setSaveStatus('pending');
 
     try {
       localStorage.setItem(localDraftKey, JSON.stringify({
-        rawScores,
-        statuses,
+        rawScores: nextRawScores,
+        statuses: nextStudentStatuses,
         attempts,
         attemptScores: nextScores,
         attemptStatuses: nextStatuses,
@@ -583,10 +689,50 @@ const SubjectMarks = () => {
       if (k.endsWith(`_${attemptToDelete.id}`)) delete nextStatuses[k];
     });
 
+    // Recalculate aggregates for all students
+    const nextRawScores = { ...rawScores };
+    const nextStudentStatuses = { ...statuses };
+    const rule = activePattern?.rounding_rule || 'ROUND_2_DECIMALS';
+
+    classStudents.forEach(st => {
+      const studentScoresMap = {};
+      filtered.forEach(att => {
+        const k = `${st.id}_${att.id}`;
+        studentScoresMap[att.id] = {
+          score: nextScores[k] !== undefined ? nextScores[k] : '',
+          status: nextStatuses[k] || 'MARKED'
+        };
+      });
+
+      const agg = MarksCalculationEngine.aggregateAttempts({
+        attempts: filtered,
+        scores: studentScoresMap,
+        roundingRule: rule,
+        aggregationMethod: 'AVERAGE'
+      });
+
+      const testKey = `${st.id}_TEST`;
+      nextRawScores[testKey] = agg.aggregatedScore !== null && agg.aggregatedScore !== undefined ? String(agg.aggregatedScore) : '';
+      nextStudentStatuses[testKey] = agg.status || 'MARKED';
+    });
+
     setAttempts(filtered);
     setAttemptScores(nextScores);
     setAttemptStatuses(nextStatuses);
+    setRawScores(nextRawScores);
+    setStatuses(nextStudentStatuses);
     setSaveStatus('pending');
+
+    try {
+      localStorage.setItem(localDraftKey, JSON.stringify({
+        rawScores: nextRawScores,
+        statuses: nextStudentStatuses,
+        attempts: filtered,
+        attemptScores: nextScores,
+        attemptStatuses: nextStatuses,
+        timestamp: Date.now()
+      }));
+    } catch (e) {}
 
     if (attemptToDelete.id && !attemptToDelete.id.startsWith('att_') && !attemptToDelete.id.startsWith('temp_')) {
       try {
@@ -676,7 +822,7 @@ const SubjectMarks = () => {
         let rawVal;
         let stStatus;
 
-        if (comp.component_code === 'TEST' && targetCls?.id === classId && studentAttemptAggregates[student.id]) {
+        if ((comp.component_code === 'TEST' || comp.component_code === 'TEST_AVG') && String(targetCls?.id) === String(classId) && studentAttemptAggregates?.[student.id]) {
           const agg = studentAttemptAggregates[student.id];
           rawVal = agg?.aggregatedScore !== null && agg?.aggregatedScore !== undefined ? agg.aggregatedScore : '';
           stStatus = agg?.status || 'MARKED';
@@ -756,7 +902,7 @@ const SubjectMarks = () => {
   // Live calculation of 1st, 2nd, 3rd Rankers, Requires Attention, and Absentees for Current Section
   const assemblySummary = useMemo(() => {
     return computeSectionAssemblySummary(cls, eligibleSubjectStudents, rawScores, statuses, components, activePattern);
-  }, [eligibleSubjectStudents, components, rawScores, statuses, activePattern, cls, attendance, conductedDate]);
+  }, [eligibleSubjectStudents, components, rawScores, statuses, activePattern, cls, attendance, conductedDate, studentAttemptAggregates, attempts, attemptScores, attemptStatuses]);
 
   // State for sibling sections marks: { [classId]: { rawScores, statuses, pattern, components } }
   const [siblingMarksData, setSiblingMarksData] = useState({});
@@ -832,6 +978,33 @@ const SubjectMarks = () => {
                   }
                 });
               }
+              if (cached?.attempts && Array.isArray(cached.attempts) && cached.attempts.length > 0 && cached.attemptScores) {
+                const sRule = sPattern?.rounding_rule || 'ROUND_2_DECIMALS';
+                sStudents.forEach(st => {
+                  const stScoresMap = {};
+                  let hasEntry = false;
+                  cached.attempts.forEach(att => {
+                    const k = `${st.id}_${att.id}`;
+                    const val = cached.attemptScores[k];
+                    const stSt = cached.attemptStatuses?.[k] || 'MARKED';
+                    if ((val !== undefined && val !== '') || stSt !== 'MARKED') hasEntry = true;
+                    stScoresMap[att.id] = { score: val !== undefined ? val : '', status: stSt };
+                  });
+                  if (hasEntry) {
+                    const sAgg = MarksCalculationEngine.aggregateAttempts({
+                      attempts: cached.attempts,
+                      scores: stScoresMap,
+                      roundingRule: sRule,
+                      aggregationMethod: 'AVERAGE'
+                    });
+                    const sTestKey = `${st.id}_TEST`;
+                    if (sAgg.aggregatedScore !== null && sAgg.aggregatedScore !== undefined) {
+                      sRawScores[sTestKey] = String(sAgg.aggregatedScore);
+                      sStatuses[sTestKey] = sAgg.status || 'MARKED';
+                    }
+                  }
+                });
+              }
             }
           } catch (e) {}
 
@@ -895,7 +1068,7 @@ const SubjectMarks = () => {
         studentCount: filteredSecStudents.length
       };
     });
-  }, [siblingClasses, classId, assemblySummary, filteredStudents, siblingMarksData, students, subjectDisplayName, academicYear, patterns, activePattern, components]);
+  }, [siblingClasses, classId, assemblySummary, filteredStudents, siblingMarksData, students, subjectDisplayName, academicYear, patterns, activePattern, components, studentAttemptAggregates, attempts, attemptScores, attemptStatuses]);
 
   const [activePreviewTab, setActivePreviewTab] = useState('both');
   const [printSlipMode, setPrintSlipMode] = useState('both'); // 'single' | 'both'
