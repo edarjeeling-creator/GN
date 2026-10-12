@@ -36,6 +36,7 @@ const StudentPortal = () => {
   const currentStudentId = studentData?.id || studentData?.student_id || profile?.student_id || profile?.id;
   const classId = studentData?.class_id || profile?.class_id;
   const studentClass = classes?.find(c => c.id === classId) || (profile?.className ? { name: profile.class, section: profile.section } : null);
+  const clsName = (studentClass ? `${studentClass.name} ${studentClass.section || ''}` : (studentData?.className || '')).trim();
 
   const fetchAttendanceHistory = async () => {
     if (!currentStudentId) return;
@@ -131,7 +132,6 @@ const StudentPortal = () => {
     } catch (e) {}
 
     // 4. Derive Official Absence Alerts from attendanceRecords
-    const clsName = studentClass ? `${studentClass.name} ${studentClass.section || ''}` : (studentData?.className || '');
     const attendanceAlerts = (attendanceRecords || [])
       .filter(r => ['Absent', 'Leave', 'Half Day'].includes(r.status))
       .map(r => {
@@ -483,7 +483,7 @@ const StudentPortal = () => {
                 </Badge>
               </div>
               <p className="text-slate-200 text-sm mt-1 leading-relaxed font-medium">
-                You were marked <strong className="text-white underline decoration-red-400">{activeAbsenceAlert.status}</strong> on {new Date(activeAbsenceAlert.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} in Class {studentClass ? `${studentClass.name} ${studentClass.section || ''}` : (studentData?.className || '')}. If you believe this is an error or have informed the school, please contact your class teacher.
+                You were marked <strong className="text-white underline decoration-red-400">{activeAbsenceAlert.status}</strong> on {new Date(activeAbsenceAlert.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} in Class {clsName || 'N/A'}. If you believe this is an error or have informed the school, please contact your class teacher.
               </p>
             </div>
           </div>
@@ -529,7 +529,7 @@ const StudentPortal = () => {
                 </span>
               </div>
               <p className="text-slate-200 text-sm mt-1 leading-relaxed font-medium">
-                You were marked <strong className="text-white underline decoration-emerald-400">{activePresentAlert.status}</strong> on {new Date(activePresentAlert.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} in Class {studentClass ? `${studentClass.name} ${studentClass.section || ''}` : (studentData?.className || '')}. {activePresentAlert.remarks ? `Remarks: "${activePresentAlert.remarks}". ` : ''}Your presence has been recorded in the school attendance register.
+                You were marked <strong className="text-white underline decoration-emerald-400">{activePresentAlert.status}</strong> on {new Date(activePresentAlert.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} in Class {clsName || 'N/A'}. {activePresentAlert.remarks ? `Remarks: "${activePresentAlert.remarks}". ` : ''}Your presence has been recorded in the school attendance register.
               </p>
             </div>
           </div>
