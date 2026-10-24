@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { ArrowLeft, Download, Printer, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { getConversionConstants } from './SubjectMarks';
-import { getGroupsForClass, isSixthSubject } from '../utils/reportUtils';
+import { getGroupsForClass, isSixthSubject, isSixthSubjectEligibleClass } from '../utils/reportUtils';
 
 const Flowsheet = () => {
   const { classId } = useParams();
@@ -73,9 +73,11 @@ const Flowsheet = () => {
 
   const groupsToUse = getGroupsForClass(cls?.name);
 
-  // Group columns for table & excel: collapse all 6th subject electives into one unified '6th Sub' column
+  const isEligibleForSixth = isSixthSubjectEligibleClass(cls?.name);
+
+  // Group columns for table & excel: collapse all 6th subject electives into one unified '6th Sub' column (Class 9+ only)
   const displayColumns = useMemo(() => {
-    const hasSixthSubjects = assignedSubjects.some(sub => isSixthSubject(sub.name));
+    const hasSixthSubjects = isEligibleForSixth && assignedSubjects.some(sub => isSixthSubject(sub.name));
     if (!hasSixthSubjects) {
       return assignedSubjects.map(sub => ({
         id: sub.id,

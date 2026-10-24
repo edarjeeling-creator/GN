@@ -8,16 +8,28 @@ export const SIXTH_SUBJECT_MATCHERS = [
   '6th subject', 'sixth subject'
 ];
 
-export const isSixthSubject = (subjectName) => {
+export const isSixthSubjectEligibleClass = (className) => {
+  if (!className) return false;
+  const s = String(className).trim().toLowerCase();
+  const numMatch = s.match(/(?:class\s*)?(\d+)/i);
+  if (numMatch) {
+    const num = parseInt(numMatch[1], 10);
+    return num >= 9 && num <= 12;
+  }
+  return /\b(ix|x|xi|xii)\b/i.test(s) || /^(ix|x|xi|xii)/i.test(s);
+};
+
+export const isSixthSubject = (subjectName, className = null) => {
   if (!subjectName) return false;
+  if (className && !isSixthSubjectEligibleClass(className)) return false;
   const s = String(subjectName).toLowerCase().trim();
   return SIXTH_SUBJECT_MATCHERS.some(m => s === m || s.includes(m));
 };
 
 export const getGroupsForClass = (className) => {
+  const isEligible = isSixthSubjectEligibleClass(className);
   const isICSEClass = className?.match(/\b(9|10|ix|x)\b/i);
   const isISCClass = className?.match(/\b(11|12|xi|xii)\b/i);
-  const isSeniorClass = className?.match(/\b(8|9|10|11|12|viii|ix|x|xi|xii)\b/i);
 
   const sixthSubjectGroup = {
     name: '6th Subject',
@@ -36,9 +48,11 @@ export const getGroupsForClass = (className) => {
       { name: 'English', matchers: ['english paper', 'english language', 'english literature'] },
       sixthSubjectGroup
     ];
+  } else if (isEligible) {
+    return [sixthSubjectGroup];
   }
-  // For all classes, provide 6th Subject group so electives are unified into 6th Subject
-  return [sixthSubjectGroup];
+  // For classes below 9 (e.g. Classes 1 to 8), 6th Subject does not exist
+  return [];
 };
 
 export const getDynamicSubjectName = (name, student) => {

@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Search, Loader2, BookOpen, Home, RefreshCw, Bell, Calendar, Clock } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { getGroupsForClass, getDynamicSubjectName, isSixthSubject, calculateAttendancePercentage } from '../utils/reportUtils';
+import { getGroupsForClass, getDynamicSubjectName, isSixthSubject, isSixthSubjectEligibleClass, calculateAttendancePercentage } from '../utils/reportUtils';
 import { formatStudentDisplayName } from '../utils/studentUtils';
 import TuesdayAssemblyNotice from '../components/TuesdayAssemblyNotice';
 import { checkFinalTermStudentRelease, formatAssemblyDate } from '../utils/tuesdayAssemblySchedule';
@@ -196,8 +195,9 @@ const ResultPortal = () => {
         else subjectTotal = isFinalReleased ? (mtTotal + ftTotal) : mtTotal;
       }
 
+      const isEligibleForSixth = isSixthSubjectEligibleClass(cls?.name);
       const dynName = getDynamicSubjectName(sub.name, student);
-      const formattedSubName = isSixthSubject(dynName) && !dynName.toLowerCase().includes('6th') && !dynName.toLowerCase().includes('sixth')
+      const formattedSubName = isEligibleForSixth && isSixthSubject(dynName) && !dynName.toLowerCase().includes('6th') && !dynName.toLowerCase().includes('sixth')
         ? `6th Subject (${dynName})`
         : dynName;
 

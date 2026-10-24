@@ -7,7 +7,7 @@ import { MarksWorkflowService } from '../../services/MarksWorkflowService';
 import { MarksCalculationEngine } from '../../services/MarksCalculationEngine';
 import { formatStudentDisplayName } from '../../utils/studentUtils';
 import { getStudentHouse } from '../../utils/houseData';
-import { isSixthSubject } from '../../utils/reportUtils';
+import { isSixthSubject, isSixthSubjectEligibleClass } from '../../utils/reportUtils';
 import { 
   Printer, Lock, AlertTriangle, CheckCircle2, ShieldCheck, 
   Clock, ArrowLeft, RefreshCw, FileText, Download, Layers,
@@ -137,8 +137,9 @@ export default function ReportPrintingControl({ defaultTab = 'weekly_tests' }) {
 
     const opts = [];
 
-    // Unified 6th Subject group option if any 6th subject elective is present in the school
-    const hasSixthSubject = relSubjects.some(s => isSixthSubject(s.name));
+    // Unified 6th Subject group option if any 6th subject elective is present in the school (for Class 9+)
+    const isClassEligibleForSixth = selectedClassOption?.classes?.some(c => isSixthSubjectEligibleClass(c.name));
+    const hasSixthSubject = isClassEligibleForSixth && relSubjects.some(s => isSixthSubject(s.name));
     if (hasSixthSubject) {
       opts.push({
         key: 'group_sixth',

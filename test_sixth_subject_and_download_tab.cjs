@@ -8,7 +8,7 @@ async function run() {
   console.log('TEST SUITE: 6TH SUBJECT GROUPING & /DOWNLOAD WEEKLY TESTS TAB');
   console.log('================================================================\n');
 
-  const { SIXTH_SUBJECT_MATCHERS, isSixthSubject, getGroupsForClass, getDynamicSubjectName } = await import('./src/utils/reportUtils.js');
+  const { SIXTH_SUBJECT_MATCHERS, isSixthSubject, isSixthSubjectEligibleClass, getGroupsForClass, getDynamicSubjectName } = await import('./src/utils/reportUtils.js');
 
   // Test 1: Authoritative Electives Matching
   console.log('Test 1: Verification of 6th Subject Electives');
@@ -47,16 +47,25 @@ async function run() {
   });
   console.log(`  ✓ Standard core subjects correctly excluded from 6th subject matching\n`);
 
-  // Test 2: getGroupsForClass contains 6th Subject across all class levels
-  console.log('Test 2: getGroupsForClass Group Structure');
-  const testClasses = ['9', '10', 'Class 9', 'Class 10', '11', '12', 'Class 8', '7 A', '6 B'];
-  testClasses.forEach(className => {
+  // Test 2: getGroupsForClass contains 6th Subject ONLY for Class 9 and above
+  console.log('Test 2: getGroupsForClass Group Structure (Class 9+ only)');
+  const eligibleClasses = ['9', '10', 'Class 9', 'Class 10', '11', '12', 'IX', 'X'];
+  eligibleClasses.forEach(className => {
+    assert.strictEqual(isSixthSubjectEligibleClass(className), true, `Class "${className}" must be eligible for 6th Subject`);
     const groups = getGroupsForClass(className);
     const sixthGroup = groups.find(g => g.name === '6th Subject');
     assert.ok(sixthGroup, `Class "${className}" must include "6th Subject" group`);
     assert.deepStrictEqual(sixthGroup.matchers, SIXTH_SUBJECT_MATCHERS);
   });
-  console.log(`  ✓ All class levels (Classes 6-12) include "6th Subject" group\n`);
+
+  const ineligibleClasses = ['6', '6 A', 'Class 6', '7 B', 'Class 8', '5'];
+  ineligibleClasses.forEach(className => {
+    assert.strictEqual(isSixthSubjectEligibleClass(className), false, `Class "${className}" must NOT be eligible for 6th Subject`);
+    const groups = getGroupsForClass(className);
+    const sixthGroup = groups.find(g => g.name === '6th Subject');
+    assert.strictEqual(sixthGroup, undefined, `Class "${className}" must NOT include "6th Subject" group`);
+  });
+  console.log(`  ✓ Class 9-12 correctly include "6th Subject" group; Classes 5-8 correctly do NOT have "6th Subject" group\n`);
 
   // Test 3: Flowsheet Column Collapsing & Marks Calculation
   console.log('Test 3: Flowsheet 6th Subject Column Collapsing');
