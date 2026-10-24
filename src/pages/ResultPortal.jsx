@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Search, Loader2, BookOpen, Home, RefreshCw, Bell, Calendar, Clock } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { getGroupsForClass, getDynamicSubjectName, isSixthSubject, isSixthSubjectEligibleClass, calculateAttendancePercentage } from '../utils/reportUtils';
 import { formatStudentDisplayName } from '../utils/studentUtils';
